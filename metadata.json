@@ -1,0 +1,5 @@
+{
+  "name": "Aether ERP Dashboard",
+  "description": "A high-performance, modern ERP dashboard inspired by shadcn/ui and MagicUI, featuring clean aesthetics, robust data visualization, and intuitive navigation for enterprise resource planning.",
+  "requestFramePermissions": []
+}
