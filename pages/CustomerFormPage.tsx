@@ -227,7 +227,7 @@ export const CustomerFormPage: React.FC = () => {
     try {
       const primaryLoc = locations.find(loc => loc.is_primary) || locations[0];
       // Send all locations as plants (multiple locations)
-      const plants = locations.map((loc, i) => ({
+      const plantsPayload = locations.map((loc, i) => ({
         plant_name: (loc.name && loc.name.trim()) ? loc.name.trim() : (loc.is_primary ? 'Primary' : `Location ${i + 1}`),
         address_line1: loc.address || undefined,
         city: loc.city || undefined,
@@ -240,17 +240,17 @@ export const CustomerFormPage: React.FC = () => {
         city: primaryLoc.city,
         state: primaryLoc.state,
         postal_code: primaryLoc.pincode,
-        plants,
+        plants: plantsPayload,
       };
       if (linkedContactId) {
-        (customerData as any).converted_from_contact_id = linkedContactId;
+        (customerData as Record<string, unknown>).converted_from_contact_id = linkedContactId;
       }
 
       if (isEdit && id) {
-        await marketingAPI.updateCustomer(parseInt(id), customerData);
+        await marketingAPI.updateCustomer(parseInt(id), customerData as Partial<Customer>);
         showToast('Customer updated successfully', 'success');
       } else {
-        await marketingAPI.createCustomer(customerData);
+        await marketingAPI.createCustomer(customerData as Partial<Customer>);
         showToast('Customer created successfully', 'success');
       }
       navigate('/customers');

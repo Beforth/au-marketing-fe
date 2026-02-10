@@ -258,9 +258,9 @@ export const EmployeesPage: React.FC = () => {
     if (removeDomainHeadId == null) return;
     try {
       await marketingAPI.updateDomain(removeDomainHeadId, {
-        head_employee_id: null,
-        head_username: null,
-        head_email: null,
+        head_employee_id: undefined,
+        head_username: undefined,
+        head_email: undefined,
       });
       showToast('Domain head removed', 'success');
       await loadData();
@@ -543,11 +543,11 @@ export const EmployeesPage: React.FC = () => {
                   label="Region"
                   loadOptions={async (search) => {
                     let list: Region[];
-                    if (regionsCache.length > 0) list = regionsCache;
+                    if (regionsCache.length > 0) list = regionsCache as Region[];
                     else {
                       const res = await marketingAPI.getRegions({ page: 1, page_size: 100 });
-                      list = res.items;
-                      setRegionsCache(list);
+                      list = res.items as Region[];
+                      setRegionsCache(res.items);
                     }
                     const filtered = search
                       ? list.filter(

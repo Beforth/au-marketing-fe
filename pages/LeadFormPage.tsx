@@ -367,7 +367,7 @@ export const LeadFormPage: React.FC = () => {
         plant_id: lead.plant_id || undefined,
         status_id: lead.status_id ?? undefined,
         lead_type_id: lead.lead_type_id ?? undefined,
-        lead_through_id: lead.lead_through_id ?? undefined,
+        lead_through_id: lead.lead_through_id ?? lead.lead_through_option?.id ?? undefined,
         potential_value: lead.potential_value || undefined,
         notes: lead.notes || '',
         series_code: lead.series_code ?? undefined,
@@ -1005,13 +1005,13 @@ export const LeadFormPage: React.FC = () => {
                 <Select
                   label="From status"
                   value={activityForm.from_status_id != null ? String(activityForm.from_status_id) : ''}
-                  onChange={(val) => setActivityForm((f) => ({ ...f, from_status_id: val ? parseInt(val, 10) : undefined }))}
+                  onChange={(val) => setActivityForm((f) => ({ ...f, from_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
                   options={[{ value: '', label: '— Select —' }, ...leadStatuses.map((s) => ({ value: String(s.id), label: s.label }))]}
                 />
                 <Select
                   label="To status"
                   value={activityForm.to_status_id != null ? String(activityForm.to_status_id) : ''}
-                  onChange={(val) => setActivityForm((f) => ({ ...f, to_status_id: val ? parseInt(val, 10) : undefined }))}
+                  onChange={(val) => setActivityForm((f) => ({ ...f, to_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
                   options={[{ value: '', label: '— Select —' }, ...leadStatuses.map((s) => ({ value: String(s.id), label: s.label }))]}
                 />
               </div>
@@ -1147,13 +1147,13 @@ export const LeadFormPage: React.FC = () => {
                             <Select
                               label="From status"
                               value={editActivityForm.from_status_id != null ? String(editActivityForm.from_status_id) : ''}
-                              onChange={(val) => setEditActivityForm((f) => ({ ...f, from_status_id: val ? parseInt(val, 10) : undefined }))}
+                              onChange={(val) => setEditActivityForm((f) => ({ ...f, from_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
                               options={[{ value: '', label: '— Select —' }, ...leadStatuses.map((s) => ({ value: String(s.id), label: s.label }))]}
                             />
                             <Select
                               label="To status"
                               value={editActivityForm.to_status_id != null ? String(editActivityForm.to_status_id) : ''}
-                              onChange={(val) => setEditActivityForm((f) => ({ ...f, to_status_id: val ? parseInt(val, 10) : undefined }))}
+                              onChange={(val) => setEditActivityForm((f) => ({ ...f, to_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
                               options={[{ value: '', label: '— Select —' }, ...leadStatuses.map((s) => ({ value: String(s.id), label: s.label }))]}
                             />
                           </div>

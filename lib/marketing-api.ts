@@ -212,6 +212,7 @@ export interface Lead {
   status_id?: number;
   status?: string;  // status_option.code from API
   lead_type_id?: number;
+  lead_through_id?: number;
   potential_value?: number;
   notes?: string;
   series_code?: string;  // Code of numbering series "map" (character field, not FK)

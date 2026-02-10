@@ -46,7 +46,7 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
   const selectRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout>();
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const cacheRef = useRef<Map<string, AsyncSelectOption[]>>(new Map());
   const lastSearchRef = useRef<string>('');
 
