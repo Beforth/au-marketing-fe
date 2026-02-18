@@ -19,9 +19,9 @@ import { marketingAPI, Customer, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '..
 export const CustomersPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useApp();
-  const canView = useAppSelector(selectHasPermission('marketing.customer.view'));
-  const canCreate = useAppSelector(selectHasPermission('marketing.customer.create'));
-  const canEdit = useAppSelector(selectHasPermission('marketing.customer.edit'));
+  const canView = useAppSelector(selectHasPermission('marketing.view_customer'));
+  const canCreate = useAppSelector(selectHasPermission('marketing.create_customer'));
+  const canEdit = useAppSelector(selectHasPermission('marketing.edit_customer'));
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [total, setTotal] = useState(0);

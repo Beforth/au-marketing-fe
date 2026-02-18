@@ -67,25 +67,24 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  // Permission checks (codes must match HRMS /api/rbac/user/info/ response)
+  // Permission checks (current flat codes: marketing.view_*, marketing.admin)
   const hasViewDomain = useAppSelector(selectHasPermission('marketing.view_domain'));
   const hasViewContact = useAppSelector(selectHasPermission('marketing.view_contact'));
-  const hasViewLead = useAppSelector(selectHasPermission('marketing.lead.view'));
-  const hasViewCampaign = useAppSelector(selectHasPermission('marketing.campaign.view'));
-  const hasViewCustomer = useAppSelector(selectHasPermission('marketing.customer.view'));
-  const hasViewReport = useAppSelector(selectHasPermission('marketing.reports.view'));
-  const hasViewInvoice = useAppSelector(selectHasPermission('marketing.view_invoice'));
+  const hasViewLead = useAppSelector(selectHasPermission('marketing.view_lead'));
+  const hasViewCampaign = useAppSelector(selectHasPermission('marketing.view_campaign'));
+  const hasViewCustomer = useAppSelector(selectHasPermission('marketing.view_customer'));
+  const hasAdmin = useAppSelector(selectHasPermission('marketing.admin'));
 
   const SEARCHABLE_ITEMS = useMemo(() => {
     const items = [
       { id: 'nav-1', category: 'Pages', title: 'Dashboard', icon: LayoutDashboard, href: '/', permission: undefined },
       { id: 'nav-2', category: 'Pages', title: 'Domains', icon: Globe, href: '/domains', permission: 'marketing.view_domain' },
       { id: 'nav-3', category: 'Pages', title: 'Contacts', icon: UserCircle, href: '/contacts', permission: 'marketing.view_contact' },
-      { id: 'nav-4', category: 'Pages', title: 'Leads', icon: Users, href: '/leads', permission: 'marketing.lead.view' },
-      // { id: 'nav-5', category: 'Pages', title: 'Campaigns', icon: ShoppingBag, href: '/campaigns', permission: 'marketing.campaign.view' },
-      { id: 'nav-6', category: 'Pages', title: 'Customers', icon: User, href: '/customers', permission: 'marketing.customer.view' },
-      { id: 'nav-7', category: 'Pages', title: 'Reports', icon: PieChart, href: '/reports', permission: 'marketing.reports.view' },
-      { id: 'nav-8', category: 'Pages', title: 'Invoices', icon: FileText, href: '/invoices', permission: 'marketing.view_invoice' },
+      { id: 'nav-4', category: 'Pages', title: 'Leads', icon: Users, href: '/leads', permission: 'marketing.view_lead' },
+      // { id: 'nav-5', category: 'Pages', title: 'Campaigns', icon: ShoppingBag, href: '/campaigns', permission: 'marketing.view_campaign' },
+      { id: 'nav-6', category: 'Pages', title: 'Customers', icon: User, href: '/customers', permission: 'marketing.view_customer' },
+      { id: 'nav-7', category: 'Pages', title: 'Reports', icon: PieChart, href: '/reports', permission: 'marketing.admin' },
+      { id: 'nav-8', category: 'Pages', title: 'Invoices', icon: FileText, href: '/invoices', permission: 'marketing.admin' },
     ];
 
     return items.filter(item => {
@@ -93,15 +92,14 @@ export const Navbar: React.FC = () => {
       switch (item.permission) {
         case 'marketing.view_domain': return hasViewDomain;
         case 'marketing.view_contact': return hasViewContact;
-        case 'marketing.lead.view': return hasViewLead;
-        // case 'marketing.campaign.view': return hasViewCampaign;
-        case 'marketing.customer.view': return hasViewCustomer;
-        case 'marketing.reports.view': return hasViewReport;
-        case 'marketing.view_invoice': return hasViewInvoice;
+        case 'marketing.view_lead': return hasViewLead;
+        // case 'marketing.view_campaign': return hasViewCampaign;
+        case 'marketing.view_customer': return hasViewCustomer;
+        case 'marketing.admin': return hasAdmin;
         default: return true;
       }
     });
-  }, [hasViewDomain, hasViewContact, hasViewLead, hasViewCampaign, hasViewCustomer, hasViewReport, hasViewInvoice]);
+  }, [hasViewDomain, hasViewContact, hasViewLead, hasViewCampaign, hasViewCustomer, hasAdmin]);
 
   const searchResults = useMemo(() => {
     const term = globalSearch.trim().toLowerCase();

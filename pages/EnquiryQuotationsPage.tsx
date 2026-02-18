@@ -13,7 +13,7 @@ import { Download, ExternalLink, Loader2 } from 'lucide-react';
 
 export const EnquiryQuotationsPage: React.FC = () => {
   const navigate = useNavigate();
-  const canViewLead = useAppSelector(selectHasPermission('marketing.lead.view'));
+  const canViewLead = useAppSelector(selectHasPermission('marketing.view_lead'));
   const [quotations, setQuotations] = useState<QuotationListItem[]>([]);
   const [loading, setLoading] = useState(true);
 

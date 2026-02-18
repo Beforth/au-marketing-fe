@@ -23,13 +23,13 @@ export const SIDEBAR_LINKS: NavItem[] = [
   { title: 'Employees', icon: Users, href: '/employees', permission: 'marketing.view_domain' },
   { title: 'Domains', icon: Globe, href: '/domains', permission: 'marketing.view_domain' },
   { title: 'Contacts', icon: UserCircle, href: '/contacts', permission: 'marketing.view_contact' },
-  { title: 'Leads', icon: Users, href: '/leads', permission: 'marketing.lead.view' },
-  { title: 'Quotations', icon: Quote, href: '/quotations', permission: 'marketing.lead.view' },
-  // { title: 'Campaigns', icon: ShoppingBag, href: '/campaigns', permission: 'marketing.campaign.view' },
-  { title: 'Customers', icon: Users, href: '/customers', permission: 'marketing.customer.view' },
-  { title: 'Reports', icon: PieChart, href: '/reports', permission: 'marketing.reports.view' },
-  { title: 'Invoices', icon: FileText, href: '/invoices', permission: 'marketing.view_invoice' },
-  { title: 'Numbering Series', icon: Hash, href: '/numbering-series', permission: 'marketing.series.view' },
+  { title: 'Leads', icon: Users, href: '/leads', permission: 'marketing.view_lead' },
+  { title: 'Quotations', icon: Quote, href: '/quotations', permission: 'marketing.view_lead' },
+  // { title: 'Campaigns', icon: ShoppingBag, href: '/campaigns', permission: 'marketing.view_campaign' },
+  { title: 'Customers', icon: Users, href: '/customers', permission: 'marketing.view_customer' },
+  { title: 'Reports', icon: PieChart, href: '/reports', permission: 'marketing.admin' },
+  { title: 'Invoices', icon: FileText, href: '/invoices', permission: 'marketing.admin' },
+  { title: 'Numbering Series', icon: Hash, href: '/numbering-series', permission: 'marketing.admin' },
 ];
 
 export const SECONDARY_LINKS: NavItem[] = [

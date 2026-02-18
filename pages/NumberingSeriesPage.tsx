@@ -78,11 +78,12 @@ export const NumberingSeriesPage: React.FC = () => {
   const isForm = isNewForm || isEditForm;
   const isEdit = isEditForm;
 
-  const canView = useAppSelector(selectHasPermission('marketing.series.view'));
-  const canCreate = useAppSelector(selectHasPermission('marketing.series.create'));
-  const canEdit = useAppSelector(selectHasPermission('marketing.series.edit'));
-  const canDelete = useAppSelector(selectHasPermission('marketing.series.delete'));
-  const canGenerate = useAppSelector(selectHasPermission('marketing.series.generate'));
+  // Numbering series uses marketing.admin (current HRMS has no marketing.series.* permissions)
+  const canView = useAppSelector(selectHasPermission('marketing.admin'));
+  const canCreate = useAppSelector(selectHasPermission('marketing.admin'));
+  const canEdit = useAppSelector(selectHasPermission('marketing.admin'));
+  const canDelete = useAppSelector(selectHasPermission('marketing.admin'));
+  const canGenerate = useAppSelector(selectHasPermission('marketing.admin'));
 
   const [list, setList] = useState<Series[]>([]);
   const [total, setTotal] = useState(0);
@@ -253,7 +254,7 @@ export const NumberingSeriesPage: React.FC = () => {
         <Card>
           <div className="text-center py-12">
             <p className="text-slate-600">You do not have permission to view numbering series.</p>
-            <p className="text-sm text-slate-500 mt-2">Required permission: marketing.series.view</p>
+            <p className="text-sm text-slate-500 mt-2">Required permission: marketing.admin</p>
           </div>
         </Card>
       </PageLayout>

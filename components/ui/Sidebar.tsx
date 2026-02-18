@@ -13,33 +13,29 @@ export const Sidebar: React.FC = () => {
   const employee = useAppSelector(selectEmployee);
   const user = useAppSelector(selectUser);
   
-  // Check each permission (codes must match HRMS /api/rbac/user/info/ response)
+  // Check each permission (codes must match HRMS current flat codes: marketing.view_*, marketing.edit_*, etc.)
   const hasViewDomain = useAppSelector(selectHasPermission('marketing.view_domain'));
   const hasViewContact = useAppSelector(selectHasPermission('marketing.view_contact'));
-  const hasViewLead = useAppSelector(selectHasPermission('marketing.lead.view'));
-  const hasViewCampaign = useAppSelector(selectHasPermission('marketing.campaign.view'));
-  const hasViewCustomer = useAppSelector(selectHasPermission('marketing.customer.view'));
-  const hasViewReport = useAppSelector(selectHasPermission('marketing.reports.view'));
-  const hasViewInvoice = useAppSelector(selectHasPermission('marketing.view_invoice'));
-  const hasViewSeries = useAppSelector(selectHasPermission('marketing.series.view'));
+  const hasViewLead = useAppSelector(selectHasPermission('marketing.view_lead'));
+  const hasViewCampaign = useAppSelector(selectHasPermission('marketing.view_campaign'));
+  const hasViewCustomer = useAppSelector(selectHasPermission('marketing.view_customer'));
+  const hasAdmin = useAppSelector(selectHasPermission('marketing.admin'));
 
-  // Filter links based on permissions
+  // Filter links based on permissions (Reports, Invoices, Numbering Series use marketing.admin)
   const filteredSidebarLinks = useMemo(() => {
     return SIDEBAR_LINKS.filter(link => {
       if (!link.permission) return true;
       switch (link.permission) {
         case 'marketing.view_domain': return hasViewDomain;
         case 'marketing.view_contact': return hasViewContact;
-        case 'marketing.lead.view': return hasViewLead;
-        case 'marketing.campaign.view': return hasViewCampaign;
-        case 'marketing.customer.view': return hasViewCustomer;
-        case 'marketing.reports.view': return hasViewReport;
-        case 'marketing.view_invoice': return hasViewInvoice;
-        case 'marketing.series.view': return hasViewSeries;
+        case 'marketing.view_lead': return hasViewLead;
+        case 'marketing.view_campaign': return hasViewCampaign;
+        case 'marketing.view_customer': return hasViewCustomer;
+        case 'marketing.admin': return hasAdmin;
         default: return true;
       }
     });
-  }, [hasViewDomain, hasViewContact, hasViewLead, hasViewCampaign, hasViewCustomer, hasViewReport, hasViewInvoice, hasViewSeries]);
+  }, [hasViewDomain, hasViewContact, hasViewLead, hasViewCampaign, hasViewCustomer, hasAdmin]);
 
   // Filter secondary links (Settings and Support don't need permissions for now)
   const filteredSecondaryLinks = SECONDARY_LINKS;

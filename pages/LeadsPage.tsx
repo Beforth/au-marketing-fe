@@ -37,10 +37,10 @@ export const LeadsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { showToast, globalSearch, setGlobalSearch } = useApp();
-  const canView = useAppSelector(selectHasPermission('marketing.lead.view'));
-  const canCreate = useAppSelector(selectHasPermission('marketing.lead.create'));
-  const canEdit = useAppSelector(selectHasPermission('marketing.lead.edit'));
-  const canDelete = useAppSelector(selectHasPermission('marketing.lead.delete'));
+  const canView = useAppSelector(selectHasPermission('marketing.view_lead'));
+  const canCreate = useAppSelector(selectHasPermission('marketing.create_lead'));
+  const canEdit = useAppSelector(selectHasPermission('marketing.edit_lead'));
+  const canDelete = useAppSelector(selectHasPermission('marketing.delete_lead'));
   const viewParam = searchParams.get('view');
   const viewMode: ViewMode = viewParam === 'table' || viewParam === 'kanban' ? viewParam : 'kanban';
   const setViewMode = (mode: ViewMode) => {
@@ -603,7 +603,7 @@ export const LeadsPage: React.FC = () => {
     return (
       <PageLayout title="Leads" description="Manage marketing leads" breadcrumbs={breadcrumbs}>
         <div className="text-center py-12">
-          <p className="text-slate-600">You do not have permission to view leads. Required: marketing.lead.view</p>
+          <p className="text-slate-600">You do not have permission to view leads. Required: marketing.view_lead</p>
         </div>
       </PageLayout>
     );

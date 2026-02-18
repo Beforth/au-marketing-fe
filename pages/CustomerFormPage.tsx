@@ -44,8 +44,8 @@ export const CustomerFormPage: React.FC = () => {
   const user = useAppSelector(selectUser);
   const isEdit = Boolean(id);
   
-  const canCreate = useAppSelector(selectHasPermission('marketing.customer.create'));
-  const canEdit = useAppSelector(selectHasPermission('marketing.customer.edit'));
+  const canCreate = useAppSelector(selectHasPermission('marketing.create_customer'));
+  const canEdit = useAppSelector(selectHasPermission('marketing.edit_customer'));
   
   const tabParam = searchParams.get('tab');
   const activeTab: 'customer' | 'organization' = tabParam === 'organization' ? 'organization' : 'customer';

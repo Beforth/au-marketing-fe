@@ -26,8 +26,8 @@ export const LeadFormPage: React.FC = () => {
   const employee = useAppSelector(selectEmployee);
   const isEdit = Boolean(id);
   
-  const canCreate = useAppSelector(selectHasPermission('marketing.lead.create'));
-  const canEdit = useAppSelector(selectHasPermission('marketing.lead.edit'));
+  const canCreate = useAppSelector(selectHasPermission('marketing.create_lead'));
+  const canEdit = useAppSelector(selectHasPermission('marketing.edit_lead'));
   
   type LeadSourceType = 'contact' | 'customer' | 'none';
   const tabParam = searchParams.get('tab');
