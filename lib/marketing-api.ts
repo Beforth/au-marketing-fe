@@ -349,7 +349,7 @@ class MarketingAPIService {
   }
 
   async getLead(id: number): Promise<Lead> {
-    return apiClient.get<Lead>(`/api/leads/${id}/`);
+    return apiClient.get<Lead>(`/api/leads/${id}`);
   }
 
   /** Lead statuses from DB (for filters, kanban, forms, and CRUD) */
@@ -357,7 +357,7 @@ class MarketingAPIService {
     const q = new URLSearchParams();
     if (params?.is_active !== undefined) q.append('is_active', String(params.is_active));
     const query = q.toString();
-    return apiClient.get<LeadStatusOption[]>(`/api/leads/statuses/${query ? `?${query}` : ''}`);
+    return apiClient.get<LeadStatusOption[]>(query ? `/api/leads/statuses/?${query}` : '/api/leads/statuses/');
   }
 
   async createLeadStatus(data: { code: string; label: string; display_order?: number; is_active?: boolean; is_final?: boolean; is_lost?: boolean }): Promise<LeadStatusOption> {
@@ -377,7 +377,7 @@ class MarketingAPIService {
     const q = new URLSearchParams();
     if (params?.is_active !== undefined) q.append('is_active', String(params.is_active));
     const query = q.toString();
-    return apiClient.get<LeadTypeOption[]>(`/api/leads/types/${query ? `?${query}` : ''}`);
+    return apiClient.get<LeadTypeOption[]>(query ? `/api/leads/types/?${query}` : '/api/leads/types/');
   }
 
   async createLeadType(data: { code: string; label: string; display_order?: number; is_active?: boolean }): Promise<LeadTypeOption> {
@@ -397,7 +397,7 @@ class MarketingAPIService {
     const q = new URLSearchParams();
     if (params?.is_active !== undefined) q.append('is_active', String(params.is_active));
     const query = q.toString();
-    return apiClient.get<LeadThroughOption[]>(`/api/leads/through/${query ? `?${query}` : ''}`);
+    return apiClient.get<LeadThroughOption[]>(query ? `/api/leads/through/?${query}` : '/api/leads/through/');
   }
 
   /** Lead activity / history logs */
@@ -489,11 +489,11 @@ class MarketingAPIService {
   }
 
   async updateLead(id: number, data: UpdateLeadRequest): Promise<Lead> {
-    return apiClient.put<Lead>(`/api/leads/${id}/`, data);
+    return apiClient.put<Lead>(`/api/leads/${id}`, data);
   }
 
   async deleteLead(id: number): Promise<void> {
-    return apiClient.delete<void>(`/api/leads/${id}/`);
+    return apiClient.delete<void>(`/api/leads/${id}`);
   }
 
   // Campaigns
@@ -510,7 +510,7 @@ class MarketingAPIService {
   }
 
   async getCampaign(id: number): Promise<Campaign> {
-    return apiClient.get<Campaign>(`/api/campaigns/${id}/`);
+    return apiClient.get<Campaign>(`/api/campaigns/${id}`);
   }
 
   async createCampaign(data: Partial<Campaign>): Promise<Campaign> {
@@ -518,11 +518,11 @@ class MarketingAPIService {
   }
 
   async updateCampaign(id: number, data: Partial<Campaign>): Promise<Campaign> {
-    return apiClient.put<Campaign>(`/api/campaigns/${id}/`, data);
+    return apiClient.put<Campaign>(`/api/campaigns/${id}`, data);
   }
 
   async deleteCampaign(id: number): Promise<void> {
-    return apiClient.delete<void>(`/api/campaigns/${id}/`);
+    return apiClient.delete<void>(`/api/campaigns/${id}`);
   }
 
   // Domains
@@ -541,7 +541,7 @@ class MarketingAPIService {
   }
 
   async getDomain(id: number): Promise<Domain> {
-    return apiClient.get<Domain>(`/api/domains/${id}/`);
+    return apiClient.get<Domain>(`/api/domains/${id}`);
   }
 
   async createDomain(data: Partial<Domain>): Promise<Domain> {
@@ -549,11 +549,11 @@ class MarketingAPIService {
   }
 
   async updateDomain(id: number, data: Partial<Domain>): Promise<Domain> {
-    return apiClient.put<Domain>(`/api/domains/${id}/`, data);
+    return apiClient.put<Domain>(`/api/domains/${id}`, data);
   }
 
   async deleteDomain(id: number): Promise<void> {
-    return apiClient.delete<void>(`/api/domains/${id}/`);
+    return apiClient.delete<void>(`/api/domains/${id}`);
   }
 
   // HRMS Employees (proxy from HRMS, paginated, filters)
@@ -573,7 +573,7 @@ class MarketingAPIService {
     if (params?.designation_id != null) queryParams.append('designation_id', params.designation_id.toString());
     if (params?.status) queryParams.append('status', params.status);
     const query = queryParams.toString();
-    return apiClient.get(`/api/employees/${query ? `?${query}` : ''}`);
+    return apiClient.get(query ? `/api/employees/?${query}` : '/api/employees/');
   }
 
   async getDepartments(): Promise<{ id: number; name: string }[]> {
@@ -602,7 +602,7 @@ class MarketingAPIService {
   }
 
   async getRegion(id: number): Promise<Region> {
-    return apiClient.get<Region>(`/api/regions/${id}/`);
+    return apiClient.get<Region>(`/api/regions/${id}`);
   }
 
   async createRegion(data: Partial<Region>): Promise<Region> {
@@ -610,11 +610,11 @@ class MarketingAPIService {
   }
 
   async updateRegion(id: number, data: Partial<Region>): Promise<Region> {
-    return apiClient.put<Region>(`/api/regions/${id}/`, data);
+    return apiClient.put<Region>(`/api/regions/${id}`, data);
   }
 
   async deleteRegion(id: number): Promise<void> {
-    return apiClient.delete<void>(`/api/regions/${id}/`);
+    return apiClient.delete<void>(`/api/regions/${id}`);
   }
 
   // Contacts
@@ -641,7 +641,7 @@ class MarketingAPIService {
   }
 
   async getContact(id: number): Promise<Contact> {
-    return apiClient.get<Contact>(`/api/contacts/${id}/`);
+    return apiClient.get<Contact>(`/api/contacts/${id}`);
   }
 
   async createContact(data: Partial<Contact>): Promise<Contact> {
@@ -649,15 +649,15 @@ class MarketingAPIService {
   }
 
   async updateContact(id: number, data: Partial<Contact>): Promise<Contact> {
-    return apiClient.put<Contact>(`/api/contacts/${id}/`, data);
+    return apiClient.put<Contact>(`/api/contacts/${id}`, data);
   }
 
   async deleteContact(id: number): Promise<void> {
-    return apiClient.delete<void>(`/api/contacts/${id}/`);
+    return apiClient.delete<void>(`/api/contacts/${id}`);
   }
 
   async convertContactToCustomer(contactId: number): Promise<{ success: boolean; customer_id: number; contact_id: number }> {
-    return apiClient.post<{ success: boolean; customer_id: number; contact_id: number }>(`/api/contacts/${contactId}/convert-to-customer/`);
+    return apiClient.post<{ success: boolean; customer_id: number; contact_id: number }>(`/api/contacts/${contactId}/convert-to-customer`);
   }
 
   // Customers
@@ -678,7 +678,7 @@ class MarketingAPIService {
   }
 
   async getCustomer(id: number): Promise<Customer> {
-    return apiClient.get<Customer>(`/api/customers/${id}/`);
+    return apiClient.get<Customer>(`/api/customers/${id}`);
   }
 
   async createCustomer(data: Partial<Customer>): Promise<Customer> {
@@ -686,11 +686,11 @@ class MarketingAPIService {
   }
 
   async updateCustomer(id: number, data: Partial<Customer>): Promise<Customer> {
-    return apiClient.put<Customer>(`/api/customers/${id}/`, data);
+    return apiClient.put<Customer>(`/api/customers/${id}`, data);
   }
 
   async deleteCustomer(id: number): Promise<void> {
-    return apiClient.delete<void>(`/api/customers/${id}/`);
+    return apiClient.delete<void>(`/api/customers/${id}`);
   }
 
   // Plants
@@ -702,11 +702,11 @@ class MarketingAPIService {
     if (params?.contact_id) queryParams.append('contact_id', params.contact_id.toString());
     if (params?.customer_id) queryParams.append('customer_id', params.customer_id.toString());
     const query = queryParams.toString();
-    return apiClient.get<Plant[]>(`/api/plants/${query ? `?${query}` : ''}`);
+    return apiClient.get<Plant[]>(query ? `/api/plants/?${query}` : '/api/plants/');
   }
 
   async getPlant(id: number): Promise<Plant> {
-    return apiClient.get<Plant>(`/api/plants/${id}/`);
+    return apiClient.get<Plant>(`/api/plants/${id}`);
   }
 
   async createPlant(data: Partial<Plant>): Promise<Plant> {
@@ -714,11 +714,11 @@ class MarketingAPIService {
   }
 
   async updatePlant(id: number, data: Partial<Plant>): Promise<Plant> {
-    return apiClient.put<Plant>(`/api/plants/${id}/`, data);
+    return apiClient.put<Plant>(`/api/plants/${id}`, data);
   }
 
   async deletePlant(id: number): Promise<void> {
-    return apiClient.delete<void>(`/api/plants/${id}/`);
+    return apiClient.delete<void>(`/api/plants/${id}`);
   }
 
   // Employee Region Assignments
@@ -763,7 +763,7 @@ class MarketingAPIService {
   }
 
   async getSeriesById(id: number): Promise<Series> {
-    return apiClient.get<Series>(`/api/series/${id}/`);
+    return apiClient.get<Series>(`/api/series/${id}`);
   }
 
   async createSeries(data: SeriesCreateInput): Promise<Series> {
@@ -771,11 +771,11 @@ class MarketingAPIService {
   }
 
   async updateSeries(id: number, data: SeriesUpdateInput): Promise<Series> {
-    return apiClient.put<Series>(`/api/series/${id}/`, data);
+    return apiClient.put<Series>(`/api/series/${id}`, data);
   }
 
   async deleteSeries(id: number): Promise<void> {
-    return apiClient.delete<void>(`/api/series/${id}/`);
+    return apiClient.delete<void>(`/api/series/${id}`);
   }
 
   async generateNextSeriesNumber(
@@ -840,22 +840,22 @@ class MarketingAPIService {
     if (unreadOnly) qs.set('unread_only', 'true');
     if (limit !== 50) qs.set('limit', String(limit));
     const s = qs.toString();
-    return apiClient.get<NotificationItem[]>(`/api/notifications/${s ? `?${s}` : ''}`);
+    return apiClient.get<NotificationItem[]>(s ? `/api/notifications/?${s}` : '/api/notifications/');
   }
   async getUnreadNotificationCount(): Promise<{ count: number }> {
-    return apiClient.get<{ count: number }>('/api/notifications/unread-count/');
+    return apiClient.get<{ count: number }>('/api/notifications/unread-count');
   }
   async markNotificationRead(notificationId: number): Promise<NotificationItem> {
     return apiClient.patch<NotificationItem>(`/api/notifications/${notificationId}/read`);
   }
   async markAllNotificationsRead(): Promise<{ ok: boolean }> {
-    return apiClient.patch<{ ok: boolean }>('/api/notifications/read-all/');
+    return apiClient.patch<{ ok: boolean }>('/api/notifications/read-all');
   }
   async getNotificationPreferences(): Promise<NotificationPreferences> {
-    return apiClient.get<NotificationPreferences>('/api/notifications/preferences/');
+    return apiClient.get<NotificationPreferences>('/api/notifications/preferences');
   }
   async updateNotificationPreferences(data: { times_per_day?: number; preferred_times?: string }): Promise<NotificationPreferences> {
-    return apiClient.put<NotificationPreferences>('/api/notifications/preferences/', data);
+    return apiClient.put<NotificationPreferences>('/api/notifications/preferences', data);
   }
   async scheduleLeadFollowUp(leadId: number, data: { next_follow_up_at?: string | null; follow_up_reminder_type?: string | null }): Promise<Lead> {
     return apiClient.patch<Lead>(`/api/leads/${leadId}/follow-up`, data);
