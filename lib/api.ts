@@ -42,7 +42,7 @@ function formatApiError(body: any, status: number): string {
  * API Configuration and Base Client
  */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003';
-const HRMS_RBAC_API_URL = import.meta.env.VITE_HRMS_RBAC_API_URL || 'https://hrms.aureolegroup.com/api/rbac';
+const HRMS_RBAC_API_URL = import.meta.env.VITE_HRMS_RBAC_API_URL || 'http://localhost:8000/api/rbac';
 
 export const API_CONFIG = {
   BASE_URL: API_BASE_URL,

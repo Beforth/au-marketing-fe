@@ -112,11 +112,16 @@ export const LoginPage: React.FC = () => {
         <div className="w-full max-w-sm space-y-8">
           {/* Logo/Header */}
           <div className="space-y-2">
-            {/* <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--primary)]/10 mb-2">
-              <Lock className="w-7 h-7 text-[var(--primary)]" />
-            </div> */}
-            <h1 className="text-3xl font-bold text-slate-900">Welcome Back</h1>
-            <p className="text-sm text-slate-600">Sign in to access the Marketing Portal</p>
+            <div className="flex items-center gap-3 mb-2">
+              <img
+                src="https://www.beforth.in/images/befu.png"
+                alt="BeForth"
+                className="w-16 h-16 rounded-lg object-contain"
+              />
+              <h1 className="text-2xl font-bold text-slate-900">BeForth</h1>
+            </div>
+            <h2 className="text-xl font-semibold text-slate-800">Welcome Back</h2>
+            <p className="text-sm text-slate-600">Sign in to access the BeForth Portal</p>
           </div>
 
           {/* Error Message */}

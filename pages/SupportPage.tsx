@@ -54,14 +54,14 @@ export const SupportPage: React.FC = () => {
   return (
     <PageLayout
       title="Global Help Center"
-      description="Search our knowledge base or connect with a dedicated ERP specialist."
+      description="Search our knowledge base or connect with a dedicated Marketing specialist."
       actions={actions}
     >
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {[
           { title: 'User Manuals', icon: Book, desc: 'Technical documentation and step-by-step module configuration.' },
-          { title: 'Admin Forum', icon: MessageSquare, desc: 'Collaborate with the global Aether ERP community.' },
+          { title: 'Admin Forum', icon: MessageSquare, desc: 'Collaborate with the global Marketing community.' },
           { title: 'Learning Hub', icon: HelpCircle, desc: 'Visual walkthroughs and interactive video masterclasses.' },
         ].map((item) => (
           <Card key={item.title} className="p-8 text-center hover:-translate-y-1 transition-all">

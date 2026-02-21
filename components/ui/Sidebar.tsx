@@ -58,11 +58,13 @@ export const Sidebar: React.FC = () => {
           to="/"
           className="flex items-center gap-2.5 mb-7 px-2 hover:opacity-80 transition-all"
         >
-          <div className="w-7 h-7 bg-indigo-600 rounded flex items-center justify-center shadow-sm">
-            <span className="text-white font-bold text-sm">A</span>
-          </div>
+          <img
+            src="https://www.beforth.in/images/befu.png"
+            alt="BeForth"
+            className="w-10 h-10 rounded object-contain flex-shrink-0"
+          />
           <span className="text-lg font-bold tracking-tight text-slate-900">
-            Aether<span className="text-slate-400 font-medium">ERP</span>
+            BeForth
           </span>
         </Link>
 
