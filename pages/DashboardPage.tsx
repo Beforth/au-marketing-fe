@@ -317,7 +317,13 @@ export const DashboardPage: React.FC = () => {
         );
       case 'target-card': {
         const s = scopeTargetStats ?? targetStats;
-        if (s == null) return null;
+        if (s == null) {
+          return (
+            <Card key={config.id} {...commonProps} title={`${scopeLabel} target this month`} description="Target and achieved in scope.">
+              <p className="text-sm text-slate-500 p-4">No target data available.</p>
+            </Card>
+          );
+        }
         return (
           <Card
             key={config.id}
@@ -442,7 +448,13 @@ export const DashboardPage: React.FC = () => {
         );
       case 'target-achieved-chart': {
         const s = scopeTargetStats ?? targetStats;
-        if (s == null) return null;
+        if (s == null) {
+          return (
+            <Card key={config.id} {...commonProps} title="Target vs achieved" description="Target and achieved this month.">
+              <p className="text-sm text-slate-500 p-4">No target data available.</p>
+            </Card>
+          );
+        }
         return (
           <Card key={config.id} {...commonProps} title="Target vs achieved" description={`${scopeLabel} — ${new Date(s.year, s.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}`}>
             <TargetAchievedBarChart target={s.monthly_target} achieved={s.achieved_this_month} year={s.year} month={s.month} />
@@ -451,7 +463,13 @@ export const DashboardPage: React.FC = () => {
       }
       case 'won-lost-chart': {
         const s = scopeTargetStats ?? targetStats;
-        if (s == null) return null;
+        if (s == null) {
+          return (
+            <Card key={config.id} {...commonProps} title="Won vs lost (this month)" description="Closed leads in scope.">
+              <p className="text-sm text-slate-500 p-4">No data this month.</p>
+            </Card>
+          );
+        }
         return (
           <Card key={config.id} {...commonProps} title="Won vs lost (this month)" description="Closed leads in scope">
             <WonLostPieChart won={s.won_leads_count_this_month} lost={s.lost_leads_count_this_month} />
@@ -459,14 +477,26 @@ export const DashboardPage: React.FC = () => {
         );
       }
       case 'leads-by-status-chart':
-        if (leadStatusCounts.length === 0) return null;
+        if (leadStatusCounts.length === 0) {
+          return (
+            <Card key={config.id} {...commonProps} title="Leads by status" description="From recent leads in scope.">
+              <p className="text-sm text-slate-500 p-4">No lead status data yet.</p>
+            </Card>
+          );
+        }
         return (
           <Card key={config.id} {...commonProps} title="Leads by status" description="From recent leads in scope">
             <LeadStatusPieChart data={leadStatusCounts} />
           </Card>
         );
       case 'inquiries-quotations-chart':
-        if (reportSummary == null || !canViewReport) return null;
+        if (reportSummary == null || !canViewReport) {
+          return (
+            <Card key={config.id} {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`}>
+              <p className="text-sm text-slate-500 p-4">No report data or permission.</p>
+            </Card>
+          );
+        }
         return (
           <Card key={config.id} {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`}>
             <InquiriesQuotationsBarChart inquiries={reportSummary.inquiries_count} quotations={reportSummary.quotations_sent_count} />
@@ -613,7 +643,7 @@ export const DashboardPage: React.FC = () => {
       <Button
         variant={isEditMode ? 'primary' : 'outline'}
         size="sm"
-        title="Reorder only the widget cards below (Leads overview, Activity, Recent leads, Quick links)"
+        title="Drag to reorder all dashboard cards (Leads by region, Target, Head summary, Charts, and more)"
         onClick={() => {
           setIsEditMode(!isEditMode);
           if (isEditMode) showToast('Dashboard layout saved', 'success');
@@ -664,180 +694,18 @@ export const DashboardPage: React.FC = () => {
         <div className="flex gap-6">
           {/* Main content - left */}
           <div className="flex-1 min-w-0">
-          {/* Stat cards: Total Leads, Contacts, Customers, Quotations — above everything */}
+          {/* Stat cards: Total Leads, Contacts, Customers, Quotations — fixed at top */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6" style={{ gap: 'var(--ui-gap)' }}>
             {stats.map((stat) => (
               <StatCard key={stat.label} stat={stat} />
             ))}
           </div>
-          {/* Leads by region (heads only) */}
-          {isHeadRole && headSummary && headSummary.region_breakdown.length > 0 && (
-            <Card className="mb-6" title="Leads by region" description="Total, won, lost per region">
-              <RegionBreakdownBarChart data={headSummary.region_breakdown} />
-            </Card>
-          )}
-          {/* First screen: Monthly target progress + Won/Lost counts */}
-          {(scopeTargetStats ?? targetStats) != null && (() => {
-            const stats = scopeTargetStats ?? targetStats!;
-            return (
-            <Card
-              className="mb-6"
-              title={scopeLabel === 'My' ? "This month's target" : `${scopeLabel} target this month`}
-              description={scopeLabel === 'My'
-                ? 'Achieved = sum of closed value from won leads this month (assigned to you or generated by you). Target can be set by admin in domain tree; default ₹8 lacs.'
-                : `Achieved = sum of closed value from won leads this month in your ${scopeLabel.toLowerCase()} scope (${scopeTargetStats?.employee_count ?? 1} team member(s)).`}
-            >
-              <div className="p-4 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-indigo-50">
-                    <Target size={20} className="text-indigo-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-slate-600">Achieved this month</span>
-                      <span className="font-semibold text-slate-900">
-                        ₹{(stats.achieved_this_month / 1_00_000).toFixed(2)} lacs
-                      </span>
-                    </div>
-                    <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-indigo-600 rounded-full transition-all duration-500"
-                        style={{
-                          width: `${Math.min(100, (stats.monthly_target ? (stats.achieved_this_month / stats.monthly_target) * 100 : 0)).toFixed(1)}%`,
-                        }}
-                      />
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Target: ₹{(stats.monthly_target / 1_00_000).toFixed(2)} lacs for {new Date(stats.year, stats.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
-                    </p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-50">
-                    <Trophy size={18} className="text-emerald-600 shrink-0" />
-                    <div>
-                      <p className="text-xs font-medium text-slate-500">Won leads (this month)</p>
-                      <p className="text-lg font-bold text-emerald-800">{stats.won_leads_count_this_month}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-50">
-                    <XCircle size={18} className="text-rose-600 shrink-0" />
-                    <div>
-                      <p className="text-xs font-medium text-slate-500">Lost leads (this month)</p>
-                      <p className="text-lg font-bold text-rose-800">{stats.lost_leads_count_this_month}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          ); })()}
 
-          {/* Head dashboard: region-wise split, hot cases, total leads, conversion, won vs lost (admin + domain head only) */}
-          {isHeadRole && (
-            <Card className="mb-6" title="Head summary" description={`Region-wise split and key metrics for ${new Date(headSummary?.year ?? 0, (headSummary?.month ?? 1) - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.`}>
-              {headSummaryLoading ? (
-                <div className="p-6 flex items-center justify-center text-slate-500"><RefreshCw size={24} className="animate-spin" /></div>
-              ) : headSummary ? (
-                <div className="p-4 space-y-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-                      <p className="text-xs font-medium text-slate-500">Total leads</p>
-                      <p className="text-xl font-bold text-slate-900">{headSummary.total_leads}</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-100">
-                      <p className="text-xs font-medium text-slate-500">Hot cases</p>
-                      <p className="text-xl font-bold text-amber-800">{headSummary.hot_cases_count}</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-                      <p className="text-xs font-medium text-slate-500">Conversion ratio</p>
-                      <p className="text-xl font-bold text-slate-900">{headSummary.conversion_ratio_pct != null ? `${headSummary.conversion_ratio_pct}%` : '—'}</p>
-                    </div>
-                    <div className="p-3 rounded-lg flex gap-2">
-                      <div className="flex-1 p-2 rounded bg-emerald-50 border border-emerald-100">
-                        <p className="text-[10px] font-medium text-slate-500">Won</p>
-                        <p className="text-lg font-bold text-emerald-800">{headSummary.won_count}</p>
-                      </div>
-                      <div className="flex-1 p-2 rounded bg-rose-50 border border-rose-100">
-                        <p className="text-[10px] font-medium text-slate-500">Lost</p>
-                        <p className="text-lg font-bold text-rose-800">{headSummary.lost_count}</p>
-                      </div>
-                    </div>
-                  </div>
-                  {headSummary.region_breakdown.length > 0 && (
-                    <div className="border border-slate-200 rounded-lg overflow-hidden">
-                      <p className="text-xs font-medium text-slate-600 px-3 py-2 bg-slate-50 border-b border-slate-200">Region-wise split</p>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="bg-slate-50 text-left text-xs font-medium text-slate-600">
-                              <th className="px-3 py-2">Region</th>
-                              <th className="px-3 py-2">Domain</th>
-                              <th className="px-3 py-2 text-right">Total</th>
-                              <th className="px-3 py-2 text-right">Won</th>
-                              <th className="px-3 py-2 text-right">Lost</th>
-                              <th className="px-3 py-2 text-right">Hot</th>
-                              <th className="px-3 py-2 text-right">Conv.%</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {headSummary.region_breakdown.map((r) => (
-                              <tr key={r.region_id} className="border-t border-slate-100 hover:bg-slate-50/50">
-                                <td className="px-3 py-2 font-medium text-slate-900">{r.region_name}</td>
-                                <td className="px-3 py-2 text-slate-600">{r.domain_name}</td>
-                                <td className="px-3 py-2 text-right">{r.total_leads}</td>
-                                <td className="px-3 py-2 text-right text-emerald-700">{r.won_count}</td>
-                                <td className="px-3 py-2 text-right text-rose-700">{r.lost_count}</td>
-                                <td className="px-3 py-2 text-right text-amber-700">{r.hot_cases_count}</td>
-                                <td className="px-3 py-2 text-right">{r.conversion_ratio_pct != null ? `${r.conversion_ratio_pct}%` : '—'}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500 p-4">No summary data available.</p>
-              )}
-            </Card>
-          )}
-
-          {/* Charts section - bar graphs (below stat cards and target) */}
-          <div className="mt-6">
-            <h2 className="text-lg font-semibold text-slate-800 mb-3">Charts</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {(scopeTargetStats ?? targetStats) != null && (() => {
-                const s = scopeTargetStats ?? targetStats!;
-                return (
-                  <Card key="chart-target" title="Target vs achieved" description={`${scopeLabel} — ${new Date(s.year, s.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}`}>
-                    <TargetAchievedBarChart target={s.monthly_target} achieved={s.achieved_this_month} year={s.year} month={s.month} />
-                  </Card>
-                );
-              })()}
-              {(scopeTargetStats ?? targetStats) != null && (
-                <Card key="chart-wonlost" title="Won vs lost (this month)" description="Closed leads in scope">
-                  <WonLostPieChart won={(scopeTargetStats ?? targetStats)!.won_leads_count_this_month} lost={(scopeTargetStats ?? targetStats)!.lost_leads_count_this_month} />
-                </Card>
-              )}
-              {leadStatusCounts.length > 0 && (
-                <Card key="chart-status" title="Leads by status" description="From recent leads in scope">
-                  <LeadStatusPieChart data={leadStatusCounts} />
-                </Card>
-              )}
-              {reportSummary != null && canViewReport && (
-                <Card key="chart-inq-qtn" title="Inquiries & quotations" description={`${scopeLabel} scope`}>
-                  <InquiriesQuotationsBarChart inquiries={reportSummary.inquiries_count} quotations={reportSummary.quotations_sent_count} />
-                </Card>
-              )}
-            </div>
-          </div>
-
-          {/* Only these 4 widget cards can be reordered via "Customize widget order" — stat cards, Leads by region, target, Head summary, and Charts are fixed. */}
+          {/* All dashboard widgets — reorder via "Customize widget order" */}
           <div className="mt-6">
             <h2 className="text-lg font-semibold text-slate-800 mb-3">
-              Widgets
-              {isEditMode && <span className="ml-2 text-xs font-normal text-slate-500">— drag to reorder these cards only</span>}
+              Dashboard
+              {isEditMode && <span className="ml-2 text-xs font-normal text-slate-500">— drag to reorder cards</span>}
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-3 transition-all duration-300" style={{ gap: 'var(--ui-gap)' }}>
               {layout.map(config => renderWidget(config))}
