@@ -336,8 +336,8 @@ export const ODPlanPage: React.FC = () => {
       travel_time: entryForm.travel_time || null,
       travel_type: entryForm.travel_type || null,
       contact_id: selectedContact?.id ?? entryForm.contact_id ?? null,
-      contact_name: selectedContact ? [selectedContact.first_name, selectedContact.last_name].filter(Boolean).join(' ').trim() || undefined : null,
-      contact_email: selectedContact?.contact_email ?? null,
+      contact_name: selectedContact ? [selectedContact.first_name, selectedContact.last_name].filter(Boolean).join(' ').trim() || null : null,
+      contact_email: (selectedContact?.contact_email ?? null) as string | null,
       notes: entryForm.notes || null,
     };
     if (editingEntryId != null) {
@@ -507,7 +507,7 @@ export const ODPlanPage: React.FC = () => {
             <Select
               options={ENTRY_TYPES}
               value={entryForm.entry_type}
-              onChange={(v) => setEntryForm((f) => ({ ...f, entry_type: v ?? 'visit' }))}
+              onChange={(v) => setEntryForm((f) => ({ ...f, entry_type: (typeof v === 'string' ? v : String(v ?? 'visit')) }))}
               searchable={false}
             />
           </div>

@@ -355,7 +355,7 @@ export const OrderFormPage: React.FC = () => {
       <ConfirmModal
         isOpen={deleteActivityId !== null}
         onClose={() => setDeleteActivityId(null)}
-        onConfirm={() => deleteActivityId != null && handleDeleteActivity(deleteActivityId)}
+        onConfirm={() => { if (deleteActivityId != null) void handleDeleteActivity(deleteActivityId); }}
         title="Delete inquiry?"
         message="This action cannot be undone."
       />

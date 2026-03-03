@@ -400,13 +400,16 @@ export const OrdersPage: React.FC = () => {
   };
 
   const displayOrders = searchTerm.trim()
-    ? orders.filter(
-        (o) =>
-          (o.series || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (o.lead?.first_name + ' ' + o.lead?.last_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (o.lead?.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (o.lead?.email || '').toLowerCase().includes(searchTerm.toLowerCase())
-      )
+    ? orders.filter((o) => {
+        const term = searchTerm.toLowerCase();
+        if ((o.series || '').toLowerCase().includes(term)) return true;
+        if (o.lead) {
+          const name = leadDisplayName(o.lead);
+          const company = leadDisplayCompany(o.lead);
+          if (name.toLowerCase().includes(term) || company.toLowerCase().includes(term)) return true;
+        }
+        return false;
+      })
     : orders;
 
   const ordersByStatus = useMemo(() => {
@@ -487,9 +490,9 @@ export const OrdersPage: React.FC = () => {
         const label = opt?.label ?? o.status ?? '—';
         const color = opt?.hex_color || '#64748b';
         return (
-          <Badge variant="default" style={{ backgroundColor: color, color: '#fff', border: 'none' }}>
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: color, color: '#fff', border: 'none' }}>
             {label}
-          </Badge>
+          </span>
         );
       },
     },

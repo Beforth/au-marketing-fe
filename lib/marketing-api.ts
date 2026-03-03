@@ -848,6 +848,24 @@ class MarketingAPIService {
     return apiClient.delete<void>(`/api/orders/${orderId}/activities/${activityId}`);
   }
 
+  /** Download an order activity attachment file (uses auth; triggers browser save). */
+  async downloadOrderActivityAttachment(
+    orderId: number,
+    activityId: number,
+    attachmentId: number,
+    fileName: string
+  ): Promise<void> {
+    const blob = await apiClient.getBlob(
+      `/api/orders/${orderId}/activities/${activityId}/attachments/${attachmentId}/download`
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName || 'attachment';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   // Campaigns
   async getCampaigns(params?: {
     page?: number;

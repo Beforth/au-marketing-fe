@@ -1006,7 +1006,6 @@ export const LeadsPage: React.FC = () => {
         status_id: createLeadForm.status_id ?? createLeadModalStatusId ?? firstActiveStatusId,
         lead_type_id: createLeadForm.lead_type_id,
         series_code: createLeadForm.series_code?.trim() || undefined,
-        series: createLeadGeneratedSeries?.trim() || undefined,
         notes: createLeadForm.notes?.trim() || undefined,
       });
       showToast('Lead created', 'success');
@@ -1721,7 +1720,7 @@ export const LeadsPage: React.FC = () => {
                     <Select
                       placeholder="Number series"
                       value={statusChangeSeriesCode}
-                      onChange={(val) => setStatusChangeSeriesCode(val ?? '')}
+                      onChange={(val) => setStatusChangeSeriesCode(String(val ?? ''))}
                       options={[
                         { value: '', label: '— Select series —' },
                         ...seriesList.map((s) => ({ value: s.code ?? '', label: `${s.name} (${s.code})` })),
@@ -2139,7 +2138,7 @@ export const LeadsPage: React.FC = () => {
           setEditingStatus(null);
           setEditingGroup(null);
           setAddingGroup(false);
-          setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '' });
+          setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false });
           setGroupForm({ code: '', label: '', expected_duration_days: undefined, follow_up_interval_days: undefined, display_order: 0, is_active: true, hex_color: '' });
         }}
         title="Lead statuses & groups"
