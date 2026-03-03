@@ -17,7 +17,7 @@ import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { marketingAPI, Lead, LeadStatusOption, LeadStatusGroup, LeadTypeOption, Domain, Region, Contact, Customer, Organization, Series, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
+import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadStatusGroup, LeadTypeOption, Domain, Region, Contact, Customer, Organization, Series, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from '../constants';
 import { serializeNameWithPrefix, serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import { Modal } from '../components/ui/Modal';
@@ -701,7 +701,7 @@ export const LeadsPage: React.FC = () => {
     try {
       const res = await marketingAPI.generateNextSeriesNumberByCode(statusChangeSeriesCode.trim(), { lead_id: leadId });
       const generated = res.generated_value ?? '';
-      await marketingAPI.updateLead(leadId, { series_code: statusChangeSeriesCode.trim(), series: generated });
+      await marketingAPI.updateLead(leadId, { series_code: statusChangeSeriesCode.trim(), series: generated } as UpdateLeadRequest);
       setLeads((prev) =>
         prev.map((l) =>
           l.id === leadId ? { ...l, series_code: statusChangeSeriesCode.trim(), series: generated } : l
@@ -744,7 +744,7 @@ export const LeadsPage: React.FC = () => {
         undefined,
         ['PO File']
       );
-      await marketingAPI.updateLead(pendingWonLeadId, { status_id: pendingWonStatusId, closed_value: value });
+      await marketingAPI.updateLead(pendingWonLeadId, { status_id: pendingWonStatusId, closed_value: value } as UpdateLeadRequest);
       showToast('Lead marked as Won with closed value and PO file', 'success');
       setLeads((prev) =>
         prev.map((l) =>
@@ -806,9 +806,9 @@ export const LeadsPage: React.FC = () => {
     setUpdatingLeadId(leadToMarkLost);
     try {
       await marketingAPI.updateLead(leadToMarkLost, {
-        status_id: lostStatusId,
+        status_id: lostStatusId ?? undefined,
         status_change_reason: markLostReason.trim(),
-      });
+      } as UpdateLeadRequest);
       showToast('Lead marked as Lost', 'success');
       setLeads((prev) =>
         prev.map((l) =>
@@ -1158,18 +1158,16 @@ export const LeadsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                viewMode === 'kanban' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-              }`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${viewMode === 'kanban' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+                }`}
             >
               <LayoutGrid size={16} /> Kanban
             </button>
             <button
               type="button"
               onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                viewMode === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-              }`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${viewMode === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+                }`}
             >
               <List size={16} /> Table
             </button>
@@ -1342,10 +1340,10 @@ export const LeadsPage: React.FC = () => {
           )} */}
           {viewMode === 'table' && (
             <div ref={filterButtonRef} className="inline-block">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="rounded-full" 
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full"
                 leftIcon={<Filter size={14} />}
                 onClick={() => {
                   setTempSelectedStatus(selectedStatus);
@@ -1443,145 +1441,143 @@ export const LeadsPage: React.FC = () => {
                   const isCollapsed = collapsedGroups.has(collapseKey);
                   const groupLeadCount = statuses.reduce((sum, s) => sum + (leadsByStatus[s.code]?.length ?? 0), 0);
                   return (
-                  <div
-                    key={groupId === 'none' ? 'nogroup' : groupId}
-                    className={`flex flex-shrink-0 flex-col rounded-xl border border-slate-200 overflow-hidden transition-all ${isCollapsed ? 'w-14' : 'p-4'}`}
-                    style={groupBgStyle ?? { backgroundColor: 'rgba(241,245,249,0.5)' }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleGroupCollapsed(collapseKey)}
-                      className={`flex items-center gap-2 w-full text-left ${isCollapsed ? 'flex-col justify-center py-4 px-1 min-h-[120px] border-b-0' : 'mb-3 border-b border-slate-200 pb-2'}`}
-                    >
-                      {isCollapsed ? (
-                        <>
-                          <ChevronLeft size={18} className="text-slate-500 rotate-90" />
-                          <span className="text-xs font-semibold text-slate-600 leading-none" style={{ writingMode: 'vertical-rl' }}>{groupLabel}</span>
-                          <span className="text-[11px] font-bold text-slate-500 leading-none">{groupLeadCount}</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-sm font-semibold text-slate-700">{groupLabel}</span>
-                          <span className="text-xs text-slate-400">({statuses.length} status{statuses.length !== 1 ? 'es' : ''} • {groupLeadCount} leads)</span>
-                          <ChevronRight size={16} className="text-slate-400 ml-auto" />
-                        </>
-                      )}
-                    </button>
-                    {!isCollapsed && (
-                    <div className="flex gap-4 overflow-x-auto pb-2">
-                      {statuses.map((status) => {
-                  const columnLeads = leadsByStatus[status.code] || [];
-                  const useStatusHex = status.hex_color && /^#[0-9A-Fa-f]{6}$/.test(status.hex_color);
-                  const statusColor = !useStatusHex ? (STATUS_COLORS[status.code] || DEFAULT_STATUS_COLOR) : null;
-                  return (
                     <div
-                      key={status.id}
-                            className={`flex-shrink-0 w-72 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${
-                        dragOverStatusId === status.id ? 'border-indigo-500 bg-indigo-50/30' : 'border-slate-200 bg-slate-50/50'
-                      }`}
-                      onDragOver={(e) => handleColumnDragOver(e, status.id)}
-                      onDragLeave={handleColumnDragLeave}
-                      onDrop={(e) => handleColumnDrop(e, status.id)}
+                      key={groupId === 'none' ? 'nogroup' : groupId}
+                      className={`flex flex-shrink-0 flex-col rounded-xl border border-slate-200 overflow-hidden transition-all ${isCollapsed ? 'w-14' : 'p-4'}`}
+                      style={groupBgStyle ?? { backgroundColor: 'rgba(241,245,249,0.5)' }}
                     >
-                      <div
-                        className={`flex-shrink-0 px-3 py-2.5 border-b border-slate-200 flex items-center justify-between ${statusColor ? `${statusColor.bg} ${statusColor.text}` : ''}`}
-                        style={useStatusHex ? { backgroundColor: status.hex_color!, color: getContrastColor(status.hex_color!) } : undefined}
+                      <button
+                        type="button"
+                        onClick={() => toggleGroupCollapsed(collapseKey)}
+                        className={`flex items-center gap-2 w-full text-left ${isCollapsed ? 'flex-col justify-center py-4 px-1 min-h-[120px] border-b-0' : 'mb-3 border-b border-slate-200 pb-2'}`}
                       >
-                        <span className="font-semibold text-sm uppercase tracking-wide">{status.label}</span>
-                        <span className="flex items-center gap-1">
-                          <span className="text-xs opacity-80">({columnLeads.length})</span>
-                          {canCreate && (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); openCreateLeadModal(status.id); }}
-                              className="p-1 rounded hover:bg-black/10 transition-colors"
-                              title={`Add lead to ${status.label}`}
-                            >
-                              <Plus size={16} strokeWidth={2.5} />
-                            </button>
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 space-y-2 scrollbar-hide">
-                        {columnLeads.map((lead) => (
-                          <div
-                            key={lead.id}
-                            draggable={canEdit}
-                            onDragStart={(e) => handleLeadDragStart(e, lead)}
-                            onDragEnd={handleLeadDragEnd}
-                            onClick={() => canEdit && !didDragRef.current && navigate(`/leads/${lead.id}/edit`)}
-                            className={`rounded-lg border p-3 shadow-sm transition-all hover:shadow-md ${
-                              isDueForFollowUp(lead)
-                                ? 'bg-amber-50 border-amber-300 hover:bg-amber-100/80'
-                                : 'bg-white border-slate-200 hover:shadow-md'
-                            } ${canEdit ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedLeadId === lead.id ? 'opacity-50' : ''} ${updatingLeadId === lead.id ? 'animate-pulse' : ''}`}
-                          >
-                            <div className="font-medium text-slate-900 text-sm truncate">
-                              {leadDisplayName(lead)}
-                            </div>
-                            {leadDisplayCompany(lead) && (
-                              <div className="text-xs text-slate-500 truncate mt-0.5">{leadDisplayCompany(lead)}</div>
-                            )}
-                            <div className="text-xs text-slate-400 truncate mt-0.5">{leadDisplayEmail(lead) || '—'}</div>
-                            {lead.next_follow_up_at && (
-                              <div className="text-[10px] text-slate-500 mt-1">
-                                Next follow-up: {new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}
-                              </div>
-                            )}
-                            {lead.last_activity_date && (
-                              <div className="text-[10px] text-slate-500 mt-0.5">
-                                Last inquiry: {new Date(lead.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}
-                              </div>
-                            )}
-                            {lead.potential_value != null && (
-                              <div className="text-xs font-medium text-slate-700 mt-1.5">
-                                ₹{lead.potential_value.toLocaleString()}
-                              </div>
-                            )}
-                            <div className="flex items-center gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                              {canEdit && wonStatusId && lead.status_id !== wonStatusId && !lead.status_option?.is_lost && (
-                                <Button
-                                  variant="ghost"
-                                  size="xs"
-                                  onClick={() => openMarkAsWonModal(lead.id)}
-                                  className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700"
-                                  title="Mark as Won"
+                        {isCollapsed ? (
+                          <>
+                            <ChevronLeft size={18} className="text-slate-500 rotate-90" />
+                            <span className="text-xs font-semibold text-slate-600 leading-none" style={{ writingMode: 'vertical-rl' }}>{groupLabel}</span>
+                            <span className="text-[11px] font-bold text-slate-500 leading-none">{groupLeadCount}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-sm font-semibold text-slate-700">{groupLabel}</span>
+                            <span className="text-xs text-slate-400">({statuses.length} status{statuses.length !== 1 ? 'es' : ''} • {groupLeadCount} leads)</span>
+                            <ChevronRight size={16} className="text-slate-400 ml-auto" />
+                          </>
+                        )}
+                      </button>
+                      {!isCollapsed && (
+                        <div className="flex gap-4 overflow-x-auto pb-2">
+                          {statuses.map((status) => {
+                            const columnLeads = leadsByStatus[status.code] || [];
+                            const useStatusHex = status.hex_color && /^#[0-9A-Fa-f]{6}$/.test(status.hex_color);
+                            const statusColor = !useStatusHex ? (STATUS_COLORS[status.code] || DEFAULT_STATUS_COLOR) : null;
+                            return (
+                              <div
+                                key={status.id}
+                                className={`flex-shrink-0 w-72 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${dragOverStatusId === status.id ? 'border-indigo-500 bg-indigo-50/30' : 'border-slate-200 bg-slate-50/50'
+                                  }`}
+                                onDragOver={(e) => handleColumnDragOver(e, status.id)}
+                                onDragLeave={handleColumnDragLeave}
+                                onDrop={(e) => handleColumnDrop(e, status.id)}
+                              >
+                                <div
+                                  className={`flex-shrink-0 px-3 py-2.5 border-b border-slate-200 flex items-center justify-between ${statusColor ? `${statusColor.bg} ${statusColor.text}` : ''}`}
+                                  style={useStatusHex ? { backgroundColor: status.hex_color!, color: getContrastColor(status.hex_color!) } : undefined}
                                 >
-                                  <Trophy size={12} className="mr-0.5" /> Won
-                                </Button>
-                              )}
-                              {canEdit && lostStatusId && lead.status_id !== lostStatusId && !lead.status_option?.is_final && (
-                                <Button
-                                  variant="ghost"
-                                  size="xs"
-                                  onClick={() => setLeadToMarkLost(lead.id)}
-                                  className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700"
-                                  title="Mark as Lost"
-                                >
-                                  <XCircle size={12} className="mr-0.5" /> Lost
-                                </Button>
-                              )}
-                              {canDelete && (
-                                <Button
-                                  variant="ghost"
-                                  size="xs"
-                                  onClick={() => openDeleteConfirm(lead.id)}
-                                  className="h-7 px-2 text-xs text-slate-500 hover:text-rose-700"
-                                >
-                                  Delete
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                                  <span className="font-semibold text-sm uppercase tracking-wide">{status.label}</span>
+                                  <span className="flex items-center gap-1">
+                                    <span className="text-xs opacity-80">({columnLeads.length})</span>
+                                    {canCreate && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); openCreateLeadModal(status.id); }}
+                                        className="p-1 rounded hover:bg-black/10 transition-colors"
+                                        title={`Add lead to ${status.label}`}
+                                      >
+                                        <Plus size={16} strokeWidth={2.5} />
+                                      </button>
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 space-y-2 scrollbar-hide">
+                                  {columnLeads.map((lead) => (
+                                    <div
+                                      key={lead.id}
+                                      draggable={canEdit}
+                                      onDragStart={(e) => handleLeadDragStart(e, lead)}
+                                      onDragEnd={handleLeadDragEnd}
+                                      onClick={() => canEdit && !didDragRef.current && navigate(`/leads/${lead.id}/edit`)}
+                                      className={`rounded-lg border p-3 shadow-sm transition-all hover:shadow-md ${isDueForFollowUp(lead)
+                                        ? 'bg-amber-50 border-amber-300 hover:bg-amber-100/80'
+                                        : 'bg-white border-slate-200 hover:shadow-md'
+                                        } ${canEdit ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedLeadId === lead.id ? 'opacity-50' : ''} ${updatingLeadId === lead.id ? 'animate-pulse' : ''}`}
+                                    >
+                                      <div className="font-medium text-slate-900 text-sm truncate">
+                                        {leadDisplayName(lead)}
+                                      </div>
+                                      {leadDisplayCompany(lead) && (
+                                        <div className="text-xs text-slate-500 truncate mt-0.5">{leadDisplayCompany(lead)}</div>
+                                      )}
+                                      <div className="text-xs text-slate-400 truncate mt-0.5">{leadDisplayEmail(lead) || '—'}</div>
+                                      {lead.next_follow_up_at && (
+                                        <div className="text-[10px] text-slate-500 mt-1">
+                                          Next follow-up: {new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}
+                                        </div>
+                                      )}
+                                      {lead.last_activity_date && (
+                                        <div className="text-[10px] text-slate-500 mt-0.5">
+                                          Last inquiry: {new Date(lead.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}
+                                        </div>
+                                      )}
+                                      {lead.potential_value != null && (
+                                        <div className="text-xs font-medium text-slate-700 mt-1.5">
+                                          ₹{lead.potential_value.toLocaleString()}
+                                        </div>
+                                      )}
+                                      <div className="flex items-center gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                                        {canEdit && wonStatusId && lead.status_id !== wonStatusId && !lead.status_option?.is_lost && (
+                                          <Button
+                                            variant="ghost"
+                                            size="xs"
+                                            onClick={() => openMarkAsWonModal(lead.id)}
+                                            className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700"
+                                            title="Mark as Won"
+                                          >
+                                            <Trophy size={12} className="mr-0.5" /> Won
+                                          </Button>
+                                        )}
+                                        {canEdit && lostStatusId && lead.status_id !== lostStatusId && !lead.status_option?.is_final && (
+                                          <Button
+                                            variant="ghost"
+                                            size="xs"
+                                            onClick={() => setLeadToMarkLost(lead.id)}
+                                            className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700"
+                                            title="Mark as Lost"
+                                          >
+                                            <XCircle size={12} className="mr-0.5" /> Lost
+                                          </Button>
+                                        )}
+                                        {canDelete && (
+                                          <Button
+                                            variant="ghost"
+                                            size="xs"
+                                            onClick={() => openDeleteConfirm(lead.id)}
+                                            className="h-7 px-2 text-xs text-slate-500 hover:text-rose-700"
+                                          >
+                                            Delete
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </div>
                   );
-                })}
-                    </div>
-                    )}
-                  </div>
-                );
                 })}
               </div>
             )}
@@ -1695,124 +1691,124 @@ export const LeadsPage: React.FC = () => {
           const requiresQuoteNumber = Boolean(toStatus?.set_when_quote_number_generated);
           const leadHasNoQuoteNumber = requiresQuoteNumber && !statusChangeLead?.series?.trim();
           return (
-          <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-            <p className="text-sm text-slate-600">You can add an optional log for this status change.</p>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <span className="text-slate-500 block text-xs font-medium mb-0.5">From status</span>
-                <span className="font-medium text-slate-800">
-                  {leadStatuses.find((s) => s.id === statusChangePending.currentStatusId)?.label ?? '—'}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 block text-xs font-medium mb-0.5">To status</span>
-                <span className="font-medium text-slate-800">
-                  {leadStatuses.find((s) => s.id === statusChangePending.newStatusId)?.label ?? '—'}
-                </span>
-              </div>
-            </div>
-            {leadHasNoQuoteNumber && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-3 space-y-2">
-                <label className="block text-sm font-medium text-slate-700">Quote number not set</label>
-                <p className="text-xs text-slate-600">Select a number series and generate a quote number (or use it directly for the first quotation).</p>
-                <div className="flex flex-wrap items-end gap-2">
-                  <div className="min-w-[180px]">
-                    <Select
-                      placeholder="Number series"
-                      value={statusChangeSeriesCode}
-                      onChange={(val) => setStatusChangeSeriesCode(String(val ?? ''))}
-                      options={[
-                        { value: '', label: '— Select series —' },
-                        ...seriesList.map((s) => ({ value: s.code ?? '', label: `${s.name} (${s.code})` })),
-                      ]}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={!statusChangeSeriesCode.trim() || statusChangeGeneratingQuote}
-                    onClick={handleStatusChangeGenerateQuote}
-                  >
-                    {statusChangeGeneratingQuote ? 'Generating…' : 'Generate quote number'}
-                  </Button>
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+              <p className="text-sm text-slate-600">You can add an optional log for this status change.</p>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-slate-500 block text-xs font-medium mb-0.5">From status</span>
+                  <span className="font-medium text-slate-800">
+                    {leadStatuses.find((s) => s.id === statusChangePending.currentStatusId)?.label ?? '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-xs font-medium mb-0.5">To status</span>
+                  <span className="font-medium text-slate-800">
+                    {leadStatuses.find((s) => s.id === statusChangePending.newStatusId)?.label ?? '—'}
+                  </span>
                 </div>
               </div>
-            )}
-            {statusChangeLead?.series?.trim() && (
-              <p className="text-xs text-slate-600">Quote number: <strong>{statusChangeLead.series}</strong></p>
-            )}
-            <Input
-              label="Reason / title (optional)"
-              placeholder="e.g. Customer confirmed requirements"
-              value={statusChangeForm.title}
-              onChange={(e) => setStatusChangeForm((f) => ({ ...f, title: e.target.value }))}
-            />
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optional)</label>
-              <textarea
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Additional details..."
-                value={statusChangeForm.description}
-                onChange={(e) => setStatusChangeForm((f) => ({ ...f, description: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">File attachments (optional)</label>
-              <p className="text-xs text-slate-500 mb-2">Quotation or general attachment; choose type per file. Same as enquiry log.</p>
-              <div className="space-y-2">
-                {statusChangeAttachments.map((row) => (
-                  <div key={row.id} className="flex flex-wrap items-center gap-2">
-                    <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
-                      <Upload size={12} />
-                      <span className="truncate max-w-[120px]">{row.file ? row.file.name : 'Choose file'}</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, file: file ?? null } : r)));
-                        }}
+              {leadHasNoQuoteNumber && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-3 space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Quote number not set</label>
+                  <p className="text-xs text-slate-600">Select a number series and generate a quote number (or use it directly for the first quotation).</p>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="min-w-[180px]">
+                      <Select
+                        placeholder="Number series"
+                        value={statusChangeSeriesCode}
+                        onChange={(val) => setStatusChangeSeriesCode(String(val ?? ''))}
+                        options={[
+                          { value: '', label: '— Select series —' },
+                          ...seriesList.map((s) => ({ value: s.code ?? '', label: `${s.name} (${s.code})` })),
+                        ]}
                       />
-                    </label>
-                    <select
-                      className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs w-24"
-                      value={row.kind}
-                      onChange={(e) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, kind: e.target.value as 'quotation' | 'attachment' } : r)))}
-                    >
-                      <option value="quotation">Quotation</option>
-                      <option value="attachment">Attachment</option>
-                    </select>
-                    {row.kind === 'attachment' && (
-                      <input
-                        className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs min-w-[100px] flex-1 max-w-[160px]"
-                        placeholder="Title"
-                        value={row.title}
-                        onChange={(e) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r)))}
-                      />
-                    )}
-                    {row.kind === 'quotation' && <span className="text-xs text-slate-500">Auto from lead</span>}
-                    <button
+                    </div>
+                    <Button
                       type="button"
-                      onClick={() => setStatusChangeAttachments((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))}
-                      className="p-1.5 rounded text-slate-400 hover:bg-slate-200 hover:text-rose-600"
-                      title="Remove"
+                      size="sm"
+                      variant="outline"
+                      disabled={!statusChangeSeriesCode.trim() || statusChangeGeneratingQuote}
+                      onClick={handleStatusChangeGenerateQuote}
                     >
-                      <Trash2 size={14} />
-                    </button>
+                      {statusChangeGeneratingQuote ? 'Generating…' : 'Generate quote number'}
+                    </Button>
                   </div>
-                ))}
-                <button
-                  type="button"
-                  className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
-                  onClick={() => setStatusChangeAttachments((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, title: '' }])}
-                >
-                  <Plus size={12} /> Add file
-                </button>
+                </div>
+              )}
+              {statusChangeLead?.series?.trim() && (
+                <p className="text-xs text-slate-600">Quote number: <strong>{statusChangeLead.series}</strong></p>
+              )}
+              <Input
+                label="Reason / title (optional)"
+                placeholder="e.g. Customer confirmed requirements"
+                value={statusChangeForm.title}
+                onChange={(e) => setStatusChangeForm((f) => ({ ...f, title: e.target.value }))}
+              />
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optional)</label>
+                <textarea
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Additional details..."
+                  value={statusChangeForm.description}
+                  onChange={(e) => setStatusChangeForm((f) => ({ ...f, description: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">File attachments (optional)</label>
+                <p className="text-xs text-slate-500 mb-2">Quotation or general attachment; choose type per file. Same as enquiry log.</p>
+                <div className="space-y-2">
+                  {statusChangeAttachments.map((row) => (
+                    <div key={row.id} className="flex flex-wrap items-center gap-2">
+                      <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
+                        <Upload size={12} />
+                        <span className="truncate max-w-[120px]">{row.file ? row.file.name : 'Choose file'}</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, file: file ?? null } : r)));
+                          }}
+                        />
+                      </label>
+                      <select
+                        className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs w-24"
+                        value={row.kind}
+                        onChange={(e) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, kind: e.target.value as 'quotation' | 'attachment' } : r)))}
+                      >
+                        <option value="quotation">Quotation</option>
+                        <option value="attachment">Attachment</option>
+                      </select>
+                      {row.kind === 'attachment' && (
+                        <input
+                          className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs min-w-[100px] flex-1 max-w-[160px]"
+                          placeholder="Title"
+                          value={row.title}
+                          onChange={(e) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r)))}
+                        />
+                      )}
+                      {row.kind === 'quotation' && <span className="text-xs text-slate-500">Auto from lead</span>}
+                      <button
+                        type="button"
+                        onClick={() => setStatusChangeAttachments((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))}
+                        className="p-1.5 rounded text-slate-400 hover:bg-slate-200 hover:text-rose-600"
+                        title="Remove"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+                    onClick={() => setStatusChangeAttachments((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, title: '' }])}
+                  >
+                    <Plus size={12} /> Add file
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
           );
         })()}
       </Modal>
@@ -2163,7 +2159,7 @@ export const LeadsPage: React.FC = () => {
                     {canEdit && (
                       <Button variant="ghost" size="xs" className="text-indigo-600" onClick={() => { setAddingGroup(true); setEditingGroup(null); setGroupForm({ code: '', label: '', expected_duration_days: undefined, follow_up_interval_days: undefined, display_order: leadStatusGroups.length, is_active: true, hex_color: '' }); }} leftIcon={<Plus size={12} />}>
                         Create group
-                </Button>
+                      </Button>
                     )}
                   </th>
                 </tr>
@@ -2202,7 +2198,7 @@ export const LeadsPage: React.FC = () => {
                       <div className="flex gap-1">
                         <Button size="xs" onClick={saveGroup} disabled={savingGroup || !groupForm.label?.trim()}>{savingGroup ? '...' : 'Save'}</Button>
                         <Button size="xs" variant="outline" onClick={cancelGroupForm}>Cancel</Button>
-              </div>
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -2228,7 +2224,7 @@ export const LeadsPage: React.FC = () => {
                         <label className="flex items-center gap-1">
                           <input type="checkbox" checked={groupForm.is_active} onChange={(e) => setGroupForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
                           <span className="text-xs">Active</span>
-            </label>
+                        </label>
                       </td>
                       <td className="px-2 py-1.5">
                         <div className="flex items-center gap-1.5">
@@ -2425,8 +2421,8 @@ export const LeadsPage: React.FC = () => {
                                     <Button size="xs" onClick={saveStatus} disabled={savingStatus || !statusForm.label?.trim()}>{savingStatus ? '...' : 'Save'}</Button>
                                     <Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false }); }}>Cancel</Button>
                                   </div>
-                    </td>
-                  </tr>
+                                </td>
+                              </tr>
                             ) : (
                               <tr key={s.id} className="border-b border-slate-100">
                                 <td className="py-2 pr-2 font-mono text-slate-700 align-middle">{s.code}</td>

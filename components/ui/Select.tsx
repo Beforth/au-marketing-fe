@@ -30,6 +30,7 @@ interface SelectProps {
   getOptionKey?: (option: SelectOption, index: number) => string | number;
   label?: string;
   error?: string;
+  containerClassName?: string;
 }
 
 // Simple fuzzy search function
@@ -37,10 +38,10 @@ const fuzzySearch = (query: string, text: string): boolean => {
   if (!query) return true;
   const queryLower = query.toLowerCase();
   const textLower = text.toLowerCase();
-  
+
   // Exact match
   if (textLower.includes(queryLower)) return true;
-  
+
   // Fuzzy match - check if all characters in query appear in order in text
   let queryIndex = 0;
   for (let i = 0; i < textLower.length && queryIndex < queryLower.length; i++) {
@@ -65,6 +66,7 @@ export const Select: React.FC<SelectProps> = ({
   getOptionKey,
   label,
   error,
+  containerClassName,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -86,9 +88,9 @@ export const Select: React.FC<SelectProps> = ({
     ? isQueryDialCode && normalizedDialCode
       ? options.filter(opt => String(opt.value) === normalizedDialCode)
       : options.filter(opt => {
-          const textToSearch = getSearchText ? getSearchText(opt) : opt.label;
-          return fuzzySearch(trimmedQuery, textToSearch);
-        })
+        const textToSearch = getSearchText ? getSearchText(opt) : opt.label;
+        return fuzzySearch(trimmedQuery, textToSearch);
+      })
     : options;
 
   // Position dropdown in portal (measure trigger so dropdown is not clipped by overflow)
@@ -147,7 +149,7 @@ export const Select: React.FC<SelectProps> = ({
   };
 
   return (
-    <div className={cn('space-y-1.5 w-full', className)}>
+    <div className={cn('space-y-1.5 w-full', containerClassName || className)}>
       {label && (
         <label className="text-xs font-semibold text-slate-700 ml-0.5">
           {label}

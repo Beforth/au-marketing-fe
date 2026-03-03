@@ -13,7 +13,7 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission, selectUser, selectEmployee } from '../store/slices/authSlice';
-import { marketingAPI, Lead, LeadStatusOption, LeadTypeOption, LeadThroughOption, LeadActivity, LeadActivityAttachment, Domain, Region, Customer, Contact, Plant, Series, Organization, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
+import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadTypeOption, LeadThroughOption, LeadActivity, LeadActivityAttachment, Domain, Region, Customer, Contact, Plant, Series, Organization, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from '../constants';
 
 const COMPANY_SIZES = [
@@ -30,6 +30,14 @@ import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Modal } from '../components/ui/Modal';
 import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Globe, User, Building2, FileText, History, Edit2, Trash2, Paperclip, Download, Plus, Upload, X, Package, Trophy, XCircle } from 'lucide-react';
 
+interface LeadFormData extends Partial<Lead> {
+  first_name?: string;
+  last_name?: string;
+  company?: string;
+  email?: string;
+  job_title?: string;
+}
+
 export const LeadFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -38,7 +46,7 @@ export const LeadFormPage: React.FC = () => {
   const user = useAppSelector(selectUser);
   const employee = useAppSelector(selectEmployee);
   const isEdit = Boolean(id);
-  
+
   const canCreate = useAppSelector(selectHasPermission('marketing.create_lead'));
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_lead'));
   const canCreateContact = useAppSelector(selectHasPermission('marketing.create_contact'));
@@ -177,7 +185,7 @@ export const LeadFormPage: React.FC = () => {
   const [showInlineNewPlant, setShowInlineNewPlant] = useState(false);
   const [inlineNewPlantForm, setInlineNewPlantForm] = useState({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
   const [creatingPlantInline, setCreatingPlantInline] = useState(false);
-  const [formData, setFormData] = useState<Partial<Lead>>({
+  const [formData, setFormData] = useState<LeadFormData>({
     domain_id: undefined,
     region_id: undefined,
     contact_id: undefined,
@@ -795,9 +803,9 @@ export const LeadFormPage: React.FC = () => {
             if (region?.id != null && region?.domain_id != null) {
               return { domain_id: region.domain_id, region_id: region.id };
             }
-          } catch (_) {}
+          } catch (_) { }
         }
-      } catch (_) {}
+      } catch (_) { }
     }
     return null;
   };
@@ -850,7 +858,7 @@ export const LeadFormPage: React.FC = () => {
         marketingAPI.getCustomers({ is_active: true, page: 1, page_size: 100 })
       ]);
       const customersData = customersRes.items;
-      
+
       setCurrentLead(lead);
       const contact = lead.contact;
       const customer = lead.customer;
@@ -891,7 +899,7 @@ export const LeadFormPage: React.FC = () => {
         company,
         email,
         job_title: jobTitle,
-      } as Partial<Lead>);
+      });
       if (lead.through_contact) {
         setSelectedThroughContactForDisplay(lead.through_contact);
       } else {
@@ -904,17 +912,17 @@ export const LeadFormPage: React.FC = () => {
       } else {
         setFollowUpTime('');
       }
-      
+
       setCustomers(customersData);
       if (lead.contact_id) setLeadSourceType('contact');
       else if (lead.customer_id) setLeadSourceType('customer');
       else setLeadSourceType('none');
-      
+
       if (lead.customer_id) {
         const plantsData = await marketingAPI.getPlants({ customer_id: lead.customer_id });
         setPlants(plantsData);
       }
-      
+
       if (lead.domain_id) {
         await loadRegions(lead.domain_id);
       }
@@ -1105,7 +1113,7 @@ export const LeadFormPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       if (isEdit && id) {
-        await marketingAPI.updateLead(parseInt(id), payload);
+        await marketingAPI.updateLead(parseInt(id), payload as UpdateLeadRequest);
         showToast('Lead updated successfully', 'success');
         setShowEditModal(false);
         loadLead();
@@ -1163,7 +1171,7 @@ export const LeadFormPage: React.FC = () => {
       const generated = res.generated_value ?? undefined;
       setFormData((prev) => ({ ...prev, series: generated }));
       if (isEdit && id && generated) {
-        const updated = await marketingAPI.updateLead(parseInt(id, 10), { series_code: code, series: generated });
+        const updated = await marketingAPI.updateLead(parseInt(id, 10), { series_code: code, series: generated } as UpdateLeadRequest);
         setCurrentLead(updated);
         showToast('Quote number generated and saved', 'success');
       } else {
@@ -1188,7 +1196,7 @@ export const LeadFormPage: React.FC = () => {
     }
     setMarkWonSubmitting(true);
     try {
-      await marketingAPI.updateLead(parseInt(id), { status_id: wonStatusId, closed_value: value });
+      await marketingAPI.updateLead(parseInt(id), { status_id: wonStatusId ?? undefined, closed_value: value } as UpdateLeadRequest);
       const description = `Closed value: ₹${value.toLocaleString()}${markWonPO.trim() ? `\nPO: ${markWonPO.trim()}` : ''}`;
       await marketingAPI.createLeadActivity(parseInt(id), {
         activity_type: 'lead_status_change',
@@ -1216,9 +1224,9 @@ export const LeadFormPage: React.FC = () => {
     setMarkLostSubmitting(true);
     try {
       await marketingAPI.updateLead(parseInt(id), {
-        status_id: lostStatusId,
+        status_id: lostStatusId ?? undefined,
         status_change_reason: markLostReason.trim(),
-      });
+      } as UpdateLeadRequest);
       showToast('Lead marked as Lost', 'success');
       setShowMarkLostConfirm(false);
       setMarkLostReason('');
@@ -1300,8 +1308,8 @@ export const LeadFormPage: React.FC = () => {
   const throughContactSelected = leadThroughOptions.find((t) => t.id === formData.lead_through_id)?.code === 'through_contact';
 
   return (
-    <PageLayout 
-      title={viewMode ? 'Lead details' : (isEdit ? 'Edit Lead' : 'Create Lead')} 
+    <PageLayout
+      title={viewMode ? 'Lead details' : (isEdit ? 'Edit Lead' : 'Create Lead')}
       breadcrumbs={breadcrumbs}
       actions={
         <div className="flex items-center gap-2">
@@ -1404,18 +1412,16 @@ export const LeadFormPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('enquiry')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              activeTab === 'enquiry' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${activeTab === 'enquiry' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+              }`}
           >
             <FileText size={16} /> Enquiry log
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('status_logs')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              activeTab === 'status_logs' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${activeTab === 'status_logs' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+              }`}
           >
             <History size={16} /> Lead status logs
           </button>
@@ -1487,910 +1493,910 @@ export const LeadFormPage: React.FC = () => {
       )}
 
       {!isEdit && (
-      <Card>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Main contact (who the lead is about) — always show. When Lead through = Through contact, "Referred by (contact)" section appears below for the second contact. */}
-          <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
-            <h3 className="text-sm font-semibold text-slate-700">Contact</h3>
-            {formData.contact_id != null || formData.customer_id != null ? (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-slate-600">{formData.contact_id != null ? 'Linked to contact' : 'Linked to customer'}</span>
-                {formData.contact_id != null && (
-                  <a href={`/contacts/${formData.contact_id}/edit`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800" title="Open contact in new tab">
-                    <ArrowRight size={14} /> View contact
-                  </a>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData(prev => ({ ...prev, contact_id: undefined, customer_id: undefined }));
-                    setLeadSourceType('none');
-                    setLeadSearchContactResults([]);
-                    setLeadSearchCustomerResults([]);
-                    setSelectedContactForDisplay(null);
-                  }}
-                  className="inline-flex items-center gap-1 text-slate-500 hover:text-rose-600 p-0.5"
-                  title="Unlink"
-                >
-                  <X size={14} /> Unlink
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* Row 1: Name + Phone in one line; dropdown for existing contacts appears below */}
-                <div className="relative flex flex-wrap items-end gap-3" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setTimeout(() => { setLeadSearchContactResults([]); setLeadSearchCustomerResults([]); setLeadSearchLoading(false); }, 200); }}>
-                  <div className="w-20 shrink-0">
-                    <Select label="Title" options={NAME_PREFIXES} value={inlineContactForm.title} onChange={(v) => setInlineContactForm(prev => ({ ...prev, title: (v ?? '') as string }))} placeholder="—" />
-                  </div>
-                  <div className="min-w-[100px] flex-1"><Input label="First name" value={inlineContactForm.first_name} onChange={(e) => setInlineContactForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="First name" /></div>
-                  <div className="min-w-[100px] flex-1"><Input label="Last name" value={inlineContactForm.last_name} onChange={(e) => setInlineContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Last name" /></div>
-                  <div className="w-28 shrink-0">
-                    <Select label="Country code" options={COUNTRY_CODES} value={inlineContactForm.contact_phone_code} onChange={(v) => setInlineContactForm(prev => ({ ...prev, contact_phone_code: (v ?? DEFAULT_COUNTRY_CODE) as string }))} placeholder="Code" searchable getSearchText={getCountryCodeSearchText} getOptionKey={(o) => o.label} />
-                  </div>
-                  <div className="min-w-[120px] flex-1"><Input label="Phone" value={inlineContactForm.contact_phone} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="Number without code" /></div>
-                  {showLeadSearchDropdown && (
-                    <div className="absolute left-0 right-0 top-full z-20 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-auto">
-                      {leadSearchLoading && !hasLeadSearchResults && (
-                        <p className="text-xs text-slate-500 px-3 py-3">Searching contacts…</p>
-                      )}
-                      {!leadSearchLoading && leadSearchContactResults.length > 0 && (
-                        <>
-                          <p className="text-xs font-medium text-slate-500 px-3 py-2 border-b border-slate-100 bg-slate-50">Link to existing contact</p>
-                          {leadSearchContactResults.map(c => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
-                              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); linkLeadToContact(c); }}
-                            >
-                              <span className="font-medium text-slate-800">{[c.first_name, c.last_name].filter(Boolean).join(' ') || c.contact_person_name || c.organization?.name || 'Contact'}</span>
-                              <span className="text-slate-500 text-xs">{[c.contact_email, c.contact_phone, c.organization?.name].filter(Boolean).join(' · ')}</span>
-                            </button>
-                          ))}
-                        </>
-                      )}
-                      {!leadSearchLoading && leadSearchCustomerResults.length > 0 && (
-                        <>
-                          <p className="text-xs font-medium text-slate-500 px-3 py-2 border-b border-slate-100 bg-slate-50">Customers</p>
-                          {leadSearchCustomerResults.map(cust => (
-                            <button
-                              key={cust.id}
-                              type="button"
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
-                              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); linkLeadToCustomer(cust); }}
-                            >
-                              <span className="font-medium text-slate-800">{cust.company_name}</span>
-                              {cust.organization?.name && <span className="text-slate-500 text-xs">{cust.organization.name}</span>}
-                            </button>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {/* Row 2: Email + Job Title in one line */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                  <Input label="Email" type="email" value={inlineContactForm.contact_email} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
-                  <Input label="Job Title" value={inlineContactForm.contact_job_title} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="Job Title" />
-                  <p className="text-xs text-slate-500 md:col-span-2">Contact will use the lead&apos;s Domain &amp; Region (set below).</p>
-                  <div className="md:col-span-2 relative">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Organization (optional)</label>
-                    <Input
-                      value={inlineContactOrgQuery}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setInlineContactOrgQuery(v);
-                        if (inlineContactOrgTimeoutRef.current) clearTimeout(inlineContactOrgTimeoutRef.current);
-                        if (v.trim().length < 2) { setInlineContactOrgSuggestions([]); return; }
-                        inlineContactOrgTimeoutRef.current = setTimeout(() => {
-                          marketingAPI.getOrganizations({ page: 1, page_size: 15, search: v.trim(), is_active: true })
-                            .then(res => setInlineContactOrgSuggestions(res.items ?? []))
-                            .catch(() => setInlineContactOrgSuggestions([]));
-                        }, 300);
-                      }}
-                      onBlur={() => setTimeout(() => setInlineContactOrgSuggestions([]), 150)}
-                      placeholder="Type to search organization"
-                      disabled={!!inlineContactForm.organization_id}
-                    />
-                    {inlineContactForm.organization_id && (
-                      <button type="button" onClick={() => { setInlineContactForm(prev => ({ ...prev, organization_id: undefined, plant_id: undefined })); setInlineContactOrgQuery(''); setInlineContactPlants([]); setShowInlineNewPlant(false); }} className="mt-1 text-xs text-rose-600 hover:text-rose-700">Clear organization</button>
-                    )}
-                    {!inlineContactForm.organization_id && inlineContactOrgSuggestions.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-auto">
-                        {inlineContactOrgSuggestions.map(org => (
-                          <button
-                            key={org.id}
-                            type="button"
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
-                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setInlineContactForm(prev => ({ ...prev, organization_id: org.id, plant_id: undefined })); setInlineContactOrgQuery(org.name); setInlineContactOrgSuggestions([]); marketingAPI.getOrganizationPlants(org.id).then(setInlineContactPlants).catch(() => setInlineContactPlants([])); }}
-                          >
-                            {org.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {!inlineContactForm.organization_id && inlineContactOrgQuery.trim().length >= 2 && (
-                    <div className="md:col-span-2 p-3 bg-white rounded-lg border border-slate-200 space-y-3">
-                      <h4 className="text-sm font-medium text-slate-700">Create organization (name from above)</h4>
-                      <p className="text-xs text-slate-500">Organization name: <strong>{inlineContactOrgQuery.trim()}</strong> — fill optional fields below and click Create.</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <Input label="Code" value={inlineNewOrgForm.code} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="Code" />
-                        <Input label="Website" value={inlineNewOrgForm.website} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
-                        <Input label="Industry" value={inlineNewOrgForm.industry} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="Industry" />
-                        <Input label="Size" value={inlineNewOrgForm.organization_size} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, organization_size: e.target.value }))} placeholder="e.g. 50-200" />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button type="button" variant="primary" disabled={creatingOrgInline} onClick={async () => {
-                          setCreatingOrgInline(true);
-                          try {
-                            const orgName = inlineContactOrgQuery.trim();
-                            const org = await marketingAPI.createOrganization({ name: orgName, code: inlineNewOrgForm.code.trim() || undefined, website: inlineNewOrgForm.website.trim() || undefined, industry: inlineNewOrgForm.industry.trim() || undefined, organization_size: inlineNewOrgForm.organization_size.trim() || undefined, is_active: true });
-                            setInlineContactForm(prev => ({ ...prev, organization_id: org.id, plant_id: undefined }));
-                            setInlineContactOrgQuery(org.name);
-                            setInlineNewOrgForm({ code: '', website: '', industry: '', organization_size: '' });
-                            const plants = await marketingAPI.getOrganizationPlants(org.id);
-                            setInlineContactPlants(plants ?? []);
-                            setShowInlineNewPlant(true); // Open add-plant form so user can add a plant right after creating org
-                            showToast('Organization created. You can add a plant below (optional).', 'success');
-                          } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to create organization', 'error'); } finally { setCreatingOrgInline(false); }
-                        }}>{creatingOrgInline ? 'Creating...' : 'Create organization'}</Button>
-                      </div>
-                    </div>
-                  )}
-                  {inlineContactForm.organization_id && (
-                    <div className="md:col-span-2 space-y-2">
-                      <label className="block text-sm font-medium text-slate-700">Plant (optional)</label>
-                      {inlineContactPlants.length === 0 && !showInlineNewPlant && (
-                        <p className="text-xs text-slate-500">No plants yet for this organization. Use &quot;+ Add plant&quot; below to add one.</p>
-                      )}
-                      <select
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                        value={inlineContactForm.plant_id ?? ''}
-                        onChange={(e) => setInlineContactForm(prev => ({ ...prev, plant_id: e.target.value ? Number(e.target.value) : undefined }))}
-                      >
-                        <option value="">— None —</option>
-                        {inlineContactPlants.map(p => (<option key={p.id} value={p.id}>{p.plant_name}</option>))}
-                      </select>
-                      <button type="button" onClick={() => setShowInlineNewPlant(true)} className="text-sm text-indigo-600 hover:text-indigo-800">+ Add plant</button>
-                      {showInlineNewPlant && (
-                        <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-3">
-                          <h4 className="text-sm font-medium text-slate-700">Add plant (inline)</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <Input label="Plant name" value={inlineNewPlantForm.plant_name} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="Plant name" />
-                            <Input label="Address" value={inlineNewPlantForm.address_line1} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address" />
-                            <Input label="City" value={inlineNewPlantForm.city} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, city: e.target.value }))} placeholder="City" />
-                            <Input label="Country" value={inlineNewPlantForm.country} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" />
-                            <Input label="Postal code" value={inlineNewPlantForm.postal_code} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button type="button" variant="primary" disabled={!inlineNewPlantForm.plant_name.trim() || creatingPlantInline} onClick={async () => {
-                              setCreatingPlantInline(true);
-                              try {
-                                const plant = await marketingAPI.createOrganizationPlant(inlineContactForm.organization_id!, { plant_name: inlineNewPlantForm.plant_name.trim(), address_line1: inlineNewPlantForm.address_line1.trim() || undefined, city: inlineNewPlantForm.city.trim() || undefined, country: inlineNewPlantForm.country.trim() || undefined, postal_code: inlineNewPlantForm.postal_code.trim() || undefined });
-                                setInlineContactPlants(prev => [...prev, plant]);
-                                setInlineContactForm(prev => ({ ...prev, plant_id: plant.id }));
-                                setShowInlineNewPlant(false);
-                                setInlineNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
-                                showToast('Plant added', 'success');
-                              } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to add plant', 'error'); } finally { setCreatingPlantInline(false); }
-                            }}>{creatingPlantInline ? 'Adding...' : 'Add plant'}</Button>
-                            <Button type="button" variant="secondary" onClick={() => { setShowInlineNewPlant(false); setInlineNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' }); }}>Cancel</Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Person / Company (from linked Contact or Customer — read-only) */}
-          {(currentLead || formData.contact_id || formData.customer_id) && (() => {
-            const displayLead: Lead | null = currentLead ?? (selectedContactForDisplay && formData.contact_id ? { id: 0, domain_id: formData.domain_id || 0, contact_id: formData.contact_id, contact: selectedContactForDisplay, created_by_employee_id: 0, created_at: '', updated_at: '' } as Lead : formData.customer_id ? { id: 0, domain_id: formData.domain_id || 0, customer_id: formData.customer_id, customer: customers.find(c => c.id === formData.customer_id), created_by_employee_id: 0, created_at: '', updated_at: '' } as Lead : null);
-            if (!displayLead) return null;
-            return (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <div><span className="text-slate-500 text-sm">Name</span><br /><span className="font-medium">{leadDisplayName(displayLead) || '—'}</span></div>
-                <div><span className="text-slate-500 text-sm">Email</span><br /><span className="font-medium">{leadDisplayEmail(displayLead) || '—'}</span></div>
-                <div className="md:col-span-2"><span className="text-slate-500 text-sm">Company</span><br /><span className="font-medium">{leadDisplayCompany(displayLead) || '—'}</span></div>
-              </div>
-            );
-          })()}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Lead through (optional) — includes Through contact */}
-            <div>
-              <Select
-                label="Lead through (optional)"
-                options={[
-                  { value: '', label: '— None —' },
-                  ...leadThroughOptions
-                    .filter((t) => t.is_active && ['through_contact', 'website', 'mail', 'whatsapp_campaign', 'cold_calling', 'expo', 'colleague'].includes(t.code || ''))
-                    .map((t) => ({ value: String(t.id), label: t.label })),
-                ]}
-                value={formData.lead_through_id != null ? String(formData.lead_through_id) : ''}
-                onChange={(val) => {
-                  const newId = val ? Number(val) : undefined;
-                  const isStillThroughContact = newId != null && leadThroughOptions.find((t) => t.id === newId)?.code === 'through_contact';
-                  setFormData(prev => ({
-                    ...prev,
-                    lead_through_id: newId,
-                    ...(isStillThroughContact ? {} : { through_contact_id: undefined }),
-                  }));
-                  if (!isStillThroughContact) {
-                    setSelectedThroughContactForDisplay(null);
-                    setThroughContactSearchResults([]);
-                    setThroughContactSearchName('');
-                  }
-                }}
-                placeholder="e.g. Through contact, Website, Colleague"
-              />
-            </div>
-
-            {/* When Lead through = Through contact: second contact (referrer) — who gave the lead. Same pattern as Colleague: select employee vs select contact. */}
-            {throughContactSelected && (
-              <div className="md:col-span-2 space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <h3 className="text-sm font-semibold text-slate-700">Referred by (contact)</h3>
-                <p className="text-xs text-slate-500">This is a second contact linked to the lead: the contact who gave/referred this lead (from the contacts table). Select existing or add new with contact details and organisation.</p>
-                {formData.through_contact_id != null && selectedThroughContactForDisplay ? (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-slate-600">Referrer contact: {[selectedThroughContactForDisplay.first_name, selectedThroughContactForDisplay.last_name].filter(Boolean).join(' ') || selectedThroughContactForDisplay.contact_person_name || selectedThroughContactForDisplay.organization?.name || 'Contact'}</span>
-                    <a href={`/contacts/${formData.through_contact_id}/edit`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800" title="Open contact in new tab">
+        <Card>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Main contact (who the lead is about) — always show. When Lead through = Through contact, "Referred by (contact)" section appears below for the second contact. */}
+            <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <h3 className="text-sm font-semibold text-slate-700">Contact</h3>
+              {formData.contact_id != null || formData.customer_id != null ? (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-slate-600">{formData.contact_id != null ? 'Linked to contact' : 'Linked to customer'}</span>
+                  {formData.contact_id != null && (
+                    <a href={`/contacts/${formData.contact_id}/edit`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800" title="Open contact in new tab">
                       <ArrowRight size={14} /> View contact
                     </a>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFormData(prev => ({ ...prev, through_contact_id: undefined }));
-                        setSelectedThroughContactForDisplay(null);
-                        setThroughContactSearchResults([]);
-                        setThroughContactSearchName('');
-                      }}
-                      className="inline-flex items-center gap-1 text-slate-500 hover:text-rose-600 p-0.5"
-                      title="Unlink"
-                    >
-                      <X size={14} /> Unlink
-                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, contact_id: undefined, customer_id: undefined }));
+                      setLeadSourceType('none');
+                      setLeadSearchContactResults([]);
+                      setLeadSearchCustomerResults([]);
+                      setSelectedContactForDisplay(null);
+                    }}
+                    className="inline-flex items-center gap-1 text-slate-500 hover:text-rose-600 p-0.5"
+                    title="Unlink"
+                  >
+                    <X size={14} /> Unlink
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Row 1: Name + Phone in one line; dropdown for existing contacts appears below */}
+                  <div className="relative flex flex-wrap items-end gap-3" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setTimeout(() => { setLeadSearchContactResults([]); setLeadSearchCustomerResults([]); setLeadSearchLoading(false); }, 200); }}>
+                    <div className="w-20 shrink-0">
+                      <Select label="Title" options={NAME_PREFIXES} value={inlineContactForm.title} onChange={(v) => setInlineContactForm(prev => ({ ...prev, title: (v ?? '') as string }))} placeholder="—" />
+                    </div>
+                    <div className="min-w-[100px] flex-1"><Input label="First name" value={inlineContactForm.first_name} onChange={(e) => setInlineContactForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="First name" /></div>
+                    <div className="min-w-[100px] flex-1"><Input label="Last name" value={inlineContactForm.last_name} onChange={(e) => setInlineContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Last name" /></div>
+                    <div className="w-28 shrink-0">
+                      <Select label="Country code" options={COUNTRY_CODES} value={inlineContactForm.contact_phone_code} onChange={(v) => setInlineContactForm(prev => ({ ...prev, contact_phone_code: (v ?? DEFAULT_COUNTRY_CODE) as string }))} placeholder="Code" searchable getSearchText={getCountryCodeSearchText} getOptionKey={(o) => o.label} />
+                    </div>
+                    <div className="min-w-[120px] flex-1"><Input label="Phone" value={inlineContactForm.contact_phone} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="Number without code" /></div>
+                    {showLeadSearchDropdown && (
+                      <div className="absolute left-0 right-0 top-full z-20 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-auto">
+                        {leadSearchLoading && !hasLeadSearchResults && (
+                          <p className="text-xs text-slate-500 px-3 py-3">Searching contacts…</p>
+                        )}
+                        {!leadSearchLoading && leadSearchContactResults.length > 0 && (
+                          <>
+                            <p className="text-xs font-medium text-slate-500 px-3 py-2 border-b border-slate-100 bg-slate-50">Link to existing contact</p>
+                            {leadSearchContactResults.map(c => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
+                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); linkLeadToContact(c); }}
+                              >
+                                <span className="font-medium text-slate-800">{[c.first_name, c.last_name].filter(Boolean).join(' ') || c.contact_person_name || c.organization?.name || 'Contact'}</span>
+                                <span className="text-slate-500 text-xs">{[c.contact_email, c.contact_phone, c.organization?.name].filter(Boolean).join(' · ')}</span>
+                              </button>
+                            ))}
+                          </>
+                        )}
+                        {!leadSearchLoading && leadSearchCustomerResults.length > 0 && (
+                          <>
+                            <p className="text-xs font-medium text-slate-500 px-3 py-2 border-b border-slate-100 bg-slate-50">Customers</p>
+                            {leadSearchCustomerResults.map(cust => (
+                              <button
+                                key={cust.id}
+                                type="button"
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
+                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); linkLeadToCustomer(cust); }}
+                              >
+                                <span className="font-medium text-slate-800">{cust.company_name}</span>
+                                {cust.organization?.name && <span className="text-slate-500 text-xs">{cust.organization.name}</span>}
+                              </button>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <>
-                    <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setTimeout(() => { setThroughContactSearchResults([]); setThroughContactSearchLoading(false); }, 200); }}>
+                  {/* Row 2: Email + Job Title in one line */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    <Input label="Email" type="email" value={inlineContactForm.contact_email} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
+                    <Input label="Job Title" value={inlineContactForm.contact_job_title} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="Job Title" />
+                    <p className="text-xs text-slate-500 md:col-span-2">Contact will use the lead&apos;s Domain &amp; Region (set below).</p>
+                    <div className="md:col-span-2 relative">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Organization (optional)</label>
                       <Input
-                        label="Search existing contact"
-                        value={throughContactSearchName}
-                        onChange={(e) => setThroughContactSearchName(e.target.value)}
-                        placeholder="Type name or email to search contacts"
+                        value={inlineContactOrgQuery}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setInlineContactOrgQuery(v);
+                          if (inlineContactOrgTimeoutRef.current) clearTimeout(inlineContactOrgTimeoutRef.current);
+                          if (v.trim().length < 2) { setInlineContactOrgSuggestions([]); return; }
+                          inlineContactOrgTimeoutRef.current = setTimeout(() => {
+                            marketingAPI.getOrganizations({ page: 1, page_size: 15, search: v.trim(), is_active: true })
+                              .then(res => setInlineContactOrgSuggestions(res.items ?? []))
+                              .catch(() => setInlineContactOrgSuggestions([]));
+                          }, 300);
+                        }}
+                        onBlur={() => setTimeout(() => setInlineContactOrgSuggestions([]), 150)}
+                        placeholder="Type to search organization"
+                        disabled={!!inlineContactForm.organization_id}
                       />
-                      {throughContactSearchName.trim().length >= 2 && (throughContactSearchResults.length > 0 || throughContactSearchLoading) && (
-                        <div className="absolute left-0 right-0 top-full z-20 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-auto">
-                          {throughContactSearchLoading && (
-                            <p className="text-xs text-slate-500 px-3 py-3">Searching contacts…</p>
-                          )}
-                          {!throughContactSearchLoading && throughContactSearchResults.length > 0 && (
-                            <>
-                              <p className="text-xs font-medium text-slate-500 px-3 py-2 border-b border-slate-100 bg-slate-50">Select referrer contact (who gave the lead)</p>
-                              {throughContactSearchResults.map(c => (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
-                                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); linkThroughContact(c); }}
-                                >
-                                  <span className="font-medium text-slate-800">{[c.first_name, c.last_name].filter(Boolean).join(' ') || c.contact_person_name || c.organization?.name || 'Contact'}</span>
-                                  <span className="text-slate-500 text-xs">{[c.contact_email, c.contact_phone, c.organization?.name].filter(Boolean).join(' · ')}</span>
-                                </button>
-                              ))}
-                            </>
-                          )}
+                      {inlineContactForm.organization_id && (
+                        <button type="button" onClick={() => { setInlineContactForm(prev => ({ ...prev, organization_id: undefined, plant_id: undefined })); setInlineContactOrgQuery(''); setInlineContactPlants([]); setShowInlineNewPlant(false); }} className="mt-1 text-xs text-rose-600 hover:text-rose-700">Clear organization</button>
+                      )}
+                      {!inlineContactForm.organization_id && inlineContactOrgSuggestions.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-auto">
+                          {inlineContactOrgSuggestions.map(org => (
+                            <button
+                              key={org.id}
+                              type="button"
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setInlineContactForm(prev => ({ ...prev, organization_id: org.id, plant_id: undefined })); setInlineContactOrgQuery(org.name); setInlineContactOrgSuggestions([]); marketingAPI.getOrganizationPlants(org.id).then(setInlineContactPlants).catch(() => setInlineContactPlants([])); }}
+                            >
+                              {org.name}
+                            </button>
+                          ))}
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-slate-500">Or add a new contact (same as at top: contact details + organisation)</p>
-                    {!showInlineThroughContact ? (
-                      <Button type="button" variant="secondary" onClick={() => setShowInlineThroughContact(true)}>+ Add new contact</Button>
-                    ) : (
-                      <div className="space-y-3 p-3 bg-white rounded-lg border border-slate-200">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-slate-700">New referrer contact</span>
-                          <button type="button" onClick={() => setShowInlineThroughContact(false)} className="text-slate-500 hover:text-rose-600"><X size={16} /></button>
+                    {!inlineContactForm.organization_id && inlineContactOrgQuery.trim().length >= 2 && (
+                      <div className="md:col-span-2 p-3 bg-white rounded-lg border border-slate-200 space-y-3">
+                        <h4 className="text-sm font-medium text-slate-700">Create organization (name from above)</h4>
+                        <p className="text-xs text-slate-500">Organization name: <strong>{inlineContactOrgQuery.trim()}</strong> — fill optional fields below and click Create.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input label="Code" value={inlineNewOrgForm.code} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="Code" />
+                          <Input label="Website" value={inlineNewOrgForm.website} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
+                          <Input label="Industry" value={inlineNewOrgForm.industry} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="Industry" />
+                          <Input label="Size" value={inlineNewOrgForm.organization_size} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, organization_size: e.target.value }))} placeholder="e.g. 50-200" />
                         </div>
-                        <div className="relative flex flex-wrap items-end gap-3">
-                          <div className="w-20 shrink-0">
-                            <Select label="Title" options={NAME_PREFIXES} value={inlineThroughContactForm.title} onChange={(v) => setInlineThroughContactForm(prev => ({ ...prev, title: (v ?? '') as string }))} placeholder="—" />
-                          </div>
-                          <div className="min-w-[100px] flex-1"><Input label="First name" value={inlineThroughContactForm.first_name} onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="First name" /></div>
-                          <div className="min-w-[100px] flex-1"><Input label="Last name" value={inlineThroughContactForm.last_name} onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Last name" /></div>
-                          <div className="w-28 shrink-0">
-                            <Select label="Country code" options={COUNTRY_CODES} value={inlineThroughContactForm.contact_phone_code} onChange={(v) => setInlineThroughContactForm(prev => ({ ...prev, contact_phone_code: (v ?? DEFAULT_COUNTRY_CODE) as string }))} placeholder="Code" searchable getSearchText={getCountryCodeSearchText} getOptionKey={(o) => o.label} />
-                          </div>
-                          <div className="min-w-[120px] flex-1"><Input label="Phone" value={inlineThroughContactForm.contact_phone} onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="Number" /></div>
+                        <div className="flex gap-2">
+                          <Button type="button" variant="primary" disabled={creatingOrgInline} onClick={async () => {
+                            setCreatingOrgInline(true);
+                            try {
+                              const orgName = inlineContactOrgQuery.trim();
+                              const org = await marketingAPI.createOrganization({ name: orgName, code: inlineNewOrgForm.code.trim() || undefined, website: inlineNewOrgForm.website.trim() || undefined, industry: inlineNewOrgForm.industry.trim() || undefined, organization_size: inlineNewOrgForm.organization_size.trim() || undefined, is_active: true });
+                              setInlineContactForm(prev => ({ ...prev, organization_id: org.id, plant_id: undefined }));
+                              setInlineContactOrgQuery(org.name);
+                              setInlineNewOrgForm({ code: '', website: '', industry: '', organization_size: '' });
+                              const plants = await marketingAPI.getOrganizationPlants(org.id);
+                              setInlineContactPlants(plants ?? []);
+                              setShowInlineNewPlant(true); // Open add-plant form so user can add a plant right after creating org
+                              showToast('Organization created. You can add a plant below (optional).', 'success');
+                            } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to create organization', 'error'); } finally { setCreatingOrgInline(false); }
+                          }}>{creatingOrgInline ? 'Creating...' : 'Create organization'}</Button>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Input label="Email" type="email" value={inlineThroughContactForm.contact_email} onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
-                          <Input label="Job Title" value={inlineThroughContactForm.contact_job_title} onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="Job Title" />
-                        </div>
-                        <p className="text-xs text-slate-500">Uses lead Domain &amp; Region (set below). Organisation optional.</p>
-                        <div className="relative">
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Organization (optional)</label>
-                          <Input
-                            value={inlineThroughContactOrgQuery}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              setInlineThroughContactOrgQuery(v);
-                              if (inlineThroughContactOrgTimeoutRef.current) clearTimeout(inlineThroughContactOrgTimeoutRef.current);
-                              if (v.trim().length < 2) { setInlineThroughContactOrgSuggestions([]); return; }
-                              inlineThroughContactOrgTimeoutRef.current = setTimeout(() => {
-                                marketingAPI.getOrganizations({ page: 1, page_size: 15, search: v.trim(), is_active: true })
-                                  .then(res => setInlineThroughContactOrgSuggestions(res.items ?? []))
-                                  .catch(() => setInlineThroughContactOrgSuggestions([]));
-                              }, 300);
-                            }}
-                            onBlur={() => setTimeout(() => setInlineThroughContactOrgSuggestions([]), 150)}
-                            placeholder="Type to search organization"
-                            disabled={!!inlineThroughContactForm.organization_id}
-                          />
-                          {inlineThroughContactForm.organization_id && (
-                            <button type="button" onClick={() => { setInlineThroughContactForm(prev => ({ ...prev, organization_id: undefined, plant_id: undefined })); setInlineThroughContactOrgQuery(''); setInlineThroughContactPlants([]); setShowInlineThroughNewPlant(false); }} className="mt-1 text-xs text-rose-600 hover:text-rose-700">Clear organization</button>
-                          )}
-                          {!inlineThroughContactForm.organization_id && inlineThroughContactOrgSuggestions.length > 0 && (
-                            <div className="absolute left-0 right-0 top-full z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-auto">
-                              {inlineThroughContactOrgSuggestions.map(org => (
-                                <button
-                                  key={org.id}
-                                  type="button"
-                                  className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
-                                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setInlineThroughContactForm(prev => ({ ...prev, organization_id: org.id, plant_id: undefined })); setInlineThroughContactOrgQuery(org.name); setInlineThroughContactOrgSuggestions([]); marketingAPI.getOrganizationPlants(org.id).then(setInlineThroughContactPlants).catch(() => []); }}
-                                >
-                                  {org.name}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        {!inlineThroughContactForm.organization_id && inlineThroughContactOrgQuery.trim().length >= 2 && (
+                      </div>
+                    )}
+                    {inlineContactForm.organization_id && (
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="block text-sm font-medium text-slate-700">Plant (optional)</label>
+                        {inlineContactPlants.length === 0 && !showInlineNewPlant && (
+                          <p className="text-xs text-slate-500">No plants yet for this organization. Use &quot;+ Add plant&quot; below to add one.</p>
+                        )}
+                        <select
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                          value={inlineContactForm.plant_id ?? ''}
+                          onChange={(e) => setInlineContactForm(prev => ({ ...prev, plant_id: e.target.value ? Number(e.target.value) : undefined }))}
+                        >
+                          <option value="">— None —</option>
+                          {inlineContactPlants.map(p => (<option key={p.id} value={p.id}>{p.plant_name}</option>))}
+                        </select>
+                        <button type="button" onClick={() => setShowInlineNewPlant(true)} className="text-sm text-indigo-600 hover:text-indigo-800">+ Add plant</button>
+                        {showInlineNewPlant && (
                           <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-3">
-                            <h4 className="text-sm font-medium text-slate-700">Create organization (name from above)</h4>
-                            <p className="text-xs text-slate-500">Organization name: <strong>{inlineThroughContactOrgQuery.trim()}</strong> — fill optional fields below and click Create.</p>
+                            <h4 className="text-sm font-medium text-slate-700">Add plant (inline)</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              <Input label="Code" value={inlineThroughNewOrgForm.code} onChange={(e) => setInlineThroughNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="Code" />
-                              <Input label="Website" value={inlineThroughNewOrgForm.website} onChange={(e) => setInlineThroughNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
-                              <Input label="Industry" value={inlineThroughNewOrgForm.industry} onChange={(e) => setInlineThroughNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="Industry" />
-                              <Input label="Size" value={inlineThroughNewOrgForm.organization_size} onChange={(e) => setInlineThroughNewOrgForm(prev => ({ ...prev, organization_size: e.target.value }))} placeholder="e.g. 50-200" />
+                              <Input label="Plant name" value={inlineNewPlantForm.plant_name} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="Plant name" />
+                              <Input label="Address" value={inlineNewPlantForm.address_line1} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address" />
+                              <Input label="City" value={inlineNewPlantForm.city} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, city: e.target.value }))} placeholder="City" />
+                              <Input label="Country" value={inlineNewPlantForm.country} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" />
+                              <Input label="Postal code" value={inlineNewPlantForm.postal_code} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" />
                             </div>
                             <div className="flex gap-2">
-                              <Button type="button" variant="primary" disabled={creatingThroughOrgInline} onClick={async () => {
-                                setCreatingThroughOrgInline(true);
+                              <Button type="button" variant="primary" disabled={!inlineNewPlantForm.plant_name.trim() || creatingPlantInline} onClick={async () => {
+                                setCreatingPlantInline(true);
                                 try {
-                                  const orgName = inlineThroughContactOrgQuery.trim();
-                                  const org = await marketingAPI.createOrganization({ name: orgName, code: inlineThroughNewOrgForm.code.trim() || undefined, website: inlineThroughNewOrgForm.website.trim() || undefined, industry: inlineThroughNewOrgForm.industry.trim() || undefined, organization_size: inlineThroughNewOrgForm.organization_size.trim() || undefined, is_active: true });
-                                  setInlineThroughContactForm(prev => ({ ...prev, organization_id: org.id, plant_id: undefined }));
-                                  setInlineThroughContactOrgQuery(org.name);
-                                  setInlineThroughNewOrgForm({ code: '', website: '', industry: '', organization_size: '' });
-                                  const plants = await marketingAPI.getOrganizationPlants(org.id);
-                                  setInlineThroughContactPlants(plants ?? []);
-                                  setShowInlineThroughNewPlant(true);
-                                  showToast('Organization created. You can add a plant below (optional).', 'success');
-                                } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to create organization', 'error'); } finally { setCreatingThroughOrgInline(false); }
-                              }}>{creatingThroughOrgInline ? 'Creating...' : 'Create organization'}</Button>
+                                  const plant = await marketingAPI.createOrganizationPlant(inlineContactForm.organization_id!, { plant_name: inlineNewPlantForm.plant_name.trim(), address_line1: inlineNewPlantForm.address_line1.trim() || undefined, city: inlineNewPlantForm.city.trim() || undefined, country: inlineNewPlantForm.country.trim() || undefined, postal_code: inlineNewPlantForm.postal_code.trim() || undefined });
+                                  setInlineContactPlants(prev => [...prev, plant]);
+                                  setInlineContactForm(prev => ({ ...prev, plant_id: plant.id }));
+                                  setShowInlineNewPlant(false);
+                                  setInlineNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+                                  showToast('Plant added', 'success');
+                                } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to add plant', 'error'); } finally { setCreatingPlantInline(false); }
+                              }}>{creatingPlantInline ? 'Adding...' : 'Add plant'}</Button>
+                              <Button type="button" variant="secondary" onClick={() => { setShowInlineNewPlant(false); setInlineNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' }); }}>Cancel</Button>
                             </div>
                           </div>
                         )}
-                        {inlineThroughContactForm.organization_id && (
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium text-slate-700">Plant (optional)</label>
-                            {inlineThroughContactPlants.length === 0 && !showInlineThroughNewPlant && (
-                              <p className="text-xs text-slate-500">No plants yet for this organization. Use &quot;+ Add plant&quot; below to add one.</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Person / Company (from linked Contact or Customer — read-only) */}
+            {(currentLead || formData.contact_id || formData.customer_id) && (() => {
+              const displayLead: Lead | null = currentLead ?? (selectedContactForDisplay && formData.contact_id ? { id: 0, domain_id: formData.domain_id || 0, contact_id: formData.contact_id, contact: selectedContactForDisplay, created_by_employee_id: 0, created_at: '', updated_at: '' } as Lead : formData.customer_id ? { id: 0, domain_id: formData.domain_id || 0, customer_id: formData.customer_id, customer: customers.find(c => c.id === formData.customer_id), created_by_employee_id: 0, created_at: '', updated_at: '' } as Lead : null);
+              if (!displayLead) return null;
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <div><span className="text-slate-500 text-sm">Name</span><br /><span className="font-medium">{leadDisplayName(displayLead) || '—'}</span></div>
+                  <div><span className="text-slate-500 text-sm">Email</span><br /><span className="font-medium">{leadDisplayEmail(displayLead) || '—'}</span></div>
+                  <div className="md:col-span-2"><span className="text-slate-500 text-sm">Company</span><br /><span className="font-medium">{leadDisplayCompany(displayLead) || '—'}</span></div>
+                </div>
+              );
+            })()}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Lead through (optional) — includes Through contact */}
+              <div>
+                <Select
+                  label="Lead through (optional)"
+                  options={[
+                    { value: '', label: '— None —' },
+                    ...leadThroughOptions
+                      .filter((t) => t.is_active && ['through_contact', 'website', 'mail', 'whatsapp_campaign', 'cold_calling', 'expo', 'colleague'].includes(t.code || ''))
+                      .map((t) => ({ value: String(t.id), label: t.label })),
+                  ]}
+                  value={formData.lead_through_id != null ? String(formData.lead_through_id) : ''}
+                  onChange={(val) => {
+                    const newId = val ? Number(val) : undefined;
+                    const isStillThroughContact = newId != null && leadThroughOptions.find((t) => t.id === newId)?.code === 'through_contact';
+                    setFormData(prev => ({
+                      ...prev,
+                      lead_through_id: newId,
+                      ...(isStillThroughContact ? {} : { through_contact_id: undefined }),
+                    }));
+                    if (!isStillThroughContact) {
+                      setSelectedThroughContactForDisplay(null);
+                      setThroughContactSearchResults([]);
+                      setThroughContactSearchName('');
+                    }
+                  }}
+                  placeholder="e.g. Through contact, Website, Colleague"
+                />
+              </div>
+
+              {/* When Lead through = Through contact: second contact (referrer) — who gave the lead. Same pattern as Colleague: select employee vs select contact. */}
+              {throughContactSelected && (
+                <div className="md:col-span-2 space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                  <h3 className="text-sm font-semibold text-slate-700">Referred by (contact)</h3>
+                  <p className="text-xs text-slate-500">This is a second contact linked to the lead: the contact who gave/referred this lead (from the contacts table). Select existing or add new with contact details and organisation.</p>
+                  {formData.through_contact_id != null && selectedThroughContactForDisplay ? (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-slate-600">Referrer contact: {[selectedThroughContactForDisplay.first_name, selectedThroughContactForDisplay.last_name].filter(Boolean).join(' ') || selectedThroughContactForDisplay.contact_person_name || selectedThroughContactForDisplay.organization?.name || 'Contact'}</span>
+                      <a href={`/contacts/${formData.through_contact_id}/edit`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800" title="Open contact in new tab">
+                        <ArrowRight size={14} /> View contact
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, through_contact_id: undefined }));
+                          setSelectedThroughContactForDisplay(null);
+                          setThroughContactSearchResults([]);
+                          setThroughContactSearchName('');
+                        }}
+                        className="inline-flex items-center gap-1 text-slate-500 hover:text-rose-600 p-0.5"
+                        title="Unlink"
+                      >
+                        <X size={14} /> Unlink
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setTimeout(() => { setThroughContactSearchResults([]); setThroughContactSearchLoading(false); }, 200); }}>
+                        <Input
+                          label="Search existing contact"
+                          value={throughContactSearchName}
+                          onChange={(e) => setThroughContactSearchName(e.target.value)}
+                          placeholder="Type name or email to search contacts"
+                        />
+                        {throughContactSearchName.trim().length >= 2 && (throughContactSearchResults.length > 0 || throughContactSearchLoading) && (
+                          <div className="absolute left-0 right-0 top-full z-20 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-auto">
+                            {throughContactSearchLoading && (
+                              <p className="text-xs text-slate-500 px-3 py-3">Searching contacts…</p>
                             )}
-                            <select
-                              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                              value={inlineThroughContactForm.plant_id ?? ''}
-                              onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, plant_id: e.target.value ? Number(e.target.value) : undefined }))}
-                            >
-                              <option value="">— None —</option>
-                              {inlineThroughContactPlants.map(p => (<option key={p.id} value={p.id}>{p.plant_name}</option>))}
-                            </select>
-                            <button type="button" onClick={() => setShowInlineThroughNewPlant(true)} className="text-sm text-indigo-600 hover:text-indigo-800">+ Add plant</button>
-                            {showInlineThroughNewPlant && (
-                              <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-3">
-                                <h4 className="text-sm font-medium text-slate-700">Add plant (inline)</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                  <Input label="Plant name" value={inlineThroughNewPlantForm.plant_name} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="Plant name" />
-                                  <Input label="Address" value={inlineThroughNewPlantForm.address_line1} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address" />
-                                  <Input label="City" value={inlineThroughNewPlantForm.city} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, city: e.target.value }))} placeholder="City" />
-                                  <Input label="Country" value={inlineThroughNewPlantForm.country} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" />
-                                  <Input label="Postal code" value={inlineThroughNewPlantForm.postal_code} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" />
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button type="button" variant="primary" disabled={!inlineThroughNewPlantForm.plant_name.trim() || creatingThroughPlantInline} onClick={async () => {
-                                    setCreatingThroughPlantInline(true);
-                                    try {
-                                      const plant = await marketingAPI.createOrganizationPlant(inlineThroughContactForm.organization_id!, { plant_name: inlineThroughNewPlantForm.plant_name.trim(), address_line1: inlineThroughNewPlantForm.address_line1.trim() || undefined, city: inlineThroughNewPlantForm.city.trim() || undefined, country: inlineThroughNewPlantForm.country.trim() || undefined, postal_code: inlineThroughNewPlantForm.postal_code.trim() || undefined });
-                                      setInlineThroughContactPlants(prev => [...prev, plant]);
-                                      setInlineThroughContactForm(prev => ({ ...prev, plant_id: plant.id }));
-                                      setShowInlineThroughNewPlant(false);
-                                      setInlineThroughNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
-                                      showToast('Plant added', 'success');
-                                    } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to add plant', 'error'); } finally { setCreatingThroughPlantInline(false); }
-                                  }}>{creatingThroughPlantInline ? 'Adding...' : 'Add plant'}</Button>
-                                  <Button type="button" variant="secondary" onClick={() => { setShowInlineThroughNewPlant(false); setInlineThroughNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' }); }}>Cancel</Button>
-                                </div>
+                            {!throughContactSearchLoading && throughContactSearchResults.length > 0 && (
+                              <>
+                                <p className="text-xs font-medium text-slate-500 px-3 py-2 border-b border-slate-100 bg-slate-50">Select referrer contact (who gave the lead)</p>
+                                {throughContactSearchResults.map(c => (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
+                                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); linkThroughContact(c); }}
+                                  >
+                                    <span className="font-medium text-slate-800">{[c.first_name, c.last_name].filter(Boolean).join(' ') || c.contact_person_name || c.organization?.name || 'Contact'}</span>
+                                    <span className="text-slate-500 text-xs">{[c.contact_email, c.contact_phone, c.organization?.name].filter(Boolean).join(' · ')}</span>
+                                  </button>
+                                ))}
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500">Or add a new contact (same as at top: contact details + organisation)</p>
+                      {!showInlineThroughContact ? (
+                        <Button type="button" variant="secondary" onClick={() => setShowInlineThroughContact(true)}>+ Add new contact</Button>
+                      ) : (
+                        <div className="space-y-3 p-3 bg-white rounded-lg border border-slate-200">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-slate-700">New referrer contact</span>
+                            <button type="button" onClick={() => setShowInlineThroughContact(false)} className="text-slate-500 hover:text-rose-600"><X size={16} /></button>
+                          </div>
+                          <div className="relative flex flex-wrap items-end gap-3">
+                            <div className="w-20 shrink-0">
+                              <Select label="Title" options={NAME_PREFIXES} value={inlineThroughContactForm.title} onChange={(v) => setInlineThroughContactForm(prev => ({ ...prev, title: (v ?? '') as string }))} placeholder="—" />
+                            </div>
+                            <div className="min-w-[100px] flex-1"><Input label="First name" value={inlineThroughContactForm.first_name} onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="First name" /></div>
+                            <div className="min-w-[100px] flex-1"><Input label="Last name" value={inlineThroughContactForm.last_name} onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Last name" /></div>
+                            <div className="w-28 shrink-0">
+                              <Select label="Country code" options={COUNTRY_CODES} value={inlineThroughContactForm.contact_phone_code} onChange={(v) => setInlineThroughContactForm(prev => ({ ...prev, contact_phone_code: (v ?? DEFAULT_COUNTRY_CODE) as string }))} placeholder="Code" searchable getSearchText={getCountryCodeSearchText} getOptionKey={(o) => o.label} />
+                            </div>
+                            <div className="min-w-[120px] flex-1"><Input label="Phone" value={inlineThroughContactForm.contact_phone} onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="Number" /></div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input label="Email" type="email" value={inlineThroughContactForm.contact_email} onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
+                            <Input label="Job Title" value={inlineThroughContactForm.contact_job_title} onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="Job Title" />
+                          </div>
+                          <p className="text-xs text-slate-500">Uses lead Domain &amp; Region (set below). Organisation optional.</p>
+                          <div className="relative">
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Organization (optional)</label>
+                            <Input
+                              value={inlineThroughContactOrgQuery}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setInlineThroughContactOrgQuery(v);
+                                if (inlineThroughContactOrgTimeoutRef.current) clearTimeout(inlineThroughContactOrgTimeoutRef.current);
+                                if (v.trim().length < 2) { setInlineThroughContactOrgSuggestions([]); return; }
+                                inlineThroughContactOrgTimeoutRef.current = setTimeout(() => {
+                                  marketingAPI.getOrganizations({ page: 1, page_size: 15, search: v.trim(), is_active: true })
+                                    .then(res => setInlineThroughContactOrgSuggestions(res.items ?? []))
+                                    .catch(() => setInlineThroughContactOrgSuggestions([]));
+                                }, 300);
+                              }}
+                              onBlur={() => setTimeout(() => setInlineThroughContactOrgSuggestions([]), 150)}
+                              placeholder="Type to search organization"
+                              disabled={!!inlineThroughContactForm.organization_id}
+                            />
+                            {inlineThroughContactForm.organization_id && (
+                              <button type="button" onClick={() => { setInlineThroughContactForm(prev => ({ ...prev, organization_id: undefined, plant_id: undefined })); setInlineThroughContactOrgQuery(''); setInlineThroughContactPlants([]); setShowInlineThroughNewPlant(false); }} className="mt-1 text-xs text-rose-600 hover:text-rose-700">Clear organization</button>
+                            )}
+                            {!inlineThroughContactForm.organization_id && inlineThroughContactOrgSuggestions.length > 0 && (
+                              <div className="absolute left-0 right-0 top-full z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-auto">
+                                {inlineThroughContactOrgSuggestions.map(org => (
+                                  <button
+                                    key={org.id}
+                                    type="button"
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setInlineThroughContactForm(prev => ({ ...prev, organization_id: org.id, plant_id: undefined })); setInlineThroughContactOrgQuery(org.name); setInlineThroughContactOrgSuggestions([]); marketingAPI.getOrganizationPlants(org.id).then(setInlineThroughContactPlants).catch(() => []); }}
+                                  >
+                                    {org.name}
+                                  </button>
+                                ))}
                               </div>
                             )}
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Generated by (colleague) — only when Lead through is Colleague. Uses referred_by_employee_id so "Assign to" can be set separately. */}
-            {leadThroughOptions.find((t) => t.id === formData.lead_through_id)?.code === 'colleague' && (
-              <div className="md:col-span-2">
-                <AsyncSelect
-                  label="Generated by (colleague)"
-                  loadOptions={async (search) => {
-                    const res = await marketingAPI.getEmployees({ page: 1, page_size: 30, search: search || undefined, status: 'active' });
-                    return res.employees.map((e) => ({
-                      value: e.id,
-                      label: [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.email || `Employee #${e.id}`,
-                    }));
-                  }}
-                  value={formData.referred_by_employee_id ?? undefined}
-                  onChange={(val) => setFormData(prev => ({ ...prev, referred_by_employee_id: val != null ? Number(val) : undefined }))}
-                  placeholder="Select colleague who gave the lead"
-                  initialOptions={[]}
-                />
-                <p className="text-xs text-slate-500 mt-1">Select the colleague who referred this lead. You can still assign the lead to someone else below.</p>
-              </div>
-            )}
-
-            {/* Domain & Region — collapsed by default on create, auto-filled from user assignment */}
-            <div className="md:col-span-2 space-y-2">
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setDomainRegionCollapsed(!domainRegionCollapsed)}
-                  className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-left transition-colors"
-                >
-                  <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                    <Globe size={16} className="text-slate-500" />
-                    Domain & Region
-                    {formData.domain_id && (
-                      <span className="text-slate-500 font-normal">
-                        — {domains.find(d => d.id === formData.domain_id)?.name ?? 'Domain'}
-                        {formData.region_id && regions.find(r => r.id === formData.region_id)
-                          ? ` · ${regions.find(r => r.id === formData.region_id)?.name}`
-                          : ''}
-                      </span>
-                    )}
-                  </span>
-                  {domainRegionCollapsed ? (
-                    <ChevronRight size={18} className="text-slate-500 shrink-0" />
-                  ) : (
-                    <ChevronDown size={18} className="text-slate-500 shrink-0" />
+                          {!inlineThroughContactForm.organization_id && inlineThroughContactOrgQuery.trim().length >= 2 && (
+                            <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-3">
+                              <h4 className="text-sm font-medium text-slate-700">Create organization (name from above)</h4>
+                              <p className="text-xs text-slate-500">Organization name: <strong>{inlineThroughContactOrgQuery.trim()}</strong> — fill optional fields below and click Create.</p>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <Input label="Code" value={inlineThroughNewOrgForm.code} onChange={(e) => setInlineThroughNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="Code" />
+                                <Input label="Website" value={inlineThroughNewOrgForm.website} onChange={(e) => setInlineThroughNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
+                                <Input label="Industry" value={inlineThroughNewOrgForm.industry} onChange={(e) => setInlineThroughNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="Industry" />
+                                <Input label="Size" value={inlineThroughNewOrgForm.organization_size} onChange={(e) => setInlineThroughNewOrgForm(prev => ({ ...prev, organization_size: e.target.value }))} placeholder="e.g. 50-200" />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button type="button" variant="primary" disabled={creatingThroughOrgInline} onClick={async () => {
+                                  setCreatingThroughOrgInline(true);
+                                  try {
+                                    const orgName = inlineThroughContactOrgQuery.trim();
+                                    const org = await marketingAPI.createOrganization({ name: orgName, code: inlineThroughNewOrgForm.code.trim() || undefined, website: inlineThroughNewOrgForm.website.trim() || undefined, industry: inlineThroughNewOrgForm.industry.trim() || undefined, organization_size: inlineThroughNewOrgForm.organization_size.trim() || undefined, is_active: true });
+                                    setInlineThroughContactForm(prev => ({ ...prev, organization_id: org.id, plant_id: undefined }));
+                                    setInlineThroughContactOrgQuery(org.name);
+                                    setInlineThroughNewOrgForm({ code: '', website: '', industry: '', organization_size: '' });
+                                    const plants = await marketingAPI.getOrganizationPlants(org.id);
+                                    setInlineThroughContactPlants(plants ?? []);
+                                    setShowInlineThroughNewPlant(true);
+                                    showToast('Organization created. You can add a plant below (optional).', 'success');
+                                  } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to create organization', 'error'); } finally { setCreatingThroughOrgInline(false); }
+                                }}>{creatingThroughOrgInline ? 'Creating...' : 'Create organization'}</Button>
+                              </div>
+                            </div>
+                          )}
+                          {inlineThroughContactForm.organization_id && (
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium text-slate-700">Plant (optional)</label>
+                              {inlineThroughContactPlants.length === 0 && !showInlineThroughNewPlant && (
+                                <p className="text-xs text-slate-500">No plants yet for this organization. Use &quot;+ Add plant&quot; below to add one.</p>
+                              )}
+                              <select
+                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                                value={inlineThroughContactForm.plant_id ?? ''}
+                                onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, plant_id: e.target.value ? Number(e.target.value) : undefined }))}
+                              >
+                                <option value="">— None —</option>
+                                {inlineThroughContactPlants.map(p => (<option key={p.id} value={p.id}>{p.plant_name}</option>))}
+                              </select>
+                              <button type="button" onClick={() => setShowInlineThroughNewPlant(true)} className="text-sm text-indigo-600 hover:text-indigo-800">+ Add plant</button>
+                              {showInlineThroughNewPlant && (
+                                <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-3">
+                                  <h4 className="text-sm font-medium text-slate-700">Add plant (inline)</h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <Input label="Plant name" value={inlineThroughNewPlantForm.plant_name} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="Plant name" />
+                                    <Input label="Address" value={inlineThroughNewPlantForm.address_line1} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address" />
+                                    <Input label="City" value={inlineThroughNewPlantForm.city} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, city: e.target.value }))} placeholder="City" />
+                                    <Input label="Country" value={inlineThroughNewPlantForm.country} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" />
+                                    <Input label="Postal code" value={inlineThroughNewPlantForm.postal_code} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" />
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button type="button" variant="primary" disabled={!inlineThroughNewPlantForm.plant_name.trim() || creatingThroughPlantInline} onClick={async () => {
+                                      setCreatingThroughPlantInline(true);
+                                      try {
+                                        const plant = await marketingAPI.createOrganizationPlant(inlineThroughContactForm.organization_id!, { plant_name: inlineThroughNewPlantForm.plant_name.trim(), address_line1: inlineThroughNewPlantForm.address_line1.trim() || undefined, city: inlineThroughNewPlantForm.city.trim() || undefined, country: inlineThroughNewPlantForm.country.trim() || undefined, postal_code: inlineThroughNewPlantForm.postal_code.trim() || undefined });
+                                        setInlineThroughContactPlants(prev => [...prev, plant]);
+                                        setInlineThroughContactForm(prev => ({ ...prev, plant_id: plant.id }));
+                                        setShowInlineThroughNewPlant(false);
+                                        setInlineThroughNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+                                        showToast('Plant added', 'success');
+                                      } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to add plant', 'error'); } finally { setCreatingThroughPlantInline(false); }
+                                    }}>{creatingThroughPlantInline ? 'Adding...' : 'Add plant'}</Button>
+                                    <Button type="button" variant="secondary" onClick={() => { setShowInlineThroughNewPlant(false); setInlineThroughNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' }); }}>Cancel</Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
-                </button>
-                {!domainRegionCollapsed && (
-                  <div className="p-4 pt-2 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-200 bg-white">
-                    <AsyncSelect
-                      label="Domain"
-                      loadOptions={async (search) => {
-                        if (!search && domains.length > 0) return domains.slice(0, 10).map(d => ({ value: d.id, label: d.name }));
-                        const res = await marketingAPI.getDomains({ is_active: true, page: 1, page_size: 10, search: search || undefined });
-                        return res.items.map((d: { id: number; name: string }) => ({ value: d.id, label: d.name }));
-                      }}
-                      value={formData.domain_id}
-                      onChange={(val) => setFormData({ ...formData, domain_id: val ? Number(val) : undefined, region_id: undefined })}
-                      placeholder="Select Domain"
-                      required
-                      initialOptions={domains.slice(0, 10).map(d => ({ value: d.id, label: d.name }))}
-                    />
-                    <AsyncSelect
-                      label="Region"
-                      loadOptions={async (search) => {
-                        if (!formData.domain_id) return [];
-                        if (!search && regions.length > 0) return regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }));
-                        const res = await marketingAPI.getRegions({ domain_id: formData.domain_id, is_active: true, page: 1, page_size: 25, search: search || undefined });
-                        return res.items.map(r => ({ value: r.id, label: r.name }));
-                      }}
-                      value={formData.region_id}
-                      onChange={(val) => setFormData({ ...formData, region_id: val ? Number(val) : undefined })}
-                      placeholder="Select Region"
-                      disabled={!formData.domain_id}
-                      initialOptions={regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }))}
-                    />
-                  </div>
-                )}
+                </div>
+              )}
+
+              {/* Generated by (colleague) — only when Lead through is Colleague. Uses referred_by_employee_id so "Assign to" can be set separately. */}
+              {leadThroughOptions.find((t) => t.id === formData.lead_through_id)?.code === 'colleague' && (
+                <div className="md:col-span-2">
+                  <AsyncSelect
+                    label="Generated by (colleague)"
+                    loadOptions={async (search) => {
+                      const res = await marketingAPI.getEmployees({ page: 1, page_size: 30, search: search || undefined, status: 'active' });
+                      return res.employees.map((e) => ({
+                        value: e.id,
+                        label: [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.email || `Employee #${e.id}`,
+                      }));
+                    }}
+                    value={formData.referred_by_employee_id ?? undefined}
+                    onChange={(val) => setFormData(prev => ({ ...prev, referred_by_employee_id: val != null ? Number(val) : undefined }))}
+                    placeholder="Select colleague who gave the lead"
+                    initialOptions={[]}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Select the colleague who referred this lead. You can still assign the lead to someone else below.</p>
+                </div>
+              )}
+
+              {/* Domain & Region — collapsed by default on create, auto-filled from user assignment */}
+              <div className="md:col-span-2 space-y-2">
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setDomainRegionCollapsed(!domainRegionCollapsed)}
+                    className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-left transition-colors"
+                  >
+                    <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                      <Globe size={16} className="text-slate-500" />
+                      Domain & Region
+                      {formData.domain_id && (
+                        <span className="text-slate-500 font-normal">
+                          — {domains.find(d => d.id === formData.domain_id)?.name ?? 'Domain'}
+                          {formData.region_id && regions.find(r => r.id === formData.region_id)
+                            ? ` · ${regions.find(r => r.id === formData.region_id)?.name}`
+                            : ''}
+                        </span>
+                      )}
+                    </span>
+                    {domainRegionCollapsed ? (
+                      <ChevronRight size={18} className="text-slate-500 shrink-0" />
+                    ) : (
+                      <ChevronDown size={18} className="text-slate-500 shrink-0" />
+                    )}
+                  </button>
+                  {!domainRegionCollapsed && (
+                    <div className="p-4 pt-2 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-200 bg-white">
+                      <AsyncSelect
+                        label="Domain"
+                        loadOptions={async (search) => {
+                          if (!search && domains.length > 0) return domains.slice(0, 10).map(d => ({ value: d.id, label: d.name }));
+                          const res = await marketingAPI.getDomains({ is_active: true, page: 1, page_size: 10, search: search || undefined });
+                          return res.items.map((d: { id: number; name: string }) => ({ value: d.id, label: d.name }));
+                        }}
+                        value={formData.domain_id}
+                        onChange={(val) => setFormData({ ...formData, domain_id: val ? Number(val) : undefined, region_id: undefined })}
+                        placeholder="Select Domain"
+                        required
+                        initialOptions={domains.slice(0, 10).map(d => ({ value: d.id, label: d.name }))}
+                      />
+                      <AsyncSelect
+                        label="Region"
+                        loadOptions={async (search) => {
+                          if (!formData.domain_id) return [];
+                          if (!search && regions.length > 0) return regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }));
+                          const res = await marketingAPI.getRegions({ domain_id: formData.domain_id, is_active: true, page: 1, page_size: 25, search: search || undefined });
+                          return res.items.map(r => ({ value: r.id, label: r.name }));
+                        }}
+                        value={formData.region_id}
+                        onChange={(val) => setFormData({ ...formData, region_id: val ? Number(val) : undefined })}
+                        placeholder="Select Region"
+                        disabled={!formData.domain_id}
+                        initialOptions={regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }))}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Assign to — for domain/region heads: assign lead to an employee in current region or domain. Shown for all lead-through types (when Colleague, "Generated by" is separate). */}
+              {reportScope?.can_select_employee && (
+                <div className="md:col-span-2">
+                  <Select
+                    label="Assign to (optional)"
+                    options={[
+                      { value: '', label: '— Me (creator) —' },
+                      ...(reportScope.employees || []).map((e) => ({ value: String(e.id), label: e.name })),
+                    ]}
+                    value={formData.assigned_to_employee_id != null ? String(formData.assigned_to_employee_id) : ''}
+                    onChange={(val) => setFormData(prev => ({ ...prev, assigned_to_employee_id: val ? Number(val) : undefined }))}
+                    placeholder="Select employee in your region/domain"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Heads can assign this lead to an employee in the current region or domain.</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Expected Closing Date</label>
+                <Input
+                  type="date"
+                  value={formData.expected_closing_date || ''}
+                  onChange={(e) => setFormData({ ...formData, expected_closing_date: e.target.value })}
+                />
               </div>
             </div>
 
-            {/* Assign to — for domain/region heads: assign lead to an employee in current region or domain. Shown for all lead-through types (when Colleague, "Generated by" is separate). */}
-            {reportScope?.can_select_employee && (
-              <div className="md:col-span-2">
-                <Select
-                  label="Assign to (optional)"
-                  options={[
-                    { value: '', label: '— Me (creator) —' },
-                    ...(reportScope.employees || []).map((e) => ({ value: String(e.id), label: e.name })),
-                  ]}
-                  value={formData.assigned_to_employee_id != null ? String(formData.assigned_to_employee_id) : ''}
-                  onChange={(val) => setFormData(prev => ({ ...prev, assigned_to_employee_id: val ? Number(val) : undefined }))}
-                  placeholder="Select employee in your region/domain"
-                />
-                <p className="text-xs text-slate-500 mt-1">Heads can assign this lead to an employee in the current region or domain.</p>
+            {/* Quote number (manual) and/or numbering series (auto) */}
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="min-w-[200px] flex flex-col gap-2">
+                  <label className="block text-sm font-medium text-slate-700">Quote number</label>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      type="text"
+                      value={formData.series ?? ''}
+                      onChange={(e) => setFormData({ ...formData, series: e.target.value || undefined })}
+                      placeholder="e.g. QTN-001 or your reference"
+                    />
+                    {formData.series_code?.trim() && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={generatingQuoteNumber}
+                        onClick={handleGenerateQuoteNumber}
+                      >
+                        {generatingQuoteNumber ? 'Generating…' : 'Generate'}
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Enter quote number manually, or select a series below and click Generate.
+                    {isEdit ? ' Generated value is saved immediately.' : ''}
+                  </p>
+                </div>
+                <div className="min-w-[200px] flex flex-col gap-2">
+                  <label className="block text-sm font-medium text-slate-700">Number series</label>
+                  <Select
+                    value={formData.series_code ?? ''}
+                    onChange={(val) => setFormData({ ...formData, series_code: (val != null && val !== '') ? String(val) : undefined })}
+                    options={[
+                      { value: '', label: 'None' },
+                      ...seriesList.map((s) => ({ value: String(s.code), label: `${s.name} (${s.code})` })),
+                    ]}
+                    placeholder="None"
+                  />
+                  <p className="text-xs text-slate-500">Select a series, then use Generate above to get the next quote number.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quotation (optional) — create only: under quote number / number series */}
+            {!isEdit && (
+              <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Quotation (optional)</label>
+                <p className="text-xs text-slate-500 mb-2">Upload a file to add one enquiry with title "Added quotation". Quote number from lead series if set.</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    <Upload size={16} />
+                    {initialQuotationFile ? initialQuotationFile.name : 'Choose quotation file'}
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                      className="hidden"
+                      onChange={(e) => setInitialQuotationFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
+                  {initialQuotationFile && (
+                    <button
+                      type="button"
+                      onClick={() => setInitialQuotationFile(null)}
+                      className="text-xs text-rose-600 hover:text-rose-700"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Expected Closing Date</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Potential Value</label>
               <Input
-                type="date"
-                value={formData.expected_closing_date || ''}
-                onChange={(e) => setFormData({ ...formData, expected_closing_date: e.target.value })}
+                type="number"
+                value={formData.potential_value || ''}
+                onChange={(e) => setFormData({ ...formData, potential_value: e.target.value ? Number(e.target.value) : undefined })}
+                placeholder="0.00"
+                min="0"
+                step="0.01"
               />
             </div>
-          </div>
 
-          {/* Quote number (manual) and/or numbering series (auto) */}
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="min-w-[200px] flex flex-col gap-2">
-                <label className="block text-sm font-medium text-slate-700">Quote number</label>
-                <div className="flex gap-2 items-center">
-                  <Input
-                    type="text"
-                    value={formData.series ?? ''}
-                    onChange={(e) => setFormData({ ...formData, series: e.target.value || undefined })}
-                    placeholder="e.g. QTN-001 or your reference"
-                  />
-                  {formData.series_code?.trim() && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={generatingQuoteNumber}
-                      onClick={handleGenerateQuoteNumber}
-                    >
-                      {generatingQuoteNumber ? 'Generating…' : 'Generate'}
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500">
-                  Enter quote number manually, or select a series below and click Generate.
-                  {isEdit ? ' Generated value is saved immediately.' : ''}
-                </p>
-              </div>
-              <div className="min-w-[200px] flex flex-col gap-2">
-                <label className="block text-sm font-medium text-slate-700">Number series</label>
-                <Select
-                  value={formData.series_code ?? ''}
-                  onChange={(val) => setFormData({ ...formData, series_code: (val != null && val !== '') ? String(val) : undefined })}
-                  options={[
-                    { value: '', label: 'None' },
-                    ...seriesList.map((s) => ({ value: String(s.code), label: `${s.name} (${s.code})` })),
-                  ]}
-                  placeholder="None"
-                />
-                <p className="text-xs text-slate-500">Select a series, then use Generate above to get the next quote number.</p>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
+              <textarea
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                rows={4}
+                value={formData.notes || ''}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Additional notes..."
+              />
             </div>
-          </div>
 
-          {/* Quotation (optional) — create only: under quote number / number series */}
-          {!isEdit && (
-            <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <label className="block text-sm font-medium text-slate-700 mb-2">Quotation (optional)</label>
-              <p className="text-xs text-slate-500 mb-2">Upload a file to add one enquiry with title "Added quotation". Quote number from lead series if set.</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                  <Upload size={16} />
-                  {initialQuotationFile ? initialQuotationFile.name : 'Choose quotation file'}
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                    className="hidden"
-                    onChange={(e) => setInitialQuotationFile(e.target.files?.[0] || null)}
-                  />
-                </label>
-                {initialQuotationFile && (
-                  <button
-                    type="button"
-                    onClick={() => setInitialQuotationFile(null)}
-                    className="text-xs text-rose-600 hover:text-rose-700"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
+            <div className="flex gap-3 justify-end pt-4 border-t border-slate-200">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/leads')}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Saving...' : isEdit ? 'Update Lead' : 'Create Lead'}
+              </Button>
             </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Potential Value</label>
-            <Input
-              type="number"
-              value={formData.potential_value || ''}
-              onChange={(e) => setFormData({ ...formData, potential_value: e.target.value ? Number(e.target.value) : undefined })}
-              placeholder="0.00"
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
-            <textarea
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              rows={4}
-              value={formData.notes || ''}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Additional notes..."
-            />
-          </div>
-
-          <div className="flex gap-3 justify-end pt-4 border-t border-slate-200">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate('/leads')}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Saving...' : isEdit ? 'Update Lead' : 'Create Lead'}
-            </Button>
-          </div>
-        </form>
-      </Card>
+          </form>
+        </Card>
       )}
 
       {isEdit && activeTab === 'enquiry' && (
         <Card>
           {!viewMode && (
-          <>
-          <div className="mb-4 p-3 rounded-lg border border-slate-200 bg-slate-50/50">
-            <h3 className="text-xs font-semibold text-slate-700 mb-2">Add quotation</h3>
-            <p className="text-xs text-slate-500 mb-2">Upload a file to add an enquiry with title "Added quotation". No need to fill title or description.</p>
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <Upload size={16} />
-                {quickAddQuotationFile ? quickAddQuotationFile.name : 'Choose file'}
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                  className="hidden"
-                  onChange={(e) => setQuickAddQuotationFile(e.target.files?.[0] || null)}
-                />
-              </label>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!quickAddQuotationFile || quickAddQuotationSubmitting}
-                onClick={handleQuickAddQuotation}
-              >
-                {quickAddQuotationSubmitting ? 'Adding...' : 'Add quotation'}
-              </Button>
-              {quickAddQuotationFile && (
-                <button type="button" onClick={() => setQuickAddQuotationFile(null)} className="text-xs text-rose-600 hover:text-rose-700">Remove</button>
-              )}
-            </div>
-          </div>
-          <h3 className="text-sm font-semibold text-slate-800 mb-3">Add log</h3>
-          <form onSubmit={handleAddActivity} className="space-y-3 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Select
-                label="Type"
-                value={activityForm.activity_type}
-                onChange={(val) => setActivityForm((f) => ({ ...f, activity_type: val as string }))}
-                options={ACTIVITY_TYPE_OPTIONS}
-              />
-              <Input
-                label="Title"
-                value={activityForm.title}
-                onChange={(e) => setActivityForm((f) => ({ ...f, title: e.target.value }))}
-                placeholder={
-                  activityForm.activity_type === 'lead_status_change'
-                    ? 'e.g. Status changed to Qualified'
-                    : activityForm.activity_type === 'lead_type_change'
-                    ? 'e.g. Lead type changed to Chamber'
-                    : 'e.g. Called to discuss requirements'
-                }
-                required
-              />
-            </div>
-            {activityForm.activity_type === 'lead_status_change' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <Select
-                  label="From status"
-                  value={activityForm.from_status_id != null ? String(activityForm.from_status_id) : ''}
-                  onChange={(val) => setActivityForm((f) => ({ ...f, from_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
-                  options={[{ value: '', label: '— Select —' }, ...leadStatuses.map((s) => ({ value: String(s.id), label: s.label }))]}
-                />
-                <Select
-                  label="To status"
-                  value={activityForm.to_status_id != null ? String(activityForm.to_status_id) : ''}
-                  onChange={(val) => setActivityForm((f) => ({ ...f, to_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
-                  options={[{ value: '', label: '— Select —' }, ...leadStatuses.map((s) => ({ value: String(s.id), label: s.label }))]}
-                />
-              </div>
-            )}
-            {activityForm.activity_type === 'contacted_different_person' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <div className="flex gap-2 items-end">
-                  <div className="w-24 shrink-0">
-                    <Select
-                      label="Title"
-                      options={NAME_PREFIXES}
-                      value={activityForm.contact_person_name_prefix}
-                      onChange={(v) => setActivityForm((f) => ({ ...f, contact_person_name_prefix: (v ?? '') as string }))}
-                      placeholder="—"
-                      searchable={false}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <Input
-                      label="Contact person name"
-                      value={activityForm.contact_person_name}
-                      onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_name: e.target.value }))}
-                      placeholder="Name"
-                    />
-                  </div>
-                </div>
-                <Input
-                  label="Contact person email"
-                  value={activityForm.contact_person_email}
-                  onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_email: e.target.value }))}
-                  placeholder="email@example.com"
-                />
-                <div className="flex gap-2 items-end md:col-span-2">
-                  <div className="w-36 shrink-0">
-                    <Select
-                      label="Country code"
-                      options={COUNTRY_CODES}
-                      value={activityForm.contact_person_phone_code}
-                      onChange={(v) => setActivityForm((f) => ({ ...f, contact_person_phone_code: (v ?? '') as string }))}
-                      placeholder="Code"
-                      searchable
-                      getSearchText={getCountryCodeSearchText}
-                      exactValueMatchWhenQueryMatches={/^\+?\d+$/}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <Input
-                      label="Contact person phone"
-                      value={activityForm.contact_person_phone}
-                      onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_phone: e.target.value }))}
-                      placeholder="Number"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-            <div>
-              <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
-                <label className="block text-xs font-semibold text-slate-700">File attachments (optional)</label>
-                <div className="flex items-center gap-2">
-                  <label className="flex cursor-pointer items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
-                    <Upload size={14} />
-                    Choose files
+            <>
+              <div className="mb-4 p-3 rounded-lg border border-slate-200 bg-slate-50/50">
+                <h3 className="text-xs font-semibold text-slate-700 mb-2">Add quotation</h3>
+                <p className="text-xs text-slate-500 mb-2">Upload a file to add an enquiry with title "Added quotation". No need to fill title or description.</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    <Upload size={16} />
+                    {quickAddQuotationFile ? quickAddQuotationFile.name : 'Choose file'}
                     <input
                       type="file"
                       accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
                       className="hidden"
-                      multiple
-                      onChange={(e) => {
-                        const fileList = e.target.files;
-                        if (!fileList?.length) return;
-                        const newRows = Array.from(fileList).map((file) => ({
-                          id: crypto.randomUUID(),
-                          kind: 'attachment' as const,
-                          file: file as File,
-                          quotationNumber: '',
-                          title: '',
-                        }));
-                        setAttachmentEntries((prev) => [...prev, ...newRows]);
-                        e.target.value = '';
-                      }}
+                      onChange={(e) => setQuickAddQuotationFile(e.target.files?.[0] || null)}
                     />
                   </label>
-                  <button
+                  <Button
                     type="button"
-                    onClick={() =>
-                      setAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])
-                    }
-                    className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                    size="sm"
+                    variant="outline"
+                    disabled={!quickAddQuotationFile || quickAddQuotationSubmitting}
+                    onClick={handleQuickAddQuotation}
                   >
-                    <Plus size={14} /> Add another file
-                  </button>
+                    {quickAddQuotationSubmitting ? 'Adding...' : 'Add quotation'}
+                  </Button>
+                  {quickAddQuotationFile && (
+                    <button type="button" onClick={() => setQuickAddQuotationFile(null)} className="text-xs text-rose-600 hover:text-rose-700">Remove</button>
+                  )}
                 </div>
               </div>
-              <p className="text-xs text-slate-500 mb-2">Add quotations (trackable) and/or general attachments (diagrams, docs). Quotation numbers are generated from the lead’s quote number; further quotations get rev2, rev3 automatically.</p>
-              <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2">
-                {attachmentEntries.map((row) => (
-                  <div key={row.id} className="flex flex-nowrap items-center gap-2">
-                    <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
-                      <Upload size={14} />
-                      <span className="truncate max-w-[120px]">{row.file ? row.file.name : 'Choose file'}</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          setAttachmentEntries((prev) =>
-                            prev.map((r) => (r.id === row.id ? { ...r, file: file || null } : r))
-                          );
-                        }}
-                      />
-                    </label>
-                    <div className="w-28 shrink-0 [&_button]:!h-9 [&_button]:!min-h-0 [&_button]:!py-0">
-                      <Select
-                        options={[
-                          { value: 'quotation', label: 'Quotation' },
-                          { value: 'attachment', label: 'Attachment' },
-                        ]}
-                        value={row.kind}
-                        onChange={(val) =>
-                          setAttachmentEntries((prev) =>
-                            prev.map((r) => (r.id === row.id ? { ...r, kind: (val || 'attachment') as 'quotation' | 'attachment' } : r))
-                          )
-                        }
-                        className="w-full"
-                        searchable={false}
-                      />
-                    </div>
-                    {row.kind === 'quotation' ? (
-                      <span className="text-xs text-slate-500 shrink-0">Number auto from lead</span>
-                    ) : (
-                      <Input
-                        placeholder="Title (e.g. Diagram, Documentation)"
-                        value={row.title}
-                        onChange={(e) =>
-                          setAttachmentEntries((prev) =>
-                            prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r))
-                          )
-                        }
-                        inputSize="sm"
-                        containerClassName="min-w-[160px] max-w-[220px] flex-1 !space-y-0"
-                      />
-                    )}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAttachmentEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))
-                      }
-                      className="h-9 w-9 shrink-0 flex items-center justify-center rounded text-slate-400 hover:bg-slate-200 hover:text-rose-600"
-                      title="Remove"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+              <h3 className="text-sm font-semibold text-slate-800 mb-3">Add log</h3>
+              <form onSubmit={handleAddActivity} className="space-y-3 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Select
+                    label="Type"
+                    value={activityForm.activity_type}
+                    onChange={(val) => setActivityForm((f) => ({ ...f, activity_type: val as string }))}
+                    options={ACTIVITY_TYPE_OPTIONS}
+                  />
+                  <Input
+                    label="Title"
+                    value={activityForm.title}
+                    onChange={(e) => setActivityForm((f) => ({ ...f, title: e.target.value }))}
+                    placeholder={
+                      activityForm.activity_type === 'lead_status_change'
+                        ? 'e.g. Status changed to Qualified'
+                        : activityForm.activity_type === 'lead_type_change'
+                          ? 'e.g. Lead type changed to Chamber'
+                          : 'e.g. Called to discuss requirements'
+                    }
+                    required
+                  />
+                </div>
+                {activityForm.activity_type === 'lead_status_change' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <Select
+                      label="From status"
+                      value={activityForm.from_status_id != null ? String(activityForm.from_status_id) : ''}
+                      onChange={(val) => setActivityForm((f) => ({ ...f, from_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
+                      options={[{ value: '', label: '— Select —' }, ...leadStatuses.map((s) => ({ value: String(s.id), label: s.label }))]}
+                    />
+                    <Select
+                      label="To status"
+                      value={activityForm.to_status_id != null ? String(activityForm.to_status_id) : ''}
+                      onChange={(val) => setActivityForm((f) => ({ ...f, to_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
+                      options={[{ value: '', label: '— Select —' }, ...leadStatuses.map((s) => ({ value: String(s.id), label: s.label }))]}
+                    />
                   </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">What was discussed / notes</label>
-              <textarea
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                rows={3}
-                value={activityForm.description}
-                onChange={(e) => setActivityForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="e.g. Asked about timeline, budget. They need chamber by Q2."
-              />
-            </div>
-            <Button type="submit" size="sm" disabled={activitySubmitting}>
-              {activitySubmitting ? 'Adding...' : 'Add log'}
-            </Button>
-          </form>
-          </>
+                )}
+                {activityForm.activity_type === 'contacted_different_person' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <div className="flex gap-2 items-end">
+                      <div className="w-24 shrink-0">
+                        <Select
+                          label="Title"
+                          options={NAME_PREFIXES}
+                          value={activityForm.contact_person_name_prefix}
+                          onChange={(v) => setActivityForm((f) => ({ ...f, contact_person_name_prefix: (v ?? '') as string }))}
+                          placeholder="—"
+                          searchable={false}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Input
+                          label="Contact person name"
+                          value={activityForm.contact_person_name}
+                          onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_name: e.target.value }))}
+                          placeholder="Name"
+                        />
+                      </div>
+                    </div>
+                    <Input
+                      label="Contact person email"
+                      value={activityForm.contact_person_email}
+                      onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_email: e.target.value }))}
+                      placeholder="email@example.com"
+                    />
+                    <div className="flex gap-2 items-end md:col-span-2">
+                      <div className="w-36 shrink-0">
+                        <Select
+                          label="Country code"
+                          options={COUNTRY_CODES}
+                          value={activityForm.contact_person_phone_code}
+                          onChange={(v) => setActivityForm((f) => ({ ...f, contact_person_phone_code: (v ?? '') as string }))}
+                          placeholder="Code"
+                          searchable
+                          getSearchText={getCountryCodeSearchText}
+                          exactValueMatchWhenQueryMatches={/^\+?\d+$/}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Input
+                          label="Contact person phone"
+                          value={activityForm.contact_person_phone}
+                          onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_phone: e.target.value }))}
+                          placeholder="Number"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+                    <label className="block text-xs font-semibold text-slate-700">File attachments (optional)</label>
+                    <div className="flex items-center gap-2">
+                      <label className="flex cursor-pointer items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
+                        <Upload size={14} />
+                        Choose files
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                          className="hidden"
+                          multiple
+                          onChange={(e) => {
+                            const fileList = e.target.files;
+                            if (!fileList?.length) return;
+                            const newRows = Array.from(fileList).map((file) => ({
+                              id: crypto.randomUUID(),
+                              kind: 'attachment' as const,
+                              file: file as File,
+                              quotationNumber: '',
+                              title: '',
+                            }));
+                            setAttachmentEntries((prev) => [...prev, ...newRows]);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])
+                        }
+                        className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                      >
+                        <Plus size={14} /> Add another file
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-2">Add quotations (trackable) and/or general attachments (diagrams, docs). Quotation numbers are generated from the lead’s quote number; further quotations get rev2, rev3 automatically.</p>
+                  <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2">
+                    {attachmentEntries.map((row) => (
+                      <div key={row.id} className="flex flex-nowrap items-center gap-2">
+                        <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
+                          <Upload size={14} />
+                          <span className="truncate max-w-[120px]">{row.file ? row.file.name : 'Choose file'}</span>
+                          <input
+                            type="file"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              setAttachmentEntries((prev) =>
+                                prev.map((r) => (r.id === row.id ? { ...r, file: file || null } : r))
+                              );
+                            }}
+                          />
+                        </label>
+                        <div className="w-28 shrink-0 [&_button]:!h-9 [&_button]:!min-h-0 [&_button]:!py-0">
+                          <Select
+                            options={[
+                              { value: 'quotation', label: 'Quotation' },
+                              { value: 'attachment', label: 'Attachment' },
+                            ]}
+                            value={row.kind}
+                            onChange={(val) =>
+                              setAttachmentEntries((prev) =>
+                                prev.map((r) => (r.id === row.id ? { ...r, kind: (val || 'attachment') as 'quotation' | 'attachment' } : r))
+                              )
+                            }
+                            className="w-full"
+                            searchable={false}
+                          />
+                        </div>
+                        {row.kind === 'quotation' ? (
+                          <span className="text-xs text-slate-500 shrink-0">Number auto from lead</span>
+                        ) : (
+                          <Input
+                            placeholder="Title (e.g. Diagram, Documentation)"
+                            value={row.title}
+                            onChange={(e) =>
+                              setAttachmentEntries((prev) =>
+                                prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r))
+                              )
+                            }
+                            inputSize="sm"
+                            containerClassName="min-w-[160px] max-w-[220px] flex-1 !space-y-0"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAttachmentEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))
+                          }
+                          className="h-9 w-9 shrink-0 flex items-center justify-center rounded text-slate-400 hover:bg-slate-200 hover:text-rose-600"
+                          title="Remove"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">What was discussed / notes</label>
+                  <textarea
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    rows={3}
+                    value={activityForm.description}
+                    onChange={(e) => setActivityForm((f) => ({ ...f, description: e.target.value }))}
+                    placeholder="e.g. Asked about timeline, budget. They need chamber by Q2."
+                  />
+                </div>
+                <Button type="submit" size="sm" disabled={activitySubmitting}>
+                  {activitySubmitting ? 'Adding...' : 'Add log'}
+                </Button>
+              </form>
+            </>
           )}
           <h3 className="text-sm font-semibold text-slate-800 mb-2 border-t border-slate-200 pt-3">Enquiry log</h3>
           {activitiesLoading ? (
@@ -2572,98 +2578,98 @@ export const LeadFormPage: React.FC = () => {
                           const quotations = a.attachments!.filter(isQuotation);
                           const attachments = a.attachments!.filter((att) => !isQuotation(att));
                           return (
-                          <div className="mt-2 pt-2 border-t border-slate-100 space-y-2">
-                            {quotations.length > 0 && (
-                              <div>
-                                <span className="text-xs font-medium text-slate-600 flex items-center gap-1">
-                                  <FileText size={12} /> Quotations
-                                </span>
-                                <ul className="mt-1 space-y-1">
-                                  {quotations.map((att) => (
-                                    <li key={att.id} className="flex items-center gap-2 text-xs">
-                                      {att.quotation_number && (
-                                        <span className="font-medium text-slate-600 shrink-0">{att.quotation_number}</span>
-                                      )}
-                                      {att.quotation_number && <span className="text-slate-400">·</span>}
-                                      <button
-                                        type="button"
-                                        onClick={() => marketingAPI.downloadLeadActivityAttachment(parseInt(id!), a.id, att.id, att.file_name)}
-                                        className="text-indigo-600 hover:underline flex items-center gap-1"
-                                      >
-                                        <Download size={12} /> {att.quotation_number || att.file_name}
-                                      </button>
-                                      {canEditDelete && (
+                            <div className="mt-2 pt-2 border-t border-slate-100 space-y-2">
+                              {quotations.length > 0 && (
+                                <div>
+                                  <span className="text-xs font-medium text-slate-600 flex items-center gap-1">
+                                    <FileText size={12} /> Quotations
+                                  </span>
+                                  <ul className="mt-1 space-y-1">
+                                    {quotations.map((att) => (
+                                      <li key={att.id} className="flex items-center gap-2 text-xs">
+                                        {att.quotation_number && (
+                                          <span className="font-medium text-slate-600 shrink-0">{att.quotation_number}</span>
+                                        )}
+                                        {att.quotation_number && <span className="text-slate-400">·</span>}
                                         <button
                                           type="button"
-                                          disabled={deletingAttachmentId === att.id}
-                                          onClick={async () => {
-                                            if (!id) return;
-                                            setDeletingAttachmentId(att.id);
-                                            try {
-                                              await marketingAPI.deleteLeadActivityAttachment(parseInt(id), a.id, att.id);
-                                              showToast('Removed', 'success');
-                                              loadActivities();
-                                            } catch (err: any) {
-                                              showToast(err.message || 'Failed to remove', 'error');
-                                            } finally {
-                                              setDeletingAttachmentId(null);
-                                            }
-                                          }}
-                                          className="text-rose-600 hover:underline"
+                                          onClick={() => marketingAPI.downloadLeadActivityAttachment(parseInt(id!), a.id, att.id, att.file_name)}
+                                          className="text-indigo-600 hover:underline flex items-center gap-1"
                                         >
-                                          Remove
+                                          <Download size={12} /> {att.quotation_number || att.file_name}
                                         </button>
-                                      )}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                            {attachments.length > 0 && (
-                              <div>
-                                <span className="text-xs font-medium text-slate-600 flex items-center gap-1">
-                                  <Paperclip size={12} /> Attachments
-                                </span>
-                                <ul className="mt-1 space-y-1">
-                                  {attachments.map((att) => (
-                                    <li key={att.id} className="flex items-center gap-2 text-xs">
-                                      {att.title && <span className="font-medium text-slate-600 shrink-0">{att.title}</span>}
-                                      {att.title && <span className="text-slate-400">·</span>}
-                                      <button
-                                        type="button"
-                                        onClick={() => marketingAPI.downloadLeadActivityAttachment(parseInt(id!), a.id, att.id, att.file_name)}
-                                        className="text-indigo-600 hover:underline flex items-center gap-1"
-                                      >
-                                        <Download size={12} /> {att.title || att.file_name}
-                                      </button>
-                                      {canEditDelete && (
+                                        {canEditDelete && (
+                                          <button
+                                            type="button"
+                                            disabled={deletingAttachmentId === att.id}
+                                            onClick={async () => {
+                                              if (!id) return;
+                                              setDeletingAttachmentId(att.id);
+                                              try {
+                                                await marketingAPI.deleteLeadActivityAttachment(parseInt(id), a.id, att.id);
+                                                showToast('Removed', 'success');
+                                                loadActivities();
+                                              } catch (err: any) {
+                                                showToast(err.message || 'Failed to remove', 'error');
+                                              } finally {
+                                                setDeletingAttachmentId(null);
+                                              }
+                                            }}
+                                            className="text-rose-600 hover:underline"
+                                          >
+                                            Remove
+                                          </button>
+                                        )}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {attachments.length > 0 && (
+                                <div>
+                                  <span className="text-xs font-medium text-slate-600 flex items-center gap-1">
+                                    <Paperclip size={12} /> Attachments
+                                  </span>
+                                  <ul className="mt-1 space-y-1">
+                                    {attachments.map((att) => (
+                                      <li key={att.id} className="flex items-center gap-2 text-xs">
+                                        {att.title && <span className="font-medium text-slate-600 shrink-0">{att.title}</span>}
+                                        {att.title && <span className="text-slate-400">·</span>}
                                         <button
                                           type="button"
-                                          disabled={deletingAttachmentId === att.id}
-                                          onClick={async () => {
-                                            if (!id) return;
-                                            setDeletingAttachmentId(att.id);
-                                            try {
-                                              await marketingAPI.deleteLeadActivityAttachment(parseInt(id), a.id, att.id);
-                                              showToast('Removed', 'success');
-                                              loadActivities();
-                                            } catch (err: any) {
-                                              showToast(err.message || 'Failed to remove', 'error');
-                                            } finally {
-                                              setDeletingAttachmentId(null);
-                                            }
-                                          }}
-                                          className="text-rose-600 hover:underline"
+                                          onClick={() => marketingAPI.downloadLeadActivityAttachment(parseInt(id!), a.id, att.id, att.file_name)}
+                                          className="text-indigo-600 hover:underline flex items-center gap-1"
                                         >
-                                          Remove
+                                          <Download size={12} /> {att.title || att.file_name}
                                         </button>
-                                      )}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
+                                        {canEditDelete && (
+                                          <button
+                                            type="button"
+                                            disabled={deletingAttachmentId === att.id}
+                                            onClick={async () => {
+                                              if (!id) return;
+                                              setDeletingAttachmentId(att.id);
+                                              try {
+                                                await marketingAPI.deleteLeadActivityAttachment(parseInt(id), a.id, att.id);
+                                                showToast('Removed', 'success');
+                                                loadActivities();
+                                              } catch (err: any) {
+                                                showToast(err.message || 'Failed to remove', 'error');
+                                              } finally {
+                                                setDeletingAttachmentId(null);
+                                              }
+                                            }}
+                                            className="text-rose-600 hover:underline"
+                                          >
+                                            Remove
+                                          </button>
+                                        )}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
                           );
                         })()}
                         {canEditDelete && (

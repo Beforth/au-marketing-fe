@@ -35,10 +35,10 @@ export const CustomerFormPage: React.FC = () => {
   const employee = useAppSelector(selectEmployee);
   const user = useAppSelector(selectUser);
   const isEdit = Boolean(id);
-  
+
   const canCreate = useAppSelector(selectHasPermission('marketing.create_customer'));
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_customer'));
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [domains, setDomains] = useState<Domain[]>([]);
@@ -60,7 +60,7 @@ export const CustomerFormPage: React.FC = () => {
   const canCreateOrg = useAppSelector(selectHasPermission('marketing.create_organization'));
   const canCreateContact = useAppSelector(selectHasPermission('marketing.create_contact'));
   const canCreatePlant = useAppSelector(selectHasPermission('marketing.create_plant'));
-  const [createContactForm, setCreateContactForm] = useState<{ name_prefix: string; first_name: string; last_name: string; contact_email: string; phone_country_code: string; contact_phone: string; plant_id: number | undefined }>({ name_prefix: '', first_name: '', last_name: '', contact_email: '', phone_country_code: DEFAULT_COUNTRY_CODE, contact_phone: '', plant_id: undefined });
+  const [createContactForm, setCreateContactForm] = useState<{ name_prefix: string; first_name: string; last_name: string; contact_email: string; phone_country_code: string; contact_phone: string; plant_id: number | null | undefined }>({ name_prefix: '', first_name: '', last_name: '', contact_email: '', phone_country_code: DEFAULT_COUNTRY_CODE, contact_phone: '', plant_id: undefined });
   const [primaryContactSearchQuery, setPrimaryContactSearchQuery] = useState('');
   const [selectedPrimaryContact, setSelectedPrimaryContact] = useState<Contact | null>(null);
   const [formData, setFormData] = useState<Partial<Customer>>({
@@ -175,9 +175,9 @@ export const CustomerFormPage: React.FC = () => {
             if (region?.id != null && region?.domain_id != null) {
               return { domain_id: region.domain_id, region_id: region.id };
             }
-          } catch (_) {}
+          } catch (_) { }
         }
-      } catch (_) {}
+      } catch (_) { }
     }
     return null;
   };
@@ -373,8 +373,8 @@ export const CustomerFormPage: React.FC = () => {
   }
 
   return (
-    <PageLayout 
-      title={isEdit ? 'Edit Customer' : 'Create Customer'} 
+    <PageLayout
+      title={isEdit ? 'Edit Customer' : 'Create Customer'}
       breadcrumbs={breadcrumbs}
       actions={
         <Button
@@ -390,468 +390,468 @@ export const CustomerFormPage: React.FC = () => {
       <Card>
         <form onSubmit={handleSubmit} className="space-y-6">
           <>
-              <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                  <Building2 size={18} /> Organization (optional)
-                </h3>
-                <p className="text-sm text-slate-600">Link to an existing organization or fill details below to create one on save. Company name comes from the organization or the field above.</p>
-                <div className="relative md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Company / Organization name</label>
-                  <Input
-                    type="text"
-                    value={selectedOrganization?.name ?? orgSearchQuery}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setOrgSearchQuery(v);
-                      setNewOrgForm(prev => ({ ...prev, name: v }));
-                      setFormData(prev => ({ ...prev, company_name: v }));
-                      onOrganizationSearchChange(v);
-                    }}
-                    onFocus={() => orgSearchQuery && searchOrganizationsByName(orgSearchQuery)}
-                    onBlur={() => setTimeout(() => setOrgSuggestions([]), 150)}
-                    placeholder="Type to search and link existing organization, or fill details below to create new"
-                    className={formData.organization_id != null ? 'pr-24' : undefined}
-                    rightElement={
-                      formData.organization_id != null ? (
-                        <div className="flex items-center gap-0.5">
-                          <button
-                            type="button"
-                            onClick={clearOrganization}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
-                            title="Clear organization"
-                          >
-                            <X size={16} />
-                          </button>
-                          <a
-                            href={`/organizations/${formData.organization_id}/edit`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-indigo-600 transition-colors inline-flex"
-                            title="Open organization in new tab"
-                          >
-                            <ArrowRight size={16} />
-                          </a>
-                        </div>
-                      ) : undefined
-                    }
-                  />
-                  {orgSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-auto">
-                      <p className="text-xs text-slate-500 px-3 py-2 border-b border-slate-100">Link to existing organization:</p>
-                      {orgSuggestions.map(org => (
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <Building2 size={18} /> Organization (optional)
+              </h3>
+              <p className="text-sm text-slate-600">Link to an existing organization or fill details below to create one on save. Company name comes from the organization or the field above.</p>
+              <div className="relative md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Company / Organization name</label>
+                <Input
+                  type="text"
+                  value={selectedOrganization?.name ?? orgSearchQuery}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setOrgSearchQuery(v);
+                    setNewOrgForm(prev => ({ ...prev, name: v }));
+                    setFormData(prev => ({ ...prev, company_name: v }));
+                    onOrganizationSearchChange(v);
+                  }}
+                  onFocus={() => orgSearchQuery && searchOrganizationsByName(orgSearchQuery)}
+                  onBlur={() => setTimeout(() => setOrgSuggestions([]), 150)}
+                  placeholder="Type to search and link existing organization, or fill details below to create new"
+                  className={formData.organization_id != null ? 'pr-24' : undefined}
+                  rightElement={
+                    formData.organization_id != null ? (
+                      <div className="flex items-center gap-0.5">
                         <button
-                          key={org.id}
                           type="button"
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setOrgSuggestions([]);
-                            setOrgSearchQuery('');
-                            marketingAPI.getOrganization(org.id).then((fullOrg) => {
-                              marketingAPI.getOrganizationPlants(org.id).then((plantsList) => {
-                                const firstPlant = plantsList && plantsList.length > 0 ? plantsList[0] : null;
-                                setFormData(prev => ({
-                                  ...prev,
-                                  company_name: fullOrg.name,
-                                  organization_id: fullOrg.id,
-                                  notes: fullOrg.description?.trim() ? (prev.notes?.trim() ? `${prev.notes}\n${fullOrg.description}` : fullOrg.description) : prev.notes,
-                                  plant_id: firstPlant ? firstPlant.id : undefined,
-                                }));
-                                setSelectedOrganization(fullOrg);
-                                setPlants(plantsList ?? []);
-                                showToast('Linked to organization' + (firstPlant ? ' and plant' : ''), 'success');
-                              }).catch(() => {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  company_name: fullOrg.name,
-                                  organization_id: fullOrg.id,
-                                  notes: fullOrg.description?.trim() ? (prev.notes?.trim() ? `${prev.notes}\n${fullOrg.description}` : fullOrg.description) : prev.notes,
-                                }));
-                                setSelectedOrganization(fullOrg);
-                                setPlants([]);
-                                showToast('Linked to organization', 'success');
-                              });
+                          onClick={clearOrganization}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                          title="Clear organization"
+                        >
+                          <X size={16} />
+                        </button>
+                        <a
+                          href={`/organizations/${formData.organization_id}/edit`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-indigo-600 transition-colors inline-flex"
+                          title="Open organization in new tab"
+                        >
+                          <ArrowRight size={16} />
+                        </a>
+                      </div>
+                    ) : undefined
+                  }
+                />
+                {orgSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                    <p className="text-xs text-slate-500 px-3 py-2 border-b border-slate-100">Link to existing organization:</p>
+                    {orgSuggestions.map(org => (
+                      <button
+                        key={org.id}
+                        type="button"
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOrgSuggestions([]);
+                          setOrgSearchQuery('');
+                          marketingAPI.getOrganization(org.id).then((fullOrg) => {
+                            marketingAPI.getOrganizationPlants(org.id).then((plantsList) => {
+                              const firstPlant = plantsList && plantsList.length > 0 ? plantsList[0] : null;
+                              setFormData(prev => ({
+                                ...prev,
+                                company_name: fullOrg.name,
+                                organization_id: fullOrg.id,
+                                notes: fullOrg.description?.trim() ? (prev.notes?.trim() ? `${prev.notes}\n${fullOrg.description}` : fullOrg.description) : prev.notes,
+                                plant_id: firstPlant ? firstPlant.id : undefined,
+                              }));
+                              setSelectedOrganization(fullOrg);
+                              setPlants(plantsList ?? []);
+                              showToast('Linked to organization' + (firstPlant ? ' and plant' : ''), 'success');
                             }).catch(() => {
                               setFormData(prev => ({
                                 ...prev,
-                                company_name: org.name,
-                                organization_id: org.id,
-                                plant_id: undefined,
+                                company_name: fullOrg.name,
+                                organization_id: fullOrg.id,
+                                notes: fullOrg.description?.trim() ? (prev.notes?.trim() ? `${prev.notes}\n${fullOrg.description}` : fullOrg.description) : prev.notes,
                               }));
-                              setSelectedOrganization(org);
+                              setSelectedOrganization(fullOrg);
                               setPlants([]);
                               showToast('Linked to organization', 'success');
                             });
-                          }}
-                        >
-                          <span className="font-medium">{org.name}</span>
-                          {(org.industry || org.website || org.code) && (
-                            <span className="text-slate-500 text-xs">{[org.code, org.industry, org.website].filter(Boolean).join(' · ')}</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {selectedOrganization ? (
-                    <>
-                      <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm mt-3">
-                        <p className="font-medium text-slate-800">Linked organization</p>
-                        <p className="text-slate-600 mt-0.5">{selectedOrganization.name}{selectedOrganization.code ? ` · ${selectedOrganization.code}` : ''}</p>
-                        {(selectedOrganization.website || selectedOrganization.industry) && (
-                          <p className="text-slate-500 text-xs mt-1">{[selectedOrganization.website, selectedOrganization.industry].filter(Boolean).join(' · ')}</p>
+                          }).catch(() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              company_name: org.name,
+                              organization_id: org.id,
+                              plant_id: undefined,
+                            }));
+                            setSelectedOrganization(org);
+                            setPlants([]);
+                            showToast('Linked to organization', 'success');
+                          });
+                        }}
+                      >
+                        <span className="font-medium">{org.name}</span>
+                        {(org.industry || org.website || org.code) && (
+                          <span className="text-slate-500 text-xs">{[org.code, org.industry, org.website].filter(Boolean).join(' · ')}</span>
                         )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {selectedOrganization ? (
+                  <>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm mt-3">
+                      <p className="font-medium text-slate-800">Linked organization</p>
+                      <p className="text-slate-600 mt-0.5">{selectedOrganization.name}{selectedOrganization.code ? ` · ${selectedOrganization.code}` : ''}</p>
+                      {(selectedOrganization.website || selectedOrganization.industry) && (
+                        <p className="text-slate-500 text-xs mt-1">{[selectedOrganization.website, selectedOrganization.industry].filter(Boolean).join(' · ')}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 items-end mt-3">
+                      <div className="min-w-[200px]">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Plant</label>
+                        <Select
+                          options={[
+                            { value: '', label: 'None' },
+                            ...plants.map(p => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` })),
+                          ]}
+                          value={formData.plant_id != null ? String(formData.plant_id) : ''}
+                          onChange={(val) => setFormData({ ...formData, plant_id: val ? Number(val) : undefined })}
+                          placeholder="Select plant"
+                          searchable
+                        />
                       </div>
-                      <div className="flex gap-2 items-end mt-3">
-                        <div className="min-w-[200px]">
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Plant</label>
-                          <Select
-                            options={[
-                              { value: '', label: 'None' },
-                              ...plants.map(p => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` })),
-                            ]}
-                            value={formData.plant_id != null ? String(formData.plant_id) : ''}
-                            onChange={(val) => setFormData({ ...formData, plant_id: val ? Number(val) : undefined })}
-                            placeholder="Select plant"
-                            searchable
-                          />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setShowPlantInline(!showPlantInline); if (!showPlantInline) setPlantModalData({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' }); }}
+                        title="Add plant to organization"
+                        leftIcon={<Plus size={16} />}
+                      >
+                        Add plant
+                      </Button>
+                    </div>
+                    {showPlantInline && formData.organization_id != null && (
+                      <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3 mt-3">
+                        <h4 className="text-sm font-medium text-slate-700">New plant</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input label="Plant name" value={plantModalData.plant_name || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, plant_name: e.target.value }))} required placeholder="e.g. Main Plant" />
+                          <Input label="Address" value={plantModalData.address_line1 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                          <Input label="City" value={plantModalData.city || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, city: e.target.value }))} />
+                          <Input label="Country" value={plantModalData.country || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, country: e.target.value }))} />
+                          <Input label="Pin / Postal code" value={plantModalData.postal_code || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, postal_code: e.target.value }))} />
                         </div>
                         <Button
                           type="button"
-                          variant="outline"
                           size="sm"
-                          onClick={() => { setShowPlantInline(!showPlantInline); if (!showPlantInline) setPlantModalData({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' }); }}
-                          title="Add plant to organization"
-                          leftIcon={<Plus size={16} />}
+                          disabled={savingModal || !plantModalData.plant_name?.trim()}
+                          onClick={async () => {
+                            if (!formData.organization_id) return;
+                            setSavingModal(true);
+                            try {
+                              const created = await marketingAPI.createOrganizationPlant(formData.organization_id, plantModalData);
+                              showToast('Plant added', 'success');
+                              const pl = await marketingAPI.getOrganizationPlants(formData.organization_id);
+                              setPlants(pl);
+                              setFormData(prev => ({ ...prev, plant_id: created.id }));
+                              setShowPlantInline(false);
+                              setPlantModalData({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+                            } catch (e: any) {
+                              showToast(e.message || 'Failed to add plant', 'error');
+                            } finally {
+                              setSavingModal(false);
+                            }
+                          }}
                         >
-                          Add plant
+                          {savingModal ? 'Adding...' : 'Add Plant'}
                         </Button>
-                      </div>
-                      {showPlantInline && formData.organization_id != null && (
-                        <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3 mt-3">
-                          <h4 className="text-sm font-medium text-slate-700">New plant</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <Input label="Plant name" value={plantModalData.plant_name || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, plant_name: e.target.value }))} required placeholder="e.g. Main Plant" />
-                            <Input label="Address" value={plantModalData.address_line1 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
-                            <Input label="City" value={plantModalData.city || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, city: e.target.value }))} />
-                            <Input label="Country" value={plantModalData.country || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, country: e.target.value }))} />
-                            <Input label="Pin / Postal code" value={plantModalData.postal_code || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, postal_code: e.target.value }))} />
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={savingModal || !plantModalData.plant_name?.trim()}
-                            onClick={async () => {
-                              if (!formData.organization_id) return;
-                              setSavingModal(true);
-                              try {
-                                const created = await marketingAPI.createOrganizationPlant(formData.organization_id, plantModalData);
-                                showToast('Plant added', 'success');
-                                const pl = await marketingAPI.getOrganizationPlants(formData.organization_id);
-                                setPlants(pl);
-                                setFormData(prev => ({ ...prev, plant_id: created.id }));
-                                setShowPlantInline(false);
-                                setPlantModalData({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
-                              } catch (e: any) {
-                                showToast(e.message || 'Failed to add plant', 'error');
-                              } finally {
-                                setSavingModal(false);
-                              }
-                            }}
-                          >
-                            {savingModal ? 'Adding...' : 'Add Plant'}
-                          </Button>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    canCreateOrg && (
-                      <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-3">
-                        <p className="text-sm font-medium text-slate-700">Create new organization on save (fill below)</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div className="relative">
-                            <Input
-                              label="Organization name"
-                              value={orgSearchQuery || newOrgForm.name}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                setOrgSearchQuery(v);
-                                setNewOrgForm(prev => ({ ...prev, name: v }));
-                                setFormData(prev => ({ ...prev, company_name: v }));
-                                if (orgSearchTimeoutRef.current) clearTimeout(orgSearchTimeoutRef.current);
-                                orgSearchTimeoutRef.current = setTimeout(() => searchOrganizationsByName(v), 300);
-                              }}
-                              onFocus={() => (orgSearchQuery || newOrgForm.name) && searchOrganizationsByName(orgSearchQuery || newOrgForm.name)}
-                              placeholder="Same as above, or type here to search"
-                            />
-                            {orgSuggestions.length > 0 && (
-                              <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-auto">
-                                <p className="text-xs text-slate-500 px-3 py-2 border-b border-slate-100">Link to existing organization:</p>
-                                {orgSuggestions.map(org => (
-                                  <button
-                                    key={org.id}
-                                    type="button"
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setOrgSuggestions([]);
-                                      setOrgSearchQuery('');
-                                      marketingAPI.getOrganization(org.id).then((fullOrg) => {
-                                        marketingAPI.getOrganizationPlants(org.id).then((plantsList) => {
-                                          const firstPlant = plantsList && plantsList.length > 0 ? plantsList[0] : null;
-                                          setFormData(prev => ({ ...prev, company_name: fullOrg.name, organization_id: fullOrg.id, notes: fullOrg.description?.trim() ? (prev.notes?.trim() ? `${prev.notes}\n${fullOrg.description}` : fullOrg.description) : prev.notes, plant_id: firstPlant ? firstPlant.id : undefined }));
-                                          setSelectedOrganization(fullOrg);
-                                          setPlants(plantsList ?? []);
-                                          showToast('Linked to organization' + (firstPlant ? ' and plant' : ''), 'success');
-                                        }).catch(() => {
-                                          setFormData(prev => ({ ...prev, company_name: fullOrg.name, organization_id: fullOrg.id, notes: fullOrg.description?.trim() ? (prev.notes?.trim() ? `${prev.notes}\n${fullOrg.description}` : fullOrg.description) : prev.notes }));
-                                          setSelectedOrganization(fullOrg);
-                                          setPlants([]);
-                                          showToast('Linked to organization', 'success');
-                                        });
-                                      }).catch(() => {
-                                        setFormData(prev => ({ ...prev, company_name: org.name, organization_id: org.id, plant_id: undefined }));
-                                        setSelectedOrganization(org);
-                                        setPlants([]);
-                                        showToast('Linked to organization', 'success');
-                                      });
-                                    }}
-                                  >
-                                    <span className="font-medium">{org.name}</span>
-                                    {(org.industry || org.website || org.code) && (
-                                      <span className="text-slate-500 text-xs">{[org.code, org.industry, org.website].filter(Boolean).join(' · ')}</span>
-                                    )}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <Input label="Code" value={newOrgForm.code} onChange={(e) => setNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="Optional code" />
-                          <Input label="Website" value={newOrgForm.website} onChange={(e) => setNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
-                          <Input label="Industry" value={newOrgForm.industry} onChange={(e) => setNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="e.g. IT, Manufacturing" />
-                          <div className="md:col-span-2">
-                            <Select label="Size of organization" options={COMPANY_SIZES} value={newOrgForm.organization_size} onChange={(val) => setNewOrgForm(prev => ({ ...prev, organization_size: (val as string) || '' }))} placeholder="Select size" searchable />
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Description</label>
-                            <textarea className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" rows={2} value={newOrgForm.description} onChange={(e) => setNewOrgForm(prev => ({ ...prev, description: e.target.value }))} placeholder="Notes / important details" />
-                          </div>
-                        </div>
-                        <div className="pt-2 border-t border-slate-200">
-                          <p className="text-sm font-medium text-slate-700 mb-2">Optional: plant for new organization</p>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <Input label="Plant name" value={newPlantForm.plant_name || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="e.g. Main Plant" />
-                            <Input label="Address" value={newPlantForm.address_line1 || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
-                            <Input label="City" value={newPlantForm.city || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, city: e.target.value }))} />
-                            <Input label="Country" value={newPlantForm.country || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, country: e.target.value }))} />
-                            <Input label="Postal code" value={newPlantForm.postal_code || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} />
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-3 border-t border-slate-200 pt-4">
-                <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                  <User size={18} /> Primary contact
-                </h3>
-                <p className="text-xs text-slate-500">Primary contact is a link to a contact record. Search by email or phone and select one.</p>
-                {primaryContactContactId != null ? (
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between gap-2 flex-wrap">
-                    <div className="text-sm text-slate-800">
-                      {selectedPrimaryContact ? (
-                        <>
-                          <p className="font-medium">{contactDisplayName(selectedPrimaryContact) || contactCompanyName(selectedPrimaryContact) || 'Contact'}</p>
-                          <p className="text-slate-600 text-xs mt-0.5">{[selectedPrimaryContact.contact_email, selectedPrimaryContact.contact_phone].filter(Boolean).join(' · ')}</p>
-                        </>
-                      ) : (
-                        <p className="font-medium">Contact linked</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => { setPrimaryContactContactId(null); setSelectedPrimaryContact(null); setPrimaryContactSearchQuery(''); setContactSuggestions([]); }}
-                        className="text-sm text-slate-600 hover:text-rose-600"
-                      >
-                        Change
-                      </button>
-                      <a
-                        href={`/contacts/${primaryContactContactId}/edit`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2 py-1 text-sm text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100 rounded border border-indigo-200"
-                        title="Open contact in new tab"
-                      >
-                        <ArrowRight size={14} />
-                        View contact
-                      </a>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="relative max-w-md">
-                      <Input
-                        label="Search by email or phone"
-                        type="text"
-                        value={primaryContactSearchQuery}
-                        onChange={(e) => onPrimaryContactSearchChange(e.target.value)}
-                        onBlur={() => setTimeout(() => setContactSuggestions([]), 150)}
-                        placeholder="Type to search existing contact, or fill details below to create on save"
-                      />
-                      {primaryContactSearchQuery.trim().length >= 2 && contactSuggestions.length > 0 && (
-                        <div className="absolute left-0 right-0 top-full z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto">
-                          <p className="text-xs text-slate-500 px-3 py-2 border-b border-slate-100">Link to existing contact:</p>
-                          {contactSuggestions.map(c => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between gap-2"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setPrimaryContactContactId(c.id);
-                                setSelectedPrimaryContact(c);
-                                setPrimaryContactSearchQuery('');
-                                setContactSuggestions([]);
-                                showToast('Contact linked', 'success');
-                              }}
-                            >
-                              <span>{contactDisplayName(c) || contactCompanyName(c)}</span>
-                              <span className="text-slate-500 text-xs truncate">{[c.contact_email, c.contact_phone].filter(Boolean).join(' · ')}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {canCreateContact && (
-                      <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-3">
-                        <p className="text-sm font-medium text-slate-700">Create new contact on save (fill below). Organization is taken from the customer above.</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div className="flex gap-2 items-end">
-                            <div className="w-24 shrink-0">
-                              <Select label="Title" options={NAME_PREFIXES} value={createContactForm.name_prefix} onChange={(v) => setCreateContactForm(prev => ({ ...prev, name_prefix: (v ?? '') as string }))} placeholder="—" searchable={false} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <Input label="First name" value={createContactForm.first_name} onChange={(e) => setCreateContactForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="First name" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <Input label="Last name" value={createContactForm.last_name} onChange={(e) => setCreateContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Last name" />
-                            </div>
-                          </div>
-                          <div className="flex gap-2 items-end">
-                            <div className="w-36 shrink-0">
-                              <Select label="Country code" options={COUNTRY_CODES} value={createContactForm.phone_country_code} onChange={(v) => setCreateContactForm(prev => ({ ...prev, phone_country_code: (v ?? '') as string }))} placeholder="Code" searchable getSearchText={getCountryCodeSearchText} exactValueMatchWhenQueryMatches={/^\+?\d+$/} getOptionKey={(o) => o.label} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <Input label="Phone" type="tel" value={createContactForm.contact_phone} onChange={(e) => setCreateContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="Number" />
-                            </div>
-                          </div>
-                          <Input label="Email" type="email" value={createContactForm.contact_email} onChange={(e) => setCreateContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
-                          {formData.organization_id && plants.length > 0 && (
-                            <div className="md:col-span-2">
-                              <Select
-                                label="Plant"
-                                options={[{ value: '', label: 'None' }, ...plants.map(p => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` }))]}
-                                value={createContactForm.plant_id != null ? String(createContactForm.plant_id) : ''}
-                                onChange={(val) => setCreateContactForm(prev => ({ ...prev, plant_id: val ? Number(val) : undefined }))}
-                                placeholder="Select plant"
-                                searchable
-                              />
-                            </div>
-                          )}
-                        </div>
                       </div>
                     )}
                   </>
+                ) : (
+                  canCreateOrg && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-3">
+                      <p className="text-sm font-medium text-slate-700">Create new organization on save (fill below)</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="relative">
+                          <Input
+                            label="Organization name"
+                            value={orgSearchQuery || newOrgForm.name}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setOrgSearchQuery(v);
+                              setNewOrgForm(prev => ({ ...prev, name: v }));
+                              setFormData(prev => ({ ...prev, company_name: v }));
+                              if (orgSearchTimeoutRef.current) clearTimeout(orgSearchTimeoutRef.current);
+                              orgSearchTimeoutRef.current = setTimeout(() => searchOrganizationsByName(v), 300);
+                            }}
+                            onFocus={() => (orgSearchQuery || newOrgForm.name) && searchOrganizationsByName(orgSearchQuery || newOrgForm.name)}
+                            placeholder="Same as above, or type here to search"
+                          />
+                          {orgSuggestions.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                              <p className="text-xs text-slate-500 px-3 py-2 border-b border-slate-100">Link to existing organization:</p>
+                              {orgSuggestions.map(org => (
+                                <button
+                                  key={org.id}
+                                  type="button"
+                                  className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setOrgSuggestions([]);
+                                    setOrgSearchQuery('');
+                                    marketingAPI.getOrganization(org.id).then((fullOrg) => {
+                                      marketingAPI.getOrganizationPlants(org.id).then((plantsList) => {
+                                        const firstPlant = plantsList && plantsList.length > 0 ? plantsList[0] : null;
+                                        setFormData(prev => ({ ...prev, company_name: fullOrg.name, organization_id: fullOrg.id, notes: fullOrg.description?.trim() ? (prev.notes?.trim() ? `${prev.notes}\n${fullOrg.description}` : fullOrg.description) : prev.notes, plant_id: firstPlant ? firstPlant.id : undefined }));
+                                        setSelectedOrganization(fullOrg);
+                                        setPlants(plantsList ?? []);
+                                        showToast('Linked to organization' + (firstPlant ? ' and plant' : ''), 'success');
+                                      }).catch(() => {
+                                        setFormData(prev => ({ ...prev, company_name: fullOrg.name, organization_id: fullOrg.id, notes: fullOrg.description?.trim() ? (prev.notes?.trim() ? `${prev.notes}\n${fullOrg.description}` : fullOrg.description) : prev.notes }));
+                                        setSelectedOrganization(fullOrg);
+                                        setPlants([]);
+                                        showToast('Linked to organization', 'success');
+                                      });
+                                    }).catch(() => {
+                                      setFormData(prev => ({ ...prev, company_name: org.name, organization_id: org.id, plant_id: undefined }));
+                                      setSelectedOrganization(org);
+                                      setPlants([]);
+                                      showToast('Linked to organization', 'success');
+                                    });
+                                  }}
+                                >
+                                  <span className="font-medium">{org.name}</span>
+                                  {(org.industry || org.website || org.code) && (
+                                    <span className="text-slate-500 text-xs">{[org.code, org.industry, org.website].filter(Boolean).join(' · ')}</span>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <Input label="Code" value={newOrgForm.code} onChange={(e) => setNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="Optional code" />
+                        <Input label="Website" value={newOrgForm.website} onChange={(e) => setNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
+                        <Input label="Industry" value={newOrgForm.industry} onChange={(e) => setNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="e.g. IT, Manufacturing" />
+                        <div className="md:col-span-2">
+                          <Select label="Size of organization" options={COMPANY_SIZES} value={newOrgForm.organization_size} onChange={(val) => setNewOrgForm(prev => ({ ...prev, organization_size: (val as string) || '' }))} placeholder="Select size" searchable />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-slate-700 mb-1.5">Description</label>
+                          <textarea className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" rows={2} value={newOrgForm.description} onChange={(e) => setNewOrgForm(prev => ({ ...prev, description: e.target.value }))} placeholder="Notes / important details" />
+                        </div>
+                      </div>
+                      <div className="pt-2 border-t border-slate-200">
+                        <p className="text-sm font-medium text-slate-700 mb-2">Optional: plant for new organization</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input label="Plant name" value={newPlantForm.plant_name || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="e.g. Main Plant" />
+                          <Input label="Address" value={newPlantForm.address_line1 || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                          <Input label="City" value={newPlantForm.city || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, city: e.target.value }))} />
+                          <Input label="Country" value={newPlantForm.country || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, country: e.target.value }))} />
+                          <Input label="Postal code" value={newPlantForm.postal_code || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} />
+                        </div>
+                      </div>
+                    </div>
+                  )
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
-                    <textarea
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      rows={3}
-                      value={formData.notes || ''}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                      placeholder="Notes about this customer"
-                    />
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t border-slate-200 pt-4">
+              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <User size={18} /> Primary contact
+              </h3>
+              <p className="text-xs text-slate-500">Primary contact is a link to a contact record. Search by email or phone and select one.</p>
+              {primaryContactContactId != null ? (
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between gap-2 flex-wrap">
+                  <div className="text-sm text-slate-800">
+                    {selectedPrimaryContact ? (
+                      <>
+                        <p className="font-medium">{contactDisplayName(selectedPrimaryContact) || contactCompanyName(selectedPrimaryContact) || 'Contact'}</p>
+                        <p className="text-slate-600 text-xs mt-0.5">{[selectedPrimaryContact.contact_email, selectedPrimaryContact.contact_phone].filter(Boolean).join(' · ')}</p>
+                      </>
+                    ) : (
+                      <p className="font-medium">Contact linked</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="is_active"
-                      checked={formData.is_active !== false}
-                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <label htmlFor="is_active" className="text-sm font-medium text-slate-700">Active customer</label>
+                    <button
+                      type="button"
+                      onClick={() => { setPrimaryContactContactId(null); setSelectedPrimaryContact(null); setPrimaryContactSearchQuery(''); setContactSuggestions([]); }}
+                      className="text-sm text-slate-600 hover:text-rose-600"
+                    >
+                      Change
+                    </button>
+                    <a
+                      href={`/contacts/${primaryContactContactId}/edit`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2 py-1 text-sm text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100 rounded border border-indigo-200"
+                      title="Open contact in new tab"
+                    >
+                      <ArrowRight size={14} />
+                      View contact
+                    </a>
                   </div>
                 </div>
-              </div>
-
-              <div className="space-y-2 border-t border-slate-200 pt-4">
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setDomainRegionCollapsed(!domainRegionCollapsed)}
-                    className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-left transition-colors"
-                  >
-                    <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                      <Globe size={16} className="text-slate-500" />
-                      Domain & Region
-                      {formData.domain_id && (
-                        <span className="text-slate-500 font-normal">
-                          — {domains.find(d => d.id === formData.domain_id)?.name ?? 'Domain'}
-                          {formData.region_id && regions.find(r => r.id === formData.region_id)
-                            ? ` · ${regions.find(r => r.id === formData.region_id)?.name}`
-                            : ''}
-                        </span>
-                      )}
-                    </span>
-                    {domainRegionCollapsed ? (
-                      <ChevronRight size={18} className="text-slate-500 shrink-0" />
-                    ) : (
-                      <ChevronDown size={18} className="text-slate-500 shrink-0" />
+              ) : (
+                <>
+                  <div className="relative max-w-md">
+                    <Input
+                      label="Search by email or phone"
+                      type="text"
+                      value={primaryContactSearchQuery}
+                      onChange={(e) => onPrimaryContactSearchChange(e.target.value)}
+                      onBlur={() => setTimeout(() => setContactSuggestions([]), 150)}
+                      placeholder="Type to search existing contact, or fill details below to create on save"
+                    />
+                    {primaryContactSearchQuery.trim().length >= 2 && contactSuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto">
+                        <p className="text-xs text-slate-500 px-3 py-2 border-b border-slate-100">Link to existing contact:</p>
+                        {contactSuggestions.map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between gap-2"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setPrimaryContactContactId(c.id);
+                              setSelectedPrimaryContact(c);
+                              setPrimaryContactSearchQuery('');
+                              setContactSuggestions([]);
+                              showToast('Contact linked', 'success');
+                            }}
+                          >
+                            <span>{contactDisplayName(c) || contactCompanyName(c)}</span>
+                            <span className="text-slate-500 text-xs truncate">{[c.contact_email, c.contact_phone].filter(Boolean).join(' · ')}</span>
+                          </button>
+                        ))}
+                      </div>
                     )}
-                  </button>
-                  {!domainRegionCollapsed && (
-                    <div className="p-4 pt-2 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-200 bg-white">
-                      <AsyncSelect
-                        label="Domain"
-                        loadOptions={async (search) => {
-                          if (!search && domains.length > 0) return domains.slice(0, 10).map(d => ({ value: d.id, label: d.name }));
-                          const res = await marketingAPI.getDomains({ is_active: true, page: 1, page_size: 10, search: search || undefined });
-                          return res.items.map(d => ({ value: d.id, label: d.name }));
-                        }}
-                        value={formData.domain_id}
-                        onChange={(val) => setFormData({ ...formData, domain_id: val ? Number(val) : undefined, region_id: undefined })}
-                        placeholder="Select Domain"
-                        initialOptions={domains.slice(0, 10).map(d => ({ value: d.id, label: d.name }))}
-                      />
-                      <AsyncSelect
-                        label="Region"
-                        loadOptions={async (search) => {
-                          if (!formData.domain_id) return [];
-                          if (!search && regions.length > 0) return regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }));
-                          const res = await marketingAPI.getRegions({ domain_id: formData.domain_id, is_active: true, page: 1, page_size: 25, search: search || undefined });
-                          return res.items.map(r => ({ value: r.id, label: r.name }));
-                        }}
-                        value={formData.region_id}
-                        onChange={(val) => setFormData({ ...formData, region_id: val ? Number(val) : undefined })}
-                        placeholder="Select Region"
-                        required
-                        disabled={!formData.domain_id}
-                        initialOptions={regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }))}
-                      />
+                  </div>
+                  {canCreateContact && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-3">
+                      <p className="text-sm font-medium text-slate-700">Create new contact on save (fill below). Organization is taken from the customer above.</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="flex gap-2 items-end">
+                          <div className="w-24 shrink-0">
+                            <Select label="Title" options={NAME_PREFIXES} value={createContactForm.name_prefix} onChange={(v) => setCreateContactForm(prev => ({ ...prev, name_prefix: (v ?? '') as string }))} placeholder="—" searchable={false} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <Input label="First name" value={createContactForm.first_name} onChange={(e) => setCreateContactForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="First name" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <Input label="Last name" value={createContactForm.last_name} onChange={(e) => setCreateContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Last name" />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 items-end">
+                          <div className="w-36 shrink-0">
+                            <Select label="Country code" options={COUNTRY_CODES} value={createContactForm.phone_country_code} onChange={(v) => setCreateContactForm(prev => ({ ...prev, phone_country_code: (v ?? '') as string }))} placeholder="Code" searchable getSearchText={getCountryCodeSearchText} exactValueMatchWhenQueryMatches={/^\+?\d+$/} getOptionKey={(o) => o.label} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <Input label="Phone" type="tel" value={createContactForm.contact_phone} onChange={(e) => setCreateContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="Number" />
+                          </div>
+                        </div>
+                        <Input label="Email" type="email" value={createContactForm.contact_email} onChange={(e) => setCreateContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
+                        {formData.organization_id && plants.length > 0 && (
+                          <div className="md:col-span-2">
+                            <Select
+                              label="Plant"
+                              options={[{ value: '', label: 'None' }, ...plants.map(p => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` }))]}
+                              value={createContactForm.plant_id != null ? String(createContactForm.plant_id) : ''}
+                              onChange={(val) => setCreateContactForm(prev => ({ ...prev, plant_id: val ? Number(val) : undefined }))}
+                              placeholder="Select plant"
+                              searchable
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
+                </>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
+                  <textarea
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    rows={3}
+                    value={formData.notes || ''}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    placeholder="Notes about this customer"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_active"
+                    checked={formData.is_active !== false}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label htmlFor="is_active" className="text-sm font-medium text-slate-700">Active customer</label>
                 </div>
               </div>
-            </>
+            </div>
+
+            <div className="space-y-2 border-t border-slate-200 pt-4">
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setDomainRegionCollapsed(!domainRegionCollapsed)}
+                  className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-left transition-colors"
+                >
+                  <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                    <Globe size={16} className="text-slate-500" />
+                    Domain & Region
+                    {formData.domain_id && (
+                      <span className="text-slate-500 font-normal">
+                        — {domains.find(d => d.id === formData.domain_id)?.name ?? 'Domain'}
+                        {formData.region_id && regions.find(r => r.id === formData.region_id)
+                          ? ` · ${regions.find(r => r.id === formData.region_id)?.name}`
+                          : ''}
+                      </span>
+                    )}
+                  </span>
+                  {domainRegionCollapsed ? (
+                    <ChevronRight size={18} className="text-slate-500 shrink-0" />
+                  ) : (
+                    <ChevronDown size={18} className="text-slate-500 shrink-0" />
+                  )}
+                </button>
+                {!domainRegionCollapsed && (
+                  <div className="p-4 pt-2 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-200 bg-white">
+                    <AsyncSelect
+                      label="Domain"
+                      loadOptions={async (search) => {
+                        if (!search && domains.length > 0) return domains.slice(0, 10).map(d => ({ value: d.id, label: d.name }));
+                        const res = await marketingAPI.getDomains({ is_active: true, page: 1, page_size: 10, search: search || undefined });
+                        return res.items.map(d => ({ value: d.id, label: d.name }));
+                      }}
+                      value={formData.domain_id}
+                      onChange={(val) => setFormData({ ...formData, domain_id: val ? Number(val) : undefined, region_id: undefined })}
+                      placeholder="Select Domain"
+                      initialOptions={domains.slice(0, 10).map(d => ({ value: d.id, label: d.name }))}
+                    />
+                    <AsyncSelect
+                      label="Region"
+                      loadOptions={async (search) => {
+                        if (!formData.domain_id) return [];
+                        if (!search && regions.length > 0) return regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }));
+                        const res = await marketingAPI.getRegions({ domain_id: formData.domain_id, is_active: true, page: 1, page_size: 25, search: search || undefined });
+                        return res.items.map(r => ({ value: r.id, label: r.name }));
+                      }}
+                      value={formData.region_id}
+                      onChange={(val) => setFormData({ ...formData, region_id: val ? Number(val) : undefined })}
+                      placeholder="Select Region"
+                      required
+                      disabled={!formData.domain_id}
+                      initialOptions={regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }))}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
 
           <div className="flex gap-3 justify-end pt-3 border-t border-slate-200">
             <Button

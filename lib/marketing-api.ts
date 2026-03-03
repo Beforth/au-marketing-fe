@@ -338,10 +338,12 @@ export interface CreateLeadRequest {
   assigned_to_employee_id?: number;
   referred_by_employee_id?: number | null;  // When lead_through is colleague: employee who referred the lead
   expected_closing_date?: string;
+  series?: string;
 }
 
 export interface UpdateLeadRequest extends Partial<CreateLeadRequest> {
   closed_value?: number;
+  series?: string;
   /** Required (min 100 chars) when moving lead to Lost status. Stored in enquiry log. */
   status_change_reason?: string;
 }
