@@ -98,11 +98,13 @@ export const InvoicesPage: React.FC = () => {
     </Button>
   );
 
+  const breadcrumbs = [{ label: 'Invoices', href: '/invoices' }];
   return (
     <PageLayout
       title="Billing & Invoices"
       description="Issue and manage enterprise billing documents."
       actions={actions}
+      breadcrumbs={breadcrumbs}
     >
 
       <Card noPadding className="overflow-hidden">

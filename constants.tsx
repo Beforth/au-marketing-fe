@@ -13,21 +13,24 @@ import {
   Quote,
   UserCircle,
   Globe,
-  Hash
+  Hash,
+  Building2,
+  Database
 } from 'lucide-react';
 import { NavItem, StatItem, Transaction } from './types';
 
-// Marketing module navigation links – permission codes must match HRMS /api/rbac/user/info/ response
+// Order: Dashboard > Domain > Leads > Quotation > Orders > Database (Orgs/Customers/Contacts) > Reports, then rest
+// Permission codes must match HRMS /api/rbac/user/info/
+// marketing.view_database = show if user has any of view_organization, view_customer, view_contact (handled in Sidebar)
 export const SIDEBAR_LINKS: NavItem[] = [
   { title: 'Dashboard', icon: LayoutDashboard, href: '/', permission: undefined },
-  { title: 'Employees', icon: Users, href: '/employees', permission: 'marketing.view_domain' },
-  { title: 'Domains', icon: Globe, href: '/domains', permission: 'marketing.view_domain' },
-  { title: 'Contacts', icon: UserCircle, href: '/contacts', permission: 'marketing.view_contact' },
+  { title: 'Domains', icon: Globe, href: '/domains', permission: 'rbac.view_domain_tab' },
   { title: 'Leads', icon: Users, href: '/leads', permission: 'marketing.view_lead' },
   { title: 'Quotations', icon: Quote, href: '/quotations', permission: 'marketing.view_lead' },
-  // { title: 'Campaigns', icon: ShoppingBag, href: '/campaigns', permission: 'marketing.view_campaign' },
-  { title: 'Customers', icon: Users, href: '/customers', permission: 'marketing.view_customer' },
-  { title: 'Reports', icon: PieChart, href: '/reports', permission: 'marketing.admin' },
+  { title: 'Orders', icon: Package, href: '/orders', permission: 'marketing.view_lead' },
+  { title: 'Database', icon: Database, href: '/database', permission: 'marketing.view_database' },
+  { title: 'Reports', icon: PieChart, href: '/reports', permission: 'marketing.view_report' },
+  // { title: 'Employees', icon: Users, href: '/employees', permission: 'marketing.view_domain' },
   { title: 'Invoices', icon: FileText, href: '/invoices', permission: 'marketing.admin' },
   { title: 'Numbering Series', icon: Hash, href: '/numbering-series', permission: 'marketing.admin' },
 ];
@@ -57,3 +60,20 @@ export const CHART_DATA = [
   { name: 'Jun', revenue: 2390, target: 3800 },
   { name: 'Jul', revenue: 3490, target: 4300 },
 ];
+
+// Name title/salutation options (displayed before person name everywhere)
+export const NAME_PREFIXES: { value: string; label: string }[] = [
+  { value: '', label: '—' },
+  { value: 'Mr.', label: 'Mr.' },
+  { value: 'Mrs.', label: 'Mrs.' },
+  { value: 'Ms.', label: 'Ms.' },
+  { value: 'Miss', label: 'Miss' },
+  { value: 'Dr.', label: 'Dr.' },
+  { value: 'Prof.', label: 'Prof.' },
+  { value: 'Eng.', label: 'Eng.' },
+  { value: 'Sir', label: 'Sir' },
+  { value: 'Madam', label: 'Madam' },
+];
+
+// Country calling codes with flags (from country-list-with-dial-code-and-flag)
+export { COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from './lib/country-codes';

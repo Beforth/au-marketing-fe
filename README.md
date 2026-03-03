@@ -26,6 +26,14 @@ Create a `.env` file in `marketing-fe/`:
 ```env
 VITE_API_BASE_URL=http://localhost:8003
 VITE_HRMS_RBAC_API_URL=http://localhost:8000/api/rbac
+# Optional: Firebase web push
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+VITE_FIREBASE_VAPID_KEY=
 ```
 
 **When using production HRMS:**

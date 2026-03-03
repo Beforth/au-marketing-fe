@@ -87,11 +87,13 @@ export const FinancialsPage: React.FC = () => {
     </Button>
   );
 
+  const breadcrumbs = [{ label: 'Financials', href: '/financials' }];
   return (
     <PageLayout
       title="Financial Reporting"
       description="Real-time fiscal monitoring and revenue forecasting modules."
       actions={actions}
+      breadcrumbs={breadcrumbs}
     >
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

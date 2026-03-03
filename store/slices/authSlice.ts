@@ -3,9 +3,10 @@
  * Permissions are stored as a list of codes from GET /api/rbac/user/permissions/list/
  */
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { hrmsRBACClient, HRMSUser, HRMSEmployee, HRMSRole, LoginResponse } from '../../lib/hrms-rbac';
+import { hrmsRBACClient, HRMSUser, HRMSEmployee, HRMSRole } from '../../lib/hrms-rbac';
 import { apiClient } from '../../lib/api';
 import { clearStoredAuth } from '../../lib/auth-utils';
+import { setStoredMarketingScope } from '../../lib/marketing-scope';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -30,6 +31,30 @@ const initialState: AuthState = {
   error: null,
 };
 
+const fetchAndStoreMarketingScope = async (): Promise<void> => {
+  try {
+    const scope = await apiClient.get<{
+      success?: boolean;
+      role?: 'super_admin' | 'domain_head' | 'region_head' | 'employee' | 'self';
+      domain_id?: number | null;
+      region_id?: number | null;
+      region_ids?: number[];
+      employee_id?: number | null;
+      user_id?: number | null;
+    }>('/api/auth/scope');
+    setStoredMarketingScope({
+      role: scope?.role ?? 'self',
+      domain_id: scope?.domain_id ?? undefined,
+      region_id: scope?.region_id ?? undefined,
+      region_ids: Array.isArray(scope?.region_ids) ? scope.region_ids : undefined,
+      employee_id: scope?.employee_id ?? undefined,
+      user_id: scope?.user_id ?? undefined,
+    });
+  } catch {
+    // Scope cache is optional; keep auth flow resilient.
+  }
+};
+
 // Load auth state from localStorage; use cached user/permissions. Call RBAC APIs only when cache is missing (e.g. first load after login stored token elsewhere).
 export const loadAuthFromStorage = createAsyncThunk(
   'auth/loadFromStorage',
@@ -45,6 +70,7 @@ export const loadAuthFromStorage = createAsyncThunk(
       try {
         const userData = JSON.parse(savedUserData);
         const permissions = Array.isArray(userData.permissions) ? userData.permissions : [];
+        await fetchAndStoreMarketingScope();
         return {
           token: savedToken,
           user: userData.user ?? null,
@@ -71,6 +97,7 @@ export const loadAuthFromStorage = createAsyncThunk(
           permissions: permissionCodes,
         };
         localStorage.setItem('auth_user_data', JSON.stringify(freshData));
+        await fetchAndStoreMarketingScope();
         return { token: savedToken, ...freshData };
       }
     } catch {
@@ -106,6 +133,7 @@ export const login = createAsyncThunk(
         permissions,
       }));
       localStorage.setItem('auth_login_time', Date.now().toString());
+      await fetchAndStoreMarketingScope();
 
       return { token, user, employee, roles, permissions };
     } else {
@@ -156,6 +184,7 @@ export const refreshUserInfo = createAsyncThunk(
           permissions,
         };
         localStorage.setItem('auth_user_data', JSON.stringify(freshData));
+        await fetchAndStoreMarketingScope();
         return { token, ...freshData };
       }
     } catch {

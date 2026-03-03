@@ -2,7 +2,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../ui/Sidebar';
-import { Navbar } from '../ui/Navbar';
+import Navbar from '../ui/Navbar';
 import { useApp } from '../../App';
 import { Toast } from '../ui/Toast';
 

@@ -1,6 +1,7 @@
 /**
  * Domains Management Page
  * Manage marketing domains (Domestic, Export, etc.)
+ * List view: table of domains/regions. Review view: hierarchy of domain heads → region heads → region employees with edit actions.
  */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,15 +10,19 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
+import { AsyncSelect } from '../components/ui/AsyncSelect';
 import { FilterPopover } from '../components/ui/FilterPopover';
-import { Search, Plus, Edit, Trash2, Globe, CheckCircle, XCircle, MapPin, ChevronDown, ChevronRight, Filter, X } from 'lucide-react';
+import { Modal } from '../components/ui/Modal';
+import { Search, Plus, Edit, Trash2, Globe, CheckCircle, XCircle, MapPin, ChevronDown, ChevronRight, Filter, X, Users, UserPlus, User } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { marketingAPI, Domain, Region, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
+import { marketingAPI, Domain, Region, AssignmentWithEmployee, HRMSEmployee, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
+
+type ViewMode = 'list' | 'review';
 
 export const DomainsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -30,7 +35,10 @@ export const DomainsPage: React.FC = () => {
   const canCreateRegion = useAppSelector(selectHasPermission('marketing.create_region'));
   const canEditRegion = useAppSelector(selectHasPermission('marketing.edit_region'));
   const canDeleteRegion = useAppSelector(selectHasPermission('marketing.delete_region'));
+  const canAssignEmployeeRegion = useAppSelector(selectHasPermission('marketing.assign_employee_region'));
+  const canManageRegionEmployees = canAssignEmployeeRegion || canViewRegion || canView;
 
+  const [viewMode, setViewMode] = useState<ViewMode>('review');
   const [domains, setDomains] = useState<Domain[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -50,6 +58,24 @@ export const DomainsPage: React.FC = () => {
   const [deleteRegionId, setDeleteRegionId] = useState<number | null>(null);
   const filterButtonRef = React.useRef<HTMLDivElement>(null);
 
+  // Review view: hierarchy data
+  const [reviewDomains, setReviewDomains] = useState<Domain[]>([]);
+  const [reviewRegions, setReviewRegions] = useState<Region[]>([]);
+  const [reviewAssignments, setReviewAssignments] = useState<AssignmentWithEmployee[]>([]);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  // Modals: set domain head, set region head, add region employee, change role, remove assignment
+  const [setDomainHeadDomain, setSetDomainHeadDomain] = useState<Domain | null>(null);
+  const [setRegionHeadRegion, setSetRegionHeadRegion] = useState<Region | null>(null);
+  const [addEmployeeRegion, setAddEmployeeRegion] = useState<Region | null>(null);
+  const [addEmployeeSelected, setAddEmployeeSelected] = useState<HRMSEmployee | null>(null);
+  const [addEmployeeRole, setAddEmployeeRole] = useState<'head' | 'employee'>('employee');
+  const [addEmployeeSubmitting, setAddEmployeeSubmitting] = useState(false);
+  const [changeRoleAssignment, setChangeRoleAssignment] = useState<AssignmentWithEmployee | null>(null);
+  const [removeAssignmentId, setRemoveAssignmentId] = useState<number | null>(null);
+  const [headSelectSubmitting, setHeadSelectSubmitting] = useState(false);
+  const [domainHeadEmployeeId, setDomainHeadEmployeeId] = useState<number | ''>('');
+  const [regionHeadEmployeeId, setRegionHeadEmployeeId] = useState<number | ''>('');
+
   // Debounce search term
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -65,6 +91,30 @@ export const DomainsPage: React.FC = () => {
     }
     loadData();
   }, [canView, debouncedSearchTerm, filterActive, page, pageSize]);
+
+  const loadReviewData = async () => {
+    setReviewLoading(true);
+    try {
+      const [domainsRes, regionsRes, assignmentsList] = await Promise.all([
+        marketingAPI.getDomains({ is_active: true, page: 1, page_size: 100 }),
+        marketingAPI.getRegions({ is_active: true, page: 1, page_size: 100 }),
+        marketingAPI.getAllAssignments(),
+      ]);
+      setReviewDomains(domainsRes.items);
+      setReviewRegions(regionsRes.items);
+      setReviewAssignments(assignmentsList || []);
+    } catch (error: any) {
+      showToast(error.message || 'Failed to load review data', 'error');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (canView && viewMode === 'review') {
+      loadReviewData();
+    }
+  }, [canView, viewMode]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -155,11 +205,125 @@ export const DomainsPage: React.FC = () => {
     try {
       await marketingAPI.deleteRegion(deleteRegionId);
       showToast('Region deleted successfully', 'success');
+      setDeleteRegionId(null);
       if (selectedDomain) {
         await loadRegionsForDomain(selectedDomain.id);
       }
+      if (viewMode === 'review') await loadReviewData();
     } catch (error: any) {
       showToast(error.message || 'Failed to delete region', 'error');
+    }
+  };
+
+  // ——— Review: Set domain head ———
+  const handleSetDomainHead = async () => {
+    const d = setDomainHeadDomain;
+    if (!d || (domainHeadEmployeeId !== '' && !domainHeadEmployeeId)) return;
+    setHeadSelectSubmitting(true);
+    try {
+      if (domainHeadEmployeeId === '') {
+        await marketingAPI.updateDomain(d.id, { head_employee_id: undefined, head_username: undefined, head_email: undefined });
+        showToast('Domain head cleared', 'success');
+      } else {
+        const res = await marketingAPI.getEmployees({ page: 1, page_size: 500, status: 'active' });
+        const emp = res.employees.find((e) => e.id === Number(domainHeadEmployeeId));
+        const displayName = emp ? [emp.first_name, emp.last_name].filter(Boolean).join(' ').trim() || emp.email || '' : '';
+        await marketingAPI.updateDomain(d.id, {
+          head_employee_id: Number(domainHeadEmployeeId),
+          head_username: displayName || undefined,
+          head_email: emp?.email || undefined,
+        });
+        showToast(displayName ? `${displayName} set as Domain Head` : 'Domain head updated', 'success');
+      }
+      setSetDomainHeadDomain(null);
+      setDomainHeadEmployeeId('');
+      await loadReviewData();
+      loadData();
+    } catch (error: any) {
+      showToast(error.message || 'Failed to set domain head', 'error');
+    } finally {
+      setHeadSelectSubmitting(false);
+    }
+  };
+
+  // ——— Review: Set region head ———
+  const handleSetRegionHead = async () => {
+    const r = setRegionHeadRegion;
+    if (!r || (regionHeadEmployeeId !== '' && !regionHeadEmployeeId)) return;
+    setHeadSelectSubmitting(true);
+    try {
+      if (regionHeadEmployeeId === '') {
+        await marketingAPI.updateRegion(r.id, { head_employee_id: undefined, head_username: undefined });
+        showToast('Region head cleared', 'success');
+      } else {
+        const res = await marketingAPI.getEmployees({ page: 1, page_size: 500, status: 'active' });
+        const emp = res.employees.find((e) => e.id === Number(regionHeadEmployeeId));
+        const displayName = emp ? [emp.first_name, emp.last_name].filter(Boolean).join(' ').trim() || emp.email || '' : '';
+        await marketingAPI.updateRegion(r.id, {
+          head_employee_id: Number(regionHeadEmployeeId),
+          head_username: displayName || undefined,
+        });
+        showToast(displayName ? `${displayName} set as Region Head` : 'Region head updated', 'success');
+      }
+      setSetRegionHeadRegion(null);
+      setRegionHeadEmployeeId('');
+      await loadReviewData();
+    } catch (error: any) {
+      showToast(error.message || 'Failed to set region head', 'error');
+    } finally {
+      setHeadSelectSubmitting(false);
+    }
+  };
+
+  // ——— Review: Add region employee ———
+  const handleAddRegionEmployee = async () => {
+    const region = addEmployeeRegion;
+    const emp = addEmployeeSelected;
+    if (!region || !emp) return;
+    setAddEmployeeSubmitting(true);
+    try {
+      const displayName = [emp.first_name, emp.last_name].filter(Boolean).join(' ').trim() || emp.email || '';
+      await marketingAPI.assignEmployeeToRegion({
+        employee_id: emp.id,
+        region_id: region.id,
+        role: addEmployeeRole,
+        employee_name: displayName || undefined,
+        employee_email: emp.email || undefined,
+      });
+      showToast(addEmployeeRole === 'head' ? `${displayName} set as Region Head` : 'Employee assigned to region', 'success');
+      setAddEmployeeRegion(null);
+      setAddEmployeeSelected(null);
+      setAddEmployeeRole('employee');
+      await loadReviewData();
+    } catch (error: any) {
+      showToast(error.message || 'Failed to assign employee', 'error');
+    } finally {
+      setAddEmployeeSubmitting(false);
+    }
+  };
+
+  // ——— Review: Change assignment role ———
+  const handleChangeAssignmentRole = async (assignmentId: number, newRole: 'head' | 'employee') => {
+    try {
+      await marketingAPI.updateEmployeeAssignment(assignmentId, { role: newRole });
+      showToast('Role updated', 'success');
+      setChangeRoleAssignment(null);
+      await loadReviewData();
+    } catch (error: any) {
+      showToast(error.message || 'Failed to update role', 'error');
+    }
+  };
+
+  // ——— Review: Remove assignment ———
+  const handleConfirmRemoveAssignment = async () => {
+    if (removeAssignmentId == null) return;
+    try {
+      await marketingAPI.removeEmployeeFromRegion(removeAssignmentId);
+      showToast('Removed from region', 'success');
+      setRemoveAssignmentId(null);
+      await loadReviewData();
+    } catch (error: any) {
+      showToast(error.message || 'Failed to remove', 'error');
     }
   };
 
@@ -172,7 +336,7 @@ export const DomainsPage: React.FC = () => {
 
   if (!canView) {
     return (
-      <PageLayout title="Domains">
+      <PageLayout title="Domains" breadcrumbs={[{ label: 'Domains', href: '/domains' }]}>
         <Card>
           <div className="text-center py-12">
             <p className="text-slate-600">You do not have permission to view domains.</p>
@@ -187,18 +351,205 @@ export const DomainsPage: React.FC = () => {
     { label: 'Domains' },
   ];
 
-  const actions = canCreate ? (
-    <Button
-      size="sm"
-      onClick={() => navigate('/domains/new')}
-      leftIcon={<Plus size={14} strokeWidth={3} />}
-    >
-      Add Domain
-    </Button>
-  ) : null;
+  const actions = (
+    <div className="flex items-center gap-2">
+      <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-50/80">
+        <button
+          type="button"
+          onClick={() => setViewMode('list')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+        >
+          List
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('review')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'review' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+        >
+          Review
+        </button>
+      </div>
+      {canCreate && (
+        <Button
+          size="sm"
+          onClick={() => navigate('/domains/new')}
+          leftIcon={<Plus size={14} strokeWidth={3} />}
+        >
+          Add Domain
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <PageLayout title="Domains" actions={actions} breadcrumbs={breadcrumbs}>
+      {viewMode === 'review' ? (
+        /* ——— Review: hierarchy (domain heads → region heads → region employees) ——— */
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            View and manage the marketing hierarchy: domain heads, region heads, and region employees. Change heads or add/remove employees below.
+          </p>
+          {reviewLoading ? (
+            <Card>
+              <div className="flex items-center justify-center py-16">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+                <span className="ml-3 text-slate-600">Loading hierarchy...</span>
+              </div>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {reviewDomains.length === 0 ? (
+                <Card>
+                  <div className="text-center py-12 text-slate-600">No domains found. Create a domain first.</div>
+                </Card>
+              ) : (
+                <Card className="p-4">
+                  {/* Tree: domain → region → employee */}
+                  {reviewDomains.map((domain, domainIdx) => {
+                    const domainRegions = reviewRegions.filter((r) => r.domain_id === domain.id);
+                    return (
+                      <div
+                        key={domain.id}
+                        className={`tree-root ${domainIdx < reviewDomains.length - 1 ? 'mb-8 pb-6 border-b border-slate-100' : ''}`}
+                      >
+                        {/* Level 0: Domain (root) */}
+                        <div className="tree-node flex items-center gap-2 py-2 pr-2 rounded-md hover:bg-slate-50/80 group">
+                          <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-300" aria-hidden />
+                          <Globe size={18} className="text-indigo-600 shrink-0" />
+                          <span className="font-semibold text-slate-900">{domain.name}</span>
+                          {domain.code && <Badge variant="outline" className="text-xs">{domain.code}</Badge>}
+                          <span className="text-slate-400 mx-1">·</span>
+                          <span className="text-sm text-slate-600">Head:</span>
+                          <span className="text-sm font-medium text-slate-800">{domain.head_username || '—'}</span>
+                          {canEdit && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => {
+                                setSetDomainHeadDomain(domain);
+                                setDomainHeadEmployeeId(domain.head_employee_id ?? '');
+                              }}
+                            >
+                              {domain.head_username ? 'Change' : 'Set'}
+                            </Button>
+                          )}
+                        </div>
+                        {/* Level 1: Regions (children of domain) */}
+                        <div className="tree-children border-l-2 border-slate-200 ml-2 pl-3">
+                          {domainRegions.length === 0 ? (
+                            <div className="tree-node flex items-center gap-2 py-1.5 text-slate-500 text-sm italic">
+                              <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-200" aria-hidden />
+                              No regions
+                            </div>
+                          ) : (
+                            domainRegions.map((region, rIdx) => {
+                              const regionAssignments = reviewAssignments.filter((a) => a.region_id === region.id);
+                              const isLastRegion = rIdx === domainRegions.length - 1;
+                              return (
+                                <div key={region.id} className={isLastRegion ? '' : 'mb-1'}>
+                                  {/* Region row */}
+                                  <div className="tree-node flex items-center gap-2 py-2 pr-2 rounded-md hover:bg-slate-50/80 group">
+                                    <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-300" aria-hidden />
+                                    <MapPin size={16} className="text-emerald-600 shrink-0" />
+                                    <span className="font-medium text-slate-800">{region.name}</span>
+                                    {region.code && <Badge variant="outline" className="text-xs">{region.code}</Badge>}
+                                    <span className="text-slate-400 mx-1">·</span>
+                                    <span className="text-sm text-slate-600">Head:</span>
+                                    <span className="text-sm font-medium text-slate-800">{region.head_username || '—'}</span>
+                                    {canEditRegion && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={() => {
+                                          setSetRegionHeadRegion(region);
+                                          setRegionHeadEmployeeId(region.head_employee_id ?? '');
+                                        }}
+                                      >
+                                        {region.head_username ? 'Change' : 'Set'}
+                                      </Button>
+                                    )}
+                                    {canManageRegionEmployees && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="ml-auto text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={() => {
+                                          setAddEmployeeRegion(region);
+                                          setAddEmployeeSelected(null);
+                                          setAddEmployeeRole('employee');
+                                        }}
+                                        leftIcon={<UserPlus size={12} />}
+                                      >
+                                        Add
+                                      </Button>
+                                    )}
+                                  </div>
+                                  {/* Level 2: Employees (children of region) */}
+                                  <div className="tree-children border-l-2 border-slate-200 ml-2 pl-3">
+                                    {regionAssignments.length === 0 ? (
+                                      <div className="tree-node flex items-center gap-2 py-1.5 text-slate-500 text-sm italic">
+                                        <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-200" aria-hidden />
+                                        No employees
+                                      </div>
+                                    ) : (
+                                      regionAssignments.map((a, eIdx) => (
+                                        <div
+                                          key={a.id}
+                                          className="tree-node flex items-center justify-between gap-2 py-1.5 pr-2 rounded-md hover:bg-slate-50/80 group"
+                                        >
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-200" aria-hidden />
+                                            <User size={14} className="text-slate-500 shrink-0" />
+                                            <span className="text-sm text-slate-800 truncate">
+                                              {a.employee_name || a.employee_email || `Employee #${a.employee_id}`}
+                                            </span>
+                                            {a.role === 'head' && (
+                                              <Badge variant="outline" className="text-xs shrink-0">Head</Badge>
+                                            )}
+                                          </div>
+                                          {canManageRegionEmployees && (
+                                            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <Select
+                                                options={[
+                                                  { value: 'employee', label: 'Employee' },
+                                                  { value: 'head', label: 'Head' },
+                                                ]}
+                                                value={a.role}
+                                                onChange={(val) => handleChangeAssignmentRole(a.id, (val as 'head' | 'employee') || 'employee')}
+                                                searchable={false}
+                                                className="min-w-[100px]"
+                                              />
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-red-600 hover:text-red-700"
+                                                onClick={() => setRemoveAssignmentId(a.id)}
+                                              >
+                                                <Trash2 size={12} />
+                                              </Button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+      <>
       <div className="space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
           <Input
@@ -558,6 +909,8 @@ export const DomainsPage: React.FC = () => {
           )}
         </Card>
       </div>
+      </>
+      )}
 
       <ConfirmModal
         isOpen={deleteDomainId != null}
@@ -576,6 +929,137 @@ export const DomainsPage: React.FC = () => {
         title="Delete region"
         message="Are you sure you want to delete this region? This action cannot be undone."
         confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+      />
+
+      {/* Set Domain Head */}
+      <Modal
+        isOpen={setDomainHeadDomain != null}
+        onClose={() => { setSetDomainHeadDomain(null); setDomainHeadEmployeeId(''); }}
+        title={setDomainHeadDomain ? `Domain Head: ${setDomainHeadDomain.name}` : 'Set Domain Head'}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => { setSetDomainHeadDomain(null); setDomainHeadEmployeeId(''); }}>Cancel</Button>
+            <Button onClick={handleSetDomainHead} disabled={headSelectSubmitting}>
+              {headSelectSubmitting ? 'Saving...' : 'Save'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <AsyncSelect
+            label="Employee"
+            loadOptions={async (search) => {
+              const res = await marketingAPI.getEmployees({ page: 1, page_size: 30, search: search || undefined, status: 'active' });
+              return res.employees.map((e) => ({
+                value: e.id,
+                label: [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.email || `#${e.id}`,
+              }));
+            }}
+            value={domainHeadEmployeeId === '' ? undefined : domainHeadEmployeeId}
+            onChange={(val) => setDomainHeadEmployeeId(val != null && val !== '' ? Number(val) : '')}
+            placeholder="Search and select employee..."
+          />
+          <p className="text-xs text-slate-500">Leave empty and Save to clear the domain head.</p>
+        </div>
+      </Modal>
+
+      {/* Set Region Head */}
+      <Modal
+        isOpen={setRegionHeadRegion != null}
+        onClose={() => { setSetRegionHeadRegion(null); setRegionHeadEmployeeId(''); }}
+        title={setRegionHeadRegion ? `Region Head: ${setRegionHeadRegion.name}` : 'Set Region Head'}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => { setSetRegionHeadRegion(null); setRegionHeadEmployeeId(''); }}>Cancel</Button>
+            <Button onClick={handleSetRegionHead} disabled={headSelectSubmitting}>
+              {headSelectSubmitting ? 'Saving...' : 'Save'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <AsyncSelect
+            label="Employee"
+            loadOptions={async (search) => {
+              const res = await marketingAPI.getEmployees({ page: 1, page_size: 30, search: search || undefined, status: 'active' });
+              return res.employees.map((e) => ({
+                value: e.id,
+                label: [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.email || `#${e.id}`,
+              }));
+            }}
+            value={regionHeadEmployeeId === '' ? undefined : regionHeadEmployeeId}
+            onChange={(val) => setRegionHeadEmployeeId(val != null && val !== '' ? Number(val) : '')}
+            placeholder="Search and select employee..."
+          />
+          <p className="text-xs text-slate-500">Leave empty and Save to clear the region head.</p>
+        </div>
+      </Modal>
+
+      {/* Add Region Employee */}
+      <Modal
+        isOpen={addEmployeeRegion != null}
+        onClose={() => { setAddEmployeeRegion(null); setAddEmployeeSelected(null); }}
+        title={addEmployeeRegion ? `Add employee to ${addEmployeeRegion.name}` : 'Add employee'}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => { setAddEmployeeRegion(null); setAddEmployeeSelected(null); }}>Cancel</Button>
+            <Button onClick={handleAddRegionEmployee} disabled={!addEmployeeSelected || addEmployeeSubmitting}>
+              {addEmployeeSubmitting ? 'Adding...' : 'Add'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {!addEmployeeSelected ? (
+            <AsyncSelect
+              label="Employee"
+              loadOptions={async (search) => {
+                const res = await marketingAPI.getEmployees({ page: 1, page_size: 30, search: search || undefined, status: 'active' });
+                return res.employees.map((e) => ({
+                  value: e.id,
+                  label: [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.email || `#${e.id}`,
+                }));
+              }}
+              value={undefined}
+              onChange={(val) => {
+                if (val == null) return;
+                marketingAPI.getEmployees({ page: 1, page_size: 500, status: 'active' }).then((res) => {
+                  const emp = res.employees.find((e) => e.id === Number(val));
+                  if (emp) setAddEmployeeSelected(emp);
+                });
+              }}
+              placeholder="Search and select employee..."
+            />
+          ) : (
+            <div>
+              <p className="text-sm font-medium text-slate-800">
+                {[addEmployeeSelected.first_name, addEmployeeSelected.last_name].filter(Boolean).join(' ').trim() || addEmployeeSelected.email}
+              </p>
+              <Button variant="ghost" size="sm" onClick={() => setAddEmployeeSelected(null)}>Change employee</Button>
+            </div>
+          )}
+          <Select
+            label="Role"
+            options={[
+              { value: 'employee', label: 'Employee' },
+              { value: 'head', label: 'Region Head' },
+            ]}
+            value={addEmployeeRole}
+            onChange={(val) => setAddEmployeeRole((val as 'head' | 'employee') || 'employee')}
+            searchable={false}
+          />
+        </div>
+      </Modal>
+
+      <ConfirmModal
+        isOpen={removeAssignmentId != null}
+        onClose={() => setRemoveAssignmentId(null)}
+        onConfirm={handleConfirmRemoveAssignment}
+        title="Remove from region"
+        message="Remove this employee from the region? They will no longer have access."
+        confirmLabel="Remove"
         cancelLabel="Cancel"
         variant="danger"
       />

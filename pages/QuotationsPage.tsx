@@ -64,11 +64,13 @@ export const QuotationsPage: React.FC = () => {
     </div>
   );
 
+  const breadcrumbs = [{ label: 'Quotations', href: '/quotations' }, { label: 'Draft Quotation' }];
   return (
     <PageLayout
       title="Draft New Quotation"
       description={`ID: ${quotationNumber}`}
       actions={actions}
+      breadcrumbs={breadcrumbs}
     >
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -35,9 +35,21 @@ export interface AppNotification {
   type: 'order' | 'system' | 'inventory' | 'customer' | 'follow_up' | 'new_inquiry';
   read: boolean;
   link?: string;
+  lead_id?: number | null;
 }
 
-export type WidgetId = 'revenue-chart' | 'goal-chart' | 'activity-table' | 'global-reach';
+export type WidgetId =
+  | 'leads-by-region'
+  | 'target-card'
+  | 'head-summary'
+  | 'target-achieved-chart'
+  | 'won-lost-chart'
+  | 'leads-by-status-chart'
+  | 'inquiries-quotations-chart'
+  | 'revenue-chart'
+  | 'goal-chart'
+  | 'activity-table'
+  | 'global-reach';
 
 export interface WidgetConfig {
   id: WidgetId;

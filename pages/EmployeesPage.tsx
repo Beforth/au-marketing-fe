@@ -39,6 +39,7 @@ export const EmployeesPage: React.FC = () => {
   const { showToast } = useApp();
   const canView = useAppSelector(selectHasPermission('marketing.view_domain'));
   const canAssignEmployeeRegion = useAppSelector(selectHasPermission('marketing.assign_employee_region'));
+  const canManageRegionEmployees = canAssignEmployeeRegion || canView;
 
   const [assignments, setAssignments] = useState<RegionAssignment[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
@@ -271,7 +272,7 @@ export const EmployeesPage: React.FC = () => {
 
   if (!canView) {
     return (
-      <PageLayout title="Employees">
+      <PageLayout title="Employees" breadcrumbs={[{ label: 'Employees', href: '/employees' }]}>
         <Card>
           <div className="text-center py-12">
             <p className="text-slate-600">You do not have permission to view employees.</p>
@@ -300,7 +301,7 @@ export const EmployeesPage: React.FC = () => {
           onChange={(e) => setSearchTerm(e.target.value)}
           containerClassName="max-w-md"
         />
-        {canAssignEmployeeRegion && (
+        {canManageRegionEmployees && (
           <Button
             size="sm"
             onClick={() => openAssignModal()}
@@ -321,7 +322,7 @@ export const EmployeesPage: React.FC = () => {
           <div className="text-center py-12">
             <Users className="w-12 h-12 text-slate-400 mx-auto mb-4" />
             <p className="text-slate-600">No assigned users yet</p>
-            {canAssignEmployeeRegion && (
+            {canManageRegionEmployees && (
               <Button className="mt-4" onClick={() => openAssignModal()} leftIcon={<UserPlus size={16} />}>
                 Assign new user
               </Button>
@@ -357,7 +358,7 @@ export const EmployeesPage: React.FC = () => {
                   </div>
                 ),
               },
-              ...(canAssignEmployeeRegion
+              ...(canManageRegionEmployees
                 ? [{
                     key: 'actions',
                     label: '',

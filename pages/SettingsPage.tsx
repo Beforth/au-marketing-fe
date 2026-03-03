@@ -318,10 +318,12 @@ export const SettingsPage: React.FC = () => {
     { label: 'Integrations', icon: Globe },
   ];
 
+  const breadcrumbs = [{ label: 'Settings', href: '/settings' }];
   return (
     <PageLayout
       title="Account Configuration"
       description="Fine-tune your environment and identity. Profile is cached and cleared on logout."
+      breadcrumbs={breadcrumbs}
     >
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">

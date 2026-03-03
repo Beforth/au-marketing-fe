@@ -46,6 +46,14 @@ const PLACEHOLDERS = [
   { label: 'Sub-series', value: '{S:code}' },
 ];
 
+const RESET_PERIOD_OPTIONS = [
+  { value: 'none', label: 'Never (continuous)' },
+  { value: 'day', label: 'Every day' },
+  { value: 'week', label: 'Every week' },
+  { value: 'month', label: 'Every month' },
+  { value: 'year', label: 'Every year' },
+];
+
 /** Client-side preview: replace placeholders with sample values (does not call API). */
 function previewPattern(pattern: string, sampleNextValue: number = 1): string {
   const now = new Date();
@@ -103,6 +111,7 @@ export const NumberingSeriesPage: React.FC = () => {
   const [formPattern, setFormPattern] = useState('');
   const [formEntityType, setFormEntityType] = useState<string>('');
   const [formNextValue, setFormNextValue] = useState(1);
+  const [formResetPeriod, setFormResetPeriod] = useState<'none' | 'day' | 'week' | 'month' | 'year'>('none');
   const [formActive, setFormActive] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [formSaving, setFormSaving] = useState(false);
@@ -166,6 +175,7 @@ export const NumberingSeriesPage: React.FC = () => {
     setFormPattern('');
     setFormEntityType('');
     setFormNextValue(1);
+    setFormResetPeriod('none');
     setFormActive(true);
   };
 
@@ -202,6 +212,7 @@ export const NumberingSeriesPage: React.FC = () => {
           pattern: formPattern.trim(),
           entity_type: formEntityType || undefined,
           next_value: formNextValue,
+          reset_period: formResetPeriod,
           is_active: formActive,
         });
         showToast('Series created', 'success');
@@ -250,7 +261,7 @@ export const NumberingSeriesPage: React.FC = () => {
 
   if (!canView && !isForm) {
     return (
-      <PageLayout title="Numbering Series">
+      <PageLayout title="Numbering Series" breadcrumbs={[{ label: 'Numbering Series', href: '/numbering-series' }]}>
         <Card>
           <div className="text-center py-12">
             <p className="text-slate-600">You do not have permission to view numbering series.</p>
@@ -365,6 +376,19 @@ export const NumberingSeriesPage: React.FC = () => {
               <p className="text-xs text-slate-500 mt-1">
                 Placeholders: YYYY, YY, MM, DD, HH, mm, ss, 0:N (counter), S:code (sub-series).
                 With context: customer.id, customer.company_name, customer.domain_code, customer.region_code; contact.*; lead.id, lead.company, lead.domain_code, lead.region_code.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Reset counter</label>
+              <Select
+                value={formResetPeriod}
+                onChange={(val) => setFormResetPeriod((val as 'none' | 'day' | 'week' | 'month' | 'year') ?? 'none')}
+                options={RESET_PERIOD_OPTIONS}
+                placeholder="Never"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                When to reset the next value to 1: never, or at the start of each day/week/month/year.
               </p>
             </div>
 
@@ -505,6 +529,15 @@ export const NumberingSeriesPage: React.FC = () => {
                       render: (s) => (
                         <span className="text-slate-600 text-sm">
                           {s.entity_type ? s.entity_type.charAt(0).toUpperCase() + s.entity_type.slice(1) : 'Generic'}
+                        </span>
+                      ),
+                    },
+                    {
+                      key: 'reset_period',
+                      label: 'Reset',
+                      render: (s) => (
+                        <span className="text-slate-600 text-sm">
+                          {RESET_PERIOD_OPTIONS.find((o) => o.value === (s.reset_period ?? 'none'))?.label ?? 'Never'}
                         </span>
                       ),
                     },

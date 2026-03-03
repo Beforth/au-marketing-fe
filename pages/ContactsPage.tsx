@@ -3,7 +3,7 @@
  * Cold leads/data for cold DM/email
  */
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -23,6 +23,7 @@ import { marketingAPI, Contact, Domain, Region, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPT
 
 export const ContactsPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useApp();
   const canView = useAppSelector(selectHasPermission('marketing.view_contact'));
   const canCreate = useAppSelector(selectHasPermission('marketing.create_contact'));
@@ -43,7 +44,6 @@ export const ContactsPage: React.FC = () => {
   const [tempSelectedRegion, setTempSelectedRegion] = useState<number | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [deleteContactId, setDeleteContactId] = useState<number | null>(null);
-  const [convertContact, setConvertContact] = useState<{ id: number; company_name: string } | null>(null);
   const filterButtonRef = React.useRef<HTMLDivElement>(null);
 
   // Debounce search term
@@ -106,28 +106,17 @@ export const ContactsPage: React.FC = () => {
     }
   };
 
-  const openConvertConfirm = (contact: Contact) => {
-    setConvertContact({ id: contact.id, company_name: contact.company_name });
-  };
-
-  const handleConfirmConvertToCustomer = async () => {
-    if (convertContact == null) return;
-    try {
-      await marketingAPI.convertContactToCustomer(convertContact.id);
-      showToast('Contact converted to customer successfully', 'success');
-      loadData();
-    } catch (error: any) {
-      showToast(error.message || 'Failed to convert contact', 'error');
-    }
-  };
-
-
   // Contacts are already filtered by API
   const filteredContacts = contacts;
 
+  const underDatabase = location.pathname.startsWith('/database');
+  const breadcrumbsBase = underDatabase
+    ? [{ label: 'Database', href: '/database' }, { label: 'Contacts', href: '/database/contacts' }]
+    : [{ label: 'Contacts', href: '/contacts' }];
+
   if (!canView) {
     return (
-      <PageLayout title="Contacts">
+      <PageLayout title="Contacts" breadcrumbs={breadcrumbsBase}>
         <Card>
           <div className="text-center py-12">
             <p className="text-slate-600">You do not have permission to view contacts.</p>
@@ -138,9 +127,7 @@ export const ContactsPage: React.FC = () => {
     );
   }
 
-  const breadcrumbs = [
-    { label: 'Contacts' },
-  ];
+  const breadcrumbs = breadcrumbsBase;
 
   const actions = canCreate ? (
     <Button
@@ -289,12 +276,12 @@ export const ContactsPage: React.FC = () => {
               className="border-none"
               columns={[
                 {
-                  key: 'company_name',
+                  key: 'organization',
                   label: 'Company',
                   render: (contact) => (
                     <div>
-                      <div className="font-medium text-slate-900">{contact.company_name}</div>
-                      {contact.industry && <div className="text-xs text-slate-500 mt-1">{contact.industry}</div>}
+                      <div className="font-medium text-slate-900">{contact.organization?.name ?? '—'}</div>
+                      {contact.organization?.industry && <div className="text-xs text-slate-500 mt-1">{contact.organization.industry}</div>}
                     </div>
                   ),
                 },
@@ -348,18 +335,6 @@ export const ContactsPage: React.FC = () => {
                   align: 'right',
                   render: (contact) => (
                     <div className="flex items-center justify-end gap-2">
-                      {!contact.is_converted && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openConvertConfirm(contact);
-                          }}
-                        >
-                          Convert
-                        </Button>
-                      )}
                       {canEdit && (
                         <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${contact.id}/edit`); }}>
                           <Edit size={14} />
@@ -400,16 +375,6 @@ export const ContactsPage: React.FC = () => {
         confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="danger"
-      />
-      <ConfirmModal
-        isOpen={convertContact != null}
-        onClose={() => setConvertContact(null)}
-        onConfirm={handleConfirmConvertToCustomer}
-        title="Convert to customer"
-        message={convertContact ? `Convert ${convertContact.company_name} to a customer? This will create a new customer record.` : ''}
-        confirmLabel="Convert"
-        cancelLabel="Cancel"
-        variant="primary"
       />
     </PageLayout>
   );

@@ -22,6 +22,12 @@ interface SelectProps {
   required?: boolean;
   className?: string;
   searchable?: boolean;
+  /** When set, filter options by this text instead of option.label (e.g. for country code: dial + name) */
+  getSearchText?: (option: SelectOption) => string;
+  /** When set and query matches this regex (e.g. /^\+?\d+$/ for dial codes), only show options whose value equals the normalized query. Stops "+91" from matching all. */
+  exactValueMatchWhenQueryMatches?: RegExp;
+  /** When set, use this for React key instead of option.value (e.g. for options with duplicate values like country dial codes). */
+  getOptionKey?: (option: SelectOption, index: number) => string | number;
   label?: string;
   error?: string;
 }
@@ -54,6 +60,9 @@ export const Select: React.FC<SelectProps> = ({
   required = false,
   className,
   searchable = true,
+  getSearchText,
+  exactValueMatchWhenQueryMatches,
+  getOptionKey,
   label,
   error,
 }) => {
@@ -66,9 +75,20 @@ export const Select: React.FC<SelectProps> = ({
 
   const selectedOption = options.find(opt => opt.value === value);
 
-  // Filter options based on search query
-  const filteredOptions = searchable && searchQuery
-    ? options.filter(opt => fuzzySearch(searchQuery, opt.label))
+  const trimmedQuery = (searchQuery ?? '').trim();
+  const isQueryDialCode = exactValueMatchWhenQueryMatches?.test(trimmedQuery);
+  const normalizedDialCode = isQueryDialCode && trimmedQuery
+    ? (trimmedQuery.startsWith('+') ? trimmedQuery : '+' + trimmedQuery)
+    : null;
+
+  // Filter options based on search query (use getSearchText when provided, e.g. for country codes)
+  const filteredOptions = searchable && trimmedQuery
+    ? isQueryDialCode && normalizedDialCode
+      ? options.filter(opt => String(opt.value) === normalizedDialCode)
+      : options.filter(opt => {
+          const textToSearch = getSearchText ? getSearchText(opt) : opt.label;
+          return fuzzySearch(trimmedQuery, textToSearch);
+        })
     : options;
 
   // Position dropdown in portal (measure trigger so dropdown is not clipped by overflow)
@@ -209,9 +229,9 @@ export const Select: React.FC<SelectProps> = ({
                   No options found
                 </div>
               ) : (
-                filteredOptions.map((option) => (
+                filteredOptions.map((option, index) => (
                   <button
-                    key={option.value}
+                    key={getOptionKey ? getOptionKey(option, index) : option.value}
                     type="button"
                     onClick={() => !option.disabled && handleSelect(option.value)}
                     disabled={option.disabled}

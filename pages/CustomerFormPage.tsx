@@ -2,8 +2,8 @@
  * Customer Form Page
  * Create or edit a customer with location management
  */
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -13,18 +13,11 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission, selectEmployee, selectUser } from '../store/slices/authSlice';
-import { marketingAPI, Customer, Domain, Region, Contact, Series } from '../lib/marketing-api';
-import { ArrowLeft, Plus, Trash2, MapPin, Building2, User, Globe, ChevronDown, ChevronRight, Layers, Hash } from 'lucide-react';
-
-interface Location {
-  id?: string;
-  name: string;  // Title / plant name (e.g. "Main Plant", "North Factory")
-  address: string;
-  city: string;
-  state: string;
-  pincode: string;
-  is_primary: boolean;
-}
+import { marketingAPI, Customer, Domain, Region, Organization, Contact, Plant, contactCompanyName } from '../lib/marketing-api';
+import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from '../constants';
+import { parseNameWithPrefix, serializeNameWithPrefix, parsePhoneWithCountryCode, serializePhoneWithCountryCode } from '../lib/name-phone-utils';
+import { getStoredMarketingScope } from '../lib/marketing-scope';
+import { ArrowLeft, ArrowRight, Building2, User, Globe, ChevronDown, ChevronRight, Plus, X } from 'lucide-react';
 
 const COMPANY_SIZES = [
   { value: '1-10', label: '1-10 employees' },
@@ -38,7 +31,6 @@ const COMPANY_SIZES = [
 export const CustomerFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { showToast } = useApp();
   const employee = useAppSelector(selectEmployee);
   const user = useAppSelector(selectUser);
@@ -47,48 +39,48 @@ export const CustomerFormPage: React.FC = () => {
   const canCreate = useAppSelector(selectHasPermission('marketing.create_customer'));
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_customer'));
   
-  const tabParam = searchParams.get('tab');
-  const activeTab: 'customer' | 'organization' = tabParam === 'organization' ? 'organization' : 'customer';
-  const setActiveTab = (tab: 'customer' | 'organization') => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set('tab', tab);
-      return next;
-    });
-  };
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
-  const [locations, setLocations] = useState<Location[]>([
-    { name: '', address: '', city: '', state: '', pincode: '', is_primary: true }
-  ]);
-  
-  const [linkedContactId, setLinkedContactId] = useState<number | null>(null);
+  const [primaryContactContactId, setPrimaryContactContactId] = useState<number | null>(null);
   const [domainRegionCollapsed, setDomainRegionCollapsed] = useState(true);
+  const [contactSuggestions, setContactSuggestions] = useState<Contact[]>([]);
+  const [orgSuggestions, setOrgSuggestions] = useState<Organization[]>([]);
+  const [orgSearchQuery, setOrgSearchQuery] = useState('');
+  const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
+  const [plants, setPlants] = useState<Plant[]>([]);
+  const [showPlantInline, setShowPlantInline] = useState(false);
+  const [newOrgForm, setNewOrgForm] = useState<{ name: string; code: string; description: string; website: string; industry: string; organization_size: string }>({ name: '', code: '', description: '', website: '', industry: '', organization_size: '' });
+  const [newPlantForm, setNewPlantForm] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+  const [plantModalData, setPlantModalData] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+  const [savingModal, setSavingModal] = useState(false);
+  const contactSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const orgSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canCreateOrg = useAppSelector(selectHasPermission('marketing.create_organization'));
+  const canCreateContact = useAppSelector(selectHasPermission('marketing.create_contact'));
+  const canCreatePlant = useAppSelector(selectHasPermission('marketing.create_plant'));
+  const [createContactForm, setCreateContactForm] = useState<{ name_prefix: string; first_name: string; last_name: string; contact_email: string; phone_country_code: string; contact_phone: string; plant_id: number | undefined }>({ name_prefix: '', first_name: '', last_name: '', contact_email: '', phone_country_code: DEFAULT_COUNTRY_CODE, contact_phone: '', plant_id: undefined });
+  const [primaryContactSearchQuery, setPrimaryContactSearchQuery] = useState('');
+  const [selectedPrimaryContact, setSelectedPrimaryContact] = useState<Contact | null>(null);
   const [formData, setFormData] = useState<Partial<Customer>>({
     company_name: '',
-    primary_contact_name: '',
-    primary_contact_email: '',
-    primary_contact_phone: '',
-    industry: '',
-    company_size: undefined,
-    website: '',
     notes: '',
     domain_id: undefined,
     region_id: undefined,
+    organization_id: undefined,
+    plant_id: undefined,
     series_code: undefined,
     series: undefined,
     is_active: true,
   });
-  const [seriesList, setSeriesList] = useState<Series[]>([]);
 
   useEffect(() => {
     if (isEdit) {
       setDomainRegionCollapsed(false);
       if (!canEdit) {
         showToast('You do not have permission to edit customers', 'error');
-        navigate('/customers');
+        navigate('/database/customers');
         return;
       }
       loadCustomer();
@@ -96,13 +88,62 @@ export const CustomerFormPage: React.FC = () => {
       setDomainRegionCollapsed(true);
       if (!canCreate) {
         showToast('You do not have permission to create customers', 'error');
-        navigate('/customers');
+        navigate('/database/customers');
         return;
       }
     }
     loadDomains();
-    marketingAPI.getSeries({ page: 1, page_size: 100, is_active: true }).then((r) => setSeriesList(r.items)).catch(() => setSeriesList([]));
-  }, [id, isEdit, canCreate, canEdit]);
+  }, [id, isEdit, canCreate, canEdit, employee?.id, user?.id]);
+
+  const searchOrganizationsByName = useCallback((query: string) => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setOrgSuggestions([]);
+      return;
+    }
+    setOrgSearchQuery(q);
+    marketingAPI.getOrganizations({ page: 1, page_size: 15, search: q, is_active: true })
+      .then(res => setOrgSuggestions(res.items ?? []))
+      .catch(() => setOrgSuggestions([]));
+  }, []);
+
+  const onOrganizationSearchChange = useCallback((value: string) => {
+    setSelectedOrganization(null);
+    setFormData(prev => ({ ...prev, organization_id: undefined, plant_id: undefined }));
+    setPlants([]);
+    setNewOrgForm(prev => ({ ...prev, name: value }));
+    if (orgSearchTimeoutRef.current) clearTimeout(orgSearchTimeoutRef.current);
+    orgSearchTimeoutRef.current = setTimeout(() => searchOrganizationsByName(value), 300);
+  }, [searchOrganizationsByName]);
+
+  const clearOrganization = useCallback(() => {
+    setSelectedOrganization(null);
+    setFormData(prev => ({ ...prev, organization_id: undefined, plant_id: undefined, company_name: orgSearchQuery.trim() || prev.company_name }));
+    setPlants([]);
+    setNewOrgForm(prev => ({ ...prev, name: orgSearchQuery.trim() || prev.name }));
+    setOrgSearchQuery('');
+    setOrgSuggestions([]);
+  }, [orgSearchQuery]);
+
+  const contactDisplayName = useCallback((c: Contact) => {
+    const parts = [c.title, c.first_name, c.last_name].filter(Boolean);
+    if (parts.length) return parts.join(' ').trim();
+    return c.contact_person_name || contactCompanyName(c) || '';
+  }, []);
+
+  const searchContactsByEmailOrPhone = useCallback((query: string) => {
+    if (query.trim().length < 2) {
+      setContactSuggestions([]);
+      return;
+    }
+    marketingAPI.searchContacts(query.trim(), 10).then(setContactSuggestions).catch(() => setContactSuggestions([]));
+  }, []);
+
+  const onPrimaryContactSearchChange = useCallback((value: string) => {
+    setPrimaryContactSearchQuery(value);
+    if (contactSearchTimeoutRef.current) clearTimeout(contactSearchTimeoutRef.current);
+    contactSearchTimeoutRef.current = setTimeout(() => searchContactsByEmailOrPhone(value.trim()), 400);
+  }, [searchContactsByEmailOrPhone]);
 
   useEffect(() => {
     if (!isEdit && formData.domain_id) {
@@ -110,16 +151,34 @@ export const CustomerFormPage: React.FC = () => {
     }
   }, [formData.domain_id, isEdit]);
 
-  const loadUserAssignments = async (): Promise<{ domain_id: number; region_id: number } | null> => {
-    const id = employee?.id ?? user?.id;
-    if (!id) return null;
-    try {
-      const assignments = await marketingAPI.getEmployeeAssignments(id);
-      if (assignments?.length) {
-        const a = assignments.find((x: any) => x.region && x.is_active) ?? assignments[0];
-        if (a?.region) return { domain_id: a.region.domain_id, region_id: a.region.id };
-      }
-    } catch (_) {}
+  const loadUserAssignments = async (): Promise<{ domain_id: number; region_id?: number } | null> => {
+    const cachedScope = getStoredMarketingScope();
+    if (cachedScope?.domain_id != null) {
+      return {
+        domain_id: cachedScope.domain_id,
+        region_id: cachedScope.region_id ?? cachedScope.region_ids?.[0],
+      };
+    }
+    const candidateIds = Array.from(new Set([employee?.id, user?.id].filter((v): v is number => typeof v === 'number' && Number.isFinite(v))));
+    for (const candidateId of candidateIds) {
+      try {
+        const assignments = await marketingAPI.getEmployeeAssignments(candidateId);
+        if (!assignments?.length) continue;
+        const active = assignments.find((x: any) => x?.is_active) ?? assignments[0];
+        if (!active) continue;
+        if (active.region?.id != null && active.region?.domain_id != null) {
+          return { domain_id: active.region.domain_id, region_id: active.region.id };
+        }
+        if (active.region_id != null) {
+          try {
+            const region = await marketingAPI.getRegion(active.region_id);
+            if (region?.id != null && region?.domain_id != null) {
+              return { domain_id: region.domain_id, region_id: region.id };
+            }
+          } catch (_) {}
+        }
+      } catch (_) {}
+    }
     return null;
   };
 
@@ -131,9 +190,9 @@ export const CustomerFormPage: React.FC = () => {
       if (!isEdit) {
         const assigned = await loadUserAssignments();
         if (assigned) {
-          setFormData(prev => ({ ...prev, domain_id: assigned.domain_id, region_id: assigned.region_id }));
+          setFormData(prev => ({ ...prev, domain_id: assigned.domain_id, region_id: assigned.region_id ?? prev.region_id }));
           await loadRegions(assigned.domain_id);
-        } else if (domainsData.length > 0) {
+        } else if (!formData.domain_id && domainsData.length > 0) {
           setFormData(prev => ({ ...prev, domain_id: domainsData[0].id }));
         }
       }
@@ -160,92 +219,125 @@ export const CustomerFormPage: React.FC = () => {
       const customer = await marketingAPI.getCustomer(parseInt(id));
       setFormData({
         company_name: customer.company_name,
-        primary_contact_name: customer.primary_contact_name || '',
-        primary_contact_email: customer.primary_contact_email || '',
-        primary_contact_phone: customer.primary_contact_phone || '',
-        industry: customer.industry || '',
-        company_size: customer.company_size || undefined,
-        website: customer.website || '',
         notes: customer.notes || '',
         domain_id: customer.domain_id,
         region_id: customer.region_id || undefined,
+        organization_id: customer.organization_id ?? undefined,
+        plant_id: customer.plant_id ?? undefined,
         series_code: customer.series_code ?? undefined,
         series: customer.series ?? undefined,
         is_active: customer.is_active,
       });
-      if (customer.converted_from_contact_id) {
-        setLinkedContactId(customer.converted_from_contact_id);
+      if (customer.primary_contact_contact_id != null) {
+        setPrimaryContactContactId(customer.primary_contact_contact_id);
       }
-      // Load locations from customer plants (multiple locations)
-      if (customer.plants && customer.plants.length > 0) {
-        setLocations(customer.plants.map((p, i) => ({
-          name: p.plant_name || '',
-          address: p.address_line1 || '',
-          city: p.city || '',
-          state: p.state || '',
-          pincode: p.postal_code || '',
-          is_primary: i === 0,
-        })));
-      } else if (customer.address_line1) {
-        setLocations([{
-          name: '',
-          address: customer.address_line1,
-          city: customer.city || '',
-          state: customer.state || '',
-          pincode: customer.postal_code || '',
-          is_primary: true
-        }]);
+      setSelectedPrimaryContact(customer.primary_contact_contact ?? null);
+      setSelectedOrganization(customer.organization ?? null);
+      if (customer.organization_id) {
+        const pl = await marketingAPI.getOrganizationPlants(customer.organization_id);
+        setPlants(pl);
       }
       await loadRegions(customer.domain_id);
     } catch (error: any) {
       showToast(error.message || 'Failed to load customer', 'error');
-      navigate('/customers');
+      navigate('/database/customers');
     } finally {
       setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (formData.organization_id) {
+      marketingAPI.getOrganizationPlants(formData.organization_id).then(setPlants).catch(() => setPlants([]));
+    } else {
+      setPlants([]);
+      setFormData(prev => ({ ...prev, plant_id: undefined }));
+    }
+  }, [formData.organization_id]);
+
+  // Sync inline contact form's plant with customer's selected plant so the new contact is linked to the same plant
+  useEffect(() => {
+    if (formData.organization_id != null && formData.plant_id != null) {
+      setCreateContactForm(prev => (prev.plant_id === formData.plant_id ? prev : { ...prev, plant_id: formData.plant_id }));
+    }
+  }, [formData.organization_id, formData.plant_id]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.company_name || !formData.primary_contact_name || 
-        !formData.primary_contact_email || !formData.primary_contact_phone ||
-        !formData.domain_id || !formData.region_id) {
-      showToast('Please fill all required fields', 'error');
+    const companyOrOrgName = (formData.company_name || orgSearchQuery || newOrgForm.name || '').trim();
+    if (!companyOrOrgName && !formData.organization_id) {
+      showToast('Company / organization name is required', 'error');
       return;
     }
-
-    // Validate locations
-    const primaryLocation = locations.find(loc => loc.is_primary);
-    if (!primaryLocation || !primaryLocation.address || !primaryLocation.city || 
-        !primaryLocation.state || !primaryLocation.pincode) {
-      showToast('Please fill all required fields in the primary location', 'error');
+    if (!formData.domain_id || !formData.region_id) {
+      showToast('Domain and region are required', 'error');
       return;
     }
-
+    const inlineContactFilled = createContactForm.first_name?.trim() && createContactForm.last_name?.trim() && serializePhoneWithCountryCode(createContactForm.phone_country_code, createContactForm.contact_phone)?.trim();
+    if (!primaryContactContactId && !inlineContactFilled) {
+      showToast('Please link an existing contact or fill the contact details below to create one on save', 'error');
+      return;
+    }
     setIsSubmitting(true);
     try {
-      const primaryLoc = locations.find(loc => loc.is_primary) || locations[0];
-      // Send all locations as plants (multiple locations)
-      const plantsPayload = locations.map((loc, i) => ({
-        plant_name: (loc.name && loc.name.trim()) ? loc.name.trim() : (loc.is_primary ? 'Primary' : `Location ${i + 1}`),
-        address_line1: loc.address || undefined,
-        city: loc.city || undefined,
-        state: loc.state || undefined,
-        postal_code: loc.pincode || undefined,
-      }));
-      const customerData = {
-        ...formData,
-        address_line1: primaryLoc.address,
-        city: primaryLoc.city,
-        state: primaryLoc.state,
-        postal_code: primaryLoc.pincode,
-        plants: plantsPayload,
-      };
-      if (linkedContactId) {
-        (customerData as Record<string, unknown>).converted_from_contact_id = linkedContactId;
+      let organization_id = formData.organization_id;
+      let plant_id = formData.plant_id;
+      let company_name = formData.company_name?.trim() || '';
+
+      // 1. Create organization first if needed (so we can attach it and the new contact to the customer)
+      if (!organization_id && companyOrOrgName && canCreateOrg) {
+        const plantsToCreate = newPlantForm.plant_name?.trim()
+          ? [{ plant_name: newPlantForm.plant_name.trim(), address_line1: newPlantForm.address_line1?.trim() || undefined, city: newPlantForm.city?.trim() || undefined, country: newPlantForm.country?.trim() || undefined, postal_code: newPlantForm.postal_code?.trim() || undefined }]
+          : undefined;
+        const org = await marketingAPI.createOrganization({
+          name: newOrgForm.name.trim() || companyOrOrgName,
+          code: newOrgForm.code.trim() || undefined,
+          description: newOrgForm.description.trim() || undefined,
+          website: newOrgForm.website.trim() || undefined,
+          industry: newOrgForm.industry.trim() || undefined,
+          organization_size: newOrgForm.organization_size?.trim() || undefined,
+          is_active: true,
+          plants: plantsToCreate,
+        });
+        organization_id = org.id;
+        company_name = org.name;
+        if (plantsToCreate?.length) {
+          const plantsList = await marketingAPI.getOrganizationPlants(org.id).catch(() => []);
+          plant_id = plantsList?.[0]?.id;
+        }
+      } else if (organization_id && selectedOrganization?.name) {
+        company_name = selectedOrganization.name;
+      } else if (!company_name) {
+        company_name = orgSearchQuery.trim() || newOrgForm.name.trim() || companyOrOrgName;
       }
 
+      // 2. Create contact if needed (attached to the organization and plant above, so it's linked to the company)
+      let primaryContactId = primaryContactContactId;
+      if (!primaryContactId && inlineContactFilled && formData.domain_id && canCreateContact) {
+        const fullPhone = serializePhoneWithCountryCode(createContactForm.phone_country_code, createContactForm.contact_phone);
+        const contactPlantId = createContactForm.plant_id ?? plant_id ?? undefined;
+        const contactPayload: Parameters<typeof marketingAPI.createContact>[0] = {
+          title: createContactForm.name_prefix?.trim() || undefined,
+          first_name: createContactForm.first_name.trim(),
+          last_name: createContactForm.last_name.trim(),
+          contact_email: createContactForm.contact_email?.trim() || undefined,
+          contact_phone: fullPhone?.trim() || undefined,
+          domain_id: formData.domain_id,
+          region_id: formData.region_id ?? undefined,
+          organization_id: organization_id ?? undefined,
+          plant_id: contactPlantId,
+        };
+        const contact = await marketingAPI.createContact(contactPayload);
+        primaryContactId = contact.id;
+      }
+
+      const customerData: Partial<Customer> = {
+        ...formData,
+        company_name: company_name || formData.company_name,
+        organization_id: organization_id ?? undefined,
+        plant_id: plant_id ?? undefined,
+        primary_contact_contact_id: primaryContactId ?? undefined,
+      };
       if (isEdit && id) {
         await marketingAPI.updateCustomer(parseInt(id), customerData as Partial<Customer>);
         showToast('Customer updated successfully', 'success');
@@ -253,7 +345,7 @@ export const CustomerFormPage: React.FC = () => {
         await marketingAPI.createCustomer(customerData as Partial<Customer>);
         showToast('Customer created successfully', 'success');
       }
-      navigate('/customers');
+      navigate('/database/customers');
     } catch (error: any) {
       showToast(error.message || `Failed to ${isEdit ? 'update' : 'create'} customer`, 'error');
     } finally {
@@ -261,38 +353,9 @@ export const CustomerFormPage: React.FC = () => {
     }
   };
 
-  const addLocation = () => {
-    setLocations([...locations, { name: '', address: '', city: '', state: '', pincode: '', is_primary: false }]);
-  };
-
-  const removeLocation = (index: number) => {
-    if (locations.length === 1) {
-      showToast('At least one location is required', 'error');
-      return;
-    }
-    const newLocations = locations.filter((_, i) => i !== index);
-    // Ensure at least one location is primary
-    if (!newLocations.some(loc => loc.is_primary) && newLocations.length > 0) {
-      newLocations[0].is_primary = true;
-    }
-    setLocations(newLocations);
-  };
-
-  const setPrimaryLocation = (index: number) => {
-    setLocations(locations.map((loc, i) => ({
-      ...loc,
-      is_primary: i === index
-    })));
-  };
-
-  const updateLocation = (index: number, field: keyof Location, value: string | boolean) => {
-    setLocations(locations.map((loc, i) => 
-      i === index ? { ...loc, [field]: value } : loc
-    ));
-  };
-
   const breadcrumbs = [
-    { label: 'Customers', href: '/customers' },
+    { label: 'Database', href: '/database' },
+    { label: 'Customers', href: '/database/customers' },
     { label: isEdit ? 'Edit Customer' : 'Create Customer' },
   ];
 
@@ -317,7 +380,7 @@ export const CustomerFormPage: React.FC = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => navigate('/customers')}
+          onClick={() => navigate('/database/customers')}
           leftIcon={<ArrowLeft size={14} />}
         >
           Back
@@ -326,170 +389,269 @@ export const CustomerFormPage: React.FC = () => {
     >
       <Card>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Tabs: Customer | Organization */}
-          <div className="flex border-b border-slate-200 -mx-1">
-            <button
-              type="button"
-              onClick={() => setActiveTab('customer')}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'customer'
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <User size={16} /> Customer
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('organization')}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'organization'
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <Layers size={16} /> Organization
-              </span>
-            </button>
-          </div>
-
-          {activeTab === 'customer' && (
-            <>
-              {!isEdit && (
-                <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                  <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                    <User size={16} /> Link to existing contact (optional)
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Customers are created on top of contacts. Select a contact to use their organization data and locations.
-                  </p>
-                  <AsyncSelect
-                    label="Select contact"
-                    loadOptions={async (search) => {
-                      const res = await marketingAPI.getContacts({
-                        page: 1,
-                        page_size: 50,
-                        is_converted: false,
-                      });
-                      const contactsData = res.items;
-                      const list = search
-                        ? contactsData.filter(
-                            c =>
-                              c.company_name?.toLowerCase().includes(search.toLowerCase()) ||
-                              c.contact_email?.toLowerCase().includes(search.toLowerCase())
-                          )
-                        : contactsData;
-                      return list.map(c => ({
-                        value: c.id,
-                        label: `${c.company_name}${c.contact_email ? ` (${c.contact_email})` : ''}`,
-                      }));
-                    }}
-                    value={linkedContactId ?? undefined}
-                    onChange={async (val) => {
-                      const contactId = val ? Number(val) : null;
-                      setLinkedContactId(contactId);
-                      if (!contactId) return;
-                      try {
-                        const contact = await marketingAPI.getContact(contactId);
-                        setFormData(prev => ({
-                          ...prev,
-                          company_name: contact.company_name,
-                          industry: contact.industry || prev.industry,
-                          website: contact.website || prev.website,
-                          domain_id: contact.domain_id,
-                          region_id: contact.region_id ?? prev.region_id,
-                          primary_contact_name: contact.contact_person_name || prev.primary_contact_name,
-                          primary_contact_email: contact.contact_email || prev.primary_contact_email,
-                          primary_contact_phone: contact.contact_phone || prev.primary_contact_phone,
-                        }));
-                        await loadRegions(contact.domain_id);
-                    const plantsData = await marketingAPI.getPlants({ contact_id: contactId });
-                    if (plantsData && plantsData.length > 0) {
-                      setLocations(
-                        plantsData.map((p, i) => ({
-                          name: p.plant_name || '',
-                          address: p.address_line1 || '',
-                          city: p.city || '',
-                          state: p.state || '',
-                          pincode: p.postal_code || '',
-                          is_primary: i === 0,
-                        }))
-                      );
-                    }
-                      } catch (err: any) {
-                        showToast(err.message || 'Failed to load contact', 'error');
-                      }
-                    }}
-                    placeholder="Search and select contact..."
-                    initialOptions={[]}
-                  />
-                </div>
-              )}
-
-              {isEdit && linkedContactId && (
-                <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
-                  <p className="text-sm text-indigo-800 flex items-center gap-2">
-                    <User size={16} />
-                    This customer was created from an existing contact.
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/contacts/${linkedContactId}/edit`)}
-                      className="ml-2"
-                    >
-                      View contact
-                    </Button>
-                  </p>
-                </div>
-              )}
-
+          <>
               <div className="space-y-3">
                 <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                  <Building2 size={18} /> Company
+                  <Building2 size={18} /> Organization (optional)
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Input
-                      label="Company / Customer name"
-                      type="text"
-                      value={formData.company_name || ''}
-                      onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                      placeholder="Enter company name"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      label="Industry"
-                      type="text"
-                      value={formData.industry || ''}
-                      onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                      placeholder="e.g., IT, Manufacturing"
-                    />
-                  </div>
-                  <div>
-                    <Select
-                      label="Company Size"
-                      options={COMPANY_SIZES}
-                      value={formData.company_size}
-                      onChange={(val) => setFormData({ ...formData, company_size: val as string })}
-                      placeholder="Select size"
-                      searchable
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      label="Website"
-                      type="url"
-                      value={formData.website || ''}
-                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                      placeholder="https://..."
-                    />
-                  </div>
+                <p className="text-sm text-slate-600">Link to an existing organization or fill details below to create one on save. Company name comes from the organization or the field above.</p>
+                <div className="relative md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Company / Organization name</label>
+                  <Input
+                    type="text"
+                    value={selectedOrganization?.name ?? orgSearchQuery}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setOrgSearchQuery(v);
+                      setNewOrgForm(prev => ({ ...prev, name: v }));
+                      setFormData(prev => ({ ...prev, company_name: v }));
+                      onOrganizationSearchChange(v);
+                    }}
+                    onFocus={() => orgSearchQuery && searchOrganizationsByName(orgSearchQuery)}
+                    onBlur={() => setTimeout(() => setOrgSuggestions([]), 150)}
+                    placeholder="Type to search and link existing organization, or fill details below to create new"
+                    className={formData.organization_id != null ? 'pr-24' : undefined}
+                    rightElement={
+                      formData.organization_id != null ? (
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={clearOrganization}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                            title="Clear organization"
+                          >
+                            <X size={16} />
+                          </button>
+                          <a
+                            href={`/organizations/${formData.organization_id}/edit`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-indigo-600 transition-colors inline-flex"
+                            title="Open organization in new tab"
+                          >
+                            <ArrowRight size={16} />
+                          </a>
+                        </div>
+                      ) : undefined
+                    }
+                  />
+                  {orgSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                      <p className="text-xs text-slate-500 px-3 py-2 border-b border-slate-100">Link to existing organization:</p>
+                      {orgSuggestions.map(org => (
+                        <button
+                          key={org.id}
+                          type="button"
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setOrgSuggestions([]);
+                            setOrgSearchQuery('');
+                            marketingAPI.getOrganization(org.id).then((fullOrg) => {
+                              marketingAPI.getOrganizationPlants(org.id).then((plantsList) => {
+                                const firstPlant = plantsList && plantsList.length > 0 ? plantsList[0] : null;
+                                setFormData(prev => ({
+                                  ...prev,
+                                  company_name: fullOrg.name,
+                                  organization_id: fullOrg.id,
+                                  notes: fullOrg.description?.trim() ? (prev.notes?.trim() ? `${prev.notes}\n${fullOrg.description}` : fullOrg.description) : prev.notes,
+                                  plant_id: firstPlant ? firstPlant.id : undefined,
+                                }));
+                                setSelectedOrganization(fullOrg);
+                                setPlants(plantsList ?? []);
+                                showToast('Linked to organization' + (firstPlant ? ' and plant' : ''), 'success');
+                              }).catch(() => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  company_name: fullOrg.name,
+                                  organization_id: fullOrg.id,
+                                  notes: fullOrg.description?.trim() ? (prev.notes?.trim() ? `${prev.notes}\n${fullOrg.description}` : fullOrg.description) : prev.notes,
+                                }));
+                                setSelectedOrganization(fullOrg);
+                                setPlants([]);
+                                showToast('Linked to organization', 'success');
+                              });
+                            }).catch(() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                company_name: org.name,
+                                organization_id: org.id,
+                                plant_id: undefined,
+                              }));
+                              setSelectedOrganization(org);
+                              setPlants([]);
+                              showToast('Linked to organization', 'success');
+                            });
+                          }}
+                        >
+                          <span className="font-medium">{org.name}</span>
+                          {(org.industry || org.website || org.code) && (
+                            <span className="text-slate-500 text-xs">{[org.code, org.industry, org.website].filter(Boolean).join(' · ')}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedOrganization ? (
+                    <>
+                      <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm mt-3">
+                        <p className="font-medium text-slate-800">Linked organization</p>
+                        <p className="text-slate-600 mt-0.5">{selectedOrganization.name}{selectedOrganization.code ? ` · ${selectedOrganization.code}` : ''}</p>
+                        {(selectedOrganization.website || selectedOrganization.industry) && (
+                          <p className="text-slate-500 text-xs mt-1">{[selectedOrganization.website, selectedOrganization.industry].filter(Boolean).join(' · ')}</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2 items-end mt-3">
+                        <div className="min-w-[200px]">
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Plant</label>
+                          <Select
+                            options={[
+                              { value: '', label: 'None' },
+                              ...plants.map(p => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` })),
+                            ]}
+                            value={formData.plant_id != null ? String(formData.plant_id) : ''}
+                            onChange={(val) => setFormData({ ...formData, plant_id: val ? Number(val) : undefined })}
+                            placeholder="Select plant"
+                            searchable
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setShowPlantInline(!showPlantInline); if (!showPlantInline) setPlantModalData({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' }); }}
+                          title="Add plant to organization"
+                          leftIcon={<Plus size={16} />}
+                        >
+                          Add plant
+                        </Button>
+                      </div>
+                      {showPlantInline && formData.organization_id != null && (
+                        <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3 mt-3">
+                          <h4 className="text-sm font-medium text-slate-700">New plant</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <Input label="Plant name" value={plantModalData.plant_name || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, plant_name: e.target.value }))} required placeholder="e.g. Main Plant" />
+                            <Input label="Address" value={plantModalData.address_line1 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                            <Input label="City" value={plantModalData.city || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, city: e.target.value }))} />
+                            <Input label="Country" value={plantModalData.country || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, country: e.target.value }))} />
+                            <Input label="Pin / Postal code" value={plantModalData.postal_code || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, postal_code: e.target.value }))} />
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={savingModal || !plantModalData.plant_name?.trim()}
+                            onClick={async () => {
+                              if (!formData.organization_id) return;
+                              setSavingModal(true);
+                              try {
+                                const created = await marketingAPI.createOrganizationPlant(formData.organization_id, plantModalData);
+                                showToast('Plant added', 'success');
+                                const pl = await marketingAPI.getOrganizationPlants(formData.organization_id);
+                                setPlants(pl);
+                                setFormData(prev => ({ ...prev, plant_id: created.id }));
+                                setShowPlantInline(false);
+                                setPlantModalData({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+                              } catch (e: any) {
+                                showToast(e.message || 'Failed to add plant', 'error');
+                              } finally {
+                                setSavingModal(false);
+                              }
+                            }}
+                          >
+                            {savingModal ? 'Adding...' : 'Add Plant'}
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    canCreateOrg && (
+                      <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-3">
+                        <p className="text-sm font-medium text-slate-700">Create new organization on save (fill below)</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="relative">
+                            <Input
+                              label="Organization name"
+                              value={orgSearchQuery || newOrgForm.name}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setOrgSearchQuery(v);
+                                setNewOrgForm(prev => ({ ...prev, name: v }));
+                                setFormData(prev => ({ ...prev, company_name: v }));
+                                if (orgSearchTimeoutRef.current) clearTimeout(orgSearchTimeoutRef.current);
+                                orgSearchTimeoutRef.current = setTimeout(() => searchOrganizationsByName(v), 300);
+                              }}
+                              onFocus={() => (orgSearchQuery || newOrgForm.name) && searchOrganizationsByName(orgSearchQuery || newOrgForm.name)}
+                              placeholder="Same as above, or type here to search"
+                            />
+                            {orgSuggestions.length > 0 && (
+                              <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                                <p className="text-xs text-slate-500 px-3 py-2 border-b border-slate-100">Link to existing organization:</p>
+                                {orgSuggestions.map(org => (
+                                  <button
+                                    key={org.id}
+                                    type="button"
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setOrgSuggestions([]);
+                                      setOrgSearchQuery('');
+                                      marketingAPI.getOrganization(org.id).then((fullOrg) => {
+                                        marketingAPI.getOrganizationPlants(org.id).then((plantsList) => {
+                                          const firstPlant = plantsList && plantsList.length > 0 ? plantsList[0] : null;
+                                          setFormData(prev => ({ ...prev, company_name: fullOrg.name, organization_id: fullOrg.id, notes: fullOrg.description?.trim() ? (prev.notes?.trim() ? `${prev.notes}\n${fullOrg.description}` : fullOrg.description) : prev.notes, plant_id: firstPlant ? firstPlant.id : undefined }));
+                                          setSelectedOrganization(fullOrg);
+                                          setPlants(plantsList ?? []);
+                                          showToast('Linked to organization' + (firstPlant ? ' and plant' : ''), 'success');
+                                        }).catch(() => {
+                                          setFormData(prev => ({ ...prev, company_name: fullOrg.name, organization_id: fullOrg.id, notes: fullOrg.description?.trim() ? (prev.notes?.trim() ? `${prev.notes}\n${fullOrg.description}` : fullOrg.description) : prev.notes }));
+                                          setSelectedOrganization(fullOrg);
+                                          setPlants([]);
+                                          showToast('Linked to organization', 'success');
+                                        });
+                                      }).catch(() => {
+                                        setFormData(prev => ({ ...prev, company_name: org.name, organization_id: org.id, plant_id: undefined }));
+                                        setSelectedOrganization(org);
+                                        setPlants([]);
+                                        showToast('Linked to organization', 'success');
+                                      });
+                                    }}
+                                  >
+                                    <span className="font-medium">{org.name}</span>
+                                    {(org.industry || org.website || org.code) && (
+                                      <span className="text-slate-500 text-xs">{[org.code, org.industry, org.website].filter(Boolean).join(' · ')}</span>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <Input label="Code" value={newOrgForm.code} onChange={(e) => setNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="Optional code" />
+                          <Input label="Website" value={newOrgForm.website} onChange={(e) => setNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
+                          <Input label="Industry" value={newOrgForm.industry} onChange={(e) => setNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="e.g. IT, Manufacturing" />
+                          <div className="md:col-span-2">
+                            <Select label="Size of organization" options={COMPANY_SIZES} value={newOrgForm.organization_size} onChange={(val) => setNewOrgForm(prev => ({ ...prev, organization_size: (val as string) || '' }))} placeholder="Select size" searchable />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Description</label>
+                            <textarea className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" rows={2} value={newOrgForm.description} onChange={(e) => setNewOrgForm(prev => ({ ...prev, description: e.target.value }))} placeholder="Notes / important details" />
+                          </div>
+                        </div>
+                        <div className="pt-2 border-t border-slate-200">
+                          <p className="text-sm font-medium text-slate-700 mb-2">Optional: plant for new organization</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <Input label="Plant name" value={newPlantForm.plant_name || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="e.g. Main Plant" />
+                            <Input label="Address" value={newPlantForm.address_line1 || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                            <Input label="City" value={newPlantForm.city || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, city: e.target.value }))} />
+                            <Input label="Country" value={newPlantForm.country || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, country: e.target.value }))} />
+                            <Input label="Postal code" value={newPlantForm.postal_code || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} />
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  )}
                 </div>
               </div>
 
@@ -497,37 +659,117 @@ export const CustomerFormPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
                   <User size={18} /> Primary contact
                 </h3>
+                <p className="text-xs text-slate-500">Primary contact is a link to a contact record. Search by email or phone and select one.</p>
+                {primaryContactContactId != null ? (
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between gap-2 flex-wrap">
+                    <div className="text-sm text-slate-800">
+                      {selectedPrimaryContact ? (
+                        <>
+                          <p className="font-medium">{contactDisplayName(selectedPrimaryContact) || contactCompanyName(selectedPrimaryContact) || 'Contact'}</p>
+                          <p className="text-slate-600 text-xs mt-0.5">{[selectedPrimaryContact.contact_email, selectedPrimaryContact.contact_phone].filter(Boolean).join(' · ')}</p>
+                        </>
+                      ) : (
+                        <p className="font-medium">Contact linked</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setPrimaryContactContactId(null); setSelectedPrimaryContact(null); setPrimaryContactSearchQuery(''); setContactSuggestions([]); }}
+                        className="text-sm text-slate-600 hover:text-rose-600"
+                      >
+                        Change
+                      </button>
+                      <a
+                        href={`/contacts/${primaryContactContactId}/edit`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2 py-1 text-sm text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100 rounded border border-indigo-200"
+                        title="Open contact in new tab"
+                      >
+                        <ArrowRight size={14} />
+                        View contact
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative max-w-md">
+                      <Input
+                        label="Search by email or phone"
+                        type="text"
+                        value={primaryContactSearchQuery}
+                        onChange={(e) => onPrimaryContactSearchChange(e.target.value)}
+                        onBlur={() => setTimeout(() => setContactSuggestions([]), 150)}
+                        placeholder="Type to search existing contact, or fill details below to create on save"
+                      />
+                      {primaryContactSearchQuery.trim().length >= 2 && contactSuggestions.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto">
+                          <p className="text-xs text-slate-500 px-3 py-2 border-b border-slate-100">Link to existing contact:</p>
+                          {contactSuggestions.map(c => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between gap-2"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setPrimaryContactContactId(c.id);
+                                setSelectedPrimaryContact(c);
+                                setPrimaryContactSearchQuery('');
+                                setContactSuggestions([]);
+                                showToast('Contact linked', 'success');
+                              }}
+                            >
+                              <span>{contactDisplayName(c) || contactCompanyName(c)}</span>
+                              <span className="text-slate-500 text-xs truncate">{[c.contact_email, c.contact_phone].filter(Boolean).join(' · ')}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {canCreateContact && (
+                      <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-3">
+                        <p className="text-sm font-medium text-slate-700">Create new contact on save (fill below). Organization is taken from the customer above.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="flex gap-2 items-end">
+                            <div className="w-24 shrink-0">
+                              <Select label="Title" options={NAME_PREFIXES} value={createContactForm.name_prefix} onChange={(v) => setCreateContactForm(prev => ({ ...prev, name_prefix: (v ?? '') as string }))} placeholder="—" searchable={false} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <Input label="First name" value={createContactForm.first_name} onChange={(e) => setCreateContactForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="First name" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <Input label="Last name" value={createContactForm.last_name} onChange={(e) => setCreateContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Last name" />
+                            </div>
+                          </div>
+                          <div className="flex gap-2 items-end">
+                            <div className="w-36 shrink-0">
+                              <Select label="Country code" options={COUNTRY_CODES} value={createContactForm.phone_country_code} onChange={(v) => setCreateContactForm(prev => ({ ...prev, phone_country_code: (v ?? '') as string }))} placeholder="Code" searchable getSearchText={getCountryCodeSearchText} exactValueMatchWhenQueryMatches={/^\+?\d+$/} getOptionKey={(o) => o.label} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <Input label="Phone" type="tel" value={createContactForm.contact_phone} onChange={(e) => setCreateContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="Number" />
+                            </div>
+                          </div>
+                          <Input label="Email" type="email" value={createContactForm.contact_email} onChange={(e) => setCreateContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
+                          {formData.organization_id && plants.length > 0 && (
+                            <div className="md:col-span-2">
+                              <Select
+                                label="Plant"
+                                options={[{ value: '', label: 'None' }, ...plants.map(p => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` }))]}
+                                value={createContactForm.plant_id != null ? String(createContactForm.plant_id) : ''}
+                                onChange={(val) => setCreateContactForm(prev => ({ ...prev, plant_id: val ? Number(val) : undefined }))}
+                                placeholder="Select plant"
+                                searchable
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Input
-                      label="Contact Person"
-                      type="text"
-                      value={formData.primary_contact_name || ''}
-                      onChange={(e) => setFormData({ ...formData, primary_contact_name: e.target.value })}
-                      placeholder="Primary contact name"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      label="Email"
-                      type="email"
-                      value={formData.primary_contact_email || ''}
-                      onChange={(e) => setFormData({ ...formData, primary_contact_email: e.target.value })}
-                      placeholder="Primary contact email"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      label="Phone"
-                      type="tel"
-                      value={formData.primary_contact_phone || ''}
-                      onChange={(e) => setFormData({ ...formData, primary_contact_phone: e.target.value })}
-                      placeholder="Primary contact phone"
-                      required
-                    />
-                  </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
                     <textarea
@@ -547,32 +789,6 @@ export const CustomerFormPage: React.FC = () => {
                       className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                     />
                     <label htmlFor="is_active" className="text-sm font-medium text-slate-700">Active customer</label>
-                  </div>
-                  {/* Series (by code, no FK): numbering series + generated number */}
-                  <div className="flex flex-wrap items-end gap-4 md:col-span-2 border-t border-slate-200 pt-4">
-                    <div className="min-w-[200px] flex flex-col gap-2">
-                      <label className="block text-sm font-medium text-slate-700">Numbering series</label>
-                      <Select
-                        value={formData.series_code ?? ''}
-                        onChange={(val) => setFormData({ ...formData, series_code: (val != null && val !== '') ? String(val) : undefined })}
-                        options={[
-                          { value: '', label: 'None' },
-                          ...seriesList.map((s) => ({ value: String(s.code), label: `${s.name} (${s.code})` })),
-                        ]}
-                        placeholder="None"
-                      />
-                    </div>
-                    <div className="min-w-[160px] flex flex-col gap-2">
-                      <label className="block text-sm font-medium text-slate-700">Series number</label>
-                      <Input
-                        type="text"
-                        value={formData.series ?? ''}
-                        readOnly
-                        disabled
-                        className="bg-slate-50"
-                        placeholder={formData.series_code ? 'Saved with next number' : 'Select series & save'}
-                      />
-                    </div>
                   </div>
                 </div>
               </div>
@@ -636,129 +852,12 @@ export const CustomerFormPage: React.FC = () => {
                 </div>
               </div>
             </>
-          )}
-
-          {activeTab === 'organization' && (
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                <Layers size={18} /> Plants / Locations
-              </h3>
-              <p className="text-xs text-slate-500">
-                Add multiple plants or locations for this customer. At least one primary location is required.
-              </p>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-700">Locations</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addLocation}
-                  leftIcon={<Plus size={14} />}
-                >
-                  Add Location
-                </Button>
-              </div>
-              <div className="space-y-4">
-                {locations.map((location, index) => (
-                  <Card key={index} className="p-4 border-2 border-slate-200">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <MapPin size={16} className="text-slate-500" />
-                        <span className="text-sm font-medium text-slate-700">
-                          {location.name.trim() ? location.name : (location.is_primary ? 'Primary Location' : `Location ${index + 1}`)}
-                        </span>
-                        {location.is_primary && (
-                          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-medium rounded">
-                            Primary
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {!location.is_primary && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setPrimaryLocation(index)}
-                          >
-                            Set as Primary
-                          </Button>
-                        )}
-                        {locations.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeLocation(index)}
-                            className="text-rose-600 hover:text-rose-700"
-                          >
-                            <Trash2 size={14} />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="md:col-span-2">
-                        <Input
-                          label="Location / Plant name"
-                          type="text"
-                          value={location.name}
-                          onChange={(e) => updateLocation(index, 'name', e.target.value)}
-                          placeholder="e.g. Main Plant, North Factory"
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <Input
-                          label="Address"
-                          type="text"
-                          value={location.address}
-                          onChange={(e) => updateLocation(index, 'address', e.target.value)}
-                          placeholder="Enter complete address"
-                          required={location.is_primary}
-                        />
-                      </div>
-                      <div>
-                        <Input
-                          label="City"
-                          type="text"
-                          value={location.city}
-                          onChange={(e) => updateLocation(index, 'city', e.target.value)}
-                          placeholder="Enter city"
-                          required={location.is_primary}
-                        />
-                      </div>
-                      <div>
-                        <Input
-                          label="State"
-                          type="text"
-                          value={location.state}
-                          onChange={(e) => updateLocation(index, 'state', e.target.value)}
-                          placeholder="Enter state"
-                          required={location.is_primary}
-                        />
-                      </div>
-                      <div>
-                        <Input
-                          label="Pincode"
-                          type="text"
-                          value={location.pincode}
-                          onChange={(e) => updateLocation(index, 'pincode', e.target.value)}
-                          placeholder="Enter pincode"
-                          required={location.is_primary}
-                        />
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="flex gap-3 justify-end pt-3 border-t border-slate-200">
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate('/customers')}
+              onClick={() => navigate('/database/customers')}
             >
               Cancel
             </Button>

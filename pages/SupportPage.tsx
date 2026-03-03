@@ -51,11 +51,13 @@ export const SupportPage: React.FC = () => {
     </div>
   );
 
+  const breadcrumbs = [{ label: 'Support', href: '/support' }];
   return (
     <PageLayout
       title="Global Help Center"
       description="Search our knowledge base or connect with a dedicated Marketing specialist."
       actions={actions}
+      breadcrumbs={breadcrumbs}
     >
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

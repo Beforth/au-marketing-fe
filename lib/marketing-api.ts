@@ -62,24 +62,20 @@ export interface AssignmentWithEmployee {
   employee_email?: string;
 }
 
-// Contact Types
+// Contact Types — company data from organization_id only (no company_name/website/industry on contact)
 export interface Contact {
   id: number;
-  company_name: string;
-  website?: string;
-  industry?: string;
+  title?: string;  // Salutation: Mr., Mrs., Dr., etc.
+  first_name?: string;
+  last_name?: string;
   contact_person_name?: string;
   contact_email?: string;
   contact_phone?: string;
   contact_job_title?: string;
   domain_id: number;
   region_id?: number;
-  address_line1?: string;
-  address_line2?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  postal_code?: string;
+  organization_id?: number | null;  // Optional – link contact to an organization
+  plant_id?: number | null;         // Optional – link to organization's plant
   is_active: boolean;
   is_converted: boolean;
   converted_to_customer_id?: number;
@@ -95,20 +91,15 @@ export interface Contact {
   updated_at: string;
   domain?: Domain;
   region?: Region;
+  organization?: Organization | null;  // Populated when API includes it
 }
 
-// Customer Types
+// Customer Types (primary contact via primary_contact_contact_id / primary_contact_contact)
 export interface Customer {
   id: number;
   company_name: string;
-  website?: string;
-  industry?: string;
-  company_size?: string;
+  /** website, industry, company_size removed; use organization when organization_id set */
   tax_id?: string;
-  primary_contact_name?: string;
-  primary_contact_email?: string;
-  primary_contact_phone?: string;
-  primary_contact_job_title?: string;
   domain_id: number;
   region_id?: number;
   address_line1?: string;
@@ -120,8 +111,11 @@ export interface Customer {
   is_active: boolean;
   customer_since?: string;
   converted_from_contact_id?: number;
-  series_code?: string;  // Code of numbering series (character, not FK)
-  series?: string;  // Generated number from numbering series (e.g. CUST-0001)
+  organization_id?: number | null;
+  plant_id?: number | null;
+  primary_contact_contact_id?: number | null;
+  series_code?: string;
+  series?: string;
   notes?: string;
   created_by_employee_id: number;
   created_by_username?: string;
@@ -131,12 +125,31 @@ export interface Customer {
   updated_at: string;
   domain?: Domain;
   region?: Region;
+  organization?: Organization | null;  // Populated when API includes it (for industry/website etc.)
   plants?: Plant[];
+  primary_contact_contact?: Contact | null;  // Person data for display
 }
 
 // Plant Types
+// Organization (has plants; customers link to organization + plant)
+export interface Organization {
+  id: number;
+  name: string;
+  code?: string;
+  description?: string;
+  website?: string;
+  industry?: string;
+  organization_size?: string;  // e.g. "1-10", "51-200"
+  is_active: boolean;
+  created_by_employee_id?: number;
+  created_by_username?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Plant {
   id: number;
+  organization_id?: number;
   contact_id?: number;
   customer_id?: number;
   plant_name: string;
@@ -147,10 +160,6 @@ export interface Plant {
   state?: string;
   country?: string;
   postal_code?: string;
-  contact_person_name?: string;
-  contact_email?: string;
-  contact_phone?: string;
-  contact_job_title?: string;
   is_active: boolean;
   notes?: string;
   created_by_employee_id?: number;
@@ -159,15 +168,35 @@ export interface Plant {
   updated_at: string;
 }
 
-// Lead status (from DB)
+/** Lead status group (e.g. Initialization, Follow, Quotation/Technical) with expected duration and optional follow-up interval */
+export interface LeadStatusGroup {
+  id: number;
+  code: string;
+  label: string;
+  expected_duration_days?: number | null;  // e.g. 15, 90 (3 months)
+  follow_up_interval_days?: number | null;  // create follow-up task every N days for leads in this group
+  display_order: number;
+  is_active: boolean;
+  hex_color?: string | null;  // e.g. "#3b82f6" for badge/UI color
+  created_at: string;
+  updated_at: string;
+}
+
+// Lead status (from DB) – belongs to a LeadStatusGroup
 export interface LeadStatusOption {
   id: number;
   code: string;
   label: string;
+  group_id?: number | null;
+  group?: LeadStatusGroup | null;  // Populated when API includes it
+  stage?: string | null;  // Deprecated; use group_id / group
   display_order: number;
   is_active: boolean;
   is_final?: boolean;  // Won/closed – no follow-up reminders
-  is_lost?: boolean;    // Lost – no follow-up reminders
+  is_lost?: boolean;   // Lost – no follow-up reminders
+  hex_color?: string | null;  // e.g. "#3b82f6" for badge/UI color
+  set_when_quotation_added?: boolean;  // Auto-set lead to this status when a quotation is added to any enquiry
+  set_when_quote_number_generated?: boolean;  // Auto-set when quote number generated (Generate button) but no quotation file yet
   created_at: string;
   updated_at: string;
 }
@@ -194,33 +223,30 @@ export interface LeadThroughOption {
   updated_at: string;
 }
 
-// Lead Types (Updated)
+// Lead Types (person/company from contact or customer; no duplicate fields)
 export interface Lead {
   id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone?: string;
-  company?: string;
-  job_title?: string;
-  source?: string;
   domain_id: number;
   region_id?: number;
   contact_id?: number;
   customer_id?: number;
   plant_id?: number;
   status_id?: number;
-  status?: string;  // status_option.code from API
+  status?: string;
   lead_type_id?: number;
   lead_through_id?: number;
+  through_contact_id?: number | null;
   potential_value?: number;
   notes?: string;
-  series_code?: string;  // Code of numbering series "map" (character field, not FK)
-  series?: string;  // Generated number from numbering series (e.g. LEAD-0001)
+  closed_value?: number | null;
+  closed_at?: string | null;
+  series_code?: string;
+  series?: string;
   next_follow_up_at?: string | null;
-  follow_up_reminder_type?: string | null;  // once | daily | weekly | monthly
+  follow_up_reminder_type?: string | null;
   assigned_to_employee_id?: number;
   assigned_to_username?: string;
+  referred_by_employee_id?: number | null;
   created_by_employee_id: number;
   created_by_username?: string;
   created_at: string;
@@ -228,21 +254,27 @@ export interface Lead {
   expected_closing_date?: string;
   domain?: Domain;
   region?: Region;
+  contact?: Contact | null;   // Person/company for display
   customer?: Customer;
+  through_contact?: Contact | null;  // When lead_through is through_contact: contact through whom lead came
   plant?: Plant;
   status_option?: LeadStatusOption;
   lead_type_option?: LeadTypeOption;
   lead_through_option?: LeadThroughOption;
-  last_activity_date?: string | null;  // latest activity (inquiry) date on lead, from list API
+  last_activity_date?: string | null;
+  /** When lead is in Lost status: reason from "Marked as Lost" activity (e.g. in Orders Lost tab). */
+  lost_reason?: string | null;
 }
 
-/** Activity attachment (e.g. quotation file) */
+/** Activity attachment: either a quotation (trackable) or a general attachment */
 export interface LeadActivityAttachment {
   id: number;
   activity_id: number;
   file_name: string;
   file_path: string;
+  is_quotation?: boolean;
   quotation_number?: string | null;
+  title?: string | null;
   file_size?: number;
   content_type?: string;
   created_at: string;
@@ -256,6 +288,7 @@ export interface LeadActivity {
   description?: string;
   activity_date: string;
   lead_id?: number;
+  contact_person_title?: string;  // Salutation: Mr., Mrs., Dr., etc.
   contact_person_name?: string;
   contact_person_email?: string;
   contact_person_phone?: string;
@@ -290,29 +323,181 @@ export interface Campaign {
 }
 
 export interface CreateLeadRequest {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone?: string;
-  company?: string;
-  job_title?: string;
-  source?: string;
-  domain_id: number;
-  region_id?: number;
-  contact_id?: number;
+  contact_id?: number;  // Required: person/company from Contact or Customer
   customer_id?: number;
   plant_id?: number;
+  domain_id: number;
+  region_id?: number;
   status_id?: number;
   lead_type_id?: number;
   lead_through_id?: number;
+  through_contact_id?: number | null;  // When lead_through is through_contact: contact through whom lead came (different from contact_id)
   potential_value?: number;
   notes?: string;
   series_code?: string;
   assigned_to_employee_id?: number;
+  referred_by_employee_id?: number | null;  // When lead_through is colleague: employee who referred the lead
   expected_closing_date?: string;
 }
 
-export interface UpdateLeadRequest extends Partial<CreateLeadRequest> {}
+export interface UpdateLeadRequest extends Partial<CreateLeadRequest> {
+  closed_value?: number;
+  /** Required (min 100 chars) when moving lead to Lost status. Stored in enquiry log. */
+  status_change_reason?: string;
+}
+
+/** Lead display name from contact or customer (person/company data lives there). */
+export function leadDisplayName(lead: Lead): string {
+  if (lead.contact) {
+    const c = lead.contact;
+    const name = c.contact_person_name?.trim()
+      || [c.first_name, c.last_name].filter(Boolean).join(' ').trim()
+      || c.contact_email?.trim();
+    if (name) return name;
+  }
+  if (lead.customer) return lead.customer.company_name || `Customer #${lead.customer_id}`;
+  return `Lead #${lead.id}`;
+}
+
+/** Lead company name from contact's organization or customer. */
+export function leadDisplayCompany(lead: Lead): string {
+  if (lead.contact?.organization?.name) return lead.contact.organization.name;
+  if (lead.customer?.company_name) return lead.customer.company_name;
+  return '';
+}
+
+/** Contact company name from linked organization (for display). */
+export function contactCompanyName(contact: Contact): string {
+  return contact.organization?.name ?? '';
+}
+
+/** Lead email from contact or customer primary contact. */
+export function leadDisplayEmail(lead: Lead): string {
+  if (lead.contact?.contact_email) return lead.contact.contact_email;
+  if (lead.customer?.primary_contact_contact?.contact_email) return lead.customer.primary_contact_contact.contact_email;
+  return '';
+}
+
+/** Primary contact display name for Customer (from linked Contact). */
+export function customerPrimaryContactName(customer: Customer): string {
+  const c = customer.primary_contact_contact;
+  if (!c) return '';
+  return c.contact_person_name?.trim()
+    || [c.first_name, c.last_name].filter(Boolean).join(' ').trim()
+    || c.contact_email?.trim()
+    || '';
+}
+
+// Order types (orders from won leads; status groups, statuses, inquiry log)
+export interface OrderStatusGroup {
+  id: number;
+  code: string;
+  label: string;
+  expected_duration_days?: number | null;
+  display_order: number;
+  is_active: boolean;
+  hex_color?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderStatusOption {
+  id: number;
+  code: string;
+  label: string;
+  group_id?: number | null;
+  display_order: number;
+  is_active: boolean;
+  is_final: boolean;
+  hex_color?: string | null;
+  group?: OrderStatusGroup | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Order {
+  id: number;
+  lead_id: number;
+  status_id?: number | null;
+  domain_id: number;
+  region_id?: number | null;
+  order_value?: number | null;
+  expected_delivery_at?: string | null;
+  notes?: string | null;
+  series_code?: string | null;
+  series?: string | null;
+  assigned_to_employee_id?: number | null;
+  assigned_to_username?: string | null;
+  created_by_employee_id: number;
+  created_by_username?: string | null;
+  created_at: string;
+  updated_at: string;
+  domain?: Domain | null;
+  region?: Region | null;
+  status_option?: OrderStatusOption | null;
+  status?: string | null;
+  lead?: Lead | null;
+  last_activity_date?: string | null;
+}
+
+export interface OrderActivityAttachment {
+  id: number;
+  order_activity_id: number;
+  file_name: string;
+  file_path: string;
+  is_quotation?: boolean;
+  quotation_number?: string | null;
+  title?: string | null;
+  file_size?: number | null;
+  content_type?: string | null;
+  created_at: string;
+}
+
+export interface OrderActivity {
+  id: number;
+  order_id: number;
+  activity_type: string;
+  title: string;
+  description?: string | null;
+  activity_date: string;
+  contact_person_title?: string | null;
+  contact_person_name?: string | null;
+  contact_person_email?: string | null;
+  contact_person_phone?: string | null;
+  from_status_id?: number | null;
+  to_status_id?: number | null;
+  from_status_name?: string | null;
+  to_status_name?: string | null;
+  inquiry_number?: number | null;
+  attachments?: OrderActivityAttachment[];
+  created_by_employee_id?: number | null;
+  created_by_username?: string | null;
+  created_by_name?: string | null;
+  created_by_email?: string | null;
+  created_at: string;
+}
+
+export interface CreateOrderRequest {
+  lead_id: number;
+  status_id?: number | null;
+  domain_id: number;
+  region_id?: number | null;
+  order_value?: number | null;
+  expected_delivery_at?: string | null;
+  notes?: string | null;
+  series_code?: string | null;
+  assigned_to_employee_id?: number | null;
+}
+
+export interface UpdateOrderRequest {
+  status_id?: number | null;
+  region_id?: number | null;
+  order_value?: number | null;
+  expected_delivery_at?: string | null;
+  notes?: string | null;
+  assigned_to_employee_id?: number | null;
+  status_change_reason?: string;
+}
 
 /** Paginated list response (page 1-based, page_size min 10). */
 export interface PaginatedResponse<T> {
@@ -331,19 +516,35 @@ class MarketingAPIService {
   async getLeads(params?: {
     page?: number;
     page_size?: number;
+    no_limit?: boolean;
     status_id?: number;
-    assigned_to?: number;
+    /** Filter by assigned-to employee ID(s); multiple allowed */
+    assigned_to?: number[];
+    /** Only leads created by the current user (generated by me) */
+    created_by_me?: boolean;
+    /** Include leads in Won or Lost status; when false (default), backend excludes them */
+    include_won_lost?: boolean;
+    /** Only return leads in Lost status (for Orders Lost tab) */
+    lost_only?: boolean;
     domain_id?: number;
     region_id?: number;
     search?: string;
+    date_from?: string;
+    date_to?: string;
   }): Promise<PaginatedResponse<Lead>> {
     const queryParams = new URLSearchParams();
     queryParams.append('page', String(params?.page ?? 1));
     queryParams.append('page_size', String(params?.page_size ?? DEFAULT_PAGE_SIZE));
+    if (params?.no_limit === true) queryParams.append('no_limit', 'true');
     if (params?.status_id != null) queryParams.append('status_id', params.status_id.toString());
-    if (params?.assigned_to != null) queryParams.append('assigned_to', params.assigned_to.toString());
+    if (params?.assigned_to?.length) params.assigned_to.forEach((id) => queryParams.append('assigned_to', String(id)));
+    if (params?.created_by_me === true) queryParams.append('created_by_me', 'true');
+    if (params?.include_won_lost === true) queryParams.append('include_won_lost', 'true');
+    if (params?.lost_only === true) queryParams.append('lost_only', 'true');
     if (params?.domain_id != null) queryParams.append('domain_id', params.domain_id.toString());
     if (params?.region_id != null) queryParams.append('region_id', params.region_id.toString());
+    if (params?.date_from) queryParams.append('date_from', params.date_from);
+    if (params?.date_to) queryParams.append('date_to', params.date_to);
     if (params?.search) queryParams.append('search', params.search);
     return apiClient.get<PaginatedResponse<Lead>>(`/api/leads/?${queryParams.toString()}`);
   }
@@ -360,16 +561,36 @@ class MarketingAPIService {
     return apiClient.get<LeadStatusOption[]>(query ? `/api/leads/statuses/?${query}` : '/api/leads/statuses/');
   }
 
-  async createLeadStatus(data: { code: string; label: string; display_order?: number; is_active?: boolean; is_final?: boolean; is_lost?: boolean }): Promise<LeadStatusOption> {
+  async createLeadStatus(data: { code: string; label: string; group_id?: number; stage?: string; display_order?: number; is_active?: boolean; is_final?: boolean; is_lost?: boolean; hex_color?: string; set_when_quotation_added?: boolean; set_when_quote_number_generated?: boolean }): Promise<LeadStatusOption> {
     return apiClient.post<LeadStatusOption>('/api/leads/statuses/', data);
   }
 
-  async updateLeadStatus(id: number, data: Partial<{ code: string; label: string; display_order: number; is_active: boolean; is_final: boolean; is_lost: boolean }>): Promise<LeadStatusOption> {
+  async updateLeadStatus(id: number, data: Partial<{ code: string; label: string; group_id?: number; stage?: string; display_order: number; is_active: boolean; is_final: boolean; is_lost: boolean; hex_color?: string; set_when_quotation_added: boolean; set_when_quote_number_generated: boolean }>): Promise<LeadStatusOption> {
     return apiClient.put<LeadStatusOption>(`/api/leads/statuses/${id}`, data);
   }
 
   async deleteLeadStatus(id: number): Promise<void> {
     return apiClient.delete<void>(`/api/leads/statuses/${id}`);
+  }
+
+  /** Lead status groups (each group has expected duration in days; statuses belong to a group) */
+  async getLeadStatusGroups(params?: { is_active?: boolean }): Promise<LeadStatusGroup[]> {
+    const q = new URLSearchParams();
+    if (params?.is_active !== undefined) q.append('is_active', String(params.is_active));
+    const query = q.toString();
+    return apiClient.get<LeadStatusGroup[]>(query ? `/api/leads/status-groups/?${query}` : '/api/leads/status-groups/');
+  }
+
+  async createLeadStatusGroup(data: { code: string; label: string; expected_duration_days?: number; follow_up_interval_days?: number; display_order?: number; is_active?: boolean; hex_color?: string }): Promise<LeadStatusGroup> {
+    return apiClient.post<LeadStatusGroup>('/api/leads/status-groups/', data);
+  }
+
+  async updateLeadStatusGroup(id: number, data: Partial<{ code: string; label: string; expected_duration_days: number; follow_up_interval_days: number; display_order: number; is_active: boolean; hex_color?: string }>): Promise<LeadStatusGroup> {
+    return apiClient.put<LeadStatusGroup>(`/api/leads/status-groups/${id}`, data);
+  }
+
+  async deleteLeadStatusGroup(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/leads/status-groups/${id}`);
   }
 
   /** Lead types ("Lead for": Standard Walk-in, Chamber, Project, etc.) */
@@ -414,6 +635,7 @@ class MarketingAPIService {
       activity_date?: string;
       from_status_id?: number;
       to_status_id?: number;
+      contact_person_title?: string;
       contact_person_name?: string;
       contact_person_email?: string;
       contact_person_phone?: string;
@@ -422,17 +644,31 @@ class MarketingAPIService {
     return apiClient.post<LeadActivity>(`/api/leads/${leadId}/activities/`, data);
   }
 
-  /** Upload one or more quotation/attachment files for an activity. */
+  /** Upload files as quotations or attachments. If seriesCode is set, first quotation gets number from series (with lead context), rest get base(rev2), base(rev3). */
   async uploadLeadActivityAttachments(
     leadId: number,
     activityId: number,
     files: File[],
-    quotationNumbers?: string[]
+    attachmentTypes: ('quotation' | 'attachment')[],
+    quotationNumbers?: (string | undefined)[],
+    titles?: (string | undefined)[],
+    seriesCode?: string,
+    isRevised?: boolean
   ): Promise<LeadActivityAttachment[]> {
     const formData = new FormData();
     files.forEach((f) => formData.append('files', f));
-    if (quotationNumbers?.length) {
+    formData.append('attachment_types', JSON.stringify(attachmentTypes));
+    if (quotationNumbers && quotationNumbers.length > 0) {
       formData.append('quotation_numbers', JSON.stringify(quotationNumbers));
+    }
+    if (titles && titles.length > 0) {
+      formData.append('titles', JSON.stringify(titles));
+    }
+    if (seriesCode && seriesCode.trim()) {
+      formData.append('series_code', seriesCode.trim());
+    }
+    if (isRevised) {
+      formData.append('is_revised', 'true');
     }
     return apiClient.postFormData<LeadActivityAttachment[]>(
       `/api/leads/${leadId}/activities/${activityId}/attachments`,
@@ -470,6 +706,7 @@ class MarketingAPIService {
       title?: string;
       description?: string;
       activity_date?: string;
+      contact_person_title?: string;
       contact_person_name?: string;
       contact_person_email?: string;
       contact_person_phone?: string;
@@ -494,6 +731,121 @@ class MarketingAPIService {
 
   async deleteLead(id: number): Promise<void> {
     return apiClient.delete<void>(`/api/leads/${id}`);
+  }
+
+  // Orders (from won leads; status groups, statuses, inquiry log like leads)
+  async getOrders(params?: {
+    page?: number;
+    page_size?: number;
+    status_id?: number;
+    assigned_to?: number;
+    lead_id?: number;
+  }): Promise<PaginatedResponse<Order>> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', String(params?.page ?? 1));
+    queryParams.append('page_size', String(params?.page_size ?? DEFAULT_PAGE_SIZE));
+    if (params?.status_id != null) queryParams.append('status_id', params.status_id.toString());
+    if (params?.assigned_to != null) queryParams.append('assigned_to', params.assigned_to.toString());
+    if (params?.lead_id != null) queryParams.append('lead_id', params.lead_id.toString());
+    return apiClient.get<PaginatedResponse<Order>>(`/api/orders/?${queryParams.toString()}`);
+  }
+
+  async getOrder(id: number): Promise<Order> {
+    return apiClient.get<Order>(`/api/orders/${id}`);
+  }
+
+  async getOrderStatusGroups(params?: { is_active?: boolean }): Promise<OrderStatusGroup[]> {
+    const q = new URLSearchParams();
+    if (params?.is_active !== undefined) q.append('is_active', String(params.is_active));
+    const query = q.toString();
+    return apiClient.get<OrderStatusGroup[]>(query ? `/api/orders/status-groups/?${query}` : '/api/orders/status-groups/');
+  }
+
+  async createOrderStatusGroup(data: { code: string; label: string; expected_duration_days?: number; display_order?: number; is_active?: boolean; hex_color?: string }): Promise<OrderStatusGroup> {
+    return apiClient.post<OrderStatusGroup>('/api/orders/status-groups/', data);
+  }
+
+  async updateOrderStatusGroup(id: number, data: Partial<{ code: string; label: string; expected_duration_days?: number; display_order?: number; is_active?: boolean; hex_color?: string }>): Promise<OrderStatusGroup> {
+    return apiClient.put<OrderStatusGroup>(`/api/orders/status-groups/${id}`, data);
+  }
+
+  async deleteOrderStatusGroup(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/orders/status-groups/${id}`);
+  }
+
+  async getOrderStatuses(params?: { is_active?: boolean }): Promise<OrderStatusOption[]> {
+    const q = new URLSearchParams();
+    if (params?.is_active !== undefined) q.append('is_active', String(params.is_active));
+    const query = q.toString();
+    return apiClient.get<OrderStatusOption[]>(query ? `/api/orders/statuses/?${query}` : '/api/orders/statuses/');
+  }
+
+  async createOrderStatus(data: { code: string; label: string; group_id?: number; display_order?: number; is_active?: boolean; is_final?: boolean; hex_color?: string }): Promise<OrderStatusOption> {
+    return apiClient.post<OrderStatusOption>('/api/orders/statuses/', data);
+  }
+
+  async updateOrderStatus(id: number, data: Partial<{ code: string; label: string; group_id?: number; display_order?: number; is_active?: boolean; is_final?: boolean; hex_color?: string }>): Promise<OrderStatusOption> {
+    return apiClient.put<OrderStatusOption>(`/api/orders/statuses/${id}`, data);
+  }
+
+  async deleteOrderStatus(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/orders/statuses/${id}`);
+  }
+
+  async createOrder(data: CreateOrderRequest): Promise<Order> {
+    return apiClient.post<Order>('/api/orders/', data);
+  }
+
+  async updateOrder(id: number, data: UpdateOrderRequest): Promise<Order> {
+    return apiClient.put<Order>(`/api/orders/${id}`, data);
+  }
+
+  async deleteOrder(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/orders/${id}`);
+  }
+
+  async getOrderActivities(orderId: number): Promise<OrderActivity[]> {
+    return apiClient.get<OrderActivity[]>(`/api/orders/${orderId}/activities/`);
+  }
+
+  async createOrderActivity(
+    orderId: number,
+    data: {
+      activity_type: string;
+      title: string;
+      description?: string;
+      activity_date?: string;
+      from_status_id?: number;
+      to_status_id?: number;
+      contact_person_title?: string;
+      contact_person_name?: string;
+      contact_person_email?: string;
+      contact_person_phone?: string;
+    }
+  ): Promise<OrderActivity> {
+    return apiClient.post<OrderActivity>(`/api/orders/${orderId}/activities/`, data);
+  }
+
+  async updateOrderActivity(
+    orderId: number,
+    activityId: number,
+    data: Partial<{
+      activity_type: string;
+      title: string;
+      description: string;
+      activity_date: string;
+      contact_person_name: string;
+      contact_person_email: string;
+      contact_person_phone: string;
+      from_status_id: number;
+      to_status_id: number;
+    }>
+  ): Promise<OrderActivity> {
+    return apiClient.put<OrderActivity>(`/api/orders/${orderId}/activities/${activityId}`, data);
+  }
+
+  async deleteOrderActivity(orderId: number, activityId: number): Promise<void> {
+    return apiClient.delete<void>(`/api/orders/${orderId}/activities/${activityId}`);
   }
 
   // Campaigns
@@ -644,6 +996,13 @@ class MarketingAPIService {
     return apiClient.get<Contact>(`/api/contacts/${id}`);
   }
 
+  /** Search contacts by email, phone, name, or company. For lead form: link lead to existing or create new contact. */
+  async searchContacts(q: string, limit?: number): Promise<Contact[]> {
+    const params = new URLSearchParams({ q: q.trim() });
+    if (limit != null) params.append('limit', String(limit));
+    return apiClient.get<Contact[]>(`/api/contacts/search?${params.toString()}`);
+  }
+
   async createContact(data: Partial<Contact>): Promise<Contact> {
     return apiClient.post<Contact>('/api/contacts/', data);
   }
@@ -681,6 +1040,13 @@ class MarketingAPIService {
     return apiClient.get<Customer>(`/api/customers/${id}`);
   }
 
+  /** Search customers by primary contact email, phone, or company name. For lead form. */
+  async searchCustomers(q: string, limit?: number): Promise<Customer[]> {
+    const params = new URLSearchParams({ q: q.trim() });
+    if (limit != null) params.append('limit', String(limit));
+    return apiClient.get<Customer[]>(`/api/customers/search?${params.toString()}`);
+  }
+
   async createCustomer(data: Partial<Customer>): Promise<Customer> {
     return apiClient.post<Customer>('/api/customers/', data);
   }
@@ -691,6 +1057,54 @@ class MarketingAPIService {
 
   async deleteCustomer(id: number): Promise<void> {
     return apiClient.delete<void>(`/api/customers/${id}`);
+  }
+
+  // Organizations
+  async getOrganizations(params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    is_active?: boolean;
+  }): Promise<PaginatedResponse<Organization>> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', String(params?.page ?? 1));
+    queryParams.append('page_size', String(params?.page_size ?? DEFAULT_PAGE_SIZE));
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
+    return apiClient.get<PaginatedResponse<Organization>>(`/api/organizations/?${queryParams.toString()}`);
+  }
+
+  async getOrganization(id: number): Promise<Organization> {
+    return apiClient.get<Organization>(`/api/organizations/${id}`);
+  }
+
+  /** Create organization; optionally pass plants to create in the same request. */
+  async createOrganization(data: Partial<Organization> & { plants?: Array<Partial<Plant>> }): Promise<Organization> {
+    return apiClient.post<Organization>('/api/organizations/', data);
+  }
+
+  async updateOrganization(id: number, data: Partial<Organization>): Promise<Organization> {
+    return apiClient.patch<Organization>(`/api/organizations/${id}`, data);
+  }
+
+  async deleteOrganization(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/organizations/${id}`);
+  }
+
+  async getOrganizationPlants(organizationId: number): Promise<Plant[]> {
+    return apiClient.get<Plant[]>(`/api/organizations/${organizationId}/plants`);
+  }
+
+  async createOrganizationPlant(organizationId: number, data: Partial<Plant>): Promise<Plant> {
+    return apiClient.post<Plant>(`/api/organizations/${organizationId}/plants`, data);
+  }
+
+  async updateOrganizationPlant(organizationId: number, plantId: number, data: Partial<Plant>): Promise<Plant> {
+    return apiClient.patch<Plant>(`/api/organizations/${organizationId}/plants/${plantId}`, data);
+  }
+
+  async deleteOrganizationPlant(organizationId: number, plantId: number): Promise<void> {
+    return apiClient.delete<void>(`/api/organizations/${organizationId}/plants/${plantId}`);
   }
 
   // Plants
@@ -741,6 +1155,13 @@ class MarketingAPIService {
     return apiClient.post<any>('/api/regions/assign-employee', data);
   }
 
+  async updateEmployeeAssignment(
+    assignmentId: number,
+    data: { role?: 'head' | 'employee'; is_active?: boolean }
+  ): Promise<AssignmentWithEmployee> {
+    return apiClient.put<AssignmentWithEmployee>(`/api/regions/assignments/${assignmentId}`, data);
+  }
+
   async removeEmployeeFromRegion(assignmentId: number): Promise<void> {
     return apiClient.delete<void>(`/api/regions/assignments/${assignmentId}`);
   }
@@ -785,10 +1206,15 @@ class MarketingAPIService {
     return apiClient.post<SeriesGenerateResponse>(`/api/series/${seriesId}/generate-next`, context ?? {});
   }
 
-  /** Generate next value by series code (character field, not FK). Pass lead_id/contact_id/customer_id to use entity fields in pattern. */
+  /** Generate next value by series code (character field, not FK). Pass lead_id/contact_id/customer_id or lead_context (company) for pattern placeholders like {lead.company}. */
   async generateNextSeriesNumberByCode(
     seriesCode: string,
-    context?: { customer_id?: number; contact_id?: number; lead_id?: number }
+    context?: {
+      customer_id?: number;
+      contact_id?: number;
+      lead_id?: number;
+      lead_context?: { company?: string; company_slug?: string };
+    }
   ): Promise<SeriesGenerateResponse> {
     return apiClient.post<SeriesGenerateResponse>('/api/series/generate-next', { series_code: seriesCode, ...context });
   }
@@ -810,9 +1236,29 @@ class MarketingAPIService {
     return apiClient.delete<{ success: boolean; connected: boolean }>('/api/auth/email');
   }
 
-  /** List quotations (enquiry attachments) created by the current user, with lead and inquiry info */
-  async getMyQuotations(): Promise<QuotationListItem[]> {
-    return apiClient.get<QuotationListItem[]>('/api/quotations/');
+  /** List quotations with optional search, lead filter, date range, and sort (API-side). */
+  async getMyQuotations(params?: {
+    search?: string;
+    lead_id?: number;
+    date_from?: string;
+    date_to?: string;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+  }): Promise<QuotationListItem[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.search?.trim()) queryParams.set('search', params.search.trim());
+    if (params?.lead_id != null) queryParams.set('lead_id', String(params.lead_id));
+    if (params?.date_from?.trim()) queryParams.set('date_from', params.date_from.trim());
+    if (params?.date_to?.trim()) queryParams.set('date_to', params.date_to.trim());
+    if (params?.sort_by) queryParams.set('sort_by', params.sort_by);
+    if (params?.sort_order) queryParams.set('sort_order', params.sort_order);
+    const qs = queryParams.toString();
+    return apiClient.get<QuotationListItem[]>(`/api/quotations/${qs ? `?${qs}` : ''}`);
+  }
+
+  /** Lead options for quotation filter dropdown (leads that have at least one quotation). */
+  async getQuotationLeadOptions(): Promise<QuotationLeadOption[]> {
+    return apiClient.get<QuotationLeadOption[]>('/api/quotations/lead-options');
   }
 
   /** Reports: who the current user can run reports for (self, or team if region/domain head) */
@@ -832,6 +1278,79 @@ class MarketingAPIService {
     if (params?.employee_id != null) searchParams.set('employee_id', String(params.employee_id));
     const qs = searchParams.toString();
     return apiClient.get<ReportSummaryResponse>(`/api/reports/summary${qs ? `?${qs}` : ''}`);
+  }
+
+  /** Expected order report: create (select leads as next month potential clients) */
+  async createExpectedOrderReport(data: { year: number; month: number; lead_ids: number[] }): Promise<ExpectedOrderReportItem> {
+    return apiClient.post<ExpectedOrderReportItem>('/api/reports/expected-orders', data);
+  }
+
+  /** Expected order reports: list (optional year/month/employee_id filter; employee_id respects report scope) */
+  async listExpectedOrderReports(params?: { year?: number; month?: number; employee_id?: number }): Promise<ExpectedOrderReportItem[]> {
+    const sp = new URLSearchParams();
+    if (params?.year != null) sp.set('year', String(params.year));
+    if (params?.month != null) sp.set('month', String(params.month));
+    if (params?.employee_id != null) sp.set('employee_id', String(params.employee_id));
+    const qs = sp.toString();
+    return apiClient.get<ExpectedOrderReportItem[]>(`/api/reports/expected-orders${qs ? `?${qs}` : ''}`);
+  }
+
+  /** OD plan reports: list (optional year/month/employee_id filter; employee_id respects report scope) */
+  async listODPlanReports(params?: { year?: number; month?: number; employee_id?: number }): Promise<ODPlanReportItem[]> {
+    const sp = new URLSearchParams();
+    if (params?.year != null) sp.set('year', String(params.year));
+    if (params?.month != null) sp.set('month', String(params.month));
+    if (params?.employee_id != null) sp.set('employee_id', String(params.employee_id));
+    const qs = sp.toString();
+    return apiClient.get<ODPlanReportItem[]>(`/api/reports/od-plans${qs ? `?${qs}` : ''}`);
+  }
+
+  /** OD plan: get one for year-month */
+  async getODPlanReport(year: number, month: number): Promise<ODPlanReportItem> {
+    return apiClient.get<ODPlanReportItem>(`/api/reports/od-plans/${year}/${month}`);
+  }
+
+  /** OD plan: save (create or replace entries for year-month) */
+  async saveODPlanReport(year: number, month: number, data: { entries: ODPlanEntryCreate[] }): Promise<ODPlanReportItem> {
+    return apiClient.put<ODPlanReportItem>(`/api/reports/od-plans/${year}/${month}`, data);
+  }
+
+  /** Dashboard: monthly target vs achieved, won/lost counts (for current user or employee_id if admin/head) */
+  async getDashboardTargetStats(params?: { employee_id?: number }): Promise<DashboardTargetStats> {
+    const qs = params?.employee_id != null ? new URLSearchParams({ employee_id: String(params.employee_id) }) : undefined;
+    return apiClient.get<DashboardTargetStats>(`/api/dashboard/target-stats${qs ? `?${qs.toString()}` : ''}`);
+  }
+
+  /** Scope-wide target/achieved for dashboard. For heads returns aggregated team stats. */
+  async getScopeTargetStats(): Promise<ScopeTargetStats> {
+    return apiClient.get<ScopeTargetStats>('/api/dashboard/scope-target-stats');
+  }
+
+  /** Head dashboard summary for domain_head and super_admin: region split, hot cases, conversion, won vs lost. */
+  async getHeadDashboardSummary(): Promise<HeadDashboardSummaryResponse> {
+    return apiClient.get<HeadDashboardSummaryResponse>('/api/dashboard/head-summary');
+  }
+
+  /** Set monthly target for an employee (admin/head in scope). Default 8 lacs if not set. */
+  async setEmployeeTarget(employee_id: number, year: number, month: number, target_amount: number): Promise<{ ok: boolean }> {
+    return apiClient.put<{ ok: boolean }>(
+      `/api/dashboard/target?employee_id=${employee_id}&year=${year}&month=${month}`,
+      { target_amount }
+    );
+  }
+
+  // Today's tasks (auto from follow-up / status group rule, or manual)
+  async getTodayTasks(): Promise<TaskItem[]> {
+    return apiClient.get<TaskItem[]>('/api/tasks/today');
+  }
+  async getTask(taskId: number): Promise<TaskItem> {
+    return apiClient.get<TaskItem>(`/api/tasks/${taskId}`);
+  }
+  async completeTask(taskId: number): Promise<{ id: number; completed_at: string }> {
+    return apiClient.patch<{ id: number; completed_at: string }>(`/api/tasks/${taskId}/complete`);
+  }
+  async createManualTask(data: { title: string; description?: string }): Promise<TaskItem> {
+    return apiClient.post<TaskItem>('/api/tasks', data);
   }
 
   // Notifications
@@ -857,7 +1376,13 @@ class MarketingAPIService {
   async updateNotificationPreferences(data: { times_per_day?: number; preferred_times?: string }): Promise<NotificationPreferences> {
     return apiClient.put<NotificationPreferences>('/api/notifications/preferences', data);
   }
-  async scheduleLeadFollowUp(leadId: number, data: { next_follow_up_at?: string | null; follow_up_reminder_type?: string | null }): Promise<Lead> {
+  async registerNotificationDevice(data: { token: string; platform?: 'web' | 'android' | 'ios'; user_agent?: string }): Promise<{ id: number; user_employee_id: number; platform: string; created_at: string; last_seen_at?: string | null }> {
+    return apiClient.post('/api/notifications/devices/register', data);
+  }
+  async unregisterNotificationDevice(data: { token: string; platform?: 'web' | 'android' | 'ios' }): Promise<{ ok: boolean }> {
+    return apiClient.post('/api/notifications/devices/unregister', data);
+  }
+  async scheduleLeadFollowUp(leadId: number, data: { next_follow_up_at?: string | null; follow_up_reminder_type?: string | null; follow_up_time?: string | null }): Promise<Lead> {
     return apiClient.patch<Lead>(`/api/leads/${leadId}/follow-up`, data);
   }
 }
@@ -872,6 +1397,13 @@ export interface QuotationListItem {
   lead_series: string | null;
   lead_name: string;
   activity_title: string;
+  activity_date: string | null;
+}
+
+export interface QuotationLeadOption {
+  lead_id: number;
+  lead_series: string | null;
+  lead_name: string;
 }
 
 // Reports types
@@ -882,7 +1414,7 @@ export interface ReportableEmployee {
 export interface ReportScopeResponse {
   can_select_employee: boolean;
   employees: ReportableEmployee[];
-  role: 'self' | 'region_head' | 'domain_head';
+  role: 'self' | 'region_head' | 'domain_head' | 'super_admin';
 }
 export interface InquiriesByTypeItem {
   activity_type: string;
@@ -907,6 +1439,115 @@ export interface ReportSummaryResponse {
   leads_created_count: number;
 }
 
+export interface ExpectedOrderReportLeadItem {
+  lead_id: number;
+  lead_series: string | null;
+  lead_name: string | null;
+  company: string | null;
+}
+export interface ExpectedOrderReportItem {
+  id: number;
+  employee_id: number;
+  year: number;
+  month: number;
+  created_at: string;
+  leads: ExpectedOrderReportLeadItem[];
+}
+
+export interface ODPlanEntryItem {
+  id: number;
+  plan_date: string;
+  entry_type: string;
+  where_place: string | null;
+  travel_time: string | null;
+  travel_type: string | null;
+  contact_id: number | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  notes: string | null;
+}
+export interface ODPlanReportItem {
+  id: number;
+  employee_id: number;
+  year: number;
+  month: number;
+  created_at: string;
+  updated_at: string;
+  entries: ODPlanEntryItem[];
+}
+export interface ODPlanEntryCreate {
+  plan_date: string;
+  entry_type: string;
+  where_place?: string | null;
+  travel_time?: string | null;
+  travel_type?: string | null;
+  contact_id?: number | null;
+  notes?: string | null;
+}
+
+export interface DashboardTargetStats {
+  monthly_target: number;
+  achieved_this_month: number;
+  won_leads_count_this_month: number;
+  lost_leads_count_this_month: number;
+  year: number;
+  month: number;
+}
+
+/** Scope-wide target stats for dashboard (employee = own, heads = aggregated team). */
+export interface ScopeTargetStats {
+  role: 'self' | 'region_head' | 'domain_head' | 'super_admin';
+  scope_label: string;
+  monthly_target: number;
+  achieved_this_month: number;
+  won_leads_count_this_month: number;
+  lost_leads_count_this_month: number;
+  year: number;
+  month: number;
+  employee_count: number;
+}
+
+/** Region row for head dashboard (domain_head / super_admin). */
+export interface RegionBreakdownItem {
+  region_id: number;
+  region_name: string;
+  domain_name: string;
+  total_leads: number;
+  won_count: number;
+  lost_count: number;
+  hot_cases_count: number;
+  conversion_ratio_pct: number | null;
+}
+
+/** Head dashboard summary: region-wise split, hot cases, total leads, conversion, won vs lost. */
+export interface HeadDashboardSummaryResponse {
+  role: string;
+  region_breakdown: RegionBreakdownItem[];
+  hot_cases_count: number;
+  total_leads: number;
+  conversion_ratio_pct: number | null;
+  won_count: number;
+  lost_count: number;
+  year: number;
+  month: number;
+}
+
+export interface TaskItem {
+  id: number;
+  employee_id: number;
+  title: string;
+  description: string | null;
+  due_date: string;
+  source: string;
+  lead_id: number | null;
+  order_id: number | null;
+  lead_status_group_id: number | null;
+  completed_at: string | null;
+  created_at: string;
+  lead_series: string | null;
+  lead_name: string | null;
+}
+
 // Notifications
 export interface NotificationItem {
   id: number;
@@ -927,6 +1568,8 @@ export interface NotificationPreferences {
 }
 
 // Numbering Series types
+export type SeriesResetPeriod = 'none' | 'day' | 'week' | 'month' | 'year';
+
 export interface Series {
   id: number;
   name: string;
@@ -934,6 +1577,8 @@ export interface Series {
   pattern: string;
   entity_type?: string | null;
   next_value: number;
+  reset_period: SeriesResetPeriod;
+  last_period_key?: string | null;
   last_generated_at?: string;
   is_active: boolean;
   created_at: string;
@@ -946,6 +1591,7 @@ export interface SeriesCreateInput {
   pattern: string;
   entity_type?: string | null;
   next_value?: number;
+  reset_period?: SeriesResetPeriod;
   is_active?: boolean;
 }
 
@@ -955,6 +1601,7 @@ export interface SeriesUpdateInput {
   pattern?: string;
   entity_type?: string | null;
   next_value?: number;
+  reset_period?: SeriesResetPeriod;
   is_active?: boolean;
 }
 

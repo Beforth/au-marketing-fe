@@ -7,6 +7,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { loadAuthFromStorage, selectToken } from './store/slices/authSlice';
 import { marketingAPI } from './lib/marketing-api';
+import { initWebPushRegistration } from './lib/firebase-push';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LeadsPage } from './pages/LeadsPage';
@@ -19,11 +20,17 @@ import { ContactFormPage } from './pages/ContactFormPage';
 import { LeadFormPage } from './pages/LeadFormPage';
 import { CustomerFormPage } from './pages/CustomerFormPage';
 import { OrdersPage } from './pages/OrdersPage';
+import { OrderFormPage } from './pages/OrderFormPage';
 import { EnquiryQuotationsPage } from './pages/EnquiryQuotationsPage';
+import { OrganizationsPage } from './pages/OrganizationsPage';
+import { OrganizationFormPage } from './pages/OrganizationFormPage';
 import { CustomersPage } from './pages/CustomersPage';
+import { DatabaseLayout } from './components/layout/DatabaseLayout';
 import { InventoryPage } from './pages/InventoryPage';
 import { FinancialsPage } from './pages/FinancialsPage';
 import { ReportsPage } from './pages/ReportsPage';
+import { ExpectedOrderNewPage } from './pages/ExpectedOrderNewPage';
+import { ODPlanPage } from './pages/ODPlanPage';
 import { InvoicesPage } from './pages/InvoicesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SupportPage } from './pages/SupportPage';
@@ -104,7 +111,8 @@ const AppMain: React.FC = () => {
         time: formatNotificationTime(n.created_at),
         type: (n.notification_type === 'follow_up' ? 'follow_up' : n.notification_type === 'new_inquiry' ? 'new_inquiry' : 'system') as AppNotification['type'],
         read: !!n.read_at,
-        link: n.link || undefined,
+        link: n.link || (n.lead_id != null ? `/leads/${n.lead_id}/edit` : undefined),
+        lead_id: n.lead_id ?? undefined,
       }));
       setNotifications(mapped);
     } catch {
@@ -123,9 +131,8 @@ const AppMain: React.FC = () => {
 
   useEffect(() => {
     if (!token) return;
-    const t = setInterval(loadNotifications, 60000);
-    return () => clearInterval(t);
-  }, [token, loadNotifications]);
+    initWebPushRegistration().catch(() => {});
+  }, [token]);
 
   const showToast = (message: string, type: ToastType = 'success') => setToast({ message, type });
 
@@ -204,6 +211,12 @@ const AppMain: React.FC = () => {
           }>
             <Route index element={<DashboardPage />} />
             <Route path="employees" element={<EmployeesPage />} />
+            <Route path="database" element={<DatabaseLayout />}>
+              <Route index element={<Navigate to="organizations" replace />} />
+              <Route path="organizations" element={<OrganizationsPage />} />
+              <Route path="customers" element={<CustomersPage />} />
+              <Route path="contacts" element={<ContactsPage />} />
+            </Route>
             <Route path="domains" element={<DomainsPage />} />
             <Route path="domains/new" element={<DomainFormPage />} />
             <Route path="domains/:id/edit" element={<DomainFormPage />} />
@@ -219,11 +232,18 @@ const AppMain: React.FC = () => {
             <Route path="customers/new" element={<CustomerFormPage />} />
             <Route path="customers/:id/edit" element={<CustomerFormPage />} />
             <Route path="orders" element={<OrdersPage />} />
+            <Route path="orders/new" element={<OrderFormPage />} />
+            <Route path="orders/:id" element={<OrderFormPage />} />
             <Route path="quotations" element={<EnquiryQuotationsPage />} />
+            <Route path="organizations" element={<OrganizationsPage />} />
+            <Route path="organizations/new" element={<OrganizationFormPage />} />
+            <Route path="organizations/:id/edit" element={<OrganizationFormPage />} />
             <Route path="customers" element={<CustomersPage />} />
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="financials" element={<FinancialsPage />} />
             <Route path="reports" element={<ReportsPage />} />
+            <Route path="reports/expected-order/new" element={<ExpectedOrderNewPage />} />
+            <Route path="reports/od-plan" element={<ODPlanPage />} />
             <Route path="invoices" element={<InvoicesPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="support" element={<SupportPage />} />

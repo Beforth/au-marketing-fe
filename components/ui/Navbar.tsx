@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, Settings, Command, ShoppingBag, ShieldAlert, Package, MessageSquare, User, ArrowRight, LayoutDashboard, FileText, PieChart, CreditCard, X, LogOut, UserCircle, Users, Globe } from 'lucide-react';
+import { Search, Bell, Settings, Command, ShoppingBag, ShieldAlert, Package, MessageSquare, User, ArrowRight, LayoutDashboard, FileText, PieChart, CreditCard, X, LogOut, UserCircle, Users, Globe, Quote, Building2, Database } from 'lucide-react';
 import { useApp } from '../../App';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout, selectUserDisplayName, selectUserInitials, selectEmployee, selectHasPermission } from '../../store/slices/authSlice';
@@ -59,47 +59,57 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  const handleNotificationClick = (notif: { id: string | number; link?: string }) => {
+  const handleNotificationClick = (notif: { id: string | number; link?: string; lead_id?: number | null }) => {
     markAsRead(notif.id);
-    if (notif.link) {
-      navigate(notif.link);
+    const url = notif.link || (notif.lead_id != null ? `/leads/${notif.lead_id}/edit` : undefined);
+    if (url) {
+      navigate(url);
       setShowNotifications(false);
     }
   };
 
-  // Permission checks (current flat codes: marketing.view_*, marketing.admin)
+  // Permission checks (Domains tab uses rbac.view_domain_tab)
+  const hasViewDomainTab = useAppSelector(selectHasPermission('rbac.view_domain_tab'));
   const hasViewDomain = useAppSelector(selectHasPermission('marketing.view_domain'));
   const hasViewContact = useAppSelector(selectHasPermission('marketing.view_contact'));
   const hasViewLead = useAppSelector(selectHasPermission('marketing.view_lead'));
   const hasViewCampaign = useAppSelector(selectHasPermission('marketing.view_campaign'));
   const hasViewCustomer = useAppSelector(selectHasPermission('marketing.view_customer'));
+  const hasViewOrganization = useAppSelector(selectHasPermission('marketing.view_organization'));
+  const hasViewReport = useAppSelector(selectHasPermission('marketing.view_report'));
   const hasAdmin = useAppSelector(selectHasPermission('marketing.admin'));
 
+  // Order: Dashboard > Domains > Leads > Quotations > Orders > Organizations > Customers > Contacts > Reports, then rest
   const SEARCHABLE_ITEMS = useMemo(() => {
     const items = [
       { id: 'nav-1', category: 'Pages', title: 'Dashboard', icon: LayoutDashboard, href: '/', permission: undefined },
       { id: 'nav-2', category: 'Pages', title: 'Domains', icon: Globe, href: '/domains', permission: 'marketing.view_domain' },
-      { id: 'nav-3', category: 'Pages', title: 'Contacts', icon: UserCircle, href: '/contacts', permission: 'marketing.view_contact' },
-      { id: 'nav-4', category: 'Pages', title: 'Leads', icon: Users, href: '/leads', permission: 'marketing.view_lead' },
-      // { id: 'nav-5', category: 'Pages', title: 'Campaigns', icon: ShoppingBag, href: '/campaigns', permission: 'marketing.view_campaign' },
-      { id: 'nav-6', category: 'Pages', title: 'Customers', icon: User, href: '/customers', permission: 'marketing.view_customer' },
-      { id: 'nav-7', category: 'Pages', title: 'Reports', icon: PieChart, href: '/reports', permission: 'marketing.admin' },
-      { id: 'nav-8', category: 'Pages', title: 'Invoices', icon: FileText, href: '/invoices', permission: 'marketing.admin' },
+      { id: 'nav-3', category: 'Pages', title: 'Leads', icon: Users, href: '/leads', permission: 'marketing.view_lead' },
+      { id: 'nav-4', category: 'Pages', title: 'Quotations', icon: Quote, href: '/quotations', permission: 'marketing.view_lead' },
+      { id: 'nav-5', category: 'Pages', title: 'Orders', icon: Package, href: '/orders', permission: 'marketing.view_lead' },
+      { id: 'nav-6', category: 'Pages', title: 'Database', icon: Database, href: '/database', permission: 'marketing.view_database' },
+      { id: 'nav-9', category: 'Pages', title: 'Reports', icon: PieChart, href: '/reports', permission: 'marketing.view_report' },
+      { id: 'nav-10', category: 'Pages', title: 'Employees', icon: Users, href: '/employees', permission: 'marketing.view_domain' },
+      { id: 'nav-11', category: 'Pages', title: 'Invoices', icon: FileText, href: '/invoices', permission: 'marketing.admin' },
     ];
 
     return items.filter(item => {
       if (!item.permission) return true;
       switch (item.permission) {
+        case 'rbac.view_domain_tab': return hasViewDomainTab;
         case 'marketing.view_domain': return hasViewDomain;
         case 'marketing.view_contact': return hasViewContact;
         case 'marketing.view_lead': return hasViewLead;
-        // case 'marketing.view_campaign': return hasViewCampaign;
+        case 'marketing.view_campaign': return hasViewCampaign;
         case 'marketing.view_customer': return hasViewCustomer;
+        case 'marketing.view_organization': return hasViewOrganization;
+        case 'marketing.view_database': return hasViewOrganization || hasViewCustomer || hasViewContact;
+        case 'marketing.view_report': return hasViewReport;
         case 'marketing.admin': return hasAdmin;
         default: return true;
       }
     });
-  }, [hasViewDomain, hasViewContact, hasViewLead, hasViewCampaign, hasViewCustomer, hasAdmin]);
+  }, [hasViewDomainTab, hasViewDomain, hasViewContact, hasViewLead, hasViewCampaign, hasViewCustomer, hasViewOrganization, hasViewReport, hasAdmin]);
 
   const searchResults = useMemo(() => {
     const term = globalSearch.trim().toLowerCase();
@@ -256,3 +266,5 @@ export const Navbar: React.FC = () => {
     </header>
   );
 };
+
+export default Navbar;

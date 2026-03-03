@@ -9,9 +9,21 @@ import {
   Tooltip,
   ResponsiveContainer,
   BarChart,
-  Bar
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from 'recharts';
 import { CHART_DATA } from '../../constants';
+
+const chartColors = {
+  target: '#e2e8f0',
+  achieved: '#4f46e5',
+  won: '#059669',
+  lost: '#e11d48',
+  default: ['#4f46e5', '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff'],
+};
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -31,6 +43,164 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     );
   }
   return null;
+};
+
+/** Target vs Achieved (₹ lacs) for current month */
+export const TargetAchievedBarChart: React.FC<{
+  target: number;
+  achieved: number;
+  year: number;
+  month: number;
+}> = ({ target, achieved, year, month }) => {
+  const monthLabel = new Date(year, month - 1).toLocaleString('default', { month: 'short', year: '2-digit' });
+  const data = [
+    { name: 'Target', value: target / 1_00_000, fill: chartColors.target },
+    { name: 'Achieved', value: achieved / 1_00_000, fill: chartColors.achieved },
+  ];
+  return (
+    <div className="h-[220px] w-full pt-2">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 20, left: 50, bottom: 0 }}>
+          <XAxis type="number" unit=" lacs" tick={{ fill: '#64748b', fontSize: 11 }} />
+          <YAxis type="category" dataKey="name" width={50} tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+          <Tooltip formatter={(v: number) => [`₹${v.toFixed(2)} lacs`, '']} labelFormatter={() => monthLabel} />
+          <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={28} isAnimationActive>
+            {data.map((entry, i) => (
+              <Cell key={i} fill={entry.fill} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+/** Won vs Lost leads this month (pie) */
+export const WonLostPieChart: React.FC<{ won: number; lost: number }> = ({ won, lost }) => {
+  const data = [
+    { name: 'Won', value: won, fill: chartColors.won },
+    { name: 'Lost', value: lost, fill: chartColors.lost },
+  ].filter((d) => d.value > 0);
+  if (data.length === 0) {
+    return (
+      <div className="h-[220px] flex items-center justify-center text-slate-500 text-sm">No won/lost data this month</div>
+    );
+  }
+  return (
+    <div className="h-[220px] w-full pt-2">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            innerRadius={50}
+            outerRadius={75}
+            paddingAngle={2}
+            label={({ name, value }) => `${name}: ${value}`}
+          >
+            {data.map((entry, i) => (
+              <Cell key={i} fill={entry.fill} />
+            ))}
+          </Pie>
+          <Tooltip formatter={(v: number) => [v, '']} />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+/** Leads by status (from sample or scope). Label + count */
+export const LeadStatusPieChart: React.FC<{ data: { label: string; count: number }[] }> = ({ data: raw }) => {
+  const data = raw
+    .filter((d) => d.count > 0)
+    .map((d, i) => ({ name: d.label.length > 18 ? d.label.slice(0, 17) + '…' : d.label, value: d.count, fill: chartColors.default[i % chartColors.default.length] }));
+  if (data.length === 0) {
+    return (
+      <div className="h-[220px] flex items-center justify-center text-slate-500 text-sm">No status data</div>
+    );
+  }
+  return (
+    <div className="h-[220px] w-full pt-2">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            innerRadius={45}
+            outerRadius={70}
+            paddingAngle={1}
+          >
+            {data.map((entry, i) => (
+              <Cell key={i} fill={entry.fill} />
+            ))}
+          </Pie>
+          <Tooltip formatter={(v: number) => [v, '']} />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+/** Region-wise total leads (bar chart) for head dashboard */
+export const RegionBreakdownBarChart: React.FC<{
+  data: { region_name: string; total_leads: number; won_count: number; lost_count: number }[];
+}> = ({ data }) => {
+  const chartData = data.map((r) => ({
+    name: r.region_name.length > 12 ? r.region_name.slice(0, 11) + '…' : r.region_name,
+    total: r.total_leads,
+    won: r.won_count,
+    lost: r.lost_count,
+  }));
+  if (chartData.length === 0) {
+    return (
+      <div className="h-[220px] flex items-center justify-center text-slate-500 text-sm">No region data</div>
+    );
+  }
+  return (
+    <div className="h-[240px] w-full pt-2">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+          <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
+          <Tooltip />
+          <Legend />
+          <Bar dataKey="total" name="Total leads" fill="#64748b" radius={[4, 4, 0, 0]} barSize={24} />
+          <Bar dataKey="won" name="Won" fill={chartColors.won} radius={[4, 4, 0, 0]} barSize={24} />
+          <Bar dataKey="lost" name="Lost" fill={chartColors.lost} radius={[4, 4, 0, 0]} barSize={24} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+/** Inquiries vs Quotations (simple bar) */
+export const InquiriesQuotationsBarChart: React.FC<{ inquiries: number; quotations: number }> = ({ inquiries, quotations }) => {
+  const data = [
+    { name: 'Inquiries', count: inquiries, fill: '#94a3b8' },
+    { name: 'Quotations sent', count: quotations, fill: '#4f46e5' },
+  ];
+  return (
+    <div className="h-[220px] w-full pt-2">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+          <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+          <Tooltip formatter={(v: number) => [v, '']} />
+          <Bar dataKey="count" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={40} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
 };
 
 export const RevenueChart: React.FC = () => {

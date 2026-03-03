@@ -34,4 +34,5 @@ export const clearStoredAuth = (): void => {
   localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_user_data');
   localStorage.removeItem('auth_login_time');
+  localStorage.removeItem('marketing_scope');
 };

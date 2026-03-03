@@ -13,29 +13,37 @@ export const Sidebar: React.FC = () => {
   const employee = useAppSelector(selectEmployee);
   const user = useAppSelector(selectUser);
   
-  // Check each permission (codes must match HRMS current flat codes: marketing.view_*, marketing.edit_*, etc.)
+  // Check each permission (codes must match HRMS; Domains tab uses rbac.view_domain_tab)
+  const hasViewDomainTab = useAppSelector(selectHasPermission('rbac.view_domain_tab'));
   const hasViewDomain = useAppSelector(selectHasPermission('marketing.view_domain'));
   const hasViewContact = useAppSelector(selectHasPermission('marketing.view_contact'));
   const hasViewLead = useAppSelector(selectHasPermission('marketing.view_lead'));
   const hasViewCampaign = useAppSelector(selectHasPermission('marketing.view_campaign'));
   const hasViewCustomer = useAppSelector(selectHasPermission('marketing.view_customer'));
+
+  const hasViewOrganization = useAppSelector(selectHasPermission('marketing.view_organization'));
+  const hasViewReport = useAppSelector(selectHasPermission('marketing.view_report'));
   const hasAdmin = useAppSelector(selectHasPermission('marketing.admin'));
 
-  // Filter links based on permissions (Reports, Invoices, Numbering Series use marketing.admin)
+  // Filter links based on permissions
   const filteredSidebarLinks = useMemo(() => {
     return SIDEBAR_LINKS.filter(link => {
       if (!link.permission) return true;
       switch (link.permission) {
+        case 'rbac.view_domain_tab': return hasViewDomainTab;
         case 'marketing.view_domain': return hasViewDomain;
         case 'marketing.view_contact': return hasViewContact;
         case 'marketing.view_lead': return hasViewLead;
         case 'marketing.view_campaign': return hasViewCampaign;
         case 'marketing.view_customer': return hasViewCustomer;
+        case 'marketing.view_organization': return hasViewOrganization;
+        case 'marketing.view_database': return hasViewOrganization || hasViewCustomer || hasViewContact;
+        case 'marketing.view_report': return hasViewReport;
         case 'marketing.admin': return hasAdmin;
         default: return true;
       }
     });
-  }, [hasViewDomain, hasViewContact, hasViewLead, hasViewCampaign, hasViewCustomer, hasAdmin]);
+  }, [hasViewDomainTab, hasViewDomain, hasViewContact, hasViewLead, hasViewCampaign, hasViewCustomer, hasViewOrganization, hasViewReport, hasAdmin]);
 
   // Filter secondary links (Settings and Support don't need permissions for now)
   const filteredSecondaryLinks = SECONDARY_LINKS;
@@ -107,6 +115,7 @@ const SidebarItem: React.FC<{ item: NavItem }> = ({ item }) => {
   return (
     <NavLink
       to={item.href}
+      end={item.href === '/database' ? false : undefined}
       className={({ isActive }) => `
         group flex items-center justify-between w-full rounded-lg text-[13px] transition-all duration-200 font-medium px-3 py-2
         ${isActive

@@ -117,11 +117,13 @@ export const InventoryPage: React.FC = () => {
     </div>
   );
 
+  const breadcrumbs = [{ label: 'Inventory', href: '/inventory' }];
   return (
     <PageLayout
       title="Inventory Management"
       description="Real-time tracking of enterprise assets and resources."
       actions={actions}
+      breadcrumbs={breadcrumbs}
     >
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">

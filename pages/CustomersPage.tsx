@@ -2,7 +2,7 @@
  * Customers list – tabular view, fetches from marketing API.
  */
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -14,7 +14,7 @@ import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
 import { DataTable } from '../components/ui/DataTable';
 import { Pagination } from '../components/ui/Pagination';
-import { marketingAPI, Customer, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
+import { marketingAPI, Customer, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, customerPrimaryContactName } from '../lib/marketing-api';
 
 export const CustomersPage: React.FC = () => {
   const navigate = useNavigate();
@@ -22,6 +22,8 @@ export const CustomersPage: React.FC = () => {
   const canView = useAppSelector(selectHasPermission('marketing.view_customer'));
   const canCreate = useAppSelector(selectHasPermission('marketing.create_customer'));
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_customer'));
+  const location = useLocation();
+  const underDatabase = location.pathname.startsWith('/database');
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [total, setTotal] = useState(0);
@@ -65,8 +67,8 @@ export const CustomersPage: React.FC = () => {
     return customers.filter(
       (c) =>
         (c.company_name && c.company_name.toLowerCase().includes(term)) ||
-        (c.primary_contact_name && c.primary_contact_name.toLowerCase().includes(term)) ||
-        (c.primary_contact_email && c.primary_contact_email.toLowerCase().includes(term))
+        (customerPrimaryContactName(c) && customerPrimaryContactName(c).toLowerCase().includes(term)) ||
+        (c.primary_contact_contact?.contact_email && c.primary_contact_contact.contact_email.toLowerCase().includes(term))
     );
   }, [customers, searchTerm]);
 
@@ -80,9 +82,12 @@ export const CustomersPage: React.FC = () => {
     </Button>
   ) : null;
 
+  const breadcrumbs = underDatabase
+    ? [{ label: 'Database', href: '/database' }, { label: 'Customers', href: '/database/customers' }]
+    : [{ label: 'Customers', href: '/customers' }];
   if (!canView) {
     return (
-      <PageLayout title="Customer Registry" description="Manage enterprise-level client relationships.">
+      <PageLayout title="Customer Registry" description="Manage enterprise-level client relationships." breadcrumbs={breadcrumbs}>
         <Card>
           <p className="text-slate-600">You do not have permission to view customers.</p>
         </Card>
@@ -95,6 +100,7 @@ export const CustomersPage: React.FC = () => {
       title="Customer Registry"
       description="Manage enterprise-level client relationships."
       actions={actions}
+      breadcrumbs={breadcrumbs}
     >
       <div className="flex items-center gap-3 mb-4">
         <Input
@@ -139,17 +145,19 @@ export const CustomersPage: React.FC = () => {
                   render: (c) => (
                     <div>
                       <div className="font-medium text-slate-900">{c.company_name}</div>
-                      {c.industry && <div className="text-xs text-slate-500 mt-0.5">{c.industry}</div>}
+                      {(c.organization?.industry || c.organization?.website) && (
+                        <div className="text-xs text-slate-500 mt-0.5">{[c.organization?.industry, c.organization?.website].filter(Boolean).join(' · ')}</div>
+                      )}
                     </div>
                   ),
                 },
                 {
-                  key: 'primary_contact_name',
+                  key: 'primary_contact',
                   label: 'Contact',
                   render: (c) => (
                     <div>
-                      <div className="text-sm text-slate-900">{c.primary_contact_name || '—'}</div>
-                      {c.primary_contact_job_title && <div className="text-xs text-slate-500">{c.primary_contact_job_title}</div>}
+                      <div className="text-sm text-slate-900">{customerPrimaryContactName(c) || '—'}</div>
+                      {c.primary_contact_contact?.contact_job_title && <div className="text-xs text-slate-500">{c.primary_contact_contact.contact_job_title}</div>}
                     </div>
                   ),
                 },
@@ -157,10 +165,10 @@ export const CustomersPage: React.FC = () => {
                   key: 'primary_contact_email',
                   label: 'Email',
                   render: (c) =>
-                    c.primary_contact_email ? (
+                    c.primary_contact_contact?.contact_email ? (
                       <div className="flex items-center gap-2 text-sm text-slate-600">
                         <Mail size={14} className="text-slate-400" />
-                        {c.primary_contact_email}
+                        {c.primary_contact_contact.contact_email}
                       </div>
                     ) : (
                       <span className="text-slate-400">—</span>
