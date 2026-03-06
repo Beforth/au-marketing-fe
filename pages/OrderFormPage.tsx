@@ -10,7 +10,8 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { marketingAPI, type Order, type OrderStatusOption, type OrderActivity, type Lead, leadDisplayName, leadDisplayCompany } from '../lib/marketing-api';
+import { marketingAPI, type Order, type OrderStatusOption, type OrderActivity, type Lead, type Series, leadDisplayName, leadDisplayCompany } from '../lib/marketing-api';
+import { Select } from '../components/ui/Select';
 import { ArrowLeft, History, Plus, Edit2, Trash2 } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Modal } from '../components/ui/Modal';
@@ -34,6 +35,7 @@ export const OrderFormPage: React.FC = () => {
   const [wonLeads, setWonLeads] = useState<Lead[]>([]);
   const [createLeadId, setCreateLeadId] = useState<number | ''>('');
   const [createSeriesCode, setCreateSeriesCode] = useState('');
+  const [createSeriesList, setCreateSeriesList] = useState<Series[]>([]);
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Order>>({});
   const [showEditModal, setShowEditModal] = useState(false);
@@ -84,6 +86,7 @@ export const OrderFormPage: React.FC = () => {
   useEffect(() => {
     if (isNew) {
       setLoading(false);
+      marketingAPI.getSeries({ page: 1, page_size: 100, is_active: true }).then((r) => setCreateSeriesList(r.items ?? [])).catch(() => setCreateSeriesList([]));
       marketingAPI.getOrderStatuses({ is_active: true }).then(setStatuses).catch(() => setStatuses([]));
       marketingAPI.getLeadStatuses({ is_active: true }).then((leadStatuses) => {
         const wonId = leadStatuses.find((s) => s.is_final && !s.is_lost)?.id;
@@ -216,12 +219,19 @@ export const OrderFormPage: React.FC = () => {
                 ))}
               </select>
             </div>
-            <Input
-              label="Series code (optional)"
-              placeholder="e.g. order_ref"
+            <Select
+              label="Number series for order number"
+              options={[
+                { value: '', label: 'Use default (from settings)' },
+                ...createSeriesList
+                  .filter((s) => (s.entity_type ?? '').toLowerCase() === 'order' || s.code === 'order_number' || !s.entity_type)
+                  .map((s) => ({ value: s.code, label: `${s.name} (${s.code})` })),
+              ]}
               value={createSeriesCode}
-              onChange={(e) => setCreateSeriesCode(e.target.value)}
+              onChange={(val) => setCreateSeriesCode((val != null && val !== '') ? String(val) : '')}
+              placeholder="Use default"
             />
+            <p className="text-xs text-slate-500 -mt-2">Choose which number series to use for this order. The order number is assigned on save and cannot be changed later.</p>
             <div className="flex gap-2">
               <Button type="submit" size="sm" isLoading={createSubmitting}>Create Order</Button>
               <Button type="button" variant="outline" size="sm" onClick={() => navigate('/orders')}>Cancel</Button>
@@ -254,7 +264,7 @@ export const OrderFormPage: React.FC = () => {
 
       <Card title="Order" className="mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div><span className="text-slate-500">Order ref</span><br />{order.series || `#${order.id}`}</div>
+          <div><span className="text-slate-500">Order No.</span><br /><span className="font-medium tabular-nums">{order.series || `#${order.id}`}</span></div>
           <div>
             <span className="text-slate-500">From Lead</span><br />
             {lead ? (

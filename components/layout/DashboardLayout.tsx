@@ -13,12 +13,12 @@ export const DashboardLayout: React.FC = () => {
     <div className="min-h-screen flex bg-[#f8fafc]">
       <Sidebar />
 
-      <main className="flex-1 flex flex-col min-h-screen">
+      <main className="flex-1 flex flex-col min-h-screen min-w-0">
         <Navbar />
 
         <div
-          className="ml-60 max-w-[1600px] flex-1 transition-all duration-300"
-          style={{ padding: 'calc(var(--ui-padding) * 2) var(--ui-padding) var(--ui-padding)' }}
+          className="ml-60 flex-1 min-w-0 overflow-x-auto px-6 transition-all duration-300"
+          style={{ paddingTop: 'calc(var(--ui-padding) * 2)', paddingBottom: 'var(--ui-padding)' }}
         >
           <Outlet />
         </div>

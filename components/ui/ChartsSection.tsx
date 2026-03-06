@@ -269,3 +269,70 @@ export const SalesTargetChart: React.FC = () => {
     </div>
   );
 };
+
+/** Simple heatmap widget: matrix of cells (sample data or pass data via props). */
+export const HeatmapWidget: React.FC<{
+  rows?: string[];
+  columns?: string[];
+  data?: number[][];
+  title?: string;
+}> = ({ rows = ['R1', 'R2', 'R3', 'R4'], columns = ['C1', 'C2', 'C3', 'C4', 'C5'], data, title }) => {
+  const values = data ?? [
+    [10, 20, 30, 40, 50],
+    [15, 25, 35, 45, 55],
+    [5, 15, 25, 35, 45],
+    [20, 30, 40, 50, 60],
+  ];
+  const flat = values.flat();
+  const min = Math.min(...flat);
+  const max = Math.max(...flat) || 1;
+  const intensity = (v: number) => Math.round(((v - min) / (max - min)) * 100);
+  return (
+    <div className="p-4">
+      {title && <p className="text-xs font-semibold text-slate-500 uppercase mb-3">{title}</p>}
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr>
+              <th className="p-1.5 text-slate-500 font-medium text-left" />
+              {columns.slice(0, values[0]?.length ?? 0).map((c, i) => (
+                <th key={i} className="p-1.5 text-slate-500 font-medium text-center">{c}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {values.map((row, ri) => (
+              <tr key={ri}>
+                <td className="p-1.5 text-slate-600 font-medium">{rows[ri] ?? `R${ri + 1}`}</td>
+                {row.map((v, ci) => (
+                  <td key={ci} className="p-1">
+                    <div
+                      className="h-8 min-w-[2rem] rounded flex items-center justify-center text-slate-800 font-medium"
+                      style={{
+                        backgroundColor: `rgba(79, 70, 229, ${0.15 + (intensity(v) / 100) * 0.85})`,
+                      }}
+                    >
+                      {v}
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+/** Custom code / text block widget (display only; code stored in widget config). */
+export const CustomCodeWidget: React.FC<{ code?: string; title?: string }> = ({ code, title }) => {
+  return (
+    <div className="p-4">
+      {title && <p className="text-xs font-semibold text-slate-500 uppercase mb-2">{title}</p>}
+      <pre className="text-xs bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-auto max-h-[200px] whitespace-pre-wrap font-mono text-slate-700">
+        {code?.trim() || 'Add code or notes in edit mode.'}
+      </pre>
+    </div>
+  );
+}

@@ -14,7 +14,7 @@ import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission, selectUser, selectEmployee } from '../store/slices/authSlice';
 import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadTypeOption, LeadThroughOption, LeadActivity, LeadActivityAttachment, Domain, Region, Customer, Contact, Plant, Series, Organization, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
-import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from '../constants';
+import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, DEFAULT_LEAD_SERIES_STORAGE_KEY } from '../constants';
 
 const COMPANY_SIZES = [
   { value: '1-10', label: '1-10 employees' },
@@ -49,6 +49,7 @@ export const LeadFormPage: React.FC = () => {
 
   const canCreate = useAppSelector(selectHasPermission('marketing.create_lead'));
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_lead'));
+  const canChangeLeadSeries = useAppSelector(selectHasPermission('marketing.admin'));
   const canCreateContact = useAppSelector(selectHasPermission('marketing.create_contact'));
   const canCreateOrg = useAppSelector(selectHasPermission('marketing.create_organization'));
   const canCreatePlant = useAppSelector(selectHasPermission('marketing.create_plant'));
@@ -239,7 +240,20 @@ export const LeadFormPage: React.FC = () => {
   const [markWonPO, setMarkWonPO] = useState('');
   const [markWonSubmitting, setMarkWonSubmitting] = useState(false);
   const [markLostReason, setMarkLostReason] = useState('');
+  const [markLostCompetitor, setMarkLostCompetitor] = useState('');
+  const [markLostPrice, setMarkLostPrice] = useState('');
   const [markLostSubmitting, setMarkLostSubmitting] = useState(false);
+  const [leadSeriesChangeCode, setLeadSeriesChangeCode] = useState('');
+  const [leadSeriesUpdating, setLeadSeriesUpdating] = useState(false);
+  const [quoteSeriesToGenerate, setQuoteSeriesToGenerate] = useState('');
+  const [generatingQuoteNumberForLead, setGeneratingQuoteNumberForLead] = useState(false);
+  // Quote number (separate from lead number) — create only: generated value to send on create
+  const [createFormQuoteSeriesCode, setCreateFormQuoteSeriesCode] = useState('');
+  const [generatedQuoteNumber, setGeneratedQuoteNumber] = useState<string | null>(null);
+  const [generatedQuoteSeriesCode, setGeneratedQuoteSeriesCode] = useState<string | null>(null);
+  const [generatingQuoteNumberOnCreate, setGeneratingQuoteNumberOnCreate] = useState(false);
+  const [editQuoteSeriesCode, setEditQuoteSeriesCode] = useState('');
+  const [generatingQuoteNumberInEdit, setGeneratingQuoteNumberInEdit] = useState(false);
 
   useEffect(() => {
     if (isEdit) {
@@ -889,6 +903,8 @@ export const LeadFormPage: React.FC = () => {
         notes: lead.notes || '',
         series_code: lead.series_code ?? undefined,
         series: lead.series ?? undefined,
+        quote_series_code: lead.quote_series_code ?? undefined,
+        quote_number: lead.quote_number ?? undefined,
         next_follow_up_at: lead.next_follow_up_at ?? undefined,
         follow_up_reminder_type: lead.follow_up_reminder_type ?? undefined,
         assigned_to_employee_id: lead.assigned_to_employee_id ?? undefined,
@@ -914,9 +930,16 @@ export const LeadFormPage: React.FC = () => {
       }
 
       setCustomers(customersData);
-      if (lead.contact_id) setLeadSourceType('contact');
-      else if (lead.customer_id) setLeadSourceType('customer');
-      else setLeadSourceType('none');
+      if (lead.contact_id) {
+        setLeadSourceType('contact');
+        setSelectedContactForDisplay(lead.contact ?? null);
+      } else if (lead.customer_id) {
+        setLeadSourceType('customer');
+        setSelectedContactForDisplay(null);
+      } else {
+        setLeadSourceType('none');
+        setSelectedContactForDisplay(null);
+      }
 
       if (lead.customer_id) {
         const plantsData = await marketingAPI.getPlants({ customer_id: lead.customer_id });
@@ -1109,6 +1132,15 @@ export const LeadFormPage: React.FC = () => {
     if (!(payload as any).expected_closing_date) {
       (payload as any).expected_closing_date = undefined;
     }
+    if (!isEdit && typeof window !== 'undefined') {
+      const assigned = (window.localStorage.getItem(DEFAULT_LEAD_SERIES_STORAGE_KEY) || '').trim();
+      if (assigned) (payload as any).series_code = assigned;
+    }
+    // Quote number (separate from lead number): send if user generated one at create
+    if (!isEdit && generatedQuoteSeriesCode && generatedQuoteNumber) {
+      (payload as any).quote_series_code = generatedQuoteSeriesCode;
+      (payload as any).quote_number = generatedQuoteNumber;
+    }
 
     setIsSubmitting(true);
     try {
@@ -1134,7 +1166,8 @@ export const LeadFormPage: React.FC = () => {
               ['quotation'],
               undefined,
               undefined,
-              formData.series_code?.trim() || undefined
+              // Use lead's quote number when we set one at create; otherwise optional series for first quotation
+              generatedQuoteNumber ? undefined : (formData.series_code?.trim() || undefined)
             );
             showToast('Lead and enquiry created successfully', 'success');
             navigate(`/leads/${lead.id}/edit`);
@@ -1160,7 +1193,7 @@ export const LeadFormPage: React.FC = () => {
     if (!code) return;
     const company = effectiveCompanyNameForQuote || formData.company?.trim();
     if (!company) {
-      showToast('Select or enter an Organization in the Contact section first. The quote number uses the company/organization name.', 'error');
+      showToast('Select or enter an Organization in the Contact section first. The generated number may use the company/organization name.', 'error');
       return;
     }
     setGeneratingQuoteNumber(true);
@@ -1173,12 +1206,12 @@ export const LeadFormPage: React.FC = () => {
       if (isEdit && id && generated) {
         const updated = await marketingAPI.updateLead(parseInt(id, 10), { series_code: code, series: generated } as UpdateLeadRequest);
         setCurrentLead(updated);
-        showToast('Quote number generated and saved', 'success');
+        showToast('Lead number generated and saved', 'success');
       } else {
-        showToast('Quote number generated', 'success');
+        showToast('Lead number generated', 'success');
       }
     } catch (e: any) {
-      showToast(e?.message || 'Failed to generate quote number', 'error');
+      showToast(e?.message || 'Failed to generate lead number', 'error');
     } finally {
       setGeneratingQuoteNumber(false);
     }
@@ -1226,10 +1259,14 @@ export const LeadFormPage: React.FC = () => {
       await marketingAPI.updateLead(parseInt(id), {
         status_id: lostStatusId ?? undefined,
         status_change_reason: markLostReason.trim(),
+        lost_to_competitor: markLostCompetitor.trim() || 'Not sure',
+        lost_at_price: markLostPrice.trim() || 'Not sure',
       } as UpdateLeadRequest);
       showToast('Lead marked as Lost', 'success');
       setShowMarkLostConfirm(false);
       setMarkLostReason('');
+      setMarkLostCompetitor('');
+      setMarkLostPrice('');
       loadLead();
       loadActivities();
     } catch (err: any) {
@@ -1432,7 +1469,7 @@ export const LeadFormPage: React.FC = () => {
         <Card className="mb-4">
           <h3 className="text-sm font-semibold text-slate-800 mb-3">Lead details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            <div><span className="text-slate-500">Quote number</span><br /><span className="font-medium">{formData.series?.trim() || '—'}</span></div>
+            <div><span className="text-slate-500">Lead No.</span><br /><span className="font-medium tabular-nums">{formData.series?.trim() || '—'}</span></div>
             {latestQuotation && (
               <div>
                 <span className="text-slate-500">Latest quotation</span>
@@ -2041,56 +2078,257 @@ export const LeadFormPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Quote number (manual) and/or numbering series (auto) */}
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-end gap-4">
-                <div className="min-w-[200px] flex flex-col gap-2">
-                  <label className="block text-sm font-medium text-slate-700">Quote number</label>
-                  <div className="flex gap-2 items-center">
-                    <Input
-                      type="text"
-                      value={formData.series ?? ''}
-                      onChange={(e) => setFormData({ ...formData, series: e.target.value || undefined })}
-                      placeholder="e.g. QTN-001 or your reference"
-                    />
-                    {formData.series_code?.trim() && (
+            {/* Lead number: only show when editing (on create it is assigned dynamically, no field needed) */}
+            {isEdit && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700">Lead No.</label>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 tabular-nums">
+                  {formData.series?.trim() || '—'}
+                </div>
+                {canEdit && !formData.series?.trim() && (
+                  <div className="mt-2 space-y-2 rounded-lg border border-amber-200 bg-amber-50/80 p-3">
+                    <p className="text-sm font-medium text-slate-700">Generate lead number</p>
+                    <p className="text-xs text-slate-600">This lead has no lead number yet. Select a number series (e.g. Lead number) and generate to assign one. Quote numbers for quotations are separate and use their own series.</p>
+                    <div className="flex flex-wrap items-end gap-2">
+                      <Select
+                        label=""
+                        options={[
+                          { value: '', label: '— Select series —' },
+                          ...seriesList
+                            .filter((s) => (s.entity_type ?? '').toLowerCase() === 'lead' || s.code === 'lead_number' || (s.code || '').toLowerCase().includes('quote') || !s.entity_type)
+                            .map((s) => ({ value: s.code ?? '', label: `${s.name} (${s.code})` })),
+                        ]}
+                        value={quoteSeriesToGenerate}
+                        onChange={(val) => setQuoteSeriesToGenerate((val != null && val !== '') ? String(val) : '')}
+                        placeholder="Select series"
+                        className="min-w-[180px]"
+                      />
                       <Button
                         type="button"
-                        variant="outline"
                         size="sm"
-                        disabled={generatingQuoteNumber}
-                        onClick={handleGenerateQuoteNumber}
+                        disabled={!quoteSeriesToGenerate.trim() || generatingQuoteNumberForLead}
+                        onClick={async () => {
+                          if (!id || !quoteSeriesToGenerate.trim()) return;
+                          setGeneratingQuoteNumberForLead(true);
+                          try {
+                            const updated = await marketingAPI.updateLeadSeries(parseInt(id, 10), { series_code: quoteSeriesToGenerate.trim() });
+                            setFormData((prev) => ({ ...prev, series_code: updated.series_code ?? undefined, series: updated.series ?? undefined }));
+                            setQuoteSeriesToGenerate('');
+                            showToast('Lead number generated and saved', 'success');
+                          } catch (e: any) {
+                            showToast(e?.message || 'Failed to generate lead number', 'error');
+                          } finally {
+                            setGeneratingQuoteNumberForLead(false);
+                          }
+                        }}
                       >
-                        {generatingQuoteNumber ? 'Generating…' : 'Generate'}
+                        {generatingQuoteNumberForLead ? 'Generating…' : 'Generate lead number'}
                       </Button>
+                    </div>
+                  </div>
+                )}
+                {canChangeLeadSeries ? (
+                  <div className="mt-2 space-y-2 rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+                    <p className="text-xs font-medium text-slate-600">Change number series (admin)</p>
+                    <div className="flex flex-wrap items-end gap-2">
+                      <Select
+                        label=""
+                        options={[
+                          { value: '', label: '— Select series —' },
+                          ...seriesList
+                            .filter((s) => (s.entity_type ?? '').toLowerCase() === 'lead' || s.code === 'lead_number' || !s.entity_type)
+                            .map((s) => ({ value: s.code ?? '', label: `${s.name} (${s.code})` })),
+                        ]}
+                        value={leadSeriesChangeCode}
+                        onChange={(val) => setLeadSeriesChangeCode((val != null && val !== '') ? String(val) : '')}
+                        placeholder="Select series"
+                        className="min-w-[180px]"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={!leadSeriesChangeCode.trim() || leadSeriesUpdating}
+                        onClick={async () => {
+                          if (!id || !leadSeriesChangeCode.trim()) return;
+                          setLeadSeriesUpdating(true);
+                          try {
+                            const updated = await marketingAPI.updateLeadSeries(parseInt(id, 10), { series_code: leadSeriesChangeCode.trim() });
+                            setFormData((prev) => ({ ...prev, series_code: updated.series_code ?? undefined, series: updated.series ?? undefined }));
+                            setLeadSeriesChangeCode('');
+                            showToast('Lead number updated', 'success');
+                          } catch (e: any) {
+                            showToast(e?.message || 'Failed to update lead number', 'error');
+                          } finally {
+                            setLeadSeriesUpdating(false);
+                          }
+                        }}
+                      >
+                        {leadSeriesUpdating ? 'Updating…' : 'Update lead number'}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-slate-500">Choose a number series and click Update to assign the next value. Requires marketing.admin.</p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">Lead number cannot be changed after creation.</p>
+                )}
+              </div>
+            )}
+
+            {/* Quote number — edit: show current or generate if not set */}
+            {isEdit && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700">Quote number</label>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 tabular-nums">
+                  {(formData.quote_number ?? currentLead?.quote_number)?.trim() || '—'}
+                </div>
+                {canEdit && !(formData.quote_number ?? currentLead?.quote_number)?.trim() && (
+                  <div className="mt-2 space-y-2 rounded-lg border border-amber-200 bg-amber-50/80 p-3">
+                    <p className="text-sm font-medium text-slate-700">Generate quote number</p>
+                    <p className="text-xs text-slate-600">This lead has no quote number yet. Select a quote number series and generate one (used for quotation documents). Requires a contact or customer linked to this lead.</p>
+                    <div className="flex flex-wrap items-end gap-2">
+                      <Select
+                        label=""
+                        options={[
+                          { value: '', label: '— Select series —' },
+                          ...(seriesList
+                            .filter((s) => (s.code || '').toLowerCase().includes('quote') || (s.name || '').toLowerCase().includes('quote'))
+                            .length
+                            ? seriesList.filter((s) => (s.code || '').toLowerCase().includes('quote') || (s.name || '').toLowerCase().includes('quote'))
+                            : seriesList
+                          ).map((s) => ({ value: s.code ?? '', label: `${s.name} (${s.code})` })),
+                        ]}
+                        value={editQuoteSeriesCode}
+                        onChange={(val) => setEditQuoteSeriesCode((val != null && val !== '') ? String(val) : '')}
+                        placeholder="Quote series"
+                        className="min-w-[180px]"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={
+                          !(formData.contact_id != null || formData.customer_id != null) ||
+                          !editQuoteSeriesCode.trim() ||
+                          generatingQuoteNumberInEdit
+                        }
+                        onClick={async () => {
+                          if (!id) return;
+                          if (!(formData.contact_id != null || formData.customer_id != null)) {
+                            showToast('This lead has no contact or customer. Link one first to generate a quote number.', 'error');
+                            return;
+                          }
+                          const code = editQuoteSeriesCode.trim();
+                          if (!code) return;
+                          const company = effectiveCompanyNameForQuote || (currentLead && (leadDisplayCompany(currentLead) || (currentLead as any).company)) || '';
+                          setGeneratingQuoteNumberInEdit(true);
+                          try {
+                            const res = await marketingAPI.generateNextSeriesNumberByCode(code, {
+                              lead_context: { company: company || undefined },
+                            });
+                            const generated = res.generated_value;
+                            if (generated) {
+                              await marketingAPI.updateLead(parseInt(id, 10), { quote_series_code: code, quote_number: generated });
+                              setFormData((prev) => ({ ...prev, quote_series_code: code, quote_number: generated }));
+                              if (currentLead) setCurrentLead({ ...currentLead, quote_series_code: code, quote_number: generated });
+                              setEditQuoteSeriesCode('');
+                              showToast('Quote number generated and saved', 'success');
+                            } else {
+                              showToast('No value returned from series', 'error');
+                            }
+                          } catch (e: any) {
+                            showToast(e?.message || 'Failed to generate quote number', 'error');
+                          } finally {
+                            setGeneratingQuoteNumberInEdit(false);
+                          }
+                        }}
+                      >
+                        {generatingQuoteNumberInEdit ? 'Generating…' : 'Generate quote number'}
+                      </Button>
+                    </div>
+                    {!(formData.contact_id != null || formData.customer_id != null) && (
+                      <p className="text-xs text-amber-600">Link a contact or customer to this lead first (in the Contact section above).</p>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500">
-                    Enter quote number manually, or select a series below and click Generate.
-                    {isEdit ? ' Generated value is saved immediately.' : ''}
-                  </p>
-                </div>
-                <div className="min-w-[200px] flex flex-col gap-2">
-                  <label className="block text-sm font-medium text-slate-700">Number series</label>
-                  <Select
-                    value={formData.series_code ?? ''}
-                    onChange={(val) => setFormData({ ...formData, series_code: (val != null && val !== '') ? String(val) : undefined })}
-                    options={[
-                      { value: '', label: 'None' },
-                      ...seriesList.map((s) => ({ value: String(s.code), label: `${s.name} (${s.code})` })),
-                    ]}
-                    placeholder="None"
-                  />
-                  <p className="text-xs text-slate-500">Select a series, then use Generate above to get the next quote number.</p>
+                )}
+              </div>
+            )}
+
+            {/* Quote number (optional) — create only: separate from lead number; requires contact/customer */}
+            {!isEdit && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700">Quote number (optional)</label>
+                <p className="text-xs text-slate-500 mb-2">Generate a quote number for quotation documents. This is separate from the lead number (assigned automatically when you save).</p>
+                {!(formData.contact_id != null || formData.customer_id != null) && (
+                  <p className="text-xs text-amber-600 mb-2">Select a contact or customer above first to generate a quote number.</p>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="min-w-[200px]">
+                    <Select
+                      placeholder="Number series for quote"
+                      value={createFormQuoteSeriesCode}
+                      onChange={(val) => {
+                        setCreateFormQuoteSeriesCode(String(val ?? ''));
+                        setGeneratedQuoteNumber(null);
+                      }}
+                      options={[
+                        { value: '', label: '— Select series —' },
+                        ...(seriesList
+                          .filter((s) => (s.code || '').toLowerCase().includes('quote') || (s.name || '').toLowerCase().includes('quote'))
+                          .length
+                          ? seriesList.filter((s) => (s.code || '').toLowerCase().includes('quote') || (s.name || '').toLowerCase().includes('quote'))
+                          : seriesList
+                        ).map((s) => ({ value: s.code ?? '', label: `${s.name} (${s.code})` })),
+                      ]}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={
+                      !(formData.contact_id != null || formData.customer_id != null) ||
+                      !createFormQuoteSeriesCode.trim() ||
+                      generatingQuoteNumberOnCreate
+                    }
+                    onClick={async () => {
+                      if (!(formData.contact_id != null || formData.customer_id != null)) {
+                        showToast('Select a contact or customer first to generate a quote number.', 'error');
+                        return;
+                      }
+                      const code = createFormQuoteSeriesCode.trim();
+                      if (!code) return;
+                      const company = (effectiveCompanyNameForQuote || (formData as any).company) ?? '';
+                      setGeneratingQuoteNumberOnCreate(true);
+                      try {
+                        const res = await marketingAPI.generateNextSeriesNumberByCode(code, {
+                          lead_context: { company: company || undefined },
+                        });
+                        setGeneratedQuoteNumber(res.generated_value);
+                        setGeneratedQuoteSeriesCode(code);
+                        showToast('Quote number generated', 'success');
+                      } catch (e: any) {
+                        showToast(e?.message || 'Failed to generate quote number', 'error');
+                      } finally {
+                        setGeneratingQuoteNumberOnCreate(false);
+                      }
+                    }}
+                  >
+                    {generatingQuoteNumberOnCreate ? 'Generating…' : 'Generate quote number'}
+                  </Button>
+                  {generatedQuoteNumber && (
+                    <span className="text-sm font-medium text-slate-700">
+                      Quote number: <strong>{generatedQuoteNumber}</strong>
+                    </span>
+                  )}
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Quotation (optional) — create only: under quote number / number series */}
+            {/* Quotation (optional) — create only: under lead number / number series */}
             {!isEdit && (
               <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
                 <label className="block text-sm font-medium text-slate-700 mb-2">Quotation (optional)</label>
-                <p className="text-xs text-slate-500 mb-2">Upload a file to add one enquiry with title "Added quotation". Quote number from lead series if set.</p>
+                <p className="text-xs text-slate-500 mb-2">Upload a file to add one enquiry with title "Added quotation". Quote numbers for the document use their own series; the lead number above is separate.</p>
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
                     <Upload size={16} />
@@ -2318,7 +2556,7 @@ export const LeadFormPage: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                  <p className="text-xs text-slate-500 mb-2">Add quotations (trackable) and/or general attachments (diagrams, docs). Quotation numbers are generated from the lead’s quote number; further quotations get rev2, rev3 automatically.</p>
+                  <p className="text-xs text-slate-500 mb-2">Add quotations (trackable) and/or general attachments (diagrams, docs). Quote numbers for quotation documents use the series you choose when adding a quotation (or a base with rev2, rev3). The lead number above is the lead’s own reference and is separate.</p>
                   <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2">
                     {attachmentEntries.map((row) => (
                       <div key={row.id} className="flex flex-nowrap items-center gap-2">
@@ -2738,7 +2976,7 @@ export const LeadFormPage: React.FC = () => {
                                     </button>
                                   </div>
                                 </div>
-                                <p className="text-xs text-slate-500 mb-2">Quotation numbers are generated from the lead’s quote number; further quotations get rev2, rev3 automatically.</p>
+                                <p className="text-xs text-slate-500 mb-2">Quote numbers for quotation documents use the series you choose when adding a quotation (or a base with rev2, rev3). The lead number is separate.</p>
                                 {addAttachmentRows.map((row) => (
                                   <div key={row.id} className="flex flex-nowrap items-center gap-2">
                                     <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-2.5 text-xs text-slate-700 hover:bg-slate-100 shrink-0">
@@ -3245,8 +3483,10 @@ export const LeadFormPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Quote number</label>
-                <Input type="text" value={formData.series ?? ''} onChange={(e) => setFormData({ ...formData, series: e.target.value || undefined })} placeholder="e.g. QTN-001" />
+                <label className="block text-sm font-medium text-slate-700 mb-2">Lead No.</label>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 tabular-nums">
+                  {formData.series?.trim() || '—'}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Potential Value</label>
@@ -3311,18 +3551,43 @@ export const LeadFormPage: React.FC = () => {
       {isEdit && (
         <Modal
           isOpen={showMarkLostConfirm}
-          onClose={() => { setShowMarkLostConfirm(false); setMarkLostReason(''); }}
+          onClose={() => { setShowMarkLostConfirm(false); setMarkLostReason(''); setMarkLostCompetitor(''); setMarkLostPrice(''); }}
           title="Mark lead as Lost"
           footer={
             <div className="flex justify-end gap-2 w-full">
-              <Button variant="outline" size="sm" onClick={() => { setShowMarkLostConfirm(false); setMarkLostReason(''); }} disabled={markLostSubmitting}>Cancel</Button>
+              <Button variant="outline" size="sm" onClick={() => { setShowMarkLostConfirm(false); setMarkLostReason(''); setMarkLostCompetitor(''); setMarkLostPrice(''); }} disabled={markLostSubmitting}>Cancel</Button>
               <Button size="sm" variant="danger" onClick={handleMarkLostConfirm} disabled={markLostReason.trim().length < 100 || markLostSubmitting}>
                 {markLostSubmitting ? 'Saving...' : 'Yes, mark as Lost'}
               </Button>
             </div>
           }
         >
-          <p className="text-sm text-slate-600 mb-3">Please provide a detailed reason for marking this lead as Lost (minimum 100 characters). The reason will be saved in the Lead enquiry log.</p>
+          <p className="text-sm text-slate-600 mb-4">Please provide a detailed reason and the two options below. If you don't know competitor or price, use "Not sure".</p>
+
+          <label className="block text-sm font-medium text-slate-700 mb-1">Competitor name (lost to whom)*</label>
+          <div className="flex gap-2 mb-3">
+            <input
+              type="text"
+              className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="e.g. ABC Corp or click Not sure"
+              value={markLostCompetitor}
+              onChange={(e) => setMarkLostCompetitor(e.target.value)}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={() => setMarkLostCompetitor('Not sure')} className="shrink-0">Not sure</Button>
+          </div>
+
+          <label className="block text-sm font-medium text-slate-700 mb-1">Lost at (at which price)*</label>
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="e.g. ₹50,000 or click Not sure"
+              value={markLostPrice}
+              onChange={(e) => setMarkLostPrice(e.target.value)}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={() => setMarkLostPrice('Not sure')} className="shrink-0">Not sure</Button>
+          </div>
+
           <label className="block text-sm font-medium text-slate-700 mb-1">Reason (required, min 100 characters)</label>
           <textarea
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[130px] focus:outline-none focus:ring-2 focus:ring-indigo-500"

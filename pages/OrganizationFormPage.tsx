@@ -1,15 +1,22 @@
 /**
  * Organization Form – Create or edit organization; when editing, list/add plants.
  */
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
-import { useAppSelector } from '../store/hooks';
+import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
+import {
+  setOrganizationPlants,
+  addOrganizationPlant,
+  updateOrganizationPlant,
+  removeOrganizationPlant,
+  selectPlantsForOrganization,
+} from '../store/slices/organizationPlantsSlice';
 import { marketingAPI, Organization, Plant } from '../lib/marketing-api';
 import { ArrowLeft, Plus, MapPin, Building2, Layers, Pencil, Trash2 } from 'lucide-react';
 
@@ -22,8 +29,14 @@ const ORGANIZATION_SIZES = [
   { value: '1000+', label: '1000+ employees' },
 ];
 
+const TAB_PARAM = 'tab';
+const TAB_ORGANIZATION = 'organization';
+const TAB_PLANTS = 'plants';
+
 export const OrganizationFormPage: React.FC = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
   const { showToast } = useApp();
   const isEdit = Boolean(id);
@@ -32,6 +45,29 @@ export const OrganizationFormPage: React.FC = () => {
   const canCreatePlant = useAppSelector(selectHasPermission('marketing.create_plant'));
   const canEditPlant = useAppSelector(selectHasPermission('marketing.edit_plant'));
   const canDeletePlant = useAppSelector(selectHasPermission('marketing.delete_plant'));
+
+  const plants = useAppSelector(selectPlantsForOrganization(id));
+
+  const activeTab = useMemo((): 'organization' | 'plants' => {
+    const tab = searchParams.get(TAB_PARAM);
+    return tab === TAB_PLANTS ? 'plants' : 'organization';
+  }, [searchParams]);
+
+  const setActiveTab = (tab: 'organization' | 'plants') => {
+    if (tab === 'organization') {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete(TAB_PARAM);
+        return next;
+      }, { replace: true });
+    } else {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set(TAB_PARAM, TAB_PLANTS);
+        return next;
+      }, { replace: true });
+    }
+  };
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,7 +79,6 @@ export const OrganizationFormPage: React.FC = () => {
     industry: '',
     is_active: true,
   });
-  const [plants, setPlants] = useState<Plant[]>([]);
   const [showAddPlant, setShowAddPlant] = useState(false);
   const [plantForm, setPlantForm] = useState<Partial<Plant>>({
     plant_name: '',
@@ -57,7 +92,6 @@ export const OrganizationFormPage: React.FC = () => {
   const [savingPlant, setSavingPlant] = useState(false);
   /** When creating: multiple plants to submit with the org */
   const [pendingPlants, setPendingPlants] = useState<Array<Partial<Plant>>>([]);
-  const [activeTab, setActiveTab] = useState<'organization' | 'plants'>('organization');
 
   useEffect(() => {
     if (isEdit && id) {
@@ -90,8 +124,13 @@ export const OrganizationFormPage: React.FC = () => {
         organization_size: org.organization_size ?? undefined,
         is_active: org.is_active,
       });
-      const plantsList = await marketingAPI.getOrganizationPlants(parseInt(id));
-      setPlants(plantsList);
+      try {
+        const plantsList = await marketingAPI.getOrganizationPlants(parseInt(id));
+        dispatch(setOrganizationPlants({ organizationId: parseInt(id), plants: plantsList }));
+      } catch (plantsErr: any) {
+        dispatch(setOrganizationPlants({ organizationId: parseInt(id), plants: [] }));
+        showToast(plantsErr?.message || 'Could not load organization plants', 'error');
+      }
     } catch (e: any) {
       showToast(e.message || 'Failed to load organization', 'error');
       navigate('/database/organizations');
@@ -141,19 +180,17 @@ export const OrganizationFormPage: React.FC = () => {
     setPendingPlants((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleAddPlant = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddPlant = async () => {
     if (!id || !plantForm.plant_name?.trim()) {
       showToast('Plant name is required', 'error');
       return;
     }
     try {
-      await marketingAPI.createOrganizationPlant(parseInt(id), plantForm);
+      const created = await marketingAPI.createOrganizationPlant(parseInt(id), plantForm);
       showToast('Plant added', 'success');
       setPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
       setShowAddPlant(false);
-      const plantsList = await marketingAPI.getOrganizationPlants(parseInt(id));
-      setPlants(plantsList);
+      dispatch(addOrganizationPlant({ organizationId: parseInt(id), plant: created }));
     } catch (e: any) {
       showToast(e.message || 'Failed to add plant', 'error');
     }
@@ -167,12 +204,11 @@ export const OrganizationFormPage: React.FC = () => {
     }
     setSavingPlant(true);
     try {
-      await marketingAPI.updateOrganizationPlant(parseInt(id), editingPlantId, editingPlantForm);
+      const updated = await marketingAPI.updateOrganizationPlant(parseInt(id), editingPlantId, editingPlantForm);
       showToast('Plant updated', 'success');
       setEditingPlantId(null);
       setEditingPlantForm({});
-      const plantsList = await marketingAPI.getOrganizationPlants(parseInt(id));
-      setPlants(plantsList);
+      dispatch(updateOrganizationPlant({ organizationId: parseInt(id), plant: updated }));
     } catch (e: any) {
       showToast(e.message || 'Failed to update plant', 'error');
     } finally {
@@ -186,7 +222,7 @@ export const OrganizationFormPage: React.FC = () => {
     try {
       await marketingAPI.deleteOrganizationPlant(parseInt(id), plantId);
       showToast('Plant removed', 'success');
-      setPlants(prev => prev.filter(p => p.id !== plantId));
+      dispatch(removeOrganizationPlant({ organizationId: parseInt(id), plantId }));
       if (editingPlantId === plantId) {
         setEditingPlantId(null);
         setEditingPlantForm({});
@@ -465,7 +501,7 @@ export const OrganizationFormPage: React.FC = () => {
               ))}
             </ul>
             {showAddPlant && (
-              <form onSubmit={handleAddPlant} className="mt-4 p-4 bg-slate-50 rounded-lg space-y-3">
+              <div className="mt-4 p-4 bg-slate-50 rounded-lg space-y-3">
                 <Input
                   label="Plant name"
                   value={plantForm.plant_name || ''}
@@ -497,10 +533,12 @@ export const OrganizationFormPage: React.FC = () => {
                   onChange={(e) => setPlantForm({ ...plantForm, postal_code: e.target.value })}
                 />
                 <div className="flex gap-2">
-                  <Button type="submit" size="sm">Add Plant</Button>
+                  <Button type="button" size="sm" onClick={() => handleAddPlant()}>
+                    Add Plant
+                  </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => setShowAddPlant(false)}>Cancel</Button>
                 </div>
-              </form>
+              </div>
             )}
           </div>
         )}

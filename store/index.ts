@@ -3,11 +3,13 @@
  */
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
+import organizationPlantsReducer from './slices/organizationPlantsSlice';
 import { authMiddleware } from './middleware';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
+    organizationPlants: organizationPlantsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

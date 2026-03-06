@@ -242,6 +242,8 @@ export interface Lead {
   closed_at?: string | null;
   series_code?: string;
   series?: string;
+  quote_series_code?: string | null;
+  quote_number?: string | null;
   next_follow_up_at?: string | null;
   follow_up_reminder_type?: string | null;
   assigned_to_employee_id?: number;
@@ -335,6 +337,8 @@ export interface CreateLeadRequest {
   potential_value?: number;
   notes?: string;
   series_code?: string;
+  quote_series_code?: string;
+  quote_number?: string;
   assigned_to_employee_id?: number;
   referred_by_employee_id?: number | null;  // When lead_through is colleague: employee who referred the lead
   expected_closing_date?: string;
@@ -346,6 +350,10 @@ export interface UpdateLeadRequest extends Partial<CreateLeadRequest> {
   series?: string;
   /** Required (min 100 chars) when moving lead to Lost status. Stored in enquiry log. */
   status_change_reason?: string;
+  /** Competitor name (lost to whom); use "Not sure" if unknown. */
+  lost_to_competitor?: string;
+  /** Price at which lost; use "Not sure" if unknown. */
+  lost_at_price?: string;
 }
 
 /** Lead display name from contact or customer (person/company data lives there). */
@@ -729,6 +737,11 @@ class MarketingAPIService {
 
   async updateLead(id: number, data: UpdateLeadRequest): Promise<Lead> {
     return apiClient.put<Lead>(`/api/leads/${id}`, data);
+  }
+
+  /** Update lead number series and assign next value (requires marketing.admin). */
+  async updateLeadSeries(leadId: number, data: { series_code: string }): Promise<Lead> {
+    return apiClient.patch<Lead>(`/api/leads/${leadId}/series`, data);
   }
 
   async deleteLead(id: number): Promise<void> {
@@ -1115,8 +1128,39 @@ class MarketingAPIService {
     return apiClient.get<Plant[]>(`/api/organizations/${organizationId}/plants`);
   }
 
+  /** Payload for creating a plant under an organization (only these fields are sent). */
+  buildCreatePlantPayload(data: Partial<Plant>): {
+    plant_name: string;
+    plant_code?: string;
+    address_line1?: string;
+    address_line2?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    postal_code?: string;
+    notes?: string;
+  } {
+    const name = (data.plant_name ?? '').toString().trim();
+    const out: ReturnType<typeof marketingAPI.buildCreatePlantPayload> = {
+      plant_name: name,
+    };
+    if (data.plant_code != null && String(data.plant_code).trim()) out.plant_code = String(data.plant_code).trim();
+    if (data.address_line1 != null && String(data.address_line1).trim()) out.address_line1 = String(data.address_line1).trim();
+    if (data.address_line2 != null && String(data.address_line2).trim()) out.address_line2 = String(data.address_line2).trim();
+    if (data.city != null && String(data.city).trim()) out.city = String(data.city).trim();
+    if (data.state != null && String(data.state).trim()) out.state = String(data.state).trim();
+    if (data.country != null && String(data.country).trim()) out.country = String(data.country).trim();
+    if (data.postal_code != null && String(data.postal_code).trim()) out.postal_code = String(data.postal_code).trim();
+    if (data.notes != null && String(data.notes).trim()) out.notes = String(data.notes).trim();
+    return out;
+  }
+
   async createOrganizationPlant(organizationId: number, data: Partial<Plant>): Promise<Plant> {
-    return apiClient.post<Plant>(`/api/organizations/${organizationId}/plants`, data);
+    const payload = this.buildCreatePlantPayload(data);
+    if (!payload.plant_name) {
+      throw new Error('Plant name is required');
+    }
+    return apiClient.post<Plant>(`/api/organizations/${organizationId}/plants`, payload);
   }
 
   async updateOrganizationPlant(organizationId: number, plantId: number, data: Partial<Plant>): Promise<Plant> {
@@ -1351,6 +1395,41 @@ class MarketingAPIService {
     return apiClient.get<HeadDashboardSummaryResponse>('/api/dashboard/head-summary');
   }
 
+  // Saved dashboards (user-created; assignable; widgets with SQL or preset)
+  async getSavedDashboards(): Promise<SavedDashboardResponse[]> {
+    return apiClient.get<SavedDashboardResponse[]>('/api/saved-dashboards/');
+  }
+  async getSavedDashboard(id: number): Promise<SavedDashboardResponse> {
+    return apiClient.get<SavedDashboardResponse>(`/api/saved-dashboards/${id}`);
+  }
+  async createSavedDashboard(data: { name: string; description?: string; config?: { layout?: unknown[] } }): Promise<SavedDashboardResponse> {
+    return apiClient.post<SavedDashboardResponse>('/api/saved-dashboards/', data);
+  }
+  async updateSavedDashboard(id: number, data: { name?: string; description?: string; config?: { layout?: unknown[] } }): Promise<SavedDashboardResponse> {
+    return apiClient.patch<SavedDashboardResponse>(`/api/saved-dashboards/${id}`, data);
+  }
+  async deleteSavedDashboard(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/saved-dashboards/${id}`);
+  }
+  async getSavedDashboardAssignments(dashboardId: number): Promise<SavedDashboardAssignmentResponse[]> {
+    return apiClient.get<SavedDashboardAssignmentResponse[]>(`/api/saved-dashboards/${dashboardId}/assignments`);
+  }
+  async assignSavedDashboard(dashboardId: number, data: { assignee_employee_id: number; can_edit?: boolean }): Promise<SavedDashboardAssignmentResponse> {
+    return apiClient.post<SavedDashboardAssignmentResponse>(`/api/saved-dashboards/${dashboardId}/assignments`, data);
+  }
+  async deleteSavedDashboardAssignment(dashboardId: number, assignmentId: number): Promise<void> {
+    return apiClient.delete<void>(`/api/saved-dashboards/${dashboardId}/assignments/${assignmentId}`);
+  }
+  /** Execute widget data source (SQL or preset); returns { data, chart_type } for charts. */
+  async executeWidget(body: { chart_type: string; data_source: { kind: string; value?: string }; title?: string }): Promise<{ data: unknown[]; chart_type?: string }> {
+    return apiClient.post<{ data: unknown[]; chart_type?: string }>('/api/saved-dashboards/execute-widget', body);
+  }
+
+  /** Database schema (tables and columns) for Custom SQL widgets and ER reference. */
+  async getSchema(): Promise<SchemaResponse> {
+    return apiClient.get<SchemaResponse>('/api/schema');
+  }
+
   /** Set monthly target for an employee (admin/head in scope). Default 8 lacs if not set. */
   async setEmployeeTarget(employee_id: number, year: number, month: number, target_amount: number): Promise<{ ok: boolean }> {
     return apiClient.put<{ ok: boolean }>(
@@ -1550,6 +1629,51 @@ export interface HeadDashboardSummaryResponse {
   lost_count: number;
   year: number;
   month: number;
+}
+
+/** Saved dashboard (user-created; config.layout = widgets). */
+export interface SavedDashboardResponse {
+  id: number;
+  name: string;
+  description: string | null;
+  config: { layout?: unknown[] } | null;
+  domain_id: number | null;
+  created_by_employee_id: number;
+  created_by_username: string | null;
+  created_at: string;
+  updated_at: string;
+  can_edit: boolean;
+}
+
+/** Assignment of a saved dashboard to a user (employee). */
+export interface SavedDashboardAssignmentResponse {
+  id: number;
+  dashboard_id: number;
+  assignee_employee_id: number;
+  can_edit: boolean;
+  created_at: string;
+}
+
+export interface SchemaColumnInfo {
+  name: string;
+  type: string;
+  nullable: boolean;
+}
+
+export interface SchemaForeignKeyInfo {
+  constrained_columns: string[];
+  referred_table: string;
+  referred_columns: string[];
+}
+
+export interface SchemaTableInfo {
+  name: string;
+  columns: SchemaColumnInfo[];
+  foreign_keys: SchemaForeignKeyInfo[];
+}
+
+export interface SchemaResponse {
+  tables: SchemaTableInfo[];
 }
 
 export interface TaskItem {

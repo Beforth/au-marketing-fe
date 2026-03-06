@@ -21,7 +21,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
 }) => {
     return (
         <div
-            className={`mx-auto transition-all duration-300 max-w-[1400px] w-full animate-in fade-in ${className}`}
+            className={`w-full transition-all duration-300 animate-in fade-in ${className}`}
             style={{ gap: 'var(--ui-gap)', display: 'flex', flexDirection: 'column' }}
         >
             {breadcrumbs && breadcrumbs.length > 0 && (

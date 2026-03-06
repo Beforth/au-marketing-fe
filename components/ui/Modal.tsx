@@ -28,7 +28,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             <X size={18} />
           </button>
         </div>
-        <div className="p-6 overflow-visible">
+        <div className="p-6 max-h-[70vh] overflow-y-auto">
           {children}
         </div>
         {footer && (

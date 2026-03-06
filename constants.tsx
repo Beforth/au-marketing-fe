@@ -35,6 +35,9 @@ export const SIDEBAR_LINKS: NavItem[] = [
   { title: 'Numbering Series', icon: Hash, href: '/numbering-series', permission: 'marketing.admin' },
 ];
 
+/** localStorage key for the default lead number series (assign from Leads page "Number series" button). */
+export const DEFAULT_LEAD_SERIES_STORAGE_KEY = 'marketing_default_lead_series_code';
+
 export const SECONDARY_LINKS: NavItem[] = [
   { title: 'Settings', icon: Settings, href: '/settings' },
   { title: 'Support', icon: HelpCircle, href: '/support' },

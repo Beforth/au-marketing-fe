@@ -1,59 +1,84 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useId } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { StatCard } from '../components/ui/StatCard';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { PageLayout } from '../components/layout/PageLayout';
 import { marketingAPI } from '../lib/marketing-api';
 import { ApiError } from '../lib/api';
 import { StatItem } from '../types';
-import { Lead, DashboardTargetStats, ScopeTargetStats, ReportScopeResponse, TaskItem, HeadDashboardSummaryResponse, leadDisplayName, leadDisplayCompany } from '../lib/marketing-api';
+import { Lead, DashboardTargetStats, ScopeTargetStats, ReportScopeResponse, TaskItem, HeadDashboardSummaryResponse, leadDisplayName, leadDisplayCompany, SavedDashboardResponse } from '../lib/marketing-api';
 import { Modal } from '../components/ui/Modal';
 import { Download, Layout as LayoutIcon, Check, RefreshCw, Users, UserCircle, Quote, FileText, ShieldAlert, Target, Trophy, XCircle, ListTodo, CheckSquare, Square, Plus, MessageSquare, Upload, Trash2 } from 'lucide-react';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from '../constants';
 import { serializePhoneWithCountryCode } from '../lib/name-phone-utils';
-import { WidgetConfig, WidgetId } from '../types';
+import { WidgetConfig, WidgetId, DashboardWidgetType } from '../types';
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  AreaChart,
+  Area,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
 import {
   TargetAchievedBarChart,
   WonLostPieChart,
   LeadStatusPieChart,
   RegionBreakdownBarChart,
   InquiriesQuotationsBarChart,
+  HeatmapWidget,
+  CustomCodeWidget,
 } from '../components/ui/ChartsSection';
 
-const DEFAULT_LAYOUT: WidgetConfig[] = [
-  { id: 'leads-by-region', span: 2 },
-  { id: 'target-card', span: 2 },
-  { id: 'head-summary', span: 2 },
-  { id: 'target-achieved-chart', span: 1 },
-  { id: 'won-lost-chart', span: 1 },
-  { id: 'leads-by-status-chart', span: 1 },
-  { id: 'inquiries-quotations-chart', span: 1 },
-  { id: 'revenue-chart', span: 2 },
-  { id: 'goal-chart', span: 1 },
-  { id: 'activity-table', span: 2 },
-  { id: 'global-reach', span: 1 },
-];
+const CHART_COLORS = ['#4f46e5', '#6366f1', '#818cf8', '#059669', '#e11d48', '#f59e0b', '#94a3b8'];
 
-const ALL_WIDGET_IDS: WidgetId[] = DEFAULT_LAYOUT.map((c) => c.id);
-
-function mergeLayoutWithDefaults(saved: WidgetConfig[]): WidgetConfig[] {
-  const byId = new Map(saved.map((w) => [w.id, w]));
-  const result: WidgetConfig[] = [];
-  for (const def of DEFAULT_LAYOUT) {
-    result.push(byId.get(def.id) ?? { id: def.id, span: def.span });
-  }
-  for (const w of saved) {
-    if (!ALL_WIDGET_IDS.includes(w.id)) result.push(w);
-  }
-  return result;
+/** Migrate saved layout: ensure each widget has type (from id for legacy). */
+function migrateLayout(saved: WidgetConfig[]): WidgetConfig[] {
+  if (!Array.isArray(saved)) return [];
+  return saved.map((w) => ({
+    ...w,
+    id: w.id,
+    type: w.type ?? (w.id as DashboardWidgetType),
+    span: w.span ?? 1,
+  }));
 }
+
+const WIDGET_TYPE_OPTIONS: { value: DashboardWidgetType; label: string }[] = [
+  { value: 'target-card', label: 'Target (this month)' },
+  { value: 'leads-by-region', label: 'Leads by region' },
+  { value: 'head-summary', label: 'Head summary' },
+  { value: 'target-achieved-chart', label: 'Chart: Target vs achieved' },
+  { value: 'won-lost-chart', label: 'Chart: Won vs lost' },
+  { value: 'leads-by-status-chart', label: 'Chart: Leads by status' },
+  { value: 'inquiries-quotations-chart', label: 'Chart: Inquiries & quotations' },
+  { value: 'revenue-chart', label: 'Chart: Revenue / overview' },
+  { value: 'goal-chart', label: 'Activity / goal' },
+  { value: 'activity-table', label: 'Table: Recent leads' },
+  { value: 'global-reach', label: 'Quick links' },
+  { value: 'bar_chart', label: 'Bar chart' },
+  { value: 'pie_chart', label: 'Pie chart' },
+  { value: 'area_chart', label: 'Area chart' },
+  { value: 'heatmap', label: 'Heatmap' },
+  { value: 'table', label: 'Table' },
+  { value: 'custom_code', label: 'Custom / code' },
+  { value: 'custom_sql', label: 'Custom SQL chart' },
+  { value: 'stat', label: 'Stat card' },
+];
 
 // Same activity types as lead page Add log form (quotations, attachments, status change, etc.)
 const ACTIVITY_TYPE_OPTIONS: { value: string; label: string }[] = [
@@ -78,6 +103,197 @@ const ACTIVITY_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'order_loss_2', label: '2 - Order Loss' },
   { value: 'order_loss_3', label: '3 - Order Loss' },
 ];
+
+/** Fetches and displays result of execute-widget (SQL or preset). */
+function CustomSqlWidgetContent({
+  code,
+  chartType,
+  onError,
+}: {
+  code?: string;
+  chartType?: string;
+  onError: (msg: string) => void;
+}) {
+  const gradientId = useId();
+  const [data, setData] = useState<unknown[]>([]);
+  const [loading, setLoading] = useState(!!code);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!code?.trim()) {
+      setLoading(false);
+      setData([]);
+      setError(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    marketingAPI
+      .executeWidget({
+        chart_type: chartType || 'table',
+        data_source: { kind: 'sql', value: code.trim() },
+      })
+      .then((res) => {
+        setData(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch((e) => {
+        const msg = e?.message || 'Failed to run SQL';
+        setError(msg);
+        onError(msg);
+      })
+      .finally(() => setLoading(false));
+  }, [code, chartType, onError]);
+
+  if (!code?.trim()) {
+    return <p className="text-sm text-slate-500 p-4">Add SQL in edit mode (SELECT only). Save dashboard to backend to run.</p>;
+  }
+  if (loading) {
+    return (
+      <div className="p-4 flex items-center justify-center text-slate-500">
+        <RefreshCw size={20} className="animate-spin" />
+      </div>
+    );
+  }
+  if (error) {
+    return <p className="text-sm text-rose-600 p-4">{error}</p>;
+  }
+  if (data.length === 0) {
+    return <p className="text-sm text-slate-500 p-4">No rows returned.</p>;
+  }
+  const rows = data as Record<string, unknown>[];
+  const allKeys = Array.from(
+    rows.reduce((set, row) => {
+      Object.keys(row || {}).forEach((k) => set.add(k));
+      return set;
+    }, new Set<string>())
+  );
+  const keys = allKeys.length > 0 ? allKeys : Object.keys(rows[0] || {});
+
+  const isChart = chartType && chartType !== 'table' && ['bar', 'line', 'pie', 'heatmap'].includes(chartType);
+
+  if (isChart) {
+    const labelCandidates = ['label', 'name', 'category', 'x'];
+    const valueCandidates = ['value', 'count', 'total', 'y'];
+    const labelKey = keys.find((k) => labelCandidates.includes(k.toLowerCase())) ?? keys[0];
+    const valueKey = keys.find((k) => valueCandidates.includes(k.toLowerCase())) ?? keys.find((k) => k !== labelKey && (typeof rows[0]?.[k] === 'number' || typeof rows[0]?.[k] === 'string')) ?? keys[1] ?? keys[0];
+    const chartData = rows.map((row) => ({
+      name: String(row[labelKey] ?? '—').slice(0, 30),
+      value: Number(row[valueKey]) || 0,
+    })).filter((d) => d.value !== 0 || chartType === 'bar' || chartType === 'line');
+
+    if (chartType === 'heatmap') {
+      const rowKey = keys[0];
+      const colKey = keys[1];
+      const valKey = keys[2] ?? keys[1];
+      const rowVals = Array.from(new Set(rows.map((r) => String(r[rowKey] ?? ''))));
+      const colVals = Array.from(new Set(rows.map((r) => String(r[colKey] ?? ''))));
+      const matrix: number[][] = rowVals.map(() => colVals.map(() => 0));
+      rows.forEach((r) => {
+        const ri = rowVals.indexOf(String(r[rowKey] ?? ''));
+        const ci = colVals.indexOf(String(r[colKey] ?? ''));
+        if (ri >= 0 && ci >= 0) matrix[ri][ci] = Number(r[valKey]) || 0;
+      });
+      return (
+        <div className="h-[260px] w-full p-2">
+          <HeatmapWidget rows={rowVals} columns={colVals} data={matrix} />
+        </div>
+      );
+    }
+
+    if (chartData.length === 0) {
+      return <p className="text-sm text-slate-500 p-4">No data to chart (need label + value columns).</p>;
+    }
+
+    const commonChartProps = { margin: { top: 5, right: 10, left: -10, bottom: 5 } as const };
+
+    if (chartType === 'pie') {
+      const withColors = chartData.map((d, i) => ({ ...d, fill: CHART_COLORS[i % CHART_COLORS.length] }));
+      return (
+        <div className="h-[260px] w-full pt-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={withColors} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={2} label={({ name, value }) => `${name}: ${value}`}>
+                {withColors.map((_, i) => (
+                  <Cell key={i} fill={withColors[i].fill} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(v: number) => [v, '']} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    if (chartType === 'bar') {
+      return (
+        <div className="h-[260px] w-full pt-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} {...commonChartProps}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Tooltip formatter={(v: number) => [v, valueKey]} />
+              <Bar dataKey="value" name={valueKey} fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={28} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    if (chartType === 'line') {
+      return (
+        <div className="h-[260px] w-full pt-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} {...commonChartProps}>
+              <defs>
+                <linearGradient id={`customSqlArea-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Tooltip formatter={(v: number) => [v, valueKey]} />
+              <Area type="monotone" dataKey="value" name={valueKey} stroke="#4f46e5" fill={`url(#customSqlArea-${gradientId})`} strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+  }
+
+  const cellValue = (row: Record<string, unknown>, k: string) => {
+    const v = row[k];
+    if (v === null || v === undefined) return '—';
+    if (typeof v === 'string' && v.trim() === '') return '—';
+    return String(v);
+  };
+  return (
+    <div className="overflow-x-auto p-2">
+      <table className="w-full text-left text-xs border border-slate-200">
+        <thead>
+          <tr className="bg-slate-50 border-b border-slate-200">
+            {keys.map((k) => (
+              <th key={k} className="px-2 py-1.5 font-semibold text-slate-600">{k}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.slice(0, 100).map((row, i) => (
+            <tr key={i} className="border-b border-slate-100">
+              {keys.map((k) => (
+                <td key={k} className="px-2 py-1.5 text-slate-800">{cellValue(row || {}, k)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {data.length > 100 && <p className="text-xs text-slate-500 mt-1">Showing first 100 of {data.length} rows.</p>}
+    </div>
+  );
+}
 
 export const DashboardPage: React.FC = () => {
   const { showToast } = useApp();
@@ -127,14 +343,25 @@ export const DashboardPage: React.FC = () => {
     try {
       const saved = localStorage.getItem('dashboard-layout');
       const parsed = saved ? (JSON.parse(saved) as WidgetConfig[]) : [];
-      if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_LAYOUT;
-      return mergeLayoutWithDefaults(parsed);
+      return migrateLayout(parsed);
     } catch (e) {
-      return DEFAULT_LAYOUT;
+      return [];
     }
   });
 
+  const [savedDashboards, setSavedDashboards] = useState<SavedDashboardResponse[]>([]);
+  const [selectedDashboardId, setSelectedDashboardId] = useState<number | null>(null);
+  const [savedDashboardsLoading, setSavedDashboardsLoading] = useState(false);
+  const [showCreateDashboardModal, setShowCreateDashboardModal] = useState(false);
+  const [createDashboardName, setCreateDashboardName] = useState('');
+  const [createDashboardSubmitting, setCreateDashboardSubmitting] = useState(false);
+
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [showAddWidgetModal, setShowAddWidgetModal] = useState(false);
+  const [addWidgetType, setAddWidgetType] = useState<DashboardWidgetType>('target-card');
+  const [addWidgetTitle, setAddWidgetTitle] = useState('');
+  const [addWidgetCode, setAddWidgetCode] = useState('');
+  const [addWidgetChartType, setAddWidgetChartType] = useState<string>('table');
 
   const loadDashboard = useCallback(async () => {
     if (permissionDenied) {
@@ -243,8 +470,33 @@ export const DashboardPage: React.FC = () => {
   }, [permissionDenied, loading, reportScope, isHeadRole, loadTasks]);
 
   useEffect(() => {
-    localStorage.setItem('dashboard-layout', JSON.stringify(layout));
-  }, [layout]);
+    if (selectedDashboardId == null) {
+      localStorage.setItem('dashboard-layout', JSON.stringify(layout));
+    }
+  }, [layout, selectedDashboardId]);
+
+  useEffect(() => {
+    if (permissionDenied) return;
+    setSavedDashboardsLoading(true);
+    marketingAPI.getSavedDashboards()
+      .then(setSavedDashboards)
+      .catch(() => setSavedDashboards([]))
+      .finally(() => setSavedDashboardsLoading(false));
+  }, [permissionDenied]);
+
+  useEffect(() => {
+    if (selectedDashboardId == null) return;
+    const d = savedDashboards.find((x) => x.id === selectedDashboardId);
+    if (d?.config?.layout && Array.isArray(d.config.layout)) {
+      setLayout(migrateLayout(d.config.layout as WidgetConfig[]));
+    } else {
+      marketingAPI.getSavedDashboard(selectedDashboardId).then((res) => {
+        if (res.config?.layout && Array.isArray(res.config.layout)) {
+          setLayout(migrateLayout(res.config.layout as WidgetConfig[]));
+        }
+      }).catch(() => setSavedDashboards((prev) => prev.filter((x) => x.id !== selectedDashboardId)));
+    }
+  }, [selectedDashboardId]);
 
   useEffect(() => {
     if (selectedTask?.lead_id) {
@@ -263,7 +515,7 @@ export const DashboardPage: React.FC = () => {
     }
   }, [selectedTask?.lead_id]);
 
-  const toggleResize = (id: WidgetId) => {
+  const toggleResize = (id: string) => {
     setLayout(prev => prev.map(w => {
       if (w.id === id) {
         const nextSpan = (w.span % 3) + 1 as 1 | 2 | 3;
@@ -271,6 +523,28 @@ export const DashboardPage: React.FC = () => {
       }
       return w;
     }));
+  };
+
+  const removeWidget = (id: string) => {
+    setLayout(prev => prev.filter(w => w.id !== id));
+  };
+
+  const addWidget = () => {
+    const id = `widget-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const widget: WidgetConfig = {
+      id,
+      type: addWidgetType,
+      span: 1,
+      title: addWidgetTitle.trim() || undefined,
+      code: addWidgetType === 'custom_code' || addWidgetType === 'custom_sql' ? addWidgetCode.trim() || undefined : undefined,
+      chart_type: addWidgetType === 'custom_sql' ? (addWidgetChartType || 'table') : undefined,
+    };
+    setLayout(prev => [...prev, widget]);
+    setShowAddWidgetModal(false);
+    setAddWidgetTitle('');
+    setAddWidgetCode('');
+    setAddWidgetChartType('table');
+    setAddWidgetType('target-card');
   };
 
   const handleDragStart = (index: number) => {
@@ -291,7 +565,9 @@ export const DashboardPage: React.FC = () => {
   };
 
   const renderWidget = (config: WidgetConfig) => {
+    const widgetType = (config.type ?? config.id) as string;
     const commonProps = {
+      key: config.id,
       isDraggable: isEditMode,
       showHandle: isEditMode,
       onDragStart: () => handleDragStart(layout.indexOf(config)),
@@ -299,19 +575,29 @@ export const DashboardPage: React.FC = () => {
       onDrop: () => handleDrop(layout.indexOf(config)),
       onResize: () => toggleResize(config.id),
       className: `${config.span === 1 ? 'col-span-1' : config.span === 2 ? 'col-span-2' : 'col-span-3'} ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''}`,
+      headerAction: isEditMode ? (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); removeWidget(config.id); }}
+          className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+          aria-label="Remove widget"
+        >
+          <Trash2 size={14} />
+        </button>
+      ) : undefined,
     };
 
-    switch (config.id) {
+    switch (widgetType) {
       case 'leads-by-region':
         if (!isHeadRole || !headSummary?.region_breakdown.length) {
           return (
-            <Card key={config.id} {...commonProps} title="Leads by region" description="Total, won, lost per region">
+            <Card {...commonProps} title="Leads by region" description="Total, won, lost per region">
               <p className="text-sm text-slate-500 p-4">Available for domain head and admin.</p>
             </Card>
           );
         }
         return (
-          <Card key={config.id} {...commonProps} title="Leads by region" description="Total, won, lost per region">
+          <Card {...commonProps} title="Leads by region" description="Total, won, lost per region">
             <RegionBreakdownBarChart data={headSummary.region_breakdown} />
           </Card>
         );
@@ -319,7 +605,7 @@ export const DashboardPage: React.FC = () => {
         const s = scopeTargetStats ?? targetStats;
         if (s == null) {
           return (
-            <Card key={config.id} {...commonProps} title={`${scopeLabel} target this month`} description="Target and achieved in scope.">
+            <Card {...commonProps} title={`${scopeLabel} target this month`} description="Target and achieved in scope.">
               <p className="text-sm text-slate-500 p-4">No target data available.</p>
             </Card>
           );
@@ -372,13 +658,13 @@ export const DashboardPage: React.FC = () => {
       case 'head-summary':
         if (!isHeadRole) {
           return (
-            <Card key={config.id} {...commonProps} title="Head summary" description="Region-wise split and key metrics.">
+            <Card {...commonProps} title="Head summary" description="Region-wise split and key metrics.">
               <p className="text-sm text-slate-500 p-4">Available for domain head and admin.</p>
             </Card>
           );
         }
         return (
-          <Card key={config.id} {...commonProps} title="Head summary" description={headSummary ? `Region-wise split and key metrics for ${new Date(headSummary.year, headSummary.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.` : 'Region-wise split and key metrics.'}>
+          <Card {...commonProps} title="Head summary" description={headSummary ? `Region-wise split and key metrics for ${new Date(headSummary.year, headSummary.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.` : 'Region-wise split and key metrics.'}>
             {headSummaryLoading ? (
               <div className="p-6 flex items-center justify-center text-slate-500"><RefreshCw size={24} className="animate-spin" /></div>
             ) : headSummary ? (
@@ -450,13 +736,13 @@ export const DashboardPage: React.FC = () => {
         const s = scopeTargetStats ?? targetStats;
         if (s == null) {
           return (
-            <Card key={config.id} {...commonProps} title="Target vs achieved" description="Target and achieved this month.">
+            <Card {...commonProps} title="Target vs achieved" description="Target and achieved this month.">
               <p className="text-sm text-slate-500 p-4">No target data available.</p>
             </Card>
           );
         }
         return (
-          <Card key={config.id} {...commonProps} title="Target vs achieved" description={`${scopeLabel} — ${new Date(s.year, s.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}`}>
+          <Card {...commonProps} title="Target vs achieved" description={`${scopeLabel} — ${new Date(s.year, s.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}`}>
             <TargetAchievedBarChart target={s.monthly_target} achieved={s.achieved_this_month} year={s.year} month={s.month} />
           </Card>
         );
@@ -465,13 +751,13 @@ export const DashboardPage: React.FC = () => {
         const s = scopeTargetStats ?? targetStats;
         if (s == null) {
           return (
-            <Card key={config.id} {...commonProps} title="Won vs lost (this month)" description="Closed leads in scope.">
+            <Card {...commonProps} title="Won vs lost (this month)" description="Closed leads in scope.">
               <p className="text-sm text-slate-500 p-4">No data this month.</p>
             </Card>
           );
         }
         return (
-          <Card key={config.id} {...commonProps} title="Won vs lost (this month)" description="Closed leads in scope">
+          <Card {...commonProps} title="Won vs lost (this month)" description="Closed leads in scope">
             <WonLostPieChart won={s.won_leads_count_this_month} lost={s.lost_leads_count_this_month} />
           </Card>
         );
@@ -479,32 +765,32 @@ export const DashboardPage: React.FC = () => {
       case 'leads-by-status-chart':
         if (leadStatusCounts.length === 0) {
           return (
-            <Card key={config.id} {...commonProps} title="Leads by status" description="From recent leads in scope.">
+            <Card {...commonProps} title="Leads by status" description="From recent leads in scope.">
               <p className="text-sm text-slate-500 p-4">No lead status data yet.</p>
             </Card>
           );
         }
         return (
-          <Card key={config.id} {...commonProps} title="Leads by status" description="From recent leads in scope">
+          <Card {...commonProps} title="Leads by status" description="From recent leads in scope">
             <LeadStatusPieChart data={leadStatusCounts} />
           </Card>
         );
       case 'inquiries-quotations-chart':
         if (reportSummary == null || !canViewReport) {
           return (
-            <Card key={config.id} {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`}>
+            <Card {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`}>
               <p className="text-sm text-slate-500 p-4">No report data or permission.</p>
             </Card>
           );
         }
         return (
-          <Card key={config.id} {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`}>
+          <Card {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`}>
             <InquiriesQuotationsBarChart inquiries={reportSummary.inquiries_count} quotations={reportSummary.quotations_sent_count} />
           </Card>
         );
       case 'revenue-chart':
         return (
-          <Card key={config.id} {...commonProps} title={`${scopeLabel} leads overview`} description={`Total leads and activity in scope.`}>
+          <Card {...commonProps} title={`${scopeLabel} leads overview`} description={`Total leads and activity in scope.`}>
             <div className="p-4 space-y-4">
               {reportSummary != null && (
                 <div className="grid grid-cols-2 gap-3 text-sm">
@@ -534,7 +820,7 @@ export const DashboardPage: React.FC = () => {
         );
       case 'goal-chart':
         return (
-          <Card key={config.id} {...commonProps} title={`${scopeLabel} activity`} description={`Inquiries and quotations in scope.`}>
+          <Card {...commonProps} title={`${scopeLabel} activity`} description={`Inquiries and quotations in scope.`}>
             <div className="p-4 space-y-4">
               {reportSummary != null ? (
                 <>
@@ -558,7 +844,7 @@ export const DashboardPage: React.FC = () => {
         );
       case 'activity-table':
         return (
-          <Card key={config.id} {...commonProps} title={scopeLabel === 'My' ? 'Recent leads' : `Recent leads (${scopeLabel})`} description="Latest leads in scope (click to edit)." noPadding maxHeight="none">
+          <Card {...commonProps} title={scopeLabel === 'My' ? 'Recent leads' : `Recent leads (${scopeLabel})`} description="Latest leads in scope (click to edit)." noPadding maxHeight="none">
             <div className="overflow-x-auto">
               {recentLeads.length === 0 ? (
                 <div className="p-8 text-center text-slate-500 text-sm">No leads yet.</div>
@@ -599,8 +885,9 @@ export const DashboardPage: React.FC = () => {
           </Card>
         );
       case 'global-reach':
+      case 'quick_links':
         return (
-          <Card key={config.id} {...commonProps} title="Quick links" description="Marketing module.">
+          <Card {...commonProps} title={config.title || 'Quick links'} description="Marketing module.">
             <div className="p-4 space-y-2">
               <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => navigate('/leads')} leftIcon={<Users size={14} />}>
                 Leads
@@ -622,6 +909,97 @@ export const DashboardPage: React.FC = () => {
             </div>
           </Card>
         );
+      case 'heatmap':
+        return (
+          <Card {...commonProps} title={config.title || 'Heatmap'} description="Matrix view">
+            <HeatmapWidget title={config.title} />
+          </Card>
+        );
+      case 'custom_code':
+        return (
+          <Card {...commonProps} title={config.title || 'Custom / code'} description="Your code or notes">
+            <CustomCodeWidget code={config.code} title={config.title} />
+          </Card>
+        );
+      case 'stat':
+        return (
+          <Card {...commonProps} title={config.title || 'Stat'} description="Summary metric">
+            <div className="p-4 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-indigo-50">
+                <Target size={20} className="text-indigo-600" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium">Metric</p>
+                <p className="text-2xl font-bold text-slate-900">{reportSummary?.leads_total ?? '—'}</p>
+              </div>
+            </div>
+          </Card>
+        );
+      case 'bar_chart':
+        return (
+          <Card {...commonProps} title={config.title || 'Bar chart'} description="Chart">
+            {reportSummary != null ? (
+              <InquiriesQuotationsBarChart inquiries={reportSummary.inquiries_count} quotations={reportSummary.quotations_sent_count} />
+            ) : (
+              <div className="h-[220px] flex items-center justify-center text-slate-500 text-sm p-4">No data. Add report permission or data.</div>
+            )}
+          </Card>
+        );
+      case 'pie_chart':
+        return (
+          <Card {...commonProps} title={config.title || 'Pie chart'} description="Distribution">
+            {leadStatusCounts.length > 0 ? (
+              <LeadStatusPieChart data={leadStatusCounts} />
+            ) : (
+              <div className="h-[220px] flex items-center justify-center text-slate-500 text-sm p-4">No lead status data yet.</div>
+            )}
+          </Card>
+        );
+      case 'area_chart':
+        return (
+          <Card {...commonProps} title={config.title || 'Area chart'} description="Trend">
+            <div className="h-[220px] flex items-center justify-center text-slate-500 text-sm p-4">Area chart placeholder. Connect data source to customize.</div>
+          </Card>
+        );
+      case 'table':
+        return (
+          <Card {...commonProps} title={config.title || 'Table'} description="Data table" noPadding>
+            <div className="overflow-x-auto">
+              {recentLeads.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 text-sm">No leads yet.</div>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/50">
+                      <th className="px-4 py-2 font-semibold text-slate-600">Name</th>
+                      <th className="px-4 py-2 font-semibold text-slate-600">Company</th>
+                      <th className="px-4 py-2 font-semibold text-slate-600">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentLeads.slice(0, 5).map((lead) => (
+                      <tr key={lead.id} className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/leads/${lead.id}/edit`)}>
+                        <td className="px-4 py-2 font-medium text-slate-900">{leadDisplayName(lead)}</td>
+                        <td className="px-4 py-2 text-slate-600">{leadDisplayCompany(lead) || '—'}</td>
+                        <td className="px-4 py-2 text-slate-600">{lead.status_option?.label ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </Card>
+        );
+      case 'custom_sql':
+        return (
+          <Card {...commonProps} title={config.title || 'Custom SQL'} description="Run your SQL (SELECT only); data from backend.">
+            <CustomSqlWidgetContent
+              code={config.code}
+              chartType={config.chart_type || 'table'}
+              onError={(msg) => showToast(msg, 'error')}
+            />
+          </Card>
+        );
       default:
         return null;
     }
@@ -635,18 +1013,46 @@ export const DashboardPage: React.FC = () => {
     }, 500);
   };
 
+  const handleSaveLayout = async () => {
+    if (selectedDashboardId != null) {
+      try {
+        await marketingAPI.updateSavedDashboard(selectedDashboardId, { config: { layout } });
+        showToast('Dashboard saved to backend', 'success');
+      } catch (e: unknown) {
+        showToast(e instanceof Error ? e.message : 'Failed to save dashboard', 'error');
+        return;
+      }
+    } else {
+      showToast('Dashboard layout saved (local)', 'success');
+    }
+    setIsEditMode(false);
+  };
+
   const actions = (
     <>
+      <Select
+        className="min-w-[180px]"
+        placeholder="Dashboard"
+        value={selectedDashboardId != null ? String(selectedDashboardId) : ''}
+        onChange={(v) => setSelectedDashboardId(v ? parseInt(String(v), 10) : null)}
+        options={[
+          { value: '', label: 'Local (this device)' },
+          ...savedDashboards.map((d) => ({ value: String(d.id), label: d.name })),
+        ]}
+      />
+      <Button variant="outline" size="sm" onClick={() => setShowCreateDashboardModal(true)}>
+        Save as new
+      </Button>
       <Button variant="outline" size="sm" onClick={loadDashboard} disabled={loading || permissionDenied} leftIcon={<RefreshCw size={14} className={loading ? 'animate-spin' : ''} />}>
         Refresh
       </Button>
       <Button
         variant={isEditMode ? 'primary' : 'outline'}
         size="sm"
-        title="Drag to reorder all dashboard cards (Leads by region, Target, Head summary, Charts, and more)"
+        title="Drag to reorder; save to backend when a saved dashboard is selected"
         onClick={() => {
-          setIsEditMode(!isEditMode);
-          if (isEditMode) showToast('Dashboard layout saved', 'success');
+          if (isEditMode) handleSaveLayout();
+          else setIsEditMode(true);
         }}
         leftIcon={isEditMode ? <Check size={14} /> : <LayoutIcon size={14} />}
       >
@@ -694,22 +1100,40 @@ export const DashboardPage: React.FC = () => {
         <div className="flex gap-6">
           {/* Main content - left */}
           <div className="flex-1 min-w-0">
-          {/* Stat cards: Total Leads, Contacts, Customers, Quotations — fixed at top */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6" style={{ gap: 'var(--ui-gap)' }}>
-            {stats.map((stat) => (
-              <StatCard key={stat.label} stat={stat} />
-            ))}
-          </div>
-
-          {/* All dashboard widgets — reorder via "Customize widget order" */}
-          <div className="mt-6">
-            <h2 className="text-lg font-semibold text-slate-800 mb-3">
-              Dashboard
-              {isEditMode && <span className="ml-2 text-xs font-normal text-slate-500">— drag to reorder cards</span>}
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-3 transition-all duration-300" style={{ gap: 'var(--ui-gap)' }}>
-              {layout.map(config => renderWidget(config))}
+          {/* Dashboard: empty by default; add widgets and reorder via "Customize widget order" */}
+          <div className="mt-2">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h2 className="text-lg font-semibold text-slate-800">
+                Dashboard
+                {isEditMode && <span className="ml-2 text-xs font-normal text-slate-500">— drag to reorder, click ✕ to remove</span>}
+              </h2>
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Plus size={14} />}
+                onClick={() => setShowAddWidgetModal(true)}
+              >
+                Add widget
+              </Button>
             </div>
+            {layout.length === 0 ? (
+              <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-12 text-center">
+                <LayoutIcon className="mx-auto h-12 w-12 text-slate-300 mb-4" />
+                <h3 className="text-base font-semibold text-slate-700 mb-1">No widgets yet</h3>
+                <p className="text-sm text-slate-500 mb-4 max-w-sm mx-auto">Add cards, graphs, heatmaps, tables, or custom code. Your layout is saved and you can reorder anytime.</p>
+                <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => setShowAddWidgetModal(true)}>
+                  Add widget
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 transition-all duration-300" style={{ gap: 'var(--ui-gap)' }}>
+                {layout.map((config) => (
+                  <div key={config.id} className="contents">
+                    {renderWidget(config)}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Today's tasks - visible on small/medium (below content); hidden for admin/domain head */}
@@ -1031,6 +1455,140 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
           </Modal>
+          )}
+
+          {/* Create saved dashboard modal */}
+          {showCreateDashboardModal && (
+            <Modal
+              isOpen
+              onClose={() => { setShowCreateDashboardModal(false); setCreateDashboardName(''); }}
+              title="Save as new dashboard"
+            >
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600">Save the current layout and widgets to the backend. You can then assign this dashboard to users (requires marketing.assign_dashboard in HRMS).</p>
+                <Input
+                  label="Dashboard name"
+                  value={createDashboardName}
+                  onChange={(e) => setCreateDashboardName(e.target.value)}
+                  placeholder="e.g. Sales overview"
+                />
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" size="sm" onClick={() => { setShowCreateDashboardModal(false); setCreateDashboardName(''); }}>Cancel</Button>
+                  <Button
+                    size="sm"
+                    disabled={!createDashboardName.trim() || createDashboardSubmitting}
+                    onClick={async () => {
+                      if (!createDashboardName.trim()) return;
+                      setCreateDashboardSubmitting(true);
+                      try {
+                        const created = await marketingAPI.createSavedDashboard({
+                          name: createDashboardName.trim(),
+                          config: { layout },
+                        });
+                        setSavedDashboards((prev) => [created, ...prev]);
+                        setSelectedDashboardId(created.id);
+                        setShowCreateDashboardModal(false);
+                        setCreateDashboardName('');
+                        showToast('Dashboard created. You can assign it to users from HRMS permissions (marketing.assign_dashboard).');
+                      } catch (e: unknown) {
+                        showToast(e instanceof Error ? e.message : 'Failed to create dashboard', 'error');
+                      } finally {
+                        setCreateDashboardSubmitting(false);
+                      }
+                    }}
+                  >
+                    {createDashboardSubmitting ? 'Creating...' : 'Create'}
+                  </Button>
+                </div>
+              </div>
+            </Modal>
+          )}
+
+          {/* Add widget modal */}
+          {showAddWidgetModal && (
+            <Modal
+              isOpen
+              onClose={() => { setShowAddWidgetModal(false); setAddWidgetTitle(''); setAddWidgetCode(''); setAddWidgetChartType('table'); setAddWidgetType('target-card'); }}
+              title="Add widget"
+            >
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Widget type</label>
+                  <Select
+                    value={addWidgetType}
+                    onChange={(v) => {
+                      const newType = (v ?? 'target-card') as DashboardWidgetType;
+                      setAddWidgetType(newType);
+                      if (newType === 'custom_sql' && !addWidgetCode.trim()) {
+                        setAddWidgetCode('SELECT column1, column2 FROM table_name LIMIT 100');
+                      }
+                    }}
+                    options={WIDGET_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                    placeholder="Select type"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Title (optional)</label>
+                  <Input
+                    value={addWidgetTitle}
+                    onChange={(e) => setAddWidgetTitle(e.target.value)}
+                    placeholder="e.g. My chart"
+                  />
+                </div>
+                {(addWidgetType === 'custom_code' || addWidgetType === 'custom_sql') && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      {addWidgetType === 'custom_sql' ? 'SQL (SELECT only)' : 'Code / notes'}
+                    </label>
+                    {addWidgetType === 'custom_sql' && (
+                      <>
+                        <p className="text-xs text-slate-500 mb-1">
+                          <Link to="/schema" className="text-indigo-600 hover:underline">View tables &amp; columns (ER diagram)</Link>
+                        </p>
+                        <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3 mb-2">
+                          <p className="font-medium text-slate-700 mb-1">How to create a SQL widget</p>
+                          <ol className="list-decimal list-inside space-y-0.5">
+                            <li>Choose <strong>Custom SQL chart</strong> as widget type.</li>
+                            <li>Optionally set a <strong>Title</strong> for the card.</li>
+                            <li>Write a <strong>SELECT</strong> query below (only SELECT is allowed; no INSERT/UPDATE/DELETE).</li>
+                            <li>Use <Link to="/schema" className="text-indigo-600 hover:underline">Schema / ER diagram</Link> to see table and column names.</li>
+                            <li>Pick <strong>Chart / display</strong> (Table, Bar, Line, Pie, or Heatmap).</li>
+                            <li>Click <strong>Add widget</strong>. Data is loaded from the backend when the dashboard is viewed.</li>
+                          </ol>
+                          <p className="mt-1.5 text-slate-500">Example: <code className="bg-slate-200 px-1 rounded">SELECT id, series FROM leads LIMIT 100</code></p>
+                        </div>
+                      </>
+                    )}
+                    <textarea
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono min-h-[100px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={addWidgetCode}
+                      onChange={(e) => setAddWidgetCode(e.target.value)}
+                      placeholder={addWidgetType === 'custom_sql' ? 'e.g. SELECT id, series FROM leads LIMIT 100' : 'Paste code or notes to display in the widget...'}
+                    />
+                  </div>
+                )}
+                {addWidgetType === 'custom_sql' && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Chart / display</label>
+                    <Select
+                      value={addWidgetChartType}
+                      onChange={(v) => setAddWidgetChartType(String(v ?? 'table'))}
+                      options={[
+                        { value: 'table', label: 'Table' },
+                        { value: 'bar', label: 'Bar chart' },
+                        { value: 'line', label: 'Line chart' },
+                        { value: 'pie', label: 'Pie chart' },
+                        { value: 'heatmap', label: 'Heatmap' },
+                      ]}
+                    />
+                  </div>
+                )}
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" size="sm" onClick={() => { setShowAddWidgetModal(false); setAddWidgetTitle(''); setAddWidgetCode(''); setAddWidgetChartType('table'); }}>Cancel</Button>
+                  <Button size="sm" onClick={addWidget}>Add widget</Button>
+                </div>
+              </div>
+            </Modal>
           )}
         </>
       )}

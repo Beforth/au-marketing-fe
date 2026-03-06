@@ -8,6 +8,7 @@ import { useAppDispatch, useAppSelector } from './store/hooks';
 import { loadAuthFromStorage, selectToken } from './store/slices/authSlice';
 import { marketingAPI } from './lib/marketing-api';
 import { initWebPushRegistration } from './lib/firebase-push';
+import { requestNotificationPermissionWhenLoggedIn } from './lib/notification-permission';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LeadsPage } from './pages/LeadsPage';
@@ -34,6 +35,7 @@ import { ODPlanPage } from './pages/ODPlanPage';
 import { InvoicesPage } from './pages/InvoicesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SupportPage } from './pages/SupportPage';
+import { SchemaPage } from './pages/SchemaPage';
 import { ToastType } from './components/ui/Toast';
 
 const NumberingSeriesPage = lazy(() => import('./pages/NumberingSeriesPage').then(m => ({ default: m.NumberingSeriesPage })));
@@ -60,10 +62,29 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+/** Default no-op context so useApp() does not throw when used outside provider (e.g. wrong tree order). */
+const defaultAppContext: AppContextType = {
+  showToast: () => {},
+  globalSearch: '',
+  setGlobalSearch: () => {},
+  notifications: [],
+  setNotifications: () => {},
+  unreadCount: 0,
+  markAsRead: () => {},
+  markAllAsRead: () => {},
+  loadNotifications: async () => {},
+  toast: null,
+  onCloseToast: () => {},
+  simulateDemo: () => {},
+  clearDemo: () => {},
+  isDemoActive: false,
+  orders: [],
+  customers: [],
+};
+
 export const useApp = () => {
   const context = useContext(AppContext);
-  if (!context) throw new Error('useApp must be used within AppProvider');
-  return context;
+  return context ?? defaultAppContext;
 };
 
 const INITIAL_NOTIFICATIONS: AppNotification[] = [
@@ -131,6 +152,7 @@ const AppMain: React.FC = () => {
 
   useEffect(() => {
     if (!token) return;
+    requestNotificationPermissionWhenLoggedIn();
     initWebPushRegistration().catch(() => {});
   }, [token]);
 
@@ -250,6 +272,7 @@ const AppMain: React.FC = () => {
             <Route path="numbering-series" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
             <Route path="numbering-series/new" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
             <Route path="numbering-series/:id/edit" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
+            <Route path="schema" element={<SchemaPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

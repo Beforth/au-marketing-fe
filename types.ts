@@ -38,6 +38,7 @@ export interface AppNotification {
   lead_id?: number | null;
 }
 
+/** Legacy widget ids (for backward compat when loading saved layouts). */
 export type WidgetId =
   | 'leads-by-region'
   | 'target-card'
@@ -49,9 +50,39 @@ export type WidgetId =
   | 'revenue-chart'
   | 'goal-chart'
   | 'activity-table'
-  | 'global-reach';
+  | 'global-reach'
+  | string;
+
+/** Widget types you can add from "Add widget" (code = type identifier). */
+export type DashboardWidgetType =
+  | 'stat'
+  | 'bar_chart'
+  | 'pie_chart'
+  | 'area_chart'
+  | 'heatmap'
+  | 'table'
+  | 'custom_code'
+  | 'quick_links'
+  | 'leads-by-region'
+  | 'target-card'
+  | 'head-summary'
+  | 'target-achieved-chart'
+  | 'won-lost-chart'
+  | 'leads-by-status-chart'
+  | 'inquiries-quotations-chart'
+  | 'revenue-chart'
+  | 'goal-chart'
+  | 'activity-table'
+  | 'global-reach'
+  | 'custom_sql';
 
 export interface WidgetConfig {
-  id: WidgetId;
+  id: string;
+  type?: DashboardWidgetType;
   span: 1 | 2 | 3;
+  title?: string;
+  /** Optional code or config (e.g. for custom_code widget, or SQL for custom_sql). */
+  code?: string;
+  /** Chart type for custom_sql: line | bar | pie | heatmap | card | table | area */
+  chart_type?: string;
 }

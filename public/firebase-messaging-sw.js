@@ -23,6 +23,8 @@ importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-com
       const options = {
         body: payload?.notification?.body || '',
         data: payload?.data || {},
+        silent: false,
+        vibrate: [200, 100, 200],
       };
       self.registration.showNotification(title, options);
     });

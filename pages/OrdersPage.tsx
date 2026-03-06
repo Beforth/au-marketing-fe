@@ -303,7 +303,9 @@ export const OrdersPage: React.FC = () => {
   const handleOrderDragStart = (e: React.DragEvent, order: Order) => {
     if (!canEdit) return;
     didDragRef.current = false;
-    e.dataTransfer.setData('application/json', JSON.stringify({ orderId: order.id, currentStatusId: order.status_id ?? null }));
+    const payload = JSON.stringify({ orderId: order.id, currentStatusId: order.status_id ?? null });
+    e.dataTransfer.setData('application/json', payload);
+    e.dataTransfer.setData('text/plain', payload);
     e.dataTransfer.effectAllowed = 'move';
     setDraggedOrderId(order.id);
   };
@@ -325,6 +327,16 @@ export const OrdersPage: React.FC = () => {
     if (statusId == null) return false;
     const s = statuses.find((x) => x.id === statusId);
     if (!s) return false;
+    const text = `${s.code || ''} ${s.label || ''}`.toLowerCase();
+    return text.includes('lost');
+  };
+
+  /** True if order is in Won (final) or Lost status – these orders are not draggable. */
+  const isWonOrLostOrderStatus = (statusId: number | null): boolean => {
+    if (statusId == null) return false;
+    const s = statuses.find((x) => x.id === statusId);
+    if (!s) return false;
+    if (s.is_final) return true;
     const text = `${s.code || ''} ${s.label || ''}`.toLowerCase();
     return text.includes('lost');
   };
@@ -739,15 +751,21 @@ export const OrdersPage: React.FC = () => {
                           <span>No status</span>
                           <span className="text-xs opacity-80">({ordersByStatus[''].length})</span>
                         </div>
-                        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 space-y-2 scrollbar-hide">
+                        <div
+                          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 space-y-2 scrollbar-hide"
+                          onDragOver={(e) => handleColumnDragOver(e, 'none')}
+                          onDrop={(e) => handleColumnDrop(e, null)}
+                        >
                           {ordersByStatus[''].map((o) => (
                             <div
                               key={o.id}
-                              draggable={canEdit}
+                              draggable={canEdit && !isWonOrLostOrderStatus(o.status_id ?? null)}
                               onDragStart={(e) => handleOrderDragStart(e, o)}
                               onDragEnd={handleOrderDragEnd}
+                              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); handleColumnDragOver(e, 'none'); }}
+                              onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleColumnDrop(e, null); }}
                               onClick={() => canEdit && !didDragRef.current && navigate(`/orders/${o.id}`)}
-                              className={`rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-all hover:shadow-md cursor-pointer ${canEdit ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedOrderId === o.id ? 'opacity-50' : ''} ${updatingOrderId === o.id ? 'animate-pulse' : ''}`}
+                              className={`rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-all hover:shadow-md cursor-pointer ${canEdit && !isWonOrLostOrderStatus(o.status_id ?? null) ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedOrderId === o.id ? 'opacity-50' : ''} ${updatingOrderId === o.id ? 'animate-pulse' : ''}`}
                             >
                               <div className="flex items-start justify-between gap-1">
                                 <div className="font-medium text-indigo-600 text-sm truncate min-w-0">{o.series || `#${o.id}`}</div>
@@ -859,15 +877,21 @@ export const OrdersPage: React.FC = () => {
                               <span>{status.label}</span>
                               <span className="text-xs opacity-80">({columnOrders.length})</span>
                             </div>
-                            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 space-y-2 scrollbar-hide">
+                            <div
+                              className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 space-y-2 scrollbar-hide"
+                              onDragOver={(e) => handleColumnDragOver(e, status.id)}
+                              onDrop={(e) => handleColumnDrop(e, status.id)}
+                            >
                               {columnOrders.map((o) => (
                                 <div
                                   key={o.id}
-                                  draggable={canEdit}
+                                  draggable={canEdit && !isWonOrLostOrderStatus(o.status_id ?? null)}
                                   onDragStart={(e) => handleOrderDragStart(e, o)}
                                   onDragEnd={handleOrderDragEnd}
+                                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); handleColumnDragOver(e, status.id); }}
+                                  onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleColumnDrop(e, status.id); }}
                                   onClick={() => canEdit && !didDragRef.current && navigate(`/orders/${o.id}`)}
-                                  className={`rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-all hover:shadow-md cursor-pointer ${canEdit ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedOrderId === o.id ? 'opacity-50' : ''} ${updatingOrderId === o.id ? 'animate-pulse' : ''}`}
+                                  className={`rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-all hover:shadow-md cursor-pointer ${canEdit && !isWonOrLostOrderStatus(o.status_id ?? null) ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedOrderId === o.id ? 'opacity-50' : ''} ${updatingOrderId === o.id ? 'animate-pulse' : ''}`}
                                 >
                                   <div className="flex items-start justify-between gap-1">
                                     <div className="font-medium text-indigo-600 text-sm truncate min-w-0">{o.series || `#${o.id}`}</div>

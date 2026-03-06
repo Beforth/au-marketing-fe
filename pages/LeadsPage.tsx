@@ -10,7 +10,7 @@ import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { DataTable } from '../components/ui/DataTable';
-import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, List, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
+import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, List, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
@@ -18,7 +18,7 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadStatusGroup, LeadTypeOption, Domain, Region, Contact, Customer, Organization, Series, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
-import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from '../constants';
+import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, DEFAULT_LEAD_SERIES_STORAGE_KEY } from '../constants';
 import { serializeNameWithPrefix, serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import { Modal } from '../components/ui/Modal';
 
@@ -60,6 +60,7 @@ export const LeadsPage: React.FC = () => {
   const canCreate = useAppSelector(selectHasPermission('marketing.create_lead'));
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_lead'));
   const canDelete = useAppSelector(selectHasPermission('marketing.delete_lead'));
+  const canManageNumberSeries = useAppSelector(selectHasPermission('marketing.admin'));
   const viewParam = searchParams.get('view');
   const viewMode: ViewMode = viewParam === 'table' || viewParam === 'kanban' ? viewParam : 'kanban';
   const setViewMode = (mode: ViewMode) => {
@@ -103,6 +104,8 @@ export const LeadsPage: React.FC = () => {
   const [wonPoFile, setWonPoFile] = useState<File | null>(null);
   const [leadToMarkLost, setLeadToMarkLost] = useState<number | null>(null);
   const [markLostReason, setMarkLostReason] = useState('');
+  const [markLostCompetitor, setMarkLostCompetitor] = useState('');
+  const [markLostPrice, setMarkLostPrice] = useState('');
   const [markLostSubmitting, setMarkLostSubmitting] = useState(false);
   /** When user drags lead to another status: show enquiry popup to fill reason, then update status */
   const [statusChangePending, setStatusChangePending] = useState<{ leadId: number; currentStatusId: number | undefined; newStatusId: number } | null>(null);
@@ -141,14 +144,13 @@ export const LeadsPage: React.FC = () => {
     region_id: undefined as number | undefined,
     status_id: undefined as number | undefined,
     lead_type_id: undefined as number | undefined,
-    series_code: '' as string,
     notes: '',
   });
   const [createLeadDomains, setCreateLeadDomains] = useState<Domain[]>([]);
   const [createLeadRegions, setCreateLeadRegions] = useState<Region[]>([]);
   const [createLeadSubmitting, setCreateLeadSubmitting] = useState(false);
-  const [createLeadGeneratingQuote, setCreateLeadGeneratingQuote] = useState(false);
-  const [createLeadGeneratedSeries, setCreateLeadGeneratedSeries] = useState('');
+  const [showNumberSeriesModal, setShowNumberSeriesModal] = useState(false);
+  const [defaultLeadSeriesCode, setDefaultLeadSeriesCode] = useState('');
   const canCreateContact = useAppSelector(selectHasPermission('marketing.create_contact'));
   const canCreateOrg = useAppSelector(selectHasPermission('marketing.create_organization'));
   const [leadTypes, setLeadTypes] = useState<LeadTypeOption[]>([]);
@@ -263,7 +265,7 @@ export const LeadsPage: React.FC = () => {
     return map;
   }, [filteredLeads, leadStatuses]);
 
-  /** Board: groups in order; Won/Lost block only shown when includeWonLost filter is on */
+  /** Board: groups in order; Won/Lost block only shown when includeWonLost is on; otherwise that status group is hidden too */
   const statusGroupsForBoard = useMemo(() => {
     const activeStatuses = leadStatuses.filter((s) => s.is_active);
     const wonLostStatuses = activeStatuses.filter((s) => (s.is_final ?? false) || (s.is_lost ?? false));
@@ -310,6 +312,14 @@ export const LeadsPage: React.FC = () => {
     lead.next_follow_up_at != null && new Date(lead.next_follow_up_at) <= new Date();
 
   const leadColumns = [
+    {
+      key: 'series',
+      label: 'Lead No.',
+      sortable: true,
+      render: (lead: Lead) => (
+        <span className="text-slate-700 font-medium tabular-nums">{lead.series ?? '—'}</span>
+      ),
+    },
     {
       key: 'name',
       label: 'Name',
@@ -575,8 +585,18 @@ export const LeadsPage: React.FC = () => {
       setSavingStatus(false);
     }
   };
+  /** True if lead is in Won (final) or Lost status – these leads are not draggable. */
+  const isWonOrLostLead = (lead: Lead): boolean => {
+    const opt = lead.status_option;
+    if (!opt) return false;
+    return !!(opt.is_final || opt.is_lost);
+  };
+
   const handleLeadDragStart = (e: React.DragEvent, lead: Lead) => {
-    if (!canEdit) return;
+    if (!canEdit || isWonOrLostLead(lead)) {
+      e.preventDefault();
+      return;
+    }
     didDragRef.current = false;
     e.dataTransfer.setData('application/json', JSON.stringify({ leadId: lead.id, currentStatusId: lead.status_id }));
     e.dataTransfer.effectAllowed = 'move';
@@ -603,7 +623,6 @@ export const LeadsPage: React.FC = () => {
   const handleColumnDrop = async (e: React.DragEvent, newStatusId: number) => {
     e.preventDefault();
     e.stopPropagation();
-    didDragRef.current = true;
     setDragOverStatusId(null);
     const raw = e.dataTransfer.getData('application/json');
     if (!raw) return;
@@ -614,6 +633,13 @@ export const LeadsPage: React.FC = () => {
     } catch {
       return;
     }
+    // Do not allow moving leads that are already Won or Lost
+    const fromStatus = leadStatuses.find((s) => s.id === currentStatusId);
+    if (fromStatus && ((fromStatus.is_final ?? false) || (fromStatus.is_lost ?? false))) {
+      setDraggedLeadId(null);
+      return;
+    }
+    didDragRef.current = true;
     if (currentStatusId === newStatusId) return;
     if (newStatusIsWon(newStatusId)) {
       setPendingWonLeadId(leadId);
@@ -707,9 +733,9 @@ export const LeadsPage: React.FC = () => {
           l.id === leadId ? { ...l, series_code: statusChangeSeriesCode.trim(), series: generated } : l
         )
       );
-      showToast('Quote number generated', 'success');
+      showToast('Lead number generated', 'success');
     } catch (err: any) {
-      showToast(err?.message || 'Failed to generate quote number', 'error');
+      showToast(err?.message || 'Failed to generate lead number', 'error');
     } finally {
       setStatusChangeGeneratingQuote(false);
     }
@@ -808,6 +834,8 @@ export const LeadsPage: React.FC = () => {
       await marketingAPI.updateLead(leadToMarkLost, {
         status_id: lostStatusId ?? undefined,
         status_change_reason: markLostReason.trim(),
+        lost_to_competitor: markLostCompetitor.trim() || 'Not sure',
+        lost_at_price: markLostPrice.trim() || 'Not sure',
       } as UpdateLeadRequest);
       showToast('Lead marked as Lost', 'success');
       setLeads((prev) =>
@@ -819,6 +847,8 @@ export const LeadsPage: React.FC = () => {
       );
       setLeadToMarkLost(null);
       setMarkLostReason('');
+      setMarkLostCompetitor('');
+      setMarkLostPrice('');
     } catch (err: any) {
       showToast(err.message || 'Failed to update lead', 'error');
     } finally {
@@ -861,10 +891,8 @@ export const LeadsPage: React.FC = () => {
       region_id: undefined,
       status_id: undefined,
       lead_type_id: undefined,
-      series_code: '',
       notes: '',
     });
-    setCreateLeadGeneratedSeries('');
   };
 
   useEffect(() => {
@@ -1005,7 +1033,7 @@ export const LeadsPage: React.FC = () => {
         region_id: regionId,
         status_id: createLeadForm.status_id ?? createLeadModalStatusId ?? firstActiveStatusId,
         lead_type_id: createLeadForm.lead_type_id,
-        series_code: createLeadForm.series_code?.trim() || undefined,
+        series_code: (typeof window !== 'undefined' && (window.localStorage.getItem(DEFAULT_LEAD_SERIES_STORAGE_KEY) || '').trim()) || undefined,
         notes: createLeadForm.notes?.trim() || undefined,
       });
       showToast('Lead created', 'success');
@@ -1015,27 +1043,6 @@ export const LeadsPage: React.FC = () => {
       showToast(e?.message || 'Failed to create lead', 'error');
     } finally {
       setCreateLeadSubmitting(false);
-    }
-  };
-
-  const handleCreateLeadGenerateQuote = async () => {
-    const code = createLeadForm.series_code?.trim();
-    if (!code) return;
-    setCreateLeadGeneratingQuote(true);
-    try {
-      const companyContext = createLeadInlineOrgQuery.trim() || createLeadSearchName.trim() || undefined;
-      const res = await marketingAPI.generateNextSeriesNumberByCode(code, companyContext ? { lead_context: { company: companyContext } } : undefined);
-      const generated = res.generated_value?.trim() || '';
-      if (!generated) {
-        showToast('Failed to generate quote number', 'error');
-        return;
-      }
-      setCreateLeadGeneratedSeries(generated);
-      showToast('Quote number generated', 'success');
-    } catch (e: any) {
-      showToast(e?.message || 'Failed to generate quote number', 'error');
-    } finally {
-      setCreateLeadGeneratingQuote(false);
     }
   };
 
@@ -1121,6 +1128,19 @@ export const LeadsPage: React.FC = () => {
           >
             Manage lead types
           </Button>
+          {canManageNumberSeries && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setDefaultLeadSeriesCode((typeof window !== 'undefined' && (window.localStorage.getItem(DEFAULT_LEAD_SERIES_STORAGE_KEY) || '').trim()) || '');
+                setShowNumberSeriesModal(true);
+              }}
+              leftIcon={<Hash size={14} />}
+            >
+              Number series
+            </Button>
+          )}
         </>
       )}
       {canCreate && (
@@ -1499,19 +1519,28 @@ export const LeadsPage: React.FC = () => {
                                     )}
                                   </span>
                                 </div>
-                                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 space-y-2 scrollbar-hide">
-                                  {columnLeads.map((lead) => (
+                                <div
+                                  className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 space-y-2 scrollbar-hide"
+                                  onDragOver={(e) => handleColumnDragOver(e, status.id)}
+                                  onDrop={(e) => handleColumnDrop(e, status.id)}
+                                >
+                                  {columnLeads.map((lead) => {
+                                    const leadDraggable = canEdit && !isWonOrLostLead(lead);
+                                    return (
                                     <div
                                       key={lead.id}
-                                      draggable={canEdit}
+                                      draggable={leadDraggable}
                                       onDragStart={(e) => handleLeadDragStart(e, lead)}
                                       onDragEnd={handleLeadDragEnd}
                                       onClick={() => canEdit && !didDragRef.current && navigate(`/leads/${lead.id}/edit`)}
                                       className={`rounded-lg border p-3 shadow-sm transition-all hover:shadow-md ${isDueForFollowUp(lead)
                                         ? 'bg-amber-50 border-amber-300 hover:bg-amber-100/80'
                                         : 'bg-white border-slate-200 hover:shadow-md'
-                                        } ${canEdit ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedLeadId === lead.id ? 'opacity-50' : ''} ${updatingLeadId === lead.id ? 'animate-pulse' : ''}`}
+                                        } ${leadDraggable ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedLeadId === lead.id ? 'opacity-50' : ''} ${updatingLeadId === lead.id ? 'animate-pulse' : ''}`}
                                     >
+                                      {lead.series && (
+                                        <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mb-0.5">{lead.series}</div>
+                                      )}
                                       <div className="font-medium text-slate-900 text-sm truncate">
                                         {leadDisplayName(lead)}
                                       </div>
@@ -1569,7 +1598,7 @@ export const LeadsPage: React.FC = () => {
                                         )}
                                       </div>
                                     </div>
-                                  ))}
+                                  ); })}
                                 </div>
                               </div>
                             );
@@ -1637,18 +1666,43 @@ export const LeadsPage: React.FC = () => {
 
       <Modal
         isOpen={leadToMarkLost != null}
-        onClose={() => { setLeadToMarkLost(null); setMarkLostReason(''); }}
+        onClose={() => { setLeadToMarkLost(null); setMarkLostReason(''); setMarkLostCompetitor(''); setMarkLostPrice(''); }}
         title="Mark lead as Lost"
         footer={
           <div className="flex justify-end gap-2 w-full">
-            <Button variant="outline" size="sm" onClick={() => { setLeadToMarkLost(null); setMarkLostReason(''); }} disabled={markLostSubmitting}>Cancel</Button>
+            <Button variant="outline" size="sm" onClick={() => { setLeadToMarkLost(null); setMarkLostReason(''); setMarkLostCompetitor(''); setMarkLostPrice(''); }} disabled={markLostSubmitting}>Cancel</Button>
             <Button size="sm" variant="danger" onClick={handleMarkAsLostConfirm} disabled={markLostReason.trim().length < 100 || markLostSubmitting}>
               {markLostSubmitting ? 'Saving...' : 'Yes, mark as Lost'}
             </Button>
           </div>
         }
       >
-        <p className="text-sm text-slate-600 mb-3">Please provide a detailed reason for marking this lead as Lost (minimum 100 characters). The reason will be stored in the lead enquiry log.</p>
+        <p className="text-sm text-slate-600 mb-4">Please provide a detailed reason and the two options below. If you don't know competitor or price, use "Not sure".</p>
+
+        <label className="block text-sm font-medium text-slate-700 mb-1">Competitor name (lost to whom)*</label>
+        <div className="flex gap-2 mb-3">
+          <input
+            type="text"
+            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="e.g. ABC Corp or click Not sure"
+            value={markLostCompetitor}
+            onChange={(e) => setMarkLostCompetitor(e.target.value)}
+          />
+          <Button type="button" variant="outline" size="sm" onClick={() => setMarkLostCompetitor('Not sure')} className="shrink-0">Not sure</Button>
+        </div>
+
+        <label className="block text-sm font-medium text-slate-700 mb-1">Lost at (at which price)*</label>
+        <div className="flex gap-2 mb-4">
+          <input
+            type="text"
+            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="e.g. ₹50,000 or click Not sure"
+            value={markLostPrice}
+            onChange={(e) => setMarkLostPrice(e.target.value)}
+          />
+          <Button type="button" variant="outline" size="sm" onClick={() => setMarkLostPrice('Not sure')} className="shrink-0">Not sure</Button>
+        </div>
+
         <label className="block text-sm font-medium text-slate-700 mb-1">Reason why lost (required, min 100 characters)</label>
         <textarea
           className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[130px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -1709,8 +1763,8 @@ export const LeadsPage: React.FC = () => {
               </div>
               {leadHasNoQuoteNumber && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-3 space-y-2">
-                  <label className="block text-sm font-medium text-slate-700">Quote number not set</label>
-                  <p className="text-xs text-slate-600">Select a number series and generate a quote number (or use it directly for the first quotation).</p>
+                  <label className="block text-sm font-medium text-slate-700">Lead number not set</label>
+                  <p className="text-xs text-slate-600">Select a number series and generate the lead number. Quote numbers (for quotation documents) are separate and use their own series.</p>
                   <div className="flex flex-wrap items-end gap-2">
                     <div className="min-w-[180px]">
                       <Select
@@ -1730,13 +1784,13 @@ export const LeadsPage: React.FC = () => {
                       disabled={!statusChangeSeriesCode.trim() || statusChangeGeneratingQuote}
                       onClick={handleStatusChangeGenerateQuote}
                     >
-                      {statusChangeGeneratingQuote ? 'Generating…' : 'Generate quote number'}
+                      {statusChangeGeneratingQuote ? 'Generating…' : 'Generate lead number'}
                     </Button>
                   </div>
                 </div>
               )}
               {statusChangeLead?.series?.trim() && (
-                <p className="text-xs text-slate-600">Quote number: <strong>{statusChangeLead.series}</strong></p>
+                <p className="text-xs text-slate-600">Lead number: <strong>{statusChangeLead.series}</strong></p>
               )}
               <Input
                 label="Reason / title (optional)"
@@ -2083,37 +2137,7 @@ export const LeadsPage: React.FC = () => {
               placeholder="Status"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Quotation number series</label>
-            <Select
-              value={createLeadForm.series_code || ''}
-              onChange={(val) => {
-                setCreateLeadForm((f) => ({ ...f, series_code: (val ?? '') as string }));
-                setCreateLeadGeneratedSeries('');
-              }}
-              options={[
-                { value: '', label: '— None —' },
-                ...seriesList.map((s) => ({ value: String(s.code), label: `${s.name} (${s.code})` })),
-              ]}
-              placeholder="Select series"
-              searchable
-            />
-            <div className="mt-2 flex items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!createLeadForm.series_code?.trim() || createLeadGeneratingQuote}
-                onClick={handleCreateLeadGenerateQuote}
-              >
-                {createLeadGeneratingQuote ? 'Generating…' : 'Generate quote number'}
-              </Button>
-              {createLeadGeneratedSeries && (
-                <span className="text-xs text-slate-700">Quote number: <strong>{createLeadGeneratedSeries}</strong></span>
-              )}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Select series, then click Generate. Generated quote number will be saved on lead create.</p>
-          </div>
+          <p className="text-xs text-slate-500">Lead number uses the series assigned via the &quot;Number series&quot; button above, or the backend default.</p>
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700 ml-0.5">Notes</label>
             <textarea
@@ -2123,6 +2147,48 @@ export const LeadsPage: React.FC = () => {
               rows={2}
               className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]/10 focus:border-[var(--primary)]"
             />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={showNumberSeriesModal}
+        onClose={() => setShowNumberSeriesModal(false)}
+        title="Assign number series for new leads"
+        contentClassName="max-w-md"
+      >
+        <p className="text-sm text-slate-600 mb-3">Choose which number series to use when creating new leads. New leads will get their lead number from this series.</p>
+        <div className="space-y-3">
+          <Select
+            label="Lead number series"
+            options={[
+              { value: '', label: '— Use backend default (LEAD_SERIES_CODE) —' },
+              ...seriesList
+                .filter((s) => (s.entity_type ?? '').toLowerCase() === 'lead' || s.code === 'lead_number' || !s.entity_type)
+                .map((s) => ({ value: s.code ?? '', label: `${s.name} (${s.code})` })),
+            ]}
+            value={defaultLeadSeriesCode}
+            onChange={(val) => setDefaultLeadSeriesCode((val != null && val !== '') ? String(val) : '')}
+            placeholder="Select series"
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setShowNumberSeriesModal(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  if (defaultLeadSeriesCode.trim()) {
+                    window.localStorage.setItem(DEFAULT_LEAD_SERIES_STORAGE_KEY, defaultLeadSeriesCode.trim());
+                  } else {
+                    window.localStorage.removeItem(DEFAULT_LEAD_SERIES_STORAGE_KEY);
+                  }
+                }
+                setShowNumberSeriesModal(false);
+                showToast(defaultLeadSeriesCode.trim() ? `New leads will use series: ${defaultLeadSeriesCode.trim()}` : 'New leads will use backend default series.', 'success');
+              }}
+            >
+              Save
+            </Button>
           </div>
         </div>
       </Modal>
@@ -2286,7 +2352,7 @@ export const LeadsPage: React.FC = () => {
                   <th className="pb-2 pr-2">Lost</th>
                   <th className="pb-2 pr-2">Color</th>
                   <th className="pb-2 pr-2" title="Auto-set lead to this status when a quotation is added to any enquiry">When quotation added</th>
-                  <th className="pb-2 pr-2" title="Auto-set when quote number generated (Generate button) but no quotation file yet">When quote # only</th>
+                  <th className="pb-2 pr-2" title="Auto-set when lead number is generated (Generate lead number) but no quotation file yet">When lead # only</th>
                   <th className="pb-2" />
                 </tr>
               </thead>
@@ -2359,7 +2425,7 @@ export const LeadsPage: React.FC = () => {
                               </label>
                             </td>
                             <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm" title="Auto-set when quote number generated but no quotation file yet">
+                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm" title="Auto-set when lead number is generated but no quotation file yet">
                                 <input type="checkbox" checked={statusForm.set_when_quote_number_generated} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quote_number_generated: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
                                 <span>Yes</span>
                               </label>

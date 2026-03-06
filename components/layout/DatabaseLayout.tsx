@@ -30,7 +30,7 @@ export const DatabaseLayout: React.FC = () => {
   });
 
   return (
-    <div className="space-y-0 mx-auto max-w-[1400px] w-full">
+    <div className="space-y-0 w-full">
       {/* Header card: title + tabs — same width as PageLayout content below */}
       <div className="bg-white border border-slate-200/80 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden mb-6">
         <div className="px-6 pt-5 pb-0">

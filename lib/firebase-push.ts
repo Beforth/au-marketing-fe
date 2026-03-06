@@ -13,6 +13,32 @@ const firebaseVapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY as string | und
 
 let started = false;
 
+const NOTIFICATION_SOUND_URL = '/notifcation.mpeg';
+
+/** Play notification sound (foreground). Uses notifcation.mpeg from public folder. */
+function playNotificationSound(): void {
+  try {
+    const audio = new Audio(NOTIFICATION_SOUND_URL);
+    audio.volume = 0.7;
+    audio.play().catch(() => {
+      // Fallback: short beep if file fails (e.g. format not supported)
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.15);
+    });
+  } catch {
+    // Ignore if Audio not supported or autoplay blocked
+  }
+}
+
 function hasFirebaseConfig(): boolean {
   return Boolean(
     firebaseConfig.apiKey &&
@@ -63,13 +89,14 @@ export async function initWebPushRegistration(): Promise<void> {
     });
     if (!token) return;
 
-    // Foreground notifications: when app is open, show native notification too.
+    // Foreground notifications: when app is open, show native notification and play sound.
     onMessage(messaging, (payload) => {
       if (Notification.permission !== 'granted') return;
       const title = payload?.notification?.title || 'Notification';
       const body = payload?.notification?.body || '';
+      playNotificationSound();
       try {
-        new Notification(title, { body });
+        new Notification(title, { body, silent: false });
       } catch {
         // no-op
       }
