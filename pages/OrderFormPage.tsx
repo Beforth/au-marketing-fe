@@ -12,7 +12,7 @@ import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { marketingAPI, type Order, type OrderStatusOption, type OrderActivity, type Lead, type Series, leadDisplayName, leadDisplayCompany } from '../lib/marketing-api';
 import { Select } from '../components/ui/Select';
-import { ArrowLeft, History, Plus, Edit2, Trash2 } from 'lucide-react';
+import { ArrowLeft, History, Plus, Edit2, Trash2, Paperclip, Upload, Download } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Modal } from '../components/ui/Modal';
 
@@ -46,6 +46,7 @@ export const OrderFormPage: React.FC = () => {
     from_status_id: undefined as number | undefined,
     to_status_id: undefined as number | undefined,
   });
+  const [activityAttachmentEntries, setActivityAttachmentEntries] = useState<{ id: string; file: File | null; title: string }[]>(() => [{ id: crypto.randomUUID(), file: null, title: '' }]);
   const [activitySubmitting, setActivitySubmitting] = useState(false);
   const [deleteActivityId, setDeleteActivityId] = useState<number | null>(null);
   const [showDeleteOrderConfirm, setShowDeleteOrderConfirm] = useState(false);
@@ -163,6 +164,7 @@ export const OrderFormPage: React.FC = () => {
   const handleAddActivity = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orderId || !activityForm.title.trim()) return;
+    const toUpload = activityAttachmentEntries.filter((a) => a.file);
     setActivitySubmitting(true);
     try {
       const created = await marketingAPI.createOrderActivity(orderId, {
@@ -172,9 +174,14 @@ export const OrderFormPage: React.FC = () => {
         from_status_id: activityForm.from_status_id,
         to_status_id: activityForm.to_status_id,
       });
-      setActivities((prev) => [created, ...prev]);
+      if (toUpload.length > 0) {
+        await marketingAPI.uploadOrderActivityAttachments(orderId, created.id, toUpload.map((a) => a.file!));
+      }
+      const acts = await marketingAPI.getOrderActivities(orderId);
+      setActivities(acts);
       setActivityForm({ activity_type: 'note', title: '', description: '', from_status_id: undefined, to_status_id: undefined });
-      showToast('Inquiry added', 'success');
+      setActivityAttachmentEntries([{ id: crypto.randomUUID(), file: null, title: '' }]);
+      showToast('Inquiry added' + (toUpload.length > 0 ? ' with attachments' : ''), 'success');
     } catch (err: any) {
       showToast(err?.message || 'Failed to add inquiry', 'error');
     } finally {
@@ -263,20 +270,21 @@ export const OrderFormPage: React.FC = () => {
       </Button>
 
       <Card title="Order" className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div><span className="text-slate-500">Order No.</span><br /><span className="font-medium tabular-nums">{order.series || `#${order.id}`}</span></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+          <div><span className="text-slate-500 block">Order No.</span><span className="font-medium tabular-nums">{order.series || `#${order.id}`}</span></div>
           <div>
-            <span className="text-slate-500">From Lead</span><br />
+            <span className="text-slate-500 block">From Lead</span>
             {lead ? (
               <button type="button" className="text-indigo-600 hover:underline" onClick={() => navigate(`/leads/${lead.id}/edit`)}>
                 {lead.series || `#${lead.id}`} – {leadDisplayName(lead)}
               </button>
             ) : '—'}
           </div>
-          <div><span className="text-slate-500">Status</span><br />{order.status_option?.label ?? order.status ?? '—'}</div>
-          <div><span className="text-slate-500">Value</span><br />{order.order_value != null ? `₹${Number(order.order_value).toLocaleString()}` : '—'}</div>
-          <div><span className="text-slate-500">Expected delivery</span><br />{order.expected_delivery_at ? new Date(order.expected_delivery_at).toLocaleDateString() : '—'}</div>
-          <div><span className="text-slate-500">Notes</span><br />{order.notes || '—'}</div>
+          <div><span className="text-slate-500 block">Status</span>{order.status_option?.label ?? order.status ?? '—'}</div>
+          <div><span className="text-slate-500 block">Value</span>{order.order_value != null ? `₹${Number(order.order_value).toLocaleString()}` : '—'}</div>
+          <div><span className="text-slate-500 block">Expected delivery</span>{order.expected_delivery_at ? new Date(order.expected_delivery_at).toLocaleDateString() : '—'}</div>
+          <div><span className="text-slate-500 block">Inquiry log</span>{activities.length} entries{activities.some((x) => (x.attachments?.length ?? 0) > 0) ? ` · ${activities.filter((x) => (x.attachments?.length ?? 0) > 0).length} with attachments` : ''}</div>
+          <div className="md:col-span-2"><span className="text-slate-500 block">Notes</span>{order.notes || '—'}</div>
         </div>
         <div className="flex gap-2 mt-3">
           <Button variant="outline" size="sm" leftIcon={<Edit2 size={14} />} onClick={() => setShowEditModal(true)}>
@@ -291,36 +299,93 @@ export const OrderFormPage: React.FC = () => {
       </Card>
 
       <Card title="Inquiry log" className="mb-6">
-        <form onSubmit={handleAddActivity} className="flex flex-wrap gap-2 mb-4">
-          <input
-            type="text"
-            placeholder="Title"
-            className="rounded border border-slate-200 px-2 py-1.5 text-sm w-40"
-            value={activityForm.title}
-            onChange={(e) => setActivityForm((f) => ({ ...f, title: e.target.value }))}
-          />
-          <select
-            className="rounded border border-slate-200 px-2 py-1.5 text-sm w-28"
-            value={activityForm.activity_type}
-            onChange={(e) => setActivityForm((f) => ({ ...f, activity_type: e.target.value }))}
-          >
-            <option value="note">Note</option>
-            <option value="call">Call</option>
-            <option value="email">Email</option>
-            <option value="meeting">Meeting</option>
-            <option value="order_status_change">Status change</option>
-          </select>
-          <Input
-            placeholder="Description"
-            value={activityForm.description || ''}
-            onChange={(e) => setActivityForm((f) => ({ ...f, description: e.target.value }))}
-            containerClassName="w-48"
-          />
-          <Button type="submit" size="sm" isLoading={activitySubmitting} leftIcon={<Plus size={14} />}>Add</Button>
+        <form onSubmit={handleAddActivity} className="space-y-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+            <Input
+              label="Title"
+              placeholder="e.g. Customer call"
+              value={activityForm.title}
+              onChange={(e) => setActivityForm((f) => ({ ...f, title: e.target.value }))}
+            />
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+              <select
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white"
+                value={activityForm.activity_type}
+                onChange={(e) => setActivityForm((f) => ({ ...f, activity_type: e.target.value }))}
+              >
+                <option value="note">Note</option>
+                <option value="call">Call</option>
+                <option value="email">Email</option>
+                <option value="meeting">Meeting</option>
+                <option value="order_status_change">Status change</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <Input
+                label="Description"
+                placeholder="Details (optional)"
+                value={activityForm.description || ''}
+                onChange={(e) => setActivityForm((f) => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-500 mb-2 flex items-center gap-1">
+              <Paperclip size={12} /> Attachments (optional)
+            </p>
+            <div className="space-y-2">
+              {activityAttachmentEntries.map((row) => (
+                <div key={row.id} className="flex flex-wrap items-center gap-2">
+                  <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer shrink-0">
+                    <Upload size={14} />
+                    <span className="truncate max-w-[140px]">{row.file ? row.file.name : 'Choose file'}</span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        setActivityAttachmentEntries((prev) => prev.map((r) => (r.id === row.id ? { ...r, file: f ?? null } : r)));
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Title (optional)"
+                    className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm w-32"
+                    value={row.title}
+                    onChange={(e) => setActivityAttachmentEntries((prev) => prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r)))}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-slate-400 hover:text-rose-600"
+                    onClick={() => setActivityAttachmentEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                leftIcon={<Plus size={14} />}
+                onClick={() => setActivityAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), file: null, title: '' }])}
+              >
+                Add another file
+              </Button>
+            </div>
+          </div>
+          <Button type="submit" size="sm" isLoading={activitySubmitting} leftIcon={<Plus size={14} />}>
+            Add to log
+          </Button>
         </form>
         <ul className="space-y-3">
           {activities.length === 0 ? (
-            <li className="text-slate-500 text-sm">No inquiry log entries yet.</li>
+            <li className="text-slate-500 text-sm py-2">No inquiry log entries yet.</li>
           ) : (
             activities.map((a) => {
               const displayName = a.created_by_name || a.created_by_username || '—';
@@ -330,11 +395,12 @@ export const OrderFormPage: React.FC = () => {
                 a.created_by_email && `Email: ${a.created_by_email}`,
               ].filter(Boolean);
               const tooltip = tooltipParts.length > 0 ? tooltipParts.join('\n') : undefined;
+              const attachments = a.attachments ?? [];
               return (
-                <li key={a.id} className="border border-slate-100 rounded-lg p-3 text-sm">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="font-medium">{a.title}</span>
+                <li key={a.id} className="border border-slate-200 rounded-lg p-4 text-sm bg-white shadow-sm">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="min-w-0">
+                      <span className="font-medium text-slate-900">{a.title}</span>
                       <span className="text-slate-500 ml-2">#{a.inquiry_number ?? a.id}</span>
                       {a.from_status_name || a.to_status_name ? (
                         <span className="text-slate-500 ml-2">
@@ -342,16 +408,36 @@ export const OrderFormPage: React.FC = () => {
                         </span>
                       ) : null}
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => setDeleteActivityId(a.id)}><Trash2 size={14} /></Button>
+                    <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setDeleteActivityId(a.id)} title="Remove">
+                      <Trash2 size={14} />
+                    </Button>
                   </div>
-                  {a.description && <p className="text-slate-600 mt-1">{a.description}</p>}
-                  <p className="text-slate-400 text-xs mt-1">
+                  {a.description && <p className="text-slate-600 mt-2">{a.description}</p>}
+                  {attachments.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-slate-100">
+                      <p className="text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">
+                        <Paperclip size={12} /> Attachments
+                      </p>
+                      <ul className="flex flex-wrap gap-2">
+                        {attachments.map((att) => (
+                          <li key={att.id}>
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-800"
+                              onClick={() => orderId && marketingAPI.downloadOrderActivityAttachment(orderId, a.id, att.id, att.file_name)}
+                            >
+                              <Download size={12} />
+                              {att.title || att.file_name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <p className="text-slate-400 text-xs mt-2">
                     {new Date(a.activity_date).toLocaleString()}
                     {' · '}
-                    <span
-                      className="cursor-help border-b border-dotted border-slate-400"
-                      title={tooltip}
-                    >
+                    <span className="cursor-help border-b border-dotted border-slate-400" title={tooltip}>
                       {displayName}
                     </span>
                   </p>

@@ -93,6 +93,7 @@ export const LeadFormPage: React.FC = () => {
   });
   type AttachmentEntry = { id: string; kind: 'quotation' | 'attachment'; file: File | null; quotationNumber: string; title: string };
   const [attachmentEntries, setAttachmentEntries] = useState<AttachmentEntry[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
+  const [showAttachments, setShowAttachments] = useState(false);
   const [activitySubmitting, setActivitySubmitting] = useState(false);
   const [addAttachmentActivityId, setAddAttachmentActivityId] = useState<number | null>(null);
   const [addAttachmentRows, setAddAttachmentRows] = useState<{ id: string; kind: 'quotation' | 'attachment'; file: File | null; quotationNumber: string; title: string }[]>([]);
@@ -155,7 +156,7 @@ export const LeadFormPage: React.FC = () => {
   const [newOrgForm, setNewOrgForm] = useState<{ name: string; code: string; description: string; website: string; industry: string; organization_size: string }>({ name: '', code: '', description: '', website: '', industry: '', organization_size: '' });
   const [showAddPlantInContactModal, setShowAddPlantInContactModal] = useState(false);
   const [addingPlant, setAddingPlant] = useState(false);
-  const [newPlantForm, setNewPlantForm] = useState<{ plant_name: string; address_line1: string; city: string; country: string; postal_code: string }>({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+  const [newPlantForm, setNewPlantForm] = useState<{ plant_name: string; address_line1: string; address_line2: string; city: string; state: string; country: string; postal_code: string }>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentLead, setCurrentLead] = useState<Lead | null>(null);
   const [selectedContactForDisplay, setSelectedContactForDisplay] = useState<Contact | null>(null);
@@ -184,7 +185,7 @@ export const LeadFormPage: React.FC = () => {
   const [inlineNewOrgForm, setInlineNewOrgForm] = useState({ code: '', website: '', industry: '', organization_size: '' });
   const [creatingOrgInline, setCreatingOrgInline] = useState(false);
   const [showInlineNewPlant, setShowInlineNewPlant] = useState(false);
-  const [inlineNewPlantForm, setInlineNewPlantForm] = useState({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+  const [inlineNewPlantForm, setInlineNewPlantForm] = useState({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
   const [creatingPlantInline, setCreatingPlantInline] = useState(false);
   const [formData, setFormData] = useState<LeadFormData>({
     domain_id: undefined,
@@ -196,6 +197,7 @@ export const LeadFormPage: React.FC = () => {
     lead_type_id: undefined,
     lead_through_id: undefined,
     through_contact_id: undefined,
+    referred_by_customer_id: undefined,
     potential_value: undefined,
     notes: '',
     series_code: undefined,
@@ -204,7 +206,10 @@ export const LeadFormPage: React.FC = () => {
     referred_by_employee_id: undefined,
     expected_closing_date: '',
   });
-  // Through contact (when Follow type = Through contact): select existing or create inline
+  // Referred by (person name): type none | employee | customer | contact (independent of Lead through)
+  const [referredByType, setReferredByType] = useState<'none' | 'employee' | 'customer' | 'contact'>('none');
+  const [selectedReferredByCustomerForDisplay, setSelectedReferredByCustomerForDisplay] = useState<Customer | null>(null);
+  // Through contact (when referred-by type = contact): select existing or create inline
   const [throughContactSearchName, setThroughContactSearchName] = useState('');
   const [throughContactSearchResults, setThroughContactSearchResults] = useState<Contact[]>([]);
   const [throughContactSearchLoading, setThroughContactSearchLoading] = useState(false);
@@ -228,7 +233,7 @@ export const LeadFormPage: React.FC = () => {
   const [inlineThroughContactPlants, setInlineThroughContactPlants] = useState<Plant[]>([]);
   const [inlineThroughNewOrgForm, setInlineThroughNewOrgForm] = useState({ code: '', website: '', industry: '', organization_size: '' });
   const [showInlineThroughNewPlant, setShowInlineThroughNewPlant] = useState(false);
-  const [inlineThroughNewPlantForm, setInlineThroughNewPlantForm] = useState({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+  const [inlineThroughNewPlantForm, setInlineThroughNewPlantForm] = useState({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
   const [creatingThroughOrgInline, setCreatingThroughOrgInline] = useState(false);
   const [creatingThroughPlantInline, setCreatingThroughPlantInline] = useState(false);
   const [seriesList, setSeriesList] = useState<Series[]>([]);
@@ -368,9 +373,9 @@ export const LeadFormPage: React.FC = () => {
   }, [inlineContactForm.first_name, inlineContactForm.last_name, isEdit, formData.contact_id, formData.customer_id, searchContactsAndCustomersByName]);
 
   // When Lead through = Through contact: search contacts for "at the contact" (referrer) by name
-  const throughContactSelectedForSearch = leadThroughOptions.find((t) => t.id === formData.lead_through_id)?.code === 'through_contact';
+  const referredByContactForSearch = referredByType === 'contact';
   useEffect(() => {
-    if (!throughContactSelectedForSearch || formData.through_contact_id != null) return;
+    if (!referredByContactForSearch || formData.through_contact_id != null) return;
     const q = throughContactSearchName.trim();
     if (q.length < 2) {
       setThroughContactSearchResults([]);
@@ -393,17 +398,24 @@ export const LeadFormPage: React.FC = () => {
     return () => {
       if (throughContactSearchTimeoutRef.current) clearTimeout(throughContactSearchTimeoutRef.current);
     };
-  }, [throughContactSelectedForSearch, throughContactSearchName, formData.through_contact_id]);
+  }, [referredByContactForSearch, throughContactSearchName, formData.through_contact_id]);
 
   const hasLeadSearchResults = leadSearchContactResults.length > 0 || leadSearchCustomerResults.length > 0;
   const showLeadSearchDropdown = !isEdit && (formData.contact_id == null && formData.customer_id == null) && leadSearchName.trim().length >= 2 && (hasLeadSearchResults || leadSearchLoading);
 
-  /** Company name for quote generation: from linked contact's org, linked customer, or inline organization name */
+  /** Company name for quote generation: from linked contact's org, linked customer, or selected organization (inline new contact) */
   const effectiveCompanyNameForQuote = useMemo(() => {
     if (formData.contact_id && selectedContactForDisplay?.organization?.name) return selectedContactForDisplay.organization.name;
     if (formData.customer_id) return customers.find((c) => c.id === formData.customer_id)?.company_name?.trim() ?? '';
-    return inlineContactOrgQuery.trim();
-  }, [formData.contact_id, formData.customer_id, selectedContactForDisplay?.organization?.name, customers, inlineContactOrgQuery]);
+    if (inlineContactForm.organization_id) return inlineContactOrgQuery.trim();
+    return formData.company?.trim() ?? inlineContactOrgQuery.trim();
+  }, [formData.contact_id, formData.customer_id, formData.company, selectedContactForDisplay?.organization?.name, customers, inlineContactForm.organization_id, inlineContactOrgQuery]);
+
+  /** True when lead has contact/customer linked, or is creating new contact (org selected + some contact details) so quote number can be generated */
+  const hasEffectiveContactOrCustomerForQuote = !isEdit
+    ? (formData.contact_id != null || formData.customer_id != null) ||
+      (Boolean(inlineContactForm.organization_id) && Boolean(inlineContactForm.first_name?.trim() || inlineContactForm.last_name?.trim() || inlineContactForm.contact_email?.trim() || leadSearchName.trim()))
+    : (formData.contact_id != null || formData.customer_id != null);
 
   const linkLeadToContact = useCallback((c: Contact) => {
     const namePart = [c.first_name, c.last_name].filter(Boolean).join(' ').trim() || c.contact_person_name || '';
@@ -455,8 +467,10 @@ export const LeadFormPage: React.FC = () => {
 
   /** When Lead through = Through contact: link the referrer contact (who gave the lead) from contacts table */
   const linkThroughContact = useCallback((c: Contact) => {
-    setFormData(prev => ({ ...prev, through_contact_id: c.id }));
+    setFormData(prev => ({ ...prev, through_contact_id: c.id, referred_by_employee_id: undefined, referred_by_customer_id: undefined }));
+    setReferredByType('contact');
     setSelectedThroughContactForDisplay(c);
+    setSelectedReferredByCustomerForDisplay(null);
     setThroughContactSearchResults([]);
     setThroughContactSearchName('');
     setThroughContactSearchLoading(false);
@@ -492,7 +506,7 @@ export const LeadFormPage: React.FC = () => {
     setOrgSearchQuery('');
     setContactCreatePlants([]);
     setShowAddPlantInContactModal(false);
-    setNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+    setNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
     setShowCreateContactModal(true);
   }, [formData.domain_id, formData.region_id, leadPhoneCountryCode, leadPhonePart, leadSearchEmail]);
 
@@ -541,7 +555,7 @@ export const LeadFormPage: React.FC = () => {
       const updated = await marketingAPI.getOrganizationPlants(createContactForm.organization_id);
       setContactCreatePlants(updated);
       setCreateContactForm(prev => ({ ...prev, plant_id: plant.id }));
-      setNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+      setNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
       setShowAddPlantInContactModal(false);
       showToast('Plant added', 'success');
     } catch (err: any) {
@@ -599,17 +613,42 @@ export const LeadFormPage: React.FC = () => {
     if (isEdit && id) loadActivities();
   }, [isEdit, id]);
 
+  useEffect(() => {
+    if (quotationSeriesCode) return;
+    if (isEdit && currentLead?.quote_series_code) {
+      setQuotationSeriesCode(currentLead.quote_series_code);
+      return;
+    }
+    if (seriesList.length > 0) {
+      setQuotationSeriesCode(seriesList[0].code);
+    }
+  }, [quotationSeriesCode, isEdit, currentLead?.quote_series_code, seriesList]);
+
   const handleAddActivity = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !activityForm.title.trim()) {
+    if (!id) return;
+    const isQuotationLog = activityForm.activity_type === 'qtn_submitted';
+    const effectiveTitle = isQuotationLog ? 'Added quotation' : activityForm.title.trim();
+    if (!effectiveTitle) {
       showToast('Title is required', 'error');
+      return;
+    }
+    if (isQuotationLog) {
+      const quotationFiles = attachmentEntries.filter((entry) => entry.file && entry.kind === 'quotation');
+      if (quotationFiles.length === 0) {
+        showToast('Please upload a quotation file', 'error');
+        return;
+      }
+    }
+    if (activityForm.activity_type === 'lead_status_change' && !activityForm.to_status_id) {
+      showToast('Please select "To status"', 'error');
       return;
     }
     setActivitySubmitting(true);
     try {
       const created = await marketingAPI.createLeadActivity(parseInt(id), {
         activity_type: activityForm.activity_type,
-        title: activityForm.title.trim(),
+        title: effectiveTitle,
         description: activityForm.description?.trim() || undefined,
         from_status_id: activityForm.activity_type === 'lead_status_change' ? activityForm.from_status_id : undefined,
         to_status_id: activityForm.activity_type === 'lead_status_change' ? activityForm.to_status_id : undefined,
@@ -626,7 +665,9 @@ export const LeadFormPage: React.FC = () => {
           toUpload.map((e) => e.file!),
           toUpload.map((e) => e.kind),
           undefined,
-          toUpload.map((e) => (e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined))
+          toUpload.map((e) => (e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined)),
+          toUpload.some((e) => e.kind === 'quotation') ? (quotationSeriesCode.trim() || undefined) : undefined,
+          toUpload.some((e) => e.kind === 'quotation') ? quotationIsRevised : undefined
         );
       }
       showToast('Log added', 'success');
@@ -643,6 +684,7 @@ export const LeadFormPage: React.FC = () => {
         to_status_id: undefined,
       });
       setAttachmentEntries([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
+      setQuotationIsRevised(false);
       loadActivities();
     } catch (err: any) {
       showToast(err.message || 'Failed to add log', 'error');
@@ -656,7 +698,7 @@ export const LeadFormPage: React.FC = () => {
     setQuickAddQuotationSubmitting(true);
     try {
       const created = await marketingAPI.createLeadActivity(parseInt(id), {
-        activity_type: 'note',
+        activity_type: 'qtn_submitted',
         title: 'Added quotation',
         description: undefined,
       });
@@ -667,10 +709,12 @@ export const LeadFormPage: React.FC = () => {
         ['quotation'],
         undefined,
         undefined,
-        formData.series_code?.trim() || undefined
+        quotationSeriesCode.trim() || undefined,
+        quotationIsRevised
       );
       showToast('Quotation added', 'success');
       setQuickAddQuotationFile(null);
+      setQuotationIsRevised(false);
       loadActivities();
     } catch (err: any) {
       showToast(err?.message || 'Failed to add quotation', 'error');
@@ -681,9 +725,8 @@ export const LeadFormPage: React.FC = () => {
 
   const canEditOrDeleteActivity = (a: LeadActivity) => user?.id != null && a.created_by_employee_id != null && user.id === a.created_by_employee_id;
 
-  const enquiryActivities = activities.filter(
-    (a) => a.activity_type !== 'lead_edit' && a.activity_type !== 'lead_status_change'
-  );
+  // Enquiry log: all activity types except system "lead_edit"; include lead_status_change so kanban popup (title, description, attachments) shows here
+  const enquiryActivities = activities.filter((a) => a.activity_type !== 'lead_edit');
   const statusLogsActivities = activities.filter(
     (a) => a.activity_type === 'lead_edit' || a.activity_type === 'lead_status_change'
   );
@@ -897,6 +940,7 @@ export const LeadFormPage: React.FC = () => {
         lead_type_id: lead.lead_type_id ?? undefined,
         lead_through_id: lead.lead_through_id ?? lead.lead_through_option?.id ?? undefined,
         through_contact_id: lead.through_contact_id ?? undefined,
+        referred_by_customer_id: lead.referred_by_customer_id ?? undefined,
         potential_value: lead.potential_value || undefined,
         closed_value: lead.closed_value ?? undefined,
         closed_at: lead.closed_at ?? undefined,
@@ -921,6 +965,15 @@ export const LeadFormPage: React.FC = () => {
       } else {
         setSelectedThroughContactForDisplay(null);
       }
+      if (lead.referred_by_customer) {
+        setSelectedReferredByCustomerForDisplay(lead.referred_by_customer);
+      } else {
+        setSelectedReferredByCustomerForDisplay(null);
+      }
+      if (lead.through_contact_id) setReferredByType('contact');
+      else if (lead.referred_by_employee_id) setReferredByType('employee');
+      else if (lead.referred_by_customer_id) setReferredByType('customer');
+      else setReferredByType('none');
       if (lead.next_follow_up_at) {
         const d = new Date(lead.next_follow_up_at);
         const pad = (n: number) => String(n).padStart(2, '0');
@@ -970,7 +1023,7 @@ export const LeadFormPage: React.FC = () => {
     const selectedLeadRegionId = formData.region_id ?? undefined;
     let effectiveDomainId = selectedLeadDomainId;
     let effectiveRegionId = selectedLeadRegionId;
-    const throughContactSelectedSubmit = leadThroughOptions.find((t) => t.id === formData.lead_through_id)?.code === 'through_contact';
+    const referredByContactSubmit = referredByType === 'contact';
 
     if (!isEdit && !effectiveContactId && !effectiveCustomerId) {
       const typedName = leadSearchName.trim();
@@ -1023,7 +1076,9 @@ export const LeadFormPage: React.FC = () => {
             const createdPlant = await marketingAPI.createOrganizationPlant(resolvedOrganizationId, {
               plant_name: inlineNewPlantForm.plant_name.trim(),
               address_line1: inlineNewPlantForm.address_line1.trim() || undefined,
+              address_line2: inlineNewPlantForm.address_line2.trim() || undefined,
               city: inlineNewPlantForm.city.trim() || undefined,
+              state: inlineNewPlantForm.state.trim() || undefined,
               country: inlineNewPlantForm.country.trim() || undefined,
               postal_code: inlineNewPlantForm.postal_code.trim() || undefined,
             });
@@ -1066,7 +1121,7 @@ export const LeadFormPage: React.FC = () => {
     }
 
     // When Lead through = Through contact and user added a new referrer contact inline, create it before saving lead
-    if (throughContactSelectedSubmit && !effectiveThroughContactId && (inlineThroughContactForm.first_name?.trim() || inlineThroughContactForm.last_name?.trim()) && effectiveDomainId) {
+    if (referredByContactSubmit && !effectiveThroughContactId && (inlineThroughContactForm.first_name?.trim() || inlineThroughContactForm.last_name?.trim()) && effectiveDomainId) {
       setIsSubmitting(true);
       try {
         let throughOrgId = inlineThroughContactForm.organization_id ?? undefined;
@@ -1093,7 +1148,9 @@ export const LeadFormPage: React.FC = () => {
           const createdPlant = await marketingAPI.createOrganizationPlant(throughOrgId, {
             plant_name: inlineThroughNewPlantForm.plant_name.trim(),
             address_line1: inlineThroughNewPlantForm.address_line1.trim() || undefined,
+            address_line2: inlineThroughNewPlantForm.address_line2.trim() || undefined,
             city: inlineThroughNewPlantForm.city.trim() || undefined,
+            state: inlineThroughNewPlantForm.state.trim() || undefined,
             country: inlineThroughNewPlantForm.country.trim() || undefined,
             postal_code: inlineThroughNewPlantForm.postal_code.trim() || undefined,
           });
@@ -1342,7 +1399,6 @@ export const LeadFormPage: React.FC = () => {
     );
   }
 
-  const throughContactSelected = leadThroughOptions.find((t) => t.id === formData.lead_through_id)?.code === 'through_contact';
 
   return (
     <PageLayout
@@ -1614,10 +1670,10 @@ export const LeadFormPage: React.FC = () => {
                   {/* Row 2: Email + Job Title in one line */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                     <Input label="Email" type="email" value={inlineContactForm.contact_email} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
-                    <Input label="Job Title" value={inlineContactForm.contact_job_title} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="Job Title" />
+                    <Input label="Designation" value={inlineContactForm.contact_job_title} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="Designation" />
                     <p className="text-xs text-slate-500 md:col-span-2">Contact will use the lead&apos;s Domain &amp; Region (set below).</p>
                     <div className="md:col-span-2 relative">
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Organization (optional)</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Organization</label>
                       <Input
                         value={inlineContactOrgQuery}
                         onChange={(e) => {
@@ -1636,7 +1692,7 @@ export const LeadFormPage: React.FC = () => {
                         disabled={!!inlineContactForm.organization_id}
                       />
                       {inlineContactForm.organization_id && (
-                        <button type="button" onClick={() => { setInlineContactForm(prev => ({ ...prev, organization_id: undefined, plant_id: undefined })); setInlineContactOrgQuery(''); setInlineContactPlants([]); setShowInlineNewPlant(false); }} className="mt-1 text-xs text-rose-600 hover:text-rose-700">Clear organization</button>
+                        <button type="button" onClick={() => { setInlineContactForm(prev => ({ ...prev, organization_id: undefined, plant_id: undefined })); setInlineContactOrgQuery(''); setFormData(prev => ({ ...prev, company: '' })); setInlineContactPlants([]); setShowInlineNewPlant(false); }} className="mt-1 text-xs text-rose-600 hover:text-rose-700">Clear organization</button>
                       )}
                       {!inlineContactForm.organization_id && inlineContactOrgSuggestions.length > 0 && (
                         <div className="absolute left-0 right-0 top-full z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-auto">
@@ -1645,7 +1701,7 @@ export const LeadFormPage: React.FC = () => {
                               key={org.id}
                               type="button"
                               className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
-                              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setInlineContactForm(prev => ({ ...prev, organization_id: org.id, plant_id: undefined })); setInlineContactOrgQuery(org.name); setInlineContactOrgSuggestions([]); marketingAPI.getOrganizationPlants(org.id).then(setInlineContactPlants).catch(() => setInlineContactPlants([])); }}
+                              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setInlineContactForm(prev => ({ ...prev, organization_id: org.id, plant_id: undefined })); setInlineContactOrgQuery(org.name); setFormData(prev => ({ ...prev, company: org.name })); setInlineContactOrgSuggestions([]); marketingAPI.getOrganizationPlants(org.id).then(setInlineContactPlants).catch(() => setInlineContactPlants([])); }}
                             >
                               {org.name}
                             </button>
@@ -1656,7 +1712,7 @@ export const LeadFormPage: React.FC = () => {
                     {!inlineContactForm.organization_id && inlineContactOrgQuery.trim().length >= 2 && (
                       <div className="md:col-span-2 p-3 bg-white rounded-lg border border-slate-200 space-y-3">
                         <h4 className="text-sm font-medium text-slate-700">Create organization (name from above)</h4>
-                        <p className="text-xs text-slate-500">Organization name: <strong>{inlineContactOrgQuery.trim()}</strong> — fill optional fields below and click Create.</p>
+                        <p className="text-xs text-slate-500">Organization name: <strong>{inlineContactOrgQuery.trim()}</strong> — fill fields below and click Create.</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <Input label="Code" value={inlineNewOrgForm.code} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="Code" />
                           <Input label="Website" value={inlineNewOrgForm.website} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
@@ -1671,11 +1727,12 @@ export const LeadFormPage: React.FC = () => {
                               const org = await marketingAPI.createOrganization({ name: orgName, code: inlineNewOrgForm.code.trim() || undefined, website: inlineNewOrgForm.website.trim() || undefined, industry: inlineNewOrgForm.industry.trim() || undefined, organization_size: inlineNewOrgForm.organization_size.trim() || undefined, is_active: true });
                               setInlineContactForm(prev => ({ ...prev, organization_id: org.id, plant_id: undefined }));
                               setInlineContactOrgQuery(org.name);
+                              setFormData(prev => ({ ...prev, company: org.name }));
                               setInlineNewOrgForm({ code: '', website: '', industry: '', organization_size: '' });
                               const plants = await marketingAPI.getOrganizationPlants(org.id);
                               setInlineContactPlants(plants ?? []);
                               setShowInlineNewPlant(true); // Open add-plant form so user can add a plant right after creating org
-                              showToast('Organization created. You can add a plant below (optional).', 'success');
+                              showToast('Organization created. You can add a plant below.', 'success');
                             } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to create organization', 'error'); } finally { setCreatingOrgInline(false); }
                           }}>{creatingOrgInline ? 'Creating...' : 'Create organization'}</Button>
                         </div>
@@ -1683,7 +1740,7 @@ export const LeadFormPage: React.FC = () => {
                     )}
                     {inlineContactForm.organization_id && (
                       <div className="md:col-span-2 space-y-2">
-                        <label className="block text-sm font-medium text-slate-700">Plant (optional)</label>
+                        <label className="block text-sm font-medium text-slate-700">Plant</label>
                         {inlineContactPlants.length === 0 && !showInlineNewPlant && (
                           <p className="text-xs text-slate-500">No plants yet for this organization. Use &quot;+ Add plant&quot; below to add one.</p>
                         )}
@@ -1701,8 +1758,10 @@ export const LeadFormPage: React.FC = () => {
                             <h4 className="text-sm font-medium text-slate-700">Add plant (inline)</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               <Input label="Plant name" value={inlineNewPlantForm.plant_name} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="Plant name" />
-                              <Input label="Address" value={inlineNewPlantForm.address_line1} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address" />
+                              <Input label="Address line 1" value={inlineNewPlantForm.address_line1} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                              <Input label="Address line 2" value={inlineNewPlantForm.address_line2} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
                               <Input label="City" value={inlineNewPlantForm.city} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, city: e.target.value }))} placeholder="City" />
+                              <Input label="State" value={inlineNewPlantForm.state} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, state: e.target.value }))} placeholder="State" />
                               <Input label="Country" value={inlineNewPlantForm.country} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" />
                               <Input label="Postal code" value={inlineNewPlantForm.postal_code} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" />
                             </div>
@@ -1710,15 +1769,15 @@ export const LeadFormPage: React.FC = () => {
                               <Button type="button" variant="primary" disabled={!inlineNewPlantForm.plant_name.trim() || creatingPlantInline} onClick={async () => {
                                 setCreatingPlantInline(true);
                                 try {
-                                  const plant = await marketingAPI.createOrganizationPlant(inlineContactForm.organization_id!, { plant_name: inlineNewPlantForm.plant_name.trim(), address_line1: inlineNewPlantForm.address_line1.trim() || undefined, city: inlineNewPlantForm.city.trim() || undefined, country: inlineNewPlantForm.country.trim() || undefined, postal_code: inlineNewPlantForm.postal_code.trim() || undefined });
+                                  const plant = await marketingAPI.createOrganizationPlant(inlineContactForm.organization_id!, { plant_name: inlineNewPlantForm.plant_name.trim(), address_line1: inlineNewPlantForm.address_line1.trim() || undefined, address_line2: inlineNewPlantForm.address_line2.trim() || undefined, city: inlineNewPlantForm.city.trim() || undefined, state: inlineNewPlantForm.state.trim() || undefined, country: inlineNewPlantForm.country.trim() || undefined, postal_code: inlineNewPlantForm.postal_code.trim() || undefined });
                                   setInlineContactPlants(prev => [...prev, plant]);
                                   setInlineContactForm(prev => ({ ...prev, plant_id: plant.id }));
                                   setShowInlineNewPlant(false);
-                                  setInlineNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+                                  setInlineNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
                                   showToast('Plant added', 'success');
                                 } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to add plant', 'error'); } finally { setCreatingPlantInline(false); }
                               }}>{creatingPlantInline ? 'Adding...' : 'Add plant'}</Button>
-                              <Button type="button" variant="secondary" onClick={() => { setShowInlineNewPlant(false); setInlineNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' }); }}>Cancel</Button>
+                              <Button type="button" variant="secondary" onClick={() => { setShowInlineNewPlant(false); setInlineNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' }); }}>Cancel</Button>
                             </div>
                           </div>
                         )}
@@ -1743,40 +1802,56 @@ export const LeadFormPage: React.FC = () => {
             })()}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Lead through (optional) — includes Through contact */}
+              {/* Lead through — includes Through contact */}
               <div>
                 <Select
-                  label="Lead through (optional)"
+                  label="Lead through"
                   options={[
                     { value: '', label: '— None —' },
                     ...leadThroughOptions
-                      .filter((t) => t.is_active && ['through_contact', 'website', 'mail', 'whatsapp_campaign', 'cold_calling', 'expo', 'colleague'].includes(t.code || ''))
+                      .filter((t) => t.is_active && ['through_contact', 'website', 'mail', 'whatsapp_campaign', 'cold_calling', 'expo', 'exhibition', 'meeting', 'colleague'].includes(t.code || ''))
                       .map((t) => ({ value: String(t.id), label: t.label })),
                   ]}
                   value={formData.lead_through_id != null ? String(formData.lead_through_id) : ''}
                   onChange={(val) => {
                     const newId = val ? Number(val) : undefined;
-                    const isStillThroughContact = newId != null && leadThroughOptions.find((t) => t.id === newId)?.code === 'through_contact';
-                    setFormData(prev => ({
-                      ...prev,
-                      lead_through_id: newId,
-                      ...(isStillThroughContact ? {} : { through_contact_id: undefined }),
-                    }));
-                    if (!isStillThroughContact) {
-                      setSelectedThroughContactForDisplay(null);
-                      setThroughContactSearchResults([]);
-                      setThroughContactSearchName('');
-                    }
+                    setFormData(prev => ({ ...prev, lead_through_id: newId }));
                   }}
                   placeholder="e.g. Through contact, Website, Colleague"
                 />
               </div>
 
-              {/* When Lead through = Through contact: second contact (referrer) — who gave the lead. Same pattern as Colleague: select employee vs select contact. */}
-              {throughContactSelected && (
-                <div className="md:col-span-2 space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                  <h3 className="text-sm font-semibold text-slate-700">Referred by (contact)</h3>
-                  <p className="text-xs text-slate-500">This is a second contact linked to the lead: the contact who gave/referred this lead (from the contacts table). Select existing or add new with contact details and organisation.</p>
+              {/* Referred by (person name): who gave/referred this lead — Employee, Customer, or Contact. Independent of Lead through (cold calling, meeting, exhibition, etc.). */}
+              <div className="md:col-span-2 space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <h3 className="text-sm font-semibold text-slate-700">Referred by (person name)</h3>
+                <p className="text-xs text-slate-500">Optional: the person who gave or referred this lead. Choose Employee, Customer, or Contact. You can use any Lead through option above (e.g. cold calling, meeting, exhibition).</p>
+                <Select
+                  label="Person who gave the lead"
+                  value={referredByType}
+                  onChange={(val) => {
+                    const v = (val ?? 'none') as 'none' | 'employee' | 'customer' | 'contact';
+                    setReferredByType(v);
+                    setFormData(prev => ({
+                      ...prev,
+                      through_contact_id: undefined,
+                      referred_by_employee_id: undefined,
+                      referred_by_customer_id: undefined,
+                    }));
+                    setSelectedThroughContactForDisplay(null);
+                    setSelectedReferredByCustomerForDisplay(null);
+                    setThroughContactSearchResults([]);
+                    setThroughContactSearchName('');
+                  }}
+                  options={[
+                    { value: 'none', label: '— None —' },
+                    { value: 'employee', label: 'Employee' },
+                    { value: 'customer', label: 'Customer' },
+                    { value: 'contact', label: 'Contact' },
+                  ]}
+                  searchable={false}
+                />
+                {referredByType === 'contact' && (
+                  <>
                   {formData.through_contact_id != null && selectedThroughContactForDisplay ? (
                     <div className="flex items-center gap-2 text-sm">
                       <span className="text-slate-600">Referrer contact: {[selectedThroughContactForDisplay.first_name, selectedThroughContactForDisplay.last_name].filter(Boolean).join(' ') || selectedThroughContactForDisplay.contact_person_name || selectedThroughContactForDisplay.organization?.name || 'Contact'}</span>
@@ -1852,11 +1927,11 @@ export const LeadFormPage: React.FC = () => {
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Input label="Email" type="email" value={inlineThroughContactForm.contact_email} onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
-                            <Input label="Job Title" value={inlineThroughContactForm.contact_job_title} onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="Job Title" />
+                            <Input label="Designation" value={inlineThroughContactForm.contact_job_title} onChange={(e) => setInlineThroughContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="Designation" />
                           </div>
-                          <p className="text-xs text-slate-500">Uses lead Domain &amp; Region (set below). Organisation optional.</p>
+                          <p className="text-xs text-slate-500">Uses lead Domain &amp; Region (set below). Organisation.</p>
                           <div className="relative">
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Organization (optional)</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Organization</label>
                             <Input
                               value={inlineThroughContactOrgQuery}
                               onChange={(e) => {
@@ -1895,7 +1970,7 @@ export const LeadFormPage: React.FC = () => {
                           {!inlineThroughContactForm.organization_id && inlineThroughContactOrgQuery.trim().length >= 2 && (
                             <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-3">
                               <h4 className="text-sm font-medium text-slate-700">Create organization (name from above)</h4>
-                              <p className="text-xs text-slate-500">Organization name: <strong>{inlineThroughContactOrgQuery.trim()}</strong> — fill optional fields below and click Create.</p>
+                              <p className="text-xs text-slate-500">Organization name: <strong>{inlineThroughContactOrgQuery.trim()}</strong> — fill fields below and click Create.</p>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <Input label="Code" value={inlineThroughNewOrgForm.code} onChange={(e) => setInlineThroughNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="Code" />
                                 <Input label="Website" value={inlineThroughNewOrgForm.website} onChange={(e) => setInlineThroughNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
@@ -1914,7 +1989,7 @@ export const LeadFormPage: React.FC = () => {
                                     const plants = await marketingAPI.getOrganizationPlants(org.id);
                                     setInlineThroughContactPlants(plants ?? []);
                                     setShowInlineThroughNewPlant(true);
-                                    showToast('Organization created. You can add a plant below (optional).', 'success');
+                                    showToast('Organization created. You can add a plant below.', 'success');
                                   } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to create organization', 'error'); } finally { setCreatingThroughOrgInline(false); }
                                 }}>{creatingThroughOrgInline ? 'Creating...' : 'Create organization'}</Button>
                               </div>
@@ -1922,7 +1997,7 @@ export const LeadFormPage: React.FC = () => {
                           )}
                           {inlineThroughContactForm.organization_id && (
                             <div className="space-y-2">
-                              <label className="block text-sm font-medium text-slate-700">Plant (optional)</label>
+                              <label className="block text-sm font-medium text-slate-700">Plant</label>
                               {inlineThroughContactPlants.length === 0 && !showInlineThroughNewPlant && (
                                 <p className="text-xs text-slate-500">No plants yet for this organization. Use &quot;+ Add plant&quot; below to add one.</p>
                               )}
@@ -1940,8 +2015,10 @@ export const LeadFormPage: React.FC = () => {
                                   <h4 className="text-sm font-medium text-slate-700">Add plant (inline)</h4>
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <Input label="Plant name" value={inlineThroughNewPlantForm.plant_name} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="Plant name" />
-                                    <Input label="Address" value={inlineThroughNewPlantForm.address_line1} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address" />
+                                    <Input label="Address line 1" value={inlineThroughNewPlantForm.address_line1} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                                    <Input label="Address line 2" value={inlineThroughNewPlantForm.address_line2} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
                                     <Input label="City" value={inlineThroughNewPlantForm.city} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, city: e.target.value }))} placeholder="City" />
+                                    <Input label="State" value={inlineThroughNewPlantForm.state} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, state: e.target.value }))} placeholder="State" />
                                     <Input label="Country" value={inlineThroughNewPlantForm.country} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" />
                                     <Input label="Postal code" value={inlineThroughNewPlantForm.postal_code} onChange={(e) => setInlineThroughNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" />
                                   </div>
@@ -1949,15 +2026,15 @@ export const LeadFormPage: React.FC = () => {
                                     <Button type="button" variant="primary" disabled={!inlineThroughNewPlantForm.plant_name.trim() || creatingThroughPlantInline} onClick={async () => {
                                       setCreatingThroughPlantInline(true);
                                       try {
-                                        const plant = await marketingAPI.createOrganizationPlant(inlineThroughContactForm.organization_id!, { plant_name: inlineThroughNewPlantForm.plant_name.trim(), address_line1: inlineThroughNewPlantForm.address_line1.trim() || undefined, city: inlineThroughNewPlantForm.city.trim() || undefined, country: inlineThroughNewPlantForm.country.trim() || undefined, postal_code: inlineThroughNewPlantForm.postal_code.trim() || undefined });
+                                        const plant = await marketingAPI.createOrganizationPlant(inlineThroughContactForm.organization_id!, { plant_name: inlineThroughNewPlantForm.plant_name.trim(), address_line1: inlineThroughNewPlantForm.address_line1.trim() || undefined, address_line2: inlineThroughNewPlantForm.address_line2.trim() || undefined, city: inlineThroughNewPlantForm.city.trim() || undefined, state: inlineThroughNewPlantForm.state.trim() || undefined, country: inlineThroughNewPlantForm.country.trim() || undefined, postal_code: inlineThroughNewPlantForm.postal_code.trim() || undefined });
                                         setInlineThroughContactPlants(prev => [...prev, plant]);
                                         setInlineThroughContactForm(prev => ({ ...prev, plant_id: plant.id }));
                                         setShowInlineThroughNewPlant(false);
-                                        setInlineThroughNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+                                        setInlineThroughNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
                                         showToast('Plant added', 'success');
                                       } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to add plant', 'error'); } finally { setCreatingThroughPlantInline(false); }
                                     }}>{creatingThroughPlantInline ? 'Adding...' : 'Add plant'}</Button>
-                                    <Button type="button" variant="secondary" onClick={() => { setShowInlineThroughNewPlant(false); setInlineThroughNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' }); }}>Cancel</Button>
+                                    <Button type="button" variant="secondary" onClick={() => { setShowInlineThroughNewPlant(false); setInlineThroughNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' }); }}>Cancel</Button>
                                   </div>
                                 </div>
                               )}
@@ -1967,14 +2044,11 @@ export const LeadFormPage: React.FC = () => {
                       )}
                     </>
                   )}
-                </div>
-              )}
-
-              {/* Generated by (colleague) — only when Lead through is Colleague. Uses referred_by_employee_id so "Assign to" can be set separately. */}
-              {leadThroughOptions.find((t) => t.id === formData.lead_through_id)?.code === 'colleague' && (
-                <div className="md:col-span-2">
+                </>
+                )}
+                {referredByType === 'employee' && (
                   <AsyncSelect
-                    label="Generated by (colleague)"
+                    label="Select employee"
                     loadOptions={async (search) => {
                       const res = await marketingAPI.getEmployees({ page: 1, page_size: 30, search: search || undefined, status: 'active' });
                       return res.employees.map((e) => ({
@@ -1984,12 +2058,31 @@ export const LeadFormPage: React.FC = () => {
                     }}
                     value={formData.referred_by_employee_id ?? undefined}
                     onChange={(val) => setFormData(prev => ({ ...prev, referred_by_employee_id: val != null ? Number(val) : undefined }))}
-                    placeholder="Select colleague who gave the lead"
+                    placeholder="Select employee who gave the lead"
                     initialOptions={[]}
                   />
-                  <p className="text-xs text-slate-500 mt-1">Select the colleague who referred this lead. You can still assign the lead to someone else below.</p>
-                </div>
-              )}
+                )}
+                {referredByType === 'customer' && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Select customer</label>
+                    <Select
+                      value={formData.referred_by_customer_id != null ? String(formData.referred_by_customer_id) : ''}
+                      onChange={(val) => {
+                        const id = val ? Number(val) : undefined;
+                        setFormData(prev => ({ ...prev, referred_by_customer_id: id }));
+                        const c = customers.find((x) => x.id === id);
+                        setSelectedReferredByCustomerForDisplay(c ?? null);
+                      }}
+                      options={[{ value: '', label: '— Select customer —' }, ...customers.map((c) => ({ value: String(c.id), label: c.company_name || `Customer #${c.id}` }))]}
+                      placeholder="Select customer who gave the lead"
+                      searchable={customers.length > 10}
+                    />
+                    {formData.referred_by_customer_id != null && selectedReferredByCustomerForDisplay && (
+                      <p className="text-xs text-slate-500 mt-1">Referrer: {selectedReferredByCustomerForDisplay.company_name}</p>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Domain & Region — collapsed by default on create, auto-filled from user assignment */}
               <div className="md:col-span-2 space-y-2">
@@ -2055,7 +2148,7 @@ export const LeadFormPage: React.FC = () => {
               {reportScope?.can_select_employee && (
                 <div className="md:col-span-2">
                   <Select
-                    label="Assign to (optional)"
+                    label="Assign to"
                     options={[
                       { value: '', label: '— Me (creator) —' },
                       ...(reportScope.employees || []).map((e) => ({ value: String(e.id), label: e.name })),
@@ -2214,7 +2307,7 @@ export const LeadFormPage: React.FC = () => {
                         onClick={async () => {
                           if (!id) return;
                           if (!(formData.contact_id != null || formData.customer_id != null)) {
-                            showToast('This lead has no contact or customer. Link one first to generate a quote number.', 'error');
+                            showToast('Link a contact or customer to this lead first to generate a quote number.', 'error');
                             return;
                           }
                           const code = editQuoteSeriesCode.trim();
@@ -2245,9 +2338,9 @@ export const LeadFormPage: React.FC = () => {
                         {generatingQuoteNumberInEdit ? 'Generating…' : 'Generate quote number'}
                       </Button>
                     </div>
-                    {!(formData.contact_id != null || formData.customer_id != null) && (
-                      <p className="text-xs text-amber-600">Link a contact or customer to this lead first (in the Contact section above).</p>
-                    )}
+{!(formData.contact_id != null || formData.customer_id != null) && (
+                  <p className="text-xs text-amber-600">Link a contact or customer in the Contact section above to generate a quote number.</p>
+                )}
                   </div>
                 )}
               </div>
@@ -2256,10 +2349,10 @@ export const LeadFormPage: React.FC = () => {
             {/* Quote number (optional) — create only: separate from lead number; requires contact/customer */}
             {!isEdit && (
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-slate-700">Quote number (optional)</label>
+                <label className="block text-sm font-medium text-slate-700">Quote number</label>
                 <p className="text-xs text-slate-500 mb-2">Generate a quote number for quotation documents. This is separate from the lead number (assigned automatically when you save).</p>
-                {!(formData.contact_id != null || formData.customer_id != null) && (
-                  <p className="text-xs text-amber-600 mb-2">Select a contact or customer above first to generate a quote number.</p>
+                {!hasEffectiveContactOrCustomerForQuote && (
+                  <p className="text-xs text-amber-600 mb-2">Select a contact or customer above, or select an organization and fill the new contact form, to generate a quote number.</p>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="min-w-[200px]">
@@ -2286,13 +2379,13 @@ export const LeadFormPage: React.FC = () => {
                     size="sm"
                     variant="outline"
                     disabled={
-                      !(formData.contact_id != null || formData.customer_id != null) ||
+                      !hasEffectiveContactOrCustomerForQuote ||
                       !createFormQuoteSeriesCode.trim() ||
                       generatingQuoteNumberOnCreate
                     }
                     onClick={async () => {
-                      if (!(formData.contact_id != null || formData.customer_id != null)) {
-                        showToast('Select a contact or customer first to generate a quote number.', 'error');
+                      if (!hasEffectiveContactOrCustomerForQuote) {
+                        showToast('Select a contact or customer, or select an organization and fill the new contact form, to generate a quote number.', 'error');
                         return;
                       }
                       const code = createFormQuoteSeriesCode.trim();
@@ -2327,7 +2420,7 @@ export const LeadFormPage: React.FC = () => {
             {/* Quotation (optional) — create only: under lead number / number series */}
             {!isEdit && (
               <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Quotation (optional)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Quotation</label>
                 <p className="text-xs text-slate-500 mb-2">Upload a file to add one enquiry with title "Added quotation". Quote numbers for the document use their own series; the lead number above is separate.</p>
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
@@ -2399,179 +2492,146 @@ export const LeadFormPage: React.FC = () => {
         <Card>
           {!viewMode && (
             <>
-              <div className="mb-4 p-3 rounded-lg border border-slate-200 bg-slate-50/50">
-                <h3 className="text-xs font-semibold text-slate-700 mb-2">Add quotation</h3>
-                <p className="text-xs text-slate-500 mb-2">Upload a file to add an enquiry with title "Added quotation". No need to fill title or description.</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                    <Upload size={16} />
-                    {quickAddQuotationFile ? quickAddQuotationFile.name : 'Choose file'}
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                      className="hidden"
-                      onChange={(e) => setQuickAddQuotationFile(e.target.files?.[0] || null)}
-                    />
-                  </label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={!quickAddQuotationFile || quickAddQuotationSubmitting}
-                    onClick={handleQuickAddQuotation}
-                  >
-                    {quickAddQuotationSubmitting ? 'Adding...' : 'Add quotation'}
-                  </Button>
-                  {quickAddQuotationFile && (
-                    <button type="button" onClick={() => setQuickAddQuotationFile(null)} className="text-xs text-rose-600 hover:text-rose-700">Remove</button>
-                  )}
-                </div>
-              </div>
-              <h3 className="text-sm font-semibold text-slate-800 mb-3">Add log</h3>
-              <form onSubmit={handleAddActivity} className="space-y-3 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <Select
-                    label="Type"
-                    value={activityForm.activity_type}
-                    onChange={(val) => setActivityForm((f) => ({ ...f, activity_type: val as string }))}
-                    options={ACTIVITY_TYPE_OPTIONS}
-                  />
-                  <Input
-                    label="Title"
-                    value={activityForm.title}
-                    onChange={(e) => setActivityForm((f) => ({ ...f, title: e.target.value }))}
-                    placeholder={
-                      activityForm.activity_type === 'lead_status_change'
-                        ? 'e.g. Status changed to Qualified'
-                        : activityForm.activity_type === 'lead_type_change'
-                          ? 'e.g. Lead type changed to Chamber'
-                          : 'e.g. Called to discuss requirements'
-                    }
-                    required
-                  />
-                </div>
-                {activityForm.activity_type === 'lead_status_change' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
-                    <Select
-                      label="From status"
-                      value={activityForm.from_status_id != null ? String(activityForm.from_status_id) : ''}
-                      onChange={(val) => setActivityForm((f) => ({ ...f, from_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
-                      options={[{ value: '', label: '— Select —' }, ...leadStatuses.map((s) => ({ value: String(s.id), label: s.label }))]}
-                    />
-                    <Select
-                      label="To status"
-                      value={activityForm.to_status_id != null ? String(activityForm.to_status_id) : ''}
-                      onChange={(val) => setActivityForm((f) => ({ ...f, to_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
-                      options={[{ value: '', label: '— Select —' }, ...leadStatuses.map((s) => ({ value: String(s.id), label: s.label }))]}
+              <form onSubmit={handleAddActivity} className="mb-4">
+                <div className="grid grid-cols-1 gap-3 max-w-2xl">
+                  {/* Row 1: Type | Title | Add log */}
+                  <div className="grid grid-cols-[auto_1fr_auto] gap-3 items-end">
+                    <div className="w-36 [&_button]:!h-9 [&_button]:!min-h-0">
+                      <Select
+                        label="Type"
+                        value={activityForm.activity_type}
+                        onChange={(val) => setActivityForm((f) => ({ ...f, activity_type: val as string }))}
+                        options={ACTIVITY_TYPE_OPTIONS}
+                        searchable={false}
+                      />
+                    </div>
+                    {activityForm.activity_type === 'qtn_submitted' ? (
+                      <div className="flex items-end pb-2">
+                        <span className="text-xs text-emerald-700 font-medium">Title: Added quotation</span>
+                      </div>
+                    ) : (
+                      <div className="min-w-0">
+                        <Input
+                          label="Title"
+                          value={activityForm.title}
+                          onChange={(e) => setActivityForm((f) => ({ ...f, title: e.target.value }))}
+                          placeholder={
+                            activityForm.activity_type === 'lead_status_change'
+                              ? 'e.g. Status → Qualified'
+                              : activityForm.activity_type === 'lead_type_change'
+                                ? 'e.g. Type → Chamber'
+                                : 'e.g. Called to discuss requirements'
+                          }
+                          required
+                          inputSize="sm"
+                        />
+                      </div>
+                    )}
+                    <Button type="submit" size="sm" disabled={activitySubmitting} className="h-9 shrink-0">
+                      {activitySubmitting ? '…' : 'Add log'}
+                    </Button>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+                    <textarea
+                      rows={2}
+                      className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                      placeholder="e.g. timeline, budget, next steps"
+                      value={activityForm.description ?? ''}
+                      onChange={(e) => setActivityForm((f) => ({ ...f, description: e.target.value }))}
                     />
                   </div>
-                )}
-                {activityForm.activity_type === 'contacted_different_person' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
-                    <div className="flex gap-2 items-end">
-                      <div className="w-24 shrink-0">
+
+                  {/* Status change: From → To */}
+                  {activityForm.activity_type === 'lead_status_change' && (
+                    <div className="grid grid-cols-[auto_auto_auto] gap-3 items-end">
+                      <div className="w-40 [&_button]:!h-9">
                         <Select
-                          label="Title"
-                          options={NAME_PREFIXES}
-                          value={activityForm.contact_person_name_prefix}
-                          onChange={(v) => setActivityForm((f) => ({ ...f, contact_person_name_prefix: (v ?? '') as string }))}
-                          placeholder="—"
+                          label="From"
+                          value={activityForm.from_status_id != null ? String(activityForm.from_status_id) : ''}
+                          onChange={(val) => setActivityForm((f) => ({ ...f, from_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
+                          options={[{ value: '', label: '—' }, ...leadStatuses.map((s) => ({ value: String(s.id), label: s.label }))]}
                           searchable={false}
                         />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <Input
-                          label="Contact person name"
-                          value={activityForm.contact_person_name}
-                          onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_name: e.target.value }))}
-                          placeholder="Name"
-                        />
-                      </div>
-                    </div>
-                    <Input
-                      label="Contact person email"
-                      value={activityForm.contact_person_email}
-                      onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_email: e.target.value }))}
-                      placeholder="email@example.com"
-                    />
-                    <div className="flex gap-2 items-end md:col-span-2">
-                      <div className="w-36 shrink-0">
+                      <span className="text-slate-400 text-sm pb-2">→</span>
+                      <div className="w-40 [&_button]:!h-9">
                         <Select
-                          label="Country code"
-                          options={COUNTRY_CODES}
-                          value={activityForm.contact_person_phone_code}
-                          onChange={(v) => setActivityForm((f) => ({ ...f, contact_person_phone_code: (v ?? '') as string }))}
-                          placeholder="Code"
-                          searchable
-                          getSearchText={getCountryCodeSearchText}
-                          exactValueMatchWhenQueryMatches={/^\+?\d+$/}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <Input
-                          label="Contact person phone"
-                          value={activityForm.contact_person_phone}
-                          onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_phone: e.target.value }))}
-                          placeholder="Number"
+                          label="To"
+                          value={activityForm.to_status_id != null ? String(activityForm.to_status_id) : ''}
+                          onChange={(val) => setActivityForm((f) => ({ ...f, to_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
+                          options={[{ value: '', label: '—' }, ...leadStatuses.map((s) => ({ value: String(s.id), label: s.label }))]}
+                          searchable={false}
                         />
                       </div>
                     </div>
-                  </div>
-                )}
-                <div>
-                  <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
-                    <label className="block text-xs font-semibold text-slate-700">File attachments (optional)</label>
-                    <div className="flex items-center gap-2">
-                      <label className="flex cursor-pointer items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
-                        <Upload size={14} />
-                        Choose files
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                          className="hidden"
-                          multiple
-                          onChange={(e) => {
-                            const fileList = e.target.files;
-                            if (!fileList?.length) return;
-                            const newRows = Array.from(fileList).map((file) => ({
-                              id: crypto.randomUUID(),
-                              kind: 'attachment' as const,
-                              file: file as File,
-                              quotationNumber: '',
-                              title: '',
-                            }));
-                            setAttachmentEntries((prev) => [...prev, ...newRows]);
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])
-                        }
-                        className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
-                      >
-                        <Plus size={14} /> Add another file
-                      </button>
+                  )}
+
+                  {/* Contacted different person */}
+                  {activityForm.activity_type === 'contacted_different_person' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-lg bg-slate-50/80 border border-slate-200">
+                      <div className="sm:col-span-2 grid grid-cols-[auto_1fr] gap-2 items-end">
+                        <div className="w-24 [&_button]:!h-9">
+                          <Select label="Title" options={NAME_PREFIXES} value={activityForm.contact_person_name_prefix} onChange={(v) => setActivityForm((f) => ({ ...f, contact_person_name_prefix: (v ?? '') as string }))} placeholder="—" searchable={false} />
+                        </div>
+                        <Input label="Name" value={activityForm.contact_person_name} onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_name: e.target.value }))} placeholder="Name" inputSize="sm" />
+                      </div>
+                      <Input label="Email" value={activityForm.contact_person_email} onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_email: e.target.value }))} placeholder="email@example.com" inputSize="sm" />
+                      <div className="grid grid-cols-[auto_1fr] gap-2 items-end">
+                        <div className="w-28 [&_button]:!h-9">
+                          <Select label="Code" options={COUNTRY_CODES} value={activityForm.contact_person_phone_code} onChange={(v) => setActivityForm((f) => ({ ...f, contact_person_phone_code: (v ?? '') as string }))} placeholder="+" searchable getSearchText={getCountryCodeSearchText} exactValueMatchWhenQueryMatches={/^\+?\d+$/} />
+                        </div>
+                        <Input label="Phone" value={activityForm.contact_person_phone} onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_phone: e.target.value }))} placeholder="Number" inputSize="sm" />
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-xs text-slate-500 mb-2">Add quotations (trackable) and/or general attachments (diagrams, docs). Quote numbers for quotation documents use the series you choose when adding a quotation (or a base with rev2, rev3). The lead number above is the lead’s own reference and is separate.</p>
-                  <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2">
+                  )}
+
+                  {/* Attach files toggle */}
+                <div className="mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowAttachments((v) => !v)}
+                    className="text-xs text-slate-500 hover:text-indigo-600 flex items-center gap-1"
+                  >
+                    <Paperclip size={12} />
+                    {showAttachments ? 'Hide files' : 'Attach files'}
+                  </button>
+                  {showAttachments && (
+                  <>
+                  <div className="mt-2 space-y-2">
                     {attachmentEntries.map((row) => (
-                      <div key={row.id} className="flex flex-nowrap items-center gap-2">
-                        <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
+                      <div key={row.id} className="flex flex-wrap md:flex-nowrap items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-white shadow-sm">
+                        <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-700 hover:bg-slate-100 shrink-0 min-w-[120px] justify-center">
                           <Upload size={14} />
-                          <span className="truncate max-w-[120px]">{row.file ? row.file.name : 'Choose file'}</span>
+                          <span className="truncate max-w-[140px]">{row.file ? row.file.name : 'Choose file'}</span>
                           <input
                             type="file"
                             accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
                             className="hidden"
+                            multiple
                             onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              setAttachmentEntries((prev) =>
-                                prev.map((r) => (r.id === row.id ? { ...r, file: file || null } : r))
-                              );
+                              const fileList = e.target.files;
+                              if (!fileList?.length) return;
+                              const files = Array.from(fileList);
+                              if (files.length === 1) {
+                                setAttachmentEntries((prev) =>
+                                  prev.map((r) => (r.id === row.id ? { ...r, file: files[0] } : r))
+                                );
+                              } else {
+                                const newRows = files.map((file) => ({
+                                  id: crypto.randomUUID(),
+                                  kind: 'attachment' as const,
+                                  file: file as File,
+                                  quotationNumber: '',
+                                  title: '',
+                                }));
+                                setAttachmentEntries((prev) =>
+                                  prev.map((r) => (r.id === row.id ? { ...r, file: files[0] } : r)).concat(newRows.slice(1))
+                                );
+                              }
+                              e.target.value = '';
                             }}
                           />
                         </label>
@@ -2606,33 +2666,55 @@ export const LeadFormPage: React.FC = () => {
                             containerClassName="min-w-[160px] max-w-[220px] flex-1 !space-y-0"
                           />
                         )}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setAttachmentEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))
-                          }
-                          className="h-9 w-9 shrink-0 flex items-center justify-center rounded text-slate-400 hover:bg-slate-200 hover:text-rose-600"
-                          title="Remove"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="ml-auto flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAttachmentEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))
+                            }
+                            className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                            title="Remove"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])
+                            }
+                            className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                            title="Add row"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
+                  {attachmentEntries.some((e) => e.kind === 'quotation') && (
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg border border-indigo-100 bg-indigo-50/50">
+                      <Select
+                        label="Quotation series"
+                        value={quotationSeriesCode}
+                        onChange={(v) => setQuotationSeriesCode((v ?? '') as string)}
+                        options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
+                        placeholder="Choose series"
+                      />
+                      <label className="inline-flex items-center gap-2 text-xs text-slate-700 mt-2 md:mt-7">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          checked={quotationIsRevised}
+                          onChange={(e) => setQuotationIsRevised(e.target.checked)}
+                        />
+                        Mark quotation as revised
+                      </label>
+                    </div>
+                  )}
+                  </>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">What was discussed / notes</label>
-                  <textarea
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    rows={3}
-                    value={activityForm.description}
-                    onChange={(e) => setActivityForm((f) => ({ ...f, description: e.target.value }))}
-                    placeholder="e.g. Asked about timeline, budget. They need chamber by Q2."
-                  />
                 </div>
-                <Button type="submit" size="sm" disabled={activitySubmitting}>
-                  {activitySubmitting ? 'Adding...' : 'Add log'}
-                </Button>
               </form>
             </>
           )}
@@ -3127,7 +3209,7 @@ export const LeadFormPage: React.FC = () => {
               setCreateContactForm(prev => ({ ...prev, organization_id: undefined, plant_id: undefined }));
               setContactCreatePlants([]);
               setShowAddPlantInContactModal(false);
-              setNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+              setNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
             }}
             title="Create new contact"
             contentClassName="max-w-lg max-h-[90vh] overflow-y-auto"
@@ -3317,15 +3399,17 @@ export const LeadFormPage: React.FC = () => {
                       <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-3 mt-2">
                         <p className="text-xs font-medium text-slate-700">New plant for this organization</p>
                         <Input label="Plant name" value={newPlantForm.plant_name} onChange={(e) => setNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="e.g. Main Plant" required />
-                        <Input label="Address" value={newPlantForm.address_line1} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                        <Input label="Address line 1" value={newPlantForm.address_line1} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                        <Input label="Address line 2" value={newPlantForm.address_line2} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
                         <div className="grid grid-cols-2 gap-2">
                           <Input label="City" value={newPlantForm.city} onChange={(e) => setNewPlantForm(prev => ({ ...prev, city: e.target.value }))} placeholder="City" />
+                          <Input label="State" value={newPlantForm.state} onChange={(e) => setNewPlantForm(prev => ({ ...prev, state: e.target.value }))} placeholder="State" />
                           <Input label="Country" value={newPlantForm.country} onChange={(e) => setNewPlantForm(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" />
+                          <Input label="Postal code" value={newPlantForm.postal_code} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" />
                         </div>
-                        <Input label="Postal code" value={newPlantForm.postal_code} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" />
                         <div className="flex gap-2">
                           <Button type="button" size="sm" onClick={handleAddPlantInContactModal} disabled={addingPlant || !newPlantForm.plant_name?.trim()}>{addingPlant ? 'Adding...' : 'Add plant'}</Button>
-                          <Button type="button" variant="outline" size="sm" onClick={() => { setShowAddPlantInContactModal(false); setNewPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' }); }}>Cancel</Button>
+                          <Button type="button" variant="outline" size="sm" onClick={() => { setShowAddPlantInContactModal(false); setNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' }); }}>Cancel</Button>
                         </div>
                       </div>
                     )}
@@ -3428,8 +3512,8 @@ export const LeadFormPage: React.FC = () => {
                 <Input type="text" value={formData.company || ''} onChange={(e) => setFormData({ ...formData, company: e.target.value })} placeholder="Company name" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Job Title</label>
-                <Input type="text" value={formData.job_title || ''} onChange={(e) => setFormData({ ...formData, job_title: e.target.value })} placeholder="Job title" />
+                <label className="block text-sm font-medium text-slate-700 mb-2">Designation</label>
+                <Input type="text" value={formData.job_title || ''} onChange={(e) => setFormData({ ...formData, job_title: e.target.value })} placeholder="Designation" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Email <span className="text-red-500">*</span></label>
@@ -3537,7 +3621,7 @@ export const LeadFormPage: React.FC = () => {
               containerClassName="max-w-xs"
             />
             <Input
-              label="PO (optional)"
+              label="PO"
               type="text"
               placeholder="Purchase order number"
               value={markWonPO}

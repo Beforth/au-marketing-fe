@@ -85,7 +85,7 @@ export const LeadsPage: React.FC = () => {
   const [deleteLeadId, setDeleteLeadId] = useState<number | null>(null);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [editingStatus, setEditingStatus] = useState<LeadStatusOption | null>(null);
-  const [statusForm, setStatusForm] = useState({ code: '', label: '', display_order: 0, group_id: undefined as number | undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false });
+  const [statusForm, setStatusForm] = useState({ code: '', label: '', display_order: 0, group_id: undefined as number | undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false, attachment_required_on_kanban_change: false, is_hot: false });
   const [savingStatus, setSavingStatus] = useState(false);
   const [deleteStatusId, setDeleteStatusId] = useState<number | null>(null);
   const [leadStatusGroups, setLeadStatusGroups] = useState<LeadStatusGroup[]>([]);
@@ -445,14 +445,14 @@ export const LeadsPage: React.FC = () => {
   const openStatusModal = () => {
     setEditingStatus(null);
     setEditingGroup(null);
-    setStatusForm({ code: '', label: '', display_order: leadStatuses.length, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false });
+    setStatusForm({ code: '', label: '', display_order: leadStatuses.length, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false, attachment_required_on_kanban_change: false, is_hot: false });
     setGroupForm({ code: '', label: '', expected_duration_days: undefined, follow_up_interval_days: undefined, display_order: leadStatusGroups.length, is_active: true, hex_color: '' });
     setShowStatusModal(true);
     marketingAPI.getLeadStatusGroups().then(setLeadStatusGroups).catch(() => setLeadStatusGroups([]));
   };
   const openEditStatus = (s: LeadStatusOption) => {
     setEditingStatus(s);
-    setStatusForm({ code: s.code, label: s.label, display_order: s.display_order, group_id: s.group_id ?? undefined, is_active: s.is_active, is_final: s.is_final ?? false, is_lost: s.is_lost ?? false, hex_color: s.hex_color ?? '', set_when_quotation_added: s.set_when_quotation_added ?? false, set_when_quote_number_generated: s.set_when_quote_number_generated ?? false });
+    setStatusForm({ code: s.code, label: s.label, display_order: s.display_order, group_id: s.group_id ?? undefined, is_active: s.is_active, is_final: s.is_final ?? false, is_lost: s.is_lost ?? false, hex_color: s.hex_color ?? '', set_when_quotation_added: s.set_when_quotation_added ?? false, set_when_quote_number_generated: s.set_when_quote_number_generated ?? false, attachment_required_on_kanban_change: s.attachment_required_on_kanban_change ?? false, is_hot: s.is_hot ?? false });
     setShowStatusModal(true);
     marketingAPI.getLeadStatusGroups().then(setLeadStatusGroups).catch(() => setLeadStatusGroups([]));
   };
@@ -472,6 +472,8 @@ export const LeadsPage: React.FC = () => {
       hex_color: '',
       set_when_quotation_added: false,
       set_when_quote_number_generated: false,
+      attachment_required_on_kanban_change: false,
+      is_hot: false,
     });
     setShowStatusModal(true);
     marketingAPI.getLeadStatusGroups().then(setLeadStatusGroups).catch(() => setLeadStatusGroups([]));
@@ -558,6 +560,8 @@ export const LeadsPage: React.FC = () => {
           hex_color: statusForm.hex_color?.trim() ? statusForm.hex_color.trim() : undefined,
           set_when_quotation_added: statusForm.set_when_quotation_added,
           set_when_quote_number_generated: statusForm.set_when_quote_number_generated,
+          attachment_required_on_kanban_change: statusForm.attachment_required_on_kanban_change,
+          is_hot: statusForm.is_hot,
         });
         showToast('Status updated', 'success');
       } else {
@@ -572,13 +576,15 @@ export const LeadsPage: React.FC = () => {
           hex_color: statusForm.hex_color?.trim() ? statusForm.hex_color.trim() : undefined,
           set_when_quotation_added: statusForm.set_when_quotation_added,
           set_when_quote_number_generated: statusForm.set_when_quote_number_generated,
+          attachment_required_on_kanban_change: statusForm.attachment_required_on_kanban_change,
+          is_hot: statusForm.is_hot,
         });
         showToast('Status created', 'success');
       }
       const list = await marketingAPI.getLeadStatuses();
       setLeadStatuses(list);
       setEditingStatus(null);
-      setStatusForm({ code: '', label: '', display_order: list.length, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false });
+      setStatusForm({ code: '', label: '', display_order: list.length, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false, attachment_required_on_kanban_change: false, is_hot: false });
     } catch (e: any) {
       showToast(e.message || 'Failed to save status', 'error');
     } finally {
@@ -666,44 +672,41 @@ export const LeadsPage: React.FC = () => {
       showToast('Generate quotation number before changing to this status', 'error');
       return;
     }
+    const enteredTitle = statusChangeForm.title.trim();
+    const enteredDescription = statusChangeForm.description?.trim() || '';
+    if (!enteredTitle) {
+      showToast('Title is required', 'error');
+      return;
+    }
+    if (!enteredDescription) {
+      showToast('Description is required', 'error');
+      return;
+    }
+    const requiresAttachment = Boolean(pendingStatus?.attachment_required_on_kanban_change);
+    const toUpload = statusChangeAttachments.filter((e) => e.file);
+    if (requiresAttachment && toUpload.length === 0) {
+      showToast('At least one attachment is required', 'error');
+      return;
+    }
     setStatusChangeSubmitting(true);
     try {
-      const fromLabel = leadStatuses.find((s) => s.id === currentStatusId)?.label ?? '—';
-      const toLabel = leadStatuses.find((s) => s.id === newStatusId)?.label ?? '—';
-      const enteredTitle = statusChangeForm.title.trim();
-      const enteredDescription = statusChangeForm.description?.trim() || '';
-
-      // Keep status timeline intact.
-      await marketingAPI.createLeadActivity(leadId, {
+      const created = await marketingAPI.createLeadActivity(leadId, {
         activity_type: 'lead_status_change',
-        title: enteredTitle || 'Status changed',
-        description: enteredDescription || undefined,
+        title: enteredTitle,
+        description: enteredDescription,
         from_status_id: currentStatusId ?? undefined,
         to_status_id: newStatusId,
       });
-
-      // Also add an enquiry note so popup details are visible in enquiry log.
-      const enquiry = await marketingAPI.createLeadActivity(leadId, {
-        activity_type: 'note',
-        title: enteredTitle || `Status changed: ${fromLabel} -> ${toLabel}`,
-        description: enteredDescription
-          ? `Status: ${fromLabel} -> ${toLabel}\n${enteredDescription}`
-          : `Status: ${fromLabel} -> ${toLabel}`,
-      });
-
-      const toUpload = statusChangeAttachments.filter((e) => e.file);
-      if (toUpload.length > 0) {
-        await marketingAPI.uploadLeadActivityAttachments(
-          leadId,
-          enquiry.id,
-          toUpload.map((e) => e.file!),
-          toUpload.map((e) => e.kind),
-          undefined,
-          toUpload.map((e) => (e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined))
-        );
-      }
+      await marketingAPI.uploadLeadActivityAttachments(
+        leadId,
+        created.id,
+        toUpload.map((e) => e.file!),
+        toUpload.map((e) => e.kind),
+        undefined,
+        toUpload.map((e) => (e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined))
+      );
       await marketingAPI.updateLead(leadId, { status_id: newStatusId });
-      showToast('Status updated and enquiry logged', 'success');
+      showToast('Status updated and log saved', 'success');
       setLeads((prev) =>
         prev.map((l) =>
           l.id === leadId ? { ...l, status_id: newStatusId, status_option: leadStatuses.find((s) => s.id === newStatusId) ?? l.status_option } : l
@@ -813,6 +816,8 @@ export const LeadsPage: React.FC = () => {
   const firstActiveStatusId = leadStatuses.find((s) => s.is_active)?.id;
   const wonStatusId = useMemo(() => leadStatuses.find((s) => s.is_final && !s.is_lost)?.id ?? null, [leadStatuses]);
   const lostStatusId = useMemo(() => leadStatuses.find((s) => s.is_lost)?.id ?? null, [leadStatuses]);
+  const pendingToStatus = statusChangePending ? leadStatuses.find((s) => s.id === statusChangePending.newStatusId) : null;
+  const pendingStatusRequiresAttachment = Boolean(pendingToStatus?.attachment_required_on_kanban_change);
 
   const openMarkAsWonModal = (leadId: number) => {
     if (!wonStatusId) {
@@ -1733,7 +1738,16 @@ export const LeadsPage: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button size="sm" onClick={handleStatusChangeModalSubmit} disabled={statusChangeSubmitting}>
+            <Button
+              size="sm"
+              onClick={handleStatusChangeModalSubmit}
+              disabled={
+                statusChangeSubmitting ||
+                !statusChangeForm.title.trim() ||
+                !statusChangeForm.description.trim() ||
+                (pendingStatusRequiresAttachment && !statusChangeAttachments.some((a) => a.file))
+              }
+            >
               {statusChangeSubmitting ? 'Updating…' : 'Confirm & change status'}
             </Button>
           </div>
@@ -1741,12 +1755,12 @@ export const LeadsPage: React.FC = () => {
       >
         {statusChangePending && (() => {
           const statusChangeLead = leads.find((l) => l.id === statusChangePending.leadId);
-          const toStatus = leadStatuses.find((s) => s.id === statusChangePending.newStatusId);
-          const requiresQuoteNumber = Boolean(toStatus?.set_when_quote_number_generated);
+          const requiresQuoteNumber = Boolean(pendingToStatus?.set_when_quote_number_generated);
+          const requiresAttachment = pendingStatusRequiresAttachment;
           const leadHasNoQuoteNumber = requiresQuoteNumber && !statusChangeLead?.series?.trim();
           return (
             <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-              <p className="text-sm text-slate-600">You can add an optional log for this status change.</p>
+              <p className="text-sm text-slate-600">Add mandatory log details for this status change.</p>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-slate-500 block text-xs font-medium mb-0.5">From status</span>
@@ -1793,13 +1807,13 @@ export const LeadsPage: React.FC = () => {
                 <p className="text-xs text-slate-600">Lead number: <strong>{statusChangeLead.series}</strong></p>
               )}
               <Input
-                label="Reason / title (optional)"
+                label="Reason / title *"
                 placeholder="e.g. Customer confirmed requirements"
                 value={statusChangeForm.title}
                 onChange={(e) => setStatusChangeForm((f) => ({ ...f, title: e.target.value }))}
               />
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optional)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Notes *</label>
                 <textarea
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Additional details..."
@@ -1808,8 +1822,10 @@ export const LeadsPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">File attachments (optional)</label>
-                <p className="text-xs text-slate-500 mb-2">Quotation or general attachment; choose type per file. Same as enquiry log.</p>
+                <label className="block text-sm font-medium text-slate-700 mb-1">File attachments {requiresAttachment ? '*' : '(optional)'}</label>
+                <p className="text-xs text-slate-500 mb-2">
+                  {requiresAttachment ? 'At least one attachment is required to change to this status.' : 'You can attach files for this status change.'}
+                </p>
                 <div className="space-y-2">
                   {statusChangeAttachments.map((row) => (
                     <div key={row.id} className="flex flex-wrap items-center gap-2">
@@ -2200,7 +2216,7 @@ export const LeadsPage: React.FC = () => {
           setEditingStatus(null);
           setEditingGroup(null);
           setAddingGroup(false);
-          setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false });
+          setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false, attachment_required_on_kanban_change: false, is_hot: false });
           setGroupForm({ code: '', label: '', expected_duration_days: undefined, follow_up_interval_days: undefined, display_order: 0, is_active: true, hex_color: '' });
         }}
         title="Lead statuses & groups"
@@ -2350,9 +2366,11 @@ export const LeadsPage: React.FC = () => {
                   <th className="pb-2 pr-2">Active</th>
                   <th className="pb-2 pr-2">Final (Won)</th>
                   <th className="pb-2 pr-2">Lost</th>
+                  <th className="pb-2 pr-2" title="Mark this status as a hot case">Hot</th>
                   <th className="pb-2 pr-2">Color</th>
                   <th className="pb-2 pr-2" title="Auto-set lead to this status when a quotation is added to any enquiry">When quotation added</th>
                   <th className="pb-2 pr-2" title="Auto-set when lead number is generated (Generate lead number) but no quotation file yet">When lead # only</th>
+                  <th className="pb-2 pr-2" title="Require at least one attachment when moving to this status from Kanban">Attachment compulsory</th>
                   <th className="pb-2" />
                 </tr>
               </thead>
@@ -2372,7 +2390,7 @@ export const LeadsPage: React.FC = () => {
                     return (
                       <React.Fragment key={groupId === 'none' ? 'nogroup' : groupId}>
                         <tr className="bg-slate-100/80">
-                          <td colSpan={10} className="py-1.5 px-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                          <td colSpan={11} className="py-1.5 px-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                             <div className="flex items-center justify-between">
                               <span>{groupLabel}</span>
                               {groupId !== 'none' && canEdit && (
@@ -2413,6 +2431,12 @@ export const LeadsPage: React.FC = () => {
                               </label>
                             </td>
                             <td className="py-2 pr-2 align-middle">
+                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm" title="Mark this status as hot">
+                                <input type="checkbox" checked={statusForm.is_hot} onChange={(e) => setStatusForm((f) => ({ ...f, is_hot: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                <span>Hot</span>
+                              </label>
+                            </td>
+                            <td className="py-2 pr-2 align-middle">
                               <div className="flex items-center gap-1.5">
                                 <input type="color" className="h-8 w-10 cursor-pointer rounded border border-slate-200 bg-white p-0.5" value={statusForm.hex_color && /^#[0-9A-Fa-f]{6}$/.test(statusForm.hex_color) ? statusForm.hex_color : '#3b82f6'} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} title="Color" />
                                 <input className="h-8 w-20 rounded border border-slate-200 bg-white px-2 text-sm font-mono focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200" placeholder="#3b82f6" value={statusForm.hex_color} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} title="Hex color" />
@@ -2430,17 +2454,23 @@ export const LeadsPage: React.FC = () => {
                                 <span>Yes</span>
                               </label>
                             </td>
+                            <td className="py-2 pr-2 align-middle">
+                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm" title="Require at least one attachment when this status is selected in Kanban">
+                                <input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                <span>Yes</span>
+                              </label>
+                            </td>
                             <td className="py-2 align-middle">
                               <div className="flex gap-1">
                                 <Button size="xs" onClick={saveStatus} disabled={savingStatus || !statusForm.label?.trim()}>{savingStatus ? '...' : 'Save'}</Button>
-                                <Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false }); }}>Cancel</Button>
+                              <Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false, attachment_required_on_kanban_change: false, is_hot: false }); }}>Cancel</Button>
                               </div>
                             </td>
                           </tr>
                         )}
                         {statuses.length === 0 && !(canEdit && statusForm.group_id === groupId && !editingStatus) ? (
                           <tr>
-                            <td colSpan={10} className="py-2 px-2 text-slate-400 text-xs italic">No statuses yet. Click &quot;Add status&quot; above.</td>
+                        <td colSpan={12} className="py-2 px-2 text-slate-400 text-xs italic">No statuses yet. Click &quot;Add status&quot; above.</td>
                           </tr>
                         ) : (
                           statuses.map((s) =>
@@ -2465,6 +2495,12 @@ export const LeadsPage: React.FC = () => {
                                   <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_lost} onChange={(e) => setStatusForm((f) => ({ ...f, is_lost: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Lost</span></label>
                                 </td>
                                 <td className="py-2 pr-2 align-middle">
+                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm" title="Mark this status as hot">
+                                    <input type="checkbox" checked={statusForm.is_hot} onChange={(e) => setStatusForm((f) => ({ ...f, is_hot: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                    <span>Hot</span>
+                                  </label>
+                                </td>
+                                <td className="py-2 pr-2 align-middle">
                                   <div className="flex items-center gap-1.5">
                                     <input type="color" className="h-8 w-10 cursor-pointer rounded border border-slate-200 bg-white p-0.5" value={statusForm.hex_color && /^#[0-9A-Fa-f]{6}$/.test(statusForm.hex_color) ? statusForm.hex_color : '#3b82f6'} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} title="Color" />
                                     <input className="h-8 w-20 rounded border border-slate-200 bg-white px-2 text-sm font-mono focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200" placeholder="#3b82f6" value={statusForm.hex_color} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} title="Hex color" />
@@ -2482,10 +2518,16 @@ export const LeadsPage: React.FC = () => {
                                     <span>Yes</span>
                                   </label>
                                 </td>
+                                <td className="py-2 pr-2 align-middle">
+                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
+                                    <input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                    <span>Yes</span>
+                                  </label>
+                                </td>
                                 <td className="py-2 align-middle">
                                   <div className="flex gap-1">
                                     <Button size="xs" onClick={saveStatus} disabled={savingStatus || !statusForm.label?.trim()}>{savingStatus ? '...' : 'Save'}</Button>
-                                    <Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false }); }}>Cancel</Button>
+                                    <Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false, attachment_required_on_kanban_change: false, is_hot: false }); }}>Cancel</Button>
                                   </div>
                                 </td>
                               </tr>
@@ -2497,6 +2539,7 @@ export const LeadsPage: React.FC = () => {
                                 <td className="py-2 pr-2 align-middle">{s.is_active ? 'Yes' : 'No'}</td>
                                 <td className="py-2 pr-2 align-middle">{s.is_final ? 'Yes' : '—'}</td>
                                 <td className="py-2 pr-2 align-middle">{s.is_lost ? 'Yes' : '—'}</td>
+                                <td className="py-2 pr-2 align-middle">{s.is_hot ? 'Hot' : '—'}</td>
                                 <td className="py-2 pr-2 align-middle">
                                   {s.hex_color ? (
                                     <span className="inline-flex items-center gap-1.5">
@@ -2507,6 +2550,7 @@ export const LeadsPage: React.FC = () => {
                                 </td>
                                 <td className="py-2 pr-2 align-middle">{s.set_when_quotation_added ? 'Yes' : '—'}</td>
                                 <td className="py-2 pr-2 align-middle">{s.set_when_quote_number_generated ? 'Yes' : '—'}</td>
+                                <td className="py-2 pr-2 align-middle">{s.attachment_required_on_kanban_change ? 'Yes' : '—'}</td>
                                 <td className="py-2 align-middle">
                                   {canEdit && <Button variant="ghost" size="xs" onClick={() => openEditStatus(s)}>Edit</Button>}
                                   {canDelete && <Button variant="ghost" size="xs" className="text-rose-600" onClick={() => setDeleteStatusId(s.id)}>Delete</Button>}

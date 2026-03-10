@@ -194,9 +194,11 @@ export interface LeadStatusOption {
   is_active: boolean;
   is_final?: boolean;  // Won/closed – no follow-up reminders
   is_lost?: boolean;   // Lost – no follow-up reminders
+  is_hot?: boolean;    // Mark leads in this status as hot cases
   hex_color?: string | null;  // e.g. "#3b82f6" for badge/UI color
   set_when_quotation_added?: boolean;  // Auto-set lead to this status when a quotation is added to any enquiry
   set_when_quote_number_generated?: boolean;  // Auto-set when quote number generated (Generate button) but no quotation file yet
+  attachment_required_on_kanban_change?: boolean;  // Require attachment when changing to this status from kanban
   created_at: string;
   updated_at: string;
 }
@@ -236,6 +238,7 @@ export interface Lead {
   lead_type_id?: number;
   lead_through_id?: number;
   through_contact_id?: number | null;
+  referred_by_customer_id?: number | null;
   potential_value?: number;
   notes?: string;
   closed_value?: number | null;
@@ -258,7 +261,8 @@ export interface Lead {
   region?: Region;
   contact?: Contact | null;   // Person/company for display
   customer?: Customer;
-  through_contact?: Contact | null;  // When lead_through is through_contact: contact through whom lead came
+  through_contact?: Contact | null;  // Person who referred: contact
+  referred_by_customer?: Customer | null;  // Person who referred: customer
   plant?: Plant;
   status_option?: LeadStatusOption;
   lead_type_option?: LeadTypeOption;
@@ -333,14 +337,15 @@ export interface CreateLeadRequest {
   status_id?: number;
   lead_type_id?: number;
   lead_through_id?: number;
-  through_contact_id?: number | null;  // When lead_through is through_contact: contact through whom lead came (different from contact_id)
+  through_contact_id?: number | null;  // Person who referred: contact
+  referred_by_customer_id?: number | null;  // Person who referred: customer
   potential_value?: number;
   notes?: string;
   series_code?: string;
   quote_series_code?: string;
   quote_number?: string;
   assigned_to_employee_id?: number;
-  referred_by_employee_id?: number | null;  // When lead_through is colleague: employee who referred the lead
+  referred_by_employee_id?: number | null;  // Person who referred: employee
   expected_closing_date?: string;
   series?: string;
 }
@@ -419,6 +424,7 @@ export interface OrderStatusOption {
   display_order: number;
   is_active: boolean;
   is_final: boolean;
+  attachment_required_on_kanban_change?: boolean;
   hex_color?: string | null;
   group?: OrderStatusGroup | null;
   created_at: string;
@@ -571,11 +577,11 @@ class MarketingAPIService {
     return apiClient.get<LeadStatusOption[]>(query ? `/api/leads/statuses/?${query}` : '/api/leads/statuses/');
   }
 
-  async createLeadStatus(data: { code: string; label: string; group_id?: number; stage?: string; display_order?: number; is_active?: boolean; is_final?: boolean; is_lost?: boolean; hex_color?: string; set_when_quotation_added?: boolean; set_when_quote_number_generated?: boolean }): Promise<LeadStatusOption> {
+  async createLeadStatus(data: { code: string; label: string; group_id?: number; stage?: string; display_order?: number; is_active?: boolean; is_final?: boolean; is_lost?: boolean; hex_color?: string; set_when_quotation_added?: boolean; set_when_quote_number_generated?: boolean; attachment_required_on_kanban_change?: boolean; is_hot?: boolean }): Promise<LeadStatusOption> {
     return apiClient.post<LeadStatusOption>('/api/leads/statuses/', data);
   }
 
-  async updateLeadStatus(id: number, data: Partial<{ code: string; label: string; group_id?: number; stage?: string; display_order: number; is_active: boolean; is_final: boolean; is_lost: boolean; hex_color?: string; set_when_quotation_added: boolean; set_when_quote_number_generated: boolean }>): Promise<LeadStatusOption> {
+  async updateLeadStatus(id: number, data: Partial<{ code: string; label: string; group_id?: number; stage?: string; display_order: number; is_active: boolean; is_final: boolean; is_lost: boolean; hex_color?: string; set_when_quotation_added: boolean; set_when_quote_number_generated: boolean; attachment_required_on_kanban_change: boolean; is_hot: boolean }>): Promise<LeadStatusOption> {
     return apiClient.put<LeadStatusOption>(`/api/leads/statuses/${id}`, data);
   }
 
@@ -795,11 +801,11 @@ class MarketingAPIService {
     return apiClient.get<OrderStatusOption[]>(query ? `/api/orders/statuses/?${query}` : '/api/orders/statuses/');
   }
 
-  async createOrderStatus(data: { code: string; label: string; group_id?: number; display_order?: number; is_active?: boolean; is_final?: boolean; hex_color?: string }): Promise<OrderStatusOption> {
+  async createOrderStatus(data: { code: string; label: string; group_id?: number; display_order?: number; is_active?: boolean; is_final?: boolean; hex_color?: string; attachment_required_on_kanban_change?: boolean }): Promise<OrderStatusOption> {
     return apiClient.post<OrderStatusOption>('/api/orders/statuses/', data);
   }
 
-  async updateOrderStatus(id: number, data: Partial<{ code: string; label: string; group_id?: number; display_order?: number; is_active?: boolean; is_final?: boolean; hex_color?: string }>): Promise<OrderStatusOption> {
+  async updateOrderStatus(id: number, data: Partial<{ code: string; label: string; group_id?: number; display_order?: number; is_active?: boolean; is_final?: boolean; hex_color?: string; attachment_required_on_kanban_change: boolean }>): Promise<OrderStatusOption> {
     return apiClient.put<OrderStatusOption>(`/api/orders/statuses/${id}`, data);
   }
 
@@ -839,6 +845,19 @@ class MarketingAPIService {
     }
   ): Promise<OrderActivity> {
     return apiClient.post<OrderActivity>(`/api/orders/${orderId}/activities/`, data);
+  }
+
+  async uploadOrderActivityAttachments(
+    orderId: number,
+    activityId: number,
+    files: File[]
+  ): Promise<OrderActivityAttachment[]> {
+    const formData = new FormData();
+    files.forEach((f) => formData.append('files', f));
+    return apiClient.postFormData<OrderActivityAttachment[]>(
+      `/api/orders/${orderId}/activities/${activityId}/attachments`,
+      formData
+    );
   }
 
   async updateOrderActivity(
@@ -1380,27 +1399,48 @@ class MarketingAPIService {
   }
 
   /** Dashboard: monthly target vs achieved, won/lost counts (for current user or employee_id if admin/head) */
-  async getDashboardTargetStats(params?: { employee_id?: number }): Promise<DashboardTargetStats> {
-    const qs = params?.employee_id != null ? new URLSearchParams({ employee_id: String(params.employee_id) }) : undefined;
-    return apiClient.get<DashboardTargetStats>(`/api/dashboard/target-stats${qs ? `?${qs.toString()}` : ''}`);
+  async getDashboardTargetStats(params?: { employee_id?: number; date_from?: string; date_to?: string }): Promise<DashboardTargetStats> {
+    const sp = new URLSearchParams();
+    if (params?.employee_id != null) sp.set('employee_id', String(params.employee_id));
+    if (params?.date_from?.trim()) sp.set('date_from', params.date_from.trim());
+    if (params?.date_to?.trim()) sp.set('date_to', params.date_to.trim());
+    const qs = sp.toString();
+    return apiClient.get<DashboardTargetStats>(`/api/dashboard/target-stats${qs ? `?${qs}` : ''}`);
   }
 
   /** Scope-wide target/achieved for dashboard. For heads returns aggregated team stats. */
-  async getScopeTargetStats(): Promise<ScopeTargetStats> {
-    return apiClient.get<ScopeTargetStats>('/api/dashboard/scope-target-stats');
+  async getScopeTargetStats(params?: { date_from?: string; date_to?: string }): Promise<ScopeTargetStats> {
+    const sp = new URLSearchParams();
+    if (params?.date_from?.trim()) sp.set('date_from', params.date_from.trim());
+    if (params?.date_to?.trim()) sp.set('date_to', params.date_to.trim());
+    const qs = sp.toString();
+    return apiClient.get<ScopeTargetStats>(`/api/dashboard/scope-target-stats${qs ? `?${qs}` : ''}`);
+  }
+
+  /** Domain target summary: hierarchy domain → region → employee with target amounts (for Domains Review page). */
+  async getDomainTargetSummary(year: number, month: number): Promise<DomainTargetSummaryResponse> {
+    return apiClient.get<DomainTargetSummaryResponse>(`/api/dashboard/domain-target-summary?year=${year}&month=${month}`);
   }
 
   /** Head dashboard summary for domain_head and super_admin: region split, hot cases, conversion, won vs lost. */
-  async getHeadDashboardSummary(): Promise<HeadDashboardSummaryResponse> {
-    return apiClient.get<HeadDashboardSummaryResponse>('/api/dashboard/head-summary');
+  async getHeadDashboardSummary(params?: { date_from?: string; date_to?: string }): Promise<HeadDashboardSummaryResponse> {
+    const sp = new URLSearchParams();
+    if (params?.date_from?.trim()) sp.set('date_from', params.date_from.trim());
+    if (params?.date_to?.trim()) sp.set('date_to', params.date_to.trim());
+    const qs = sp.toString();
+    return apiClient.get<HeadDashboardSummaryResponse>(`/api/dashboard/head-summary${qs ? `?${qs}` : ''}`);
   }
 
   // Saved dashboards (user-created; assignable; widgets with SQL or preset)
   async getSavedDashboards(): Promise<SavedDashboardResponse[]> {
     return apiClient.get<SavedDashboardResponse[]>('/api/saved-dashboards/');
   }
-  async getSavedDashboard(id: number): Promise<SavedDashboardResponse> {
-    return apiClient.get<SavedDashboardResponse>(`/api/saved-dashboards/${id}`);
+  async getSavedDashboard(id: number, params?: { date_from?: string; date_to?: string }): Promise<SavedDashboardResponse> {
+    const sp = new URLSearchParams();
+    if (params?.date_from?.trim()) sp.set('date_from', params.date_from.trim());
+    if (params?.date_to?.trim()) sp.set('date_to', params.date_to.trim());
+    const qs = sp.toString();
+    return apiClient.get<SavedDashboardResponse>(`/api/saved-dashboards/${id}${qs ? `?${qs}` : ''}`);
   }
   async createSavedDashboard(data: { name: string; description?: string; config?: { layout?: unknown[] } }): Promise<SavedDashboardResponse> {
     return apiClient.post<SavedDashboardResponse>('/api/saved-dashboards/', data);
@@ -1411,6 +1451,9 @@ class MarketingAPIService {
   async deleteSavedDashboard(id: number): Promise<void> {
     return apiClient.delete<void>(`/api/saved-dashboards/${id}`);
   }
+  async getAssignableUsers(): Promise<AssignableUser[]> {
+    return apiClient.get<AssignableUser[]>('/api/saved-dashboards/assignable-users');
+  }
   async getSavedDashboardAssignments(dashboardId: number): Promise<SavedDashboardAssignmentResponse[]> {
     return apiClient.get<SavedDashboardAssignmentResponse[]>(`/api/saved-dashboards/${dashboardId}/assignments`);
   }
@@ -1419,6 +1462,80 @@ class MarketingAPIService {
   }
   async deleteSavedDashboardAssignment(dashboardId: number, assignmentId: number): Promise<void> {
     return apiClient.delete<void>(`/api/saved-dashboards/${dashboardId}/assignments/${assignmentId}`);
+  }
+
+  // Report templates (like dashboards: template + SQL sections, assign to employees)
+  async getReportTemplates(): Promise<ReportTemplateResponse[]> {
+    return apiClient.get<ReportTemplateResponse[]>('/api/report-templates/');
+  }
+  async getReportTemplate(id: number, params?: ReportTemplateEntityParams): Promise<ReportTemplateResponse> {
+    const sp = new URLSearchParams();
+    if (params?.date_from?.trim()) sp.set('date_from', params.date_from.trim());
+    if (params?.date_to?.trim()) sp.set('date_to', params.date_to.trim());
+    if (params?.lead_id != null) sp.set('lead_id', String(params.lead_id));
+    if (params?.lead_ids?.trim()) sp.set('lead_ids', params.lead_ids.trim());
+    if (params?.domain_id != null) sp.set('domain_id', String(params.domain_id));
+    if (params?.domain_ids?.trim()) sp.set('domain_ids', params.domain_ids.trim());
+    if (params?.region_id != null) sp.set('region_id', String(params.region_id));
+    if (params?.region_ids?.trim()) sp.set('region_ids', params.region_ids.trim());
+    if (params?.employee_id != null) sp.set('employee_id', String(params.employee_id));
+    if (params?.contact_id != null) sp.set('contact_id', String(params.contact_id));
+    if (params?.contact_ids?.trim()) sp.set('contact_ids', params.contact_ids.trim());
+    if (params?.customer_id != null) sp.set('customer_id', String(params.customer_id));
+    if (params?.customer_ids?.trim()) sp.set('customer_ids', params.customer_ids.trim());
+    if (params?.organization_id != null) sp.set('organization_id', String(params.organization_id));
+    if (params?.organization_ids?.trim()) sp.set('organization_ids', params.organization_ids.trim());
+    if (params?.plant_id != null) sp.set('plant_id', String(params.plant_id));
+    if (params?.plant_ids?.trim()) sp.set('plant_ids', params.plant_ids.trim());
+    const qs = sp.toString();
+    return apiClient.get<ReportTemplateResponse>(`/api/report-templates/${id}${qs ? `?${qs}` : ''}`);
+  }
+  async createReportTemplate(data: { name: string; description?: string; config?: { sections?: ReportSection[] } }): Promise<ReportTemplateResponse> {
+    return apiClient.post<ReportTemplateResponse>('/api/report-templates/', data);
+  }
+  async updateReportTemplate(id: number, data: { name?: string; description?: string; config?: { sections?: ReportSection[] } }): Promise<ReportTemplateResponse> {
+    return apiClient.patch<ReportTemplateResponse>(`/api/report-templates/${id}`, data);
+  }
+  async deleteReportTemplate(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/report-templates/${id}`);
+  }
+  async getReportTemplateAssignableUsers(): Promise<AssignableUser[]> {
+    return apiClient.get<AssignableUser[]>('/api/report-templates/assignable-users');
+  }
+  async getReportTemplateAssignments(templateId: number): Promise<ReportTemplateAssignmentResponse[]> {
+    return apiClient.get<ReportTemplateAssignmentResponse[]>(`/api/report-templates/${templateId}/assignments`);
+  }
+  async assignReportTemplate(templateId: number, data: { assignee_employee_id: number; can_edit?: boolean }): Promise<ReportTemplateAssignmentResponse> {
+    return apiClient.post<ReportTemplateAssignmentResponse>(`/api/report-templates/${templateId}/assignments`, data);
+  }
+  async deleteReportTemplateAssignment(templateId: number, assignmentId: number): Promise<void> {
+    return apiClient.delete<void>(`/api/report-templates/${templateId}/assignments/${assignmentId}`);
+  }
+
+  async generateWidgetWithAI(data: {
+    prompt: string;
+    schema: { name: string; columns: { name: string; type: string }[] }[];
+    scope_mode?: 'auto' | 'employee' | 'region' | 'domain';
+    preferred_chart?: 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card';
+    date_from?: string;
+    date_to?: string;
+  }): Promise<{ title: string; chart_type: 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card'; sql: string }> {
+    return apiClient.post<{ title: string; chart_type: 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card'; sql: string }>(
+      '/api/saved-dashboards/ai-generate-widget',
+      data
+    );
+  }
+  async previewSqlTemplate(data: {
+    sql: string;
+    chart_type?: 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card';
+    schema: { name: string; columns: { name: string; type: string }[] }[];
+    date_from?: string;
+    date_to?: string;
+  }): Promise<{ chart_type: 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card'; compiled_sql: string; data: unknown[] }> {
+    return apiClient.post<{ chart_type: 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card'; compiled_sql: string; data: unknown[] }>(
+      '/api/saved-dashboards/preview-sql-template',
+      data
+    );
   }
   /** Execute widget data source (SQL or preset); returns { data, chart_type } for charts. */
   async executeWidget(body: { chart_type: string; data_source: { kind: string; value?: string }; title?: string }): Promise<{ data: unknown[]; chart_type?: string }> {
@@ -1606,6 +1723,36 @@ export interface ScopeTargetStats {
   employee_count: number;
 }
 
+/** Domain target summary: hierarchy domain → region → employee with target amounts (for Domains Review page). */
+export interface EmployeeTargetItem {
+  employee_id: number;
+  employee_name: string;
+  target_amount: number;
+}
+
+export interface RegionTargetSummaryItem {
+  region_id: number;
+  region_name: string;
+  region_code?: string | null;
+  total_target: number;
+  employees: EmployeeTargetItem[];
+}
+
+export interface DomainTargetSummaryItem {
+  domain_id: number;
+  domain_name: string;
+  domain_code?: string | null;
+  total_target: number;
+  regions: RegionTargetSummaryItem[];
+}
+
+export interface DomainTargetSummaryResponse {
+  year: number;
+  month: number;
+  total_target: number;
+  domains: DomainTargetSummaryItem[];
+}
+
 /** Region row for head dashboard (domain_head / super_admin). */
 export interface RegionBreakdownItem {
   region_id: number;
@@ -1631,12 +1778,20 @@ export interface HeadDashboardSummaryResponse {
   month: number;
 }
 
+/** User who can be assigned a dashboard (domain head, region head, or employee in marketing). */
+export interface AssignableUser {
+  id: number;
+  name: string;
+  role_hint?: string | null;
+}
+
 /** Saved dashboard (user-created; config.layout = widgets). */
 export interface SavedDashboardResponse {
   id: number;
   name: string;
   description: string | null;
   config: { layout?: unknown[] } | null;
+  widget_data?: Record<string, { data?: unknown[]; chart_type?: string; error?: string }>;
   domain_id: number | null;
   created_by_employee_id: number;
   created_by_username: string | null;
@@ -1649,6 +1804,62 @@ export interface SavedDashboardResponse {
 export interface SavedDashboardAssignmentResponse {
   id: number;
   dashboard_id: number;
+  assignee_employee_id: number;
+  can_edit: boolean;
+  created_at: string;
+}
+
+/** One section in a report template: title + SQL. */
+export interface ReportSection {
+  id: string;
+  title?: string;
+  sql: string;
+  display_order?: number;
+  chart_type?: string;
+}
+
+/** Report template (user-created; config.sections = list of SQL sections). */
+export interface ReportTemplateResponse {
+  id: number;
+  name: string;
+  description: string | null;
+  config: { sections?: ReportSection[] } | null;
+  section_data?: Record<string, { data?: unknown[]; error?: string }>;
+  domain_id: number | null;
+  created_by_employee_id: number;
+  created_by_username: string | null;
+  created_at: string;
+  updated_at: string;
+  can_edit: boolean;
+  /** Placeholder keys used in section SQL (e.g. lead_id, domain_id) for filter dropdowns */
+  placeholders?: string[] | null;
+}
+
+/** Entity params for report template run (single ID or comma-separated _ids). */
+export interface ReportTemplateEntityParams {
+  date_from?: string;
+  date_to?: string;
+  lead_id?: number;
+  lead_ids?: string;
+  domain_id?: number;
+  domain_ids?: string;
+  region_id?: number;
+  region_ids?: string;
+  employee_id?: number;
+  contact_id?: number;
+  contact_ids?: string;
+  customer_id?: number;
+  customer_ids?: string;
+  organization_id?: number;
+  organization_ids?: string;
+  plant_id?: number;
+  plant_ids?: string;
+}
+
+/** Assignment of a report template to a user (employee). */
+export interface ReportTemplateAssignmentResponse {
+  id: number;
+  template_id: number;
   assignee_employee_id: number;
   can_edit: boolean;
   created_at: string;

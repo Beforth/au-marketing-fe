@@ -20,9 +20,22 @@ import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { marketingAPI, Domain, Region, AssignmentWithEmployee, HRMSEmployee, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
+import { marketingAPI, Domain, Region, AssignmentWithEmployee, HRMSEmployee, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, DomainTargetSummaryResponse } from '../lib/marketing-api';
+import { Target } from 'lucide-react';
 
 type ViewMode = 'list' | 'review';
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function getCurrentYearMonth(): { year: number; month: number } {
+  const d = new Date();
+  return { year: d.getFullYear(), month: d.getMonth() + 1 };
+}
+
+function formatTargetAmount(amount: number): string {
+  if (amount >= 1_00_000) return `₹${(amount / 1_00_000).toFixed(2)} L`;
+  return `₹${amount.toLocaleString('en-IN')}`;
+}
 
 export const DomainsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -76,6 +89,15 @@ export const DomainsPage: React.FC = () => {
   const [domainHeadEmployeeId, setDomainHeadEmployeeId] = useState<number | ''>('');
   const [regionHeadEmployeeId, setRegionHeadEmployeeId] = useState<number | ''>('');
 
+  // Target summary (Review view): year/month and hierarchy with target amounts
+  const [targetYear, setTargetYear] = useState(() => getCurrentYearMonth().year);
+  const [targetMonth, setTargetMonth] = useState(() => getCurrentYearMonth().month);
+  const [targetSummary, setTargetSummary] = useState<DomainTargetSummaryResponse | null>(null);
+  const [targetSummaryLoading, setTargetSummaryLoading] = useState(false);
+  const [setTargetEmployee, setSetTargetEmployee] = useState<{ employee_id: number; employee_name: string; region_id: number; current_amount: number } | null>(null);
+  const [setTargetAmount, setSetTargetAmount] = useState<string>('');
+  const [setTargetSubmitting, setSetTargetSubmitting] = useState(false);
+
   // Debounce search term
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -115,6 +137,25 @@ export const DomainsPage: React.FC = () => {
       loadReviewData();
     }
   }, [canView, viewMode]);
+
+  const loadDomainTargetSummary = async () => {
+    setTargetSummaryLoading(true);
+    try {
+      const res = await marketingAPI.getDomainTargetSummary(targetYear, targetMonth);
+      setTargetSummary(res);
+    } catch (error: any) {
+      showToast(error.message || 'Failed to load target summary', 'error');
+      setTargetSummary(null);
+    } finally {
+      setTargetSummaryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (canView && viewMode === 'review') {
+      loadDomainTargetSummary();
+    }
+  }, [canView, viewMode, targetYear, targetMonth]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -327,6 +368,54 @@ export const DomainsPage: React.FC = () => {
     }
   };
 
+  // ——— Review: Set employee target ———
+  const handleSetEmployeeTarget = async () => {
+    const emp = setTargetEmployee;
+    if (!emp) return;
+    const amount = parseFloat(setTargetAmount);
+    if (Number.isNaN(amount) || amount < 0) {
+      showToast('Enter a valid target amount', 'error');
+      return;
+    }
+    setSetTargetSubmitting(true);
+    try {
+      await marketingAPI.setEmployeeTarget(emp.employee_id, targetYear, targetMonth, amount);
+      showToast('Target updated', 'success');
+      setSetTargetEmployee(null);
+      setSetTargetAmount('');
+      await loadDomainTargetSummary();
+    } catch (error: any) {
+      showToast(error.message || 'Failed to update target', 'error');
+    } finally {
+      setSetTargetSubmitting(false);
+    }
+  };
+
+  // Helper: get employee target from summary by region_id and employee_id
+  const getEmployeeTarget = (regionId: number, employeeId: number): number | null => {
+    if (!targetSummary) return null;
+    for (const d of targetSummary.domains) {
+      const region = d.regions.find((r) => r.region_id === regionId);
+      if (!region) continue;
+      const emp = region.employees.find((e) => e.employee_id === employeeId);
+      return emp ? emp.target_amount : null;
+    }
+    return null;
+  };
+  const getRegionTotal = (regionId: number): number | null => {
+    if (!targetSummary) return null;
+    for (const d of targetSummary.domains) {
+      const region = d.regions.find((r) => r.region_id === regionId);
+      if (region) return region.total_target;
+    }
+    return null;
+  };
+  const getDomainTotal = (domainId: number): number | null => {
+    if (!targetSummary) return null;
+    const d = targetSummary.domains.find((d) => d.domain_id === domainId);
+    return d ? d.total_target : null;
+  };
+
   const filteredDomains = domains;
 
   const handlePageSizeChange = (newSize: number) => {
@@ -384,11 +473,41 @@ export const DomainsPage: React.FC = () => {
   return (
     <PageLayout title="Domains" actions={actions} breadcrumbs={breadcrumbs}>
       {viewMode === 'review' ? (
-        /* ——— Review: hierarchy (domain heads → region heads → region employees) ——— */
+        /* ——— Review: hierarchy (domain heads → region heads → region employees) + target amounts ——— */
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
-            View and manage the marketing hierarchy: domain heads, region heads, and region employees. Change heads or add/remove employees below.
+            View and manage the marketing hierarchy: domain heads, region heads, and region employees. Assign target amounts per employee; sums roll up to region, domain, and total.
           </p>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-700">Period:</span>
+              <Select
+                options={Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: MONTHS[i] }))}
+                value={String(targetMonth)}
+                onChange={(val) => val && setTargetMonth(Number(val))}
+                searchable={false}
+                className="min-w-[100px]"
+              />
+              <Select
+                options={Array.from({ length: 15 }, (_, i) => {
+                  const y = new Date().getFullYear() - 2 + i;
+                  return { value: String(y), label: String(y) };
+                })}
+                value={String(targetYear)}
+                onChange={(val) => val && setTargetYear(Number(val))}
+                searchable={false}
+                className="min-w-[90px]"
+              />
+            </div>
+            {targetSummaryLoading && <span className="text-sm text-slate-500">Loading targets…</span>}
+            {targetSummary && !targetSummaryLoading && (
+              <div className="flex items-center gap-2 rounded-lg bg-indigo-50 px-4 py-2 border border-indigo-100">
+                <Target size={18} className="text-indigo-600 shrink-0" />
+                <span className="text-sm font-medium text-indigo-900">Total target:</span>
+                <span className="text-lg font-semibold text-indigo-700">{formatTargetAmount(targetSummary.total_target)}</span>
+              </div>
+            )}
+          </div>
           {reviewLoading ? (
             <Card>
               <div className="flex items-center justify-center py-16">
@@ -421,6 +540,13 @@ export const DomainsPage: React.FC = () => {
                           <span className="text-slate-400 mx-1">·</span>
                           <span className="text-sm text-slate-600">Head:</span>
                           <span className="text-sm font-medium text-slate-800">{domain.head_username || '—'}</span>
+                          {getDomainTotal(domain.id) != null && (
+                            <>
+                              <span className="text-slate-400 mx-1">·</span>
+                              <span className="text-sm text-slate-600">Target:</span>
+                              <span className="text-sm font-semibold text-indigo-700">{formatTargetAmount(getDomainTotal(domain.id)!)}</span>
+                            </>
+                          )}
                           {canEdit && (
                             <Button
                               variant="outline"
@@ -457,6 +583,13 @@ export const DomainsPage: React.FC = () => {
                                     <span className="text-slate-400 mx-1">·</span>
                                     <span className="text-sm text-slate-600">Head:</span>
                                     <span className="text-sm font-medium text-slate-800">{region.head_username || '—'}</span>
+                                    {getRegionTotal(region.id) != null && (
+                                      <>
+                                        <span className="text-slate-400 mx-1">·</span>
+                                        <span className="text-sm text-slate-600">Target:</span>
+                                        <span className="text-sm font-semibold text-emerald-700">{formatTargetAmount(getRegionTotal(region.id)!)}</span>
+                                      </>
+                                    )}
                                     {canEditRegion && (
                                       <Button
                                         variant="outline"
@@ -494,7 +627,9 @@ export const DomainsPage: React.FC = () => {
                                         No employees
                                       </div>
                                     ) : (
-                                      regionAssignments.map((a, eIdx) => (
+                                      regionAssignments.map((a, eIdx) => {
+                                        const empTarget = getEmployeeTarget(region.id, a.employee_id);
+                                        return (
                                         <div
                                           key={a.id}
                                           className="tree-node flex items-center justify-between gap-2 py-1.5 pr-2 rounded-md hover:bg-slate-50/80 group"
@@ -508,9 +643,32 @@ export const DomainsPage: React.FC = () => {
                                             {a.role === 'head' && (
                                               <Badge variant="outline" className="text-xs shrink-0">Head</Badge>
                                             )}
+                                            {empTarget != null && (
+                                              <>
+                                                <span className="text-slate-400 mx-0.5">·</span>
+                                                <span className="text-sm font-medium text-slate-700">{formatTargetAmount(empTarget)}</span>
+                                              </>
+                                            )}
                                           </div>
                                           {canManageRegionEmployees && (
                                             <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-indigo-600"
+                                                onClick={() => {
+                                                  setSetTargetEmployee({
+                                                    employee_id: a.employee_id,
+                                                    employee_name: a.employee_name || a.employee_email || `Employee #${a.employee_id}`,
+                                                    region_id: region.id,
+                                                    current_amount: empTarget ?? 800000,
+                                                  });
+                                                  setSetTargetAmount(String(empTarget ?? 800000));
+                                                }}
+                                                title="Set target"
+                                              >
+                                                <Target size={12} />
+                                              </Button>
                                               <Select
                                                 options={[
                                                   { value: 'employee', label: 'Employee' },
@@ -532,7 +690,8 @@ export const DomainsPage: React.FC = () => {
                                             </div>
                                           )}
                                         </div>
-                                      ))
+                                        );
+                                      })
                                     )}
                                   </div>
                                 </div>
@@ -911,6 +1070,36 @@ export const DomainsPage: React.FC = () => {
       </div>
       </>
       )}
+
+      {/* Set Employee Target */}
+      <Modal
+        isOpen={setTargetEmployee != null}
+        onClose={() => { setSetTargetEmployee(null); setSetTargetAmount(''); }}
+        title={setTargetEmployee ? `Set target: ${setTargetEmployee.employee_name}` : 'Set target'}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => { setSetTargetEmployee(null); setSetTargetAmount(''); }}>Cancel</Button>
+            <Button onClick={handleSetEmployeeTarget} disabled={setTargetSubmitting}>
+              {setTargetSubmitting ? 'Saving...' : 'Save'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">
+            Target for {MONTHS[targetMonth - 1]} {targetYear}. Amount is in ₹ (e.g. 800000 for 8 Lacs).
+          </p>
+          <Input
+            label="Target amount (₹)"
+            type="number"
+            min={0}
+            step={10000}
+            value={setTargetAmount}
+            onChange={(e) => setSetTargetAmount(e.target.value)}
+            placeholder="e.g. 800000"
+          />
+        </div>
+      </Modal>
 
       <ConfirmModal
         isOpen={deleteDomainId != null}

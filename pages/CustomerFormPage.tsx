@@ -52,8 +52,8 @@ export const CustomerFormPage: React.FC = () => {
   const [plants, setPlants] = useState<Plant[]>([]);
   const [showPlantInline, setShowPlantInline] = useState(false);
   const [newOrgForm, setNewOrgForm] = useState<{ name: string; code: string; description: string; website: string; industry: string; organization_size: string }>({ name: '', code: '', description: '', website: '', industry: '', organization_size: '' });
-  const [newPlantForm, setNewPlantForm] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
-  const [plantModalData, setPlantModalData] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+  const [newPlantForm, setNewPlantForm] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+  const [plantModalData, setPlantModalData] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
   const [savingModal, setSavingModal] = useState(false);
   const contactSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const orgSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -287,7 +287,7 @@ export const CustomerFormPage: React.FC = () => {
       // 1. Create organization first if needed (so we can attach it and the new contact to the customer)
       if (!organization_id && companyOrOrgName && canCreateOrg) {
         const plantsToCreate = newPlantForm.plant_name?.trim()
-          ? [{ plant_name: newPlantForm.plant_name.trim(), address_line1: newPlantForm.address_line1?.trim() || undefined, city: newPlantForm.city?.trim() || undefined, country: newPlantForm.country?.trim() || undefined, postal_code: newPlantForm.postal_code?.trim() || undefined }]
+          ? [{ plant_name: newPlantForm.plant_name.trim(), address_line1: newPlantForm.address_line1?.trim() || undefined, address_line2: newPlantForm.address_line2?.trim() || undefined, city: newPlantForm.city?.trim() || undefined, state: newPlantForm.state?.trim() || undefined, country: newPlantForm.country?.trim() || undefined, postal_code: newPlantForm.postal_code?.trim() || undefined }]
           : undefined;
         const org = await marketingAPI.createOrganization({
           name: newOrgForm.name.trim() || companyOrOrgName,
@@ -521,7 +521,7 @@ export const CustomerFormPage: React.FC = () => {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => { setShowPlantInline(!showPlantInline); if (!showPlantInline) setPlantModalData({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' }); }}
+                        onClick={() => { setShowPlantInline(!showPlantInline); if (!showPlantInline) setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' }); }}
                         title="Add plant to organization"
                         leftIcon={<Plus size={16} />}
                       >
@@ -533,8 +533,10 @@ export const CustomerFormPage: React.FC = () => {
                         <h4 className="text-sm font-medium text-slate-700">New plant</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <Input label="Plant name" value={plantModalData.plant_name || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, plant_name: e.target.value }))} required placeholder="e.g. Main Plant" />
-                          <Input label="Address" value={plantModalData.address_line1 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                          <Input label="Address line 1" value={plantModalData.address_line1 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                          <Input label="Address line 2" value={plantModalData.address_line2 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
                           <Input label="City" value={plantModalData.city || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, city: e.target.value }))} />
+                          <Input label="State" value={plantModalData.state || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, state: e.target.value }))} placeholder="State" />
                           <Input label="Country" value={plantModalData.country || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, country: e.target.value }))} />
                           <Input label="Pin / Postal code" value={plantModalData.postal_code || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, postal_code: e.target.value }))} />
                         </div>
@@ -552,7 +554,7 @@ export const CustomerFormPage: React.FC = () => {
                               setPlants(pl);
                               setFormData(prev => ({ ...prev, plant_id: created.id }));
                               setShowPlantInline(false);
-                              setPlantModalData({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+                              setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
                             } catch (e: any) {
                               showToast(e.message || 'Failed to add plant', 'error');
                             } finally {
@@ -643,8 +645,10 @@ export const CustomerFormPage: React.FC = () => {
                         <p className="text-sm font-medium text-slate-700 mb-2">Optional: plant for new organization</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <Input label="Plant name" value={newPlantForm.plant_name || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="e.g. Main Plant" />
-                          <Input label="Address" value={newPlantForm.address_line1 || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                          <Input label="Address line 1" value={newPlantForm.address_line1 || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                          <Input label="Address line 2" value={newPlantForm.address_line2 || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
                           <Input label="City" value={newPlantForm.city || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, city: e.target.value }))} />
+                          <Input label="State" value={newPlantForm.state || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, state: e.target.value }))} placeholder="State" />
                           <Input label="Country" value={newPlantForm.country || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, country: e.target.value }))} />
                           <Input label="Postal code" value={newPlantForm.postal_code || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} />
                         </div>

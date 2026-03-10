@@ -83,7 +83,9 @@ export const OrganizationFormPage: React.FC = () => {
   const [plantForm, setPlantForm] = useState<Partial<Plant>>({
     plant_name: '',
     address_line1: '',
+    address_line2: '',
     city: '',
+    state: '',
     country: '',
     postal_code: '',
   });
@@ -167,7 +169,7 @@ export const OrganizationFormPage: React.FC = () => {
   };
 
   const addPendingPlant = () => {
-    setPendingPlants((prev) => [...prev, { plant_name: '', address_line1: '', city: '', country: '', postal_code: '' }]);
+    setPendingPlants((prev) => [...prev, { plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' }]);
   };
   const updatePendingPlant = (index: number, field: keyof Plant, value: string | undefined) => {
     setPendingPlants((prev) => {
@@ -188,7 +190,7 @@ export const OrganizationFormPage: React.FC = () => {
     try {
       const created = await marketingAPI.createOrganizationPlant(parseInt(id), plantForm);
       showToast('Plant added', 'success');
-      setPlantForm({ plant_name: '', address_line1: '', city: '', country: '', postal_code: '' });
+      setPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
       setShowAddPlant(false);
       dispatch(addOrganizationPlant({ organizationId: parseInt(id), plant: created }));
     } catch (e: any) {
@@ -371,10 +373,16 @@ export const OrganizationFormPage: React.FC = () => {
                     placeholder="e.g. Main Plant"
                   />
                   <Input
-                    label="Address"
+                    label="Address line 1"
                     value={p.address_line1 || ''}
                     onChange={(e) => updatePendingPlant(index, 'address_line1', e.target.value)}
                     placeholder="Address line 1"
+                  />
+                  <Input
+                    label="Address line 2"
+                    value={p.address_line2 || ''}
+                    onChange={(e) => updatePendingPlant(index, 'address_line2', e.target.value)}
+                    placeholder="Address line 2"
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <Input
@@ -383,16 +391,22 @@ export const OrganizationFormPage: React.FC = () => {
                       onChange={(e) => updatePendingPlant(index, 'city', e.target.value)}
                     />
                     <Input
+                      label="State"
+                      value={p.state || ''}
+                      onChange={(e) => updatePendingPlant(index, 'state', e.target.value)}
+                      placeholder="State"
+                    />
+                    <Input
                       label="Country"
                       value={p.country || ''}
                       onChange={(e) => updatePendingPlant(index, 'country', e.target.value)}
                     />
+                    <Input
+                      label="Pin / Postal code"
+                      value={p.postal_code || ''}
+                      onChange={(e) => updatePendingPlant(index, 'postal_code', e.target.value)}
+                    />
                   </div>
-                  <Input
-                    label="Pin / Postal code"
-                    value={p.postal_code || ''}
-                    onChange={(e) => updatePendingPlant(index, 'postal_code', e.target.value)}
-                  />
                 </li>
               ))}
             </ul>
@@ -425,10 +439,16 @@ export const OrganizationFormPage: React.FC = () => {
                         placeholder="e.g. Main Plant"
                       />
                       <Input
-                        label="Address"
+                        label="Address line 1"
                         value={editingPlantForm.address_line1 || ''}
                         onChange={(e) => setEditingPlantForm(prev => ({ ...prev, address_line1: e.target.value }))}
                         placeholder="Address line 1"
+                      />
+                      <Input
+                        label="Address line 2"
+                        value={editingPlantForm.address_line2 || ''}
+                        onChange={(e) => setEditingPlantForm(prev => ({ ...prev, address_line2: e.target.value }))}
+                        placeholder="Address line 2"
                       />
                       <div className="grid grid-cols-2 gap-3">
                         <Input
@@ -437,16 +457,22 @@ export const OrganizationFormPage: React.FC = () => {
                           onChange={(e) => setEditingPlantForm(prev => ({ ...prev, city: e.target.value }))}
                         />
                         <Input
+                          label="State"
+                          value={editingPlantForm.state || ''}
+                          onChange={(e) => setEditingPlantForm(prev => ({ ...prev, state: e.target.value }))}
+                          placeholder="State"
+                        />
+                        <Input
                           label="Country"
                           value={editingPlantForm.country || ''}
                           onChange={(e) => setEditingPlantForm(prev => ({ ...prev, country: e.target.value }))}
                         />
+                        <Input
+                          label="Pin / Postal code"
+                          value={editingPlantForm.postal_code || ''}
+                          onChange={(e) => setEditingPlantForm(prev => ({ ...prev, postal_code: e.target.value }))}
+                        />
                       </div>
-                      <Input
-                        label="Pin / Postal code"
-                        value={editingPlantForm.postal_code || ''}
-                        onChange={(e) => setEditingPlantForm(prev => ({ ...prev, postal_code: e.target.value }))}
-                      />
                       <div className="flex gap-2">
                         <Button type="submit" size="sm" disabled={savingPlant}>{savingPlant ? 'Saving...' : 'Save'}</Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => { setEditingPlantId(null); setEditingPlantForm({}); }}>Cancel</Button>
@@ -456,9 +482,9 @@ export const OrganizationFormPage: React.FC = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                       <MapPin size={14} className="text-slate-400 shrink-0" />
                       <span className="font-medium">{p.plant_name}</span>
-                      {(p.city || p.country || p.postal_code) && (
+                      {(p.address_line1 || p.city || p.state || p.country || p.postal_code) && (
                         <span className="text-sm text-slate-500">
-                          {[p.city, p.country, p.postal_code].filter(Boolean).join(', ')}
+                          {[p.address_line1, p.address_line2, p.city, p.state, p.country, p.postal_code].filter(Boolean).join(', ')}
                         </span>
                       )}
                       <div className="ml-auto flex items-center gap-1">
@@ -510,10 +536,16 @@ export const OrganizationFormPage: React.FC = () => {
                   placeholder="e.g. Main Plant"
                 />
                 <Input
-                  label="Address"
+                  label="Address line 1"
                   value={plantForm.address_line1 || ''}
                   onChange={(e) => setPlantForm({ ...plantForm, address_line1: e.target.value })}
                   placeholder="Address line 1"
+                />
+                <Input
+                  label="Address line 2"
+                  value={plantForm.address_line2 || ''}
+                  onChange={(e) => setPlantForm({ ...plantForm, address_line2: e.target.value })}
+                  placeholder="Address line 2"
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <Input
@@ -522,16 +554,22 @@ export const OrganizationFormPage: React.FC = () => {
                     onChange={(e) => setPlantForm({ ...plantForm, city: e.target.value })}
                   />
                   <Input
+                    label="State"
+                    value={plantForm.state || ''}
+                    onChange={(e) => setPlantForm({ ...plantForm, state: e.target.value })}
+                    placeholder="State"
+                  />
+                  <Input
                     label="Country"
                     value={plantForm.country || ''}
                     onChange={(e) => setPlantForm({ ...plantForm, country: e.target.value })}
                   />
+                  <Input
+                    label="Pin / Postal code"
+                    value={plantForm.postal_code || ''}
+                    onChange={(e) => setPlantForm({ ...plantForm, postal_code: e.target.value })}
+                  />
                 </div>
-                <Input
-                  label="Pin / Postal code"
-                  value={plantForm.postal_code || ''}
-                  onChange={(e) => setPlantForm({ ...plantForm, postal_code: e.target.value })}
-                />
                 <div className="flex gap-2">
                   <Button type="button" size="sm" onClick={() => handleAddPlant()}>
                     Add Plant

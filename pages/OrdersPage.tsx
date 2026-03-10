@@ -11,7 +11,7 @@ import { Button } from '../components/ui/Button';
 import { Pagination } from '../components/ui/Pagination';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, FileText } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, FileText, Upload } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
@@ -85,7 +85,7 @@ export const OrdersPage: React.FC = () => {
   const [savingGroup, setSavingGroup] = useState(false);
   const [deleteGroupId, setDeleteGroupId] = useState<number | null>(null);
   const [editingStatus, setEditingStatus] = useState<OrderStatusOption | null>(null);
-  const [statusForm, setStatusForm] = useState({ code: '', label: '', display_order: 0, group_id: undefined as number | undefined, is_active: true, is_final: false, hex_color: '' });
+  const [statusForm, setStatusForm] = useState({ code: '', label: '', display_order: 0, group_id: undefined as number | undefined, is_active: true, is_final: false, hex_color: '', attachment_required_on_kanban_change: false });
   const [savingStatus, setSavingStatus] = useState(false);
   const [deleteStatusId, setDeleteStatusId] = useState<number | null>(null);
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_lead'));
@@ -93,12 +93,15 @@ export const OrdersPage: React.FC = () => {
   const [draggedOrderId, setDraggedOrderId] = useState<number | null>(null);
   const [dragOverStatusId, setDragOverStatusId] = useState<number | null | 'none'>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
-  const [lostStatusChangePending, setLostStatusChangePending] = useState<{ orderId: number; currentStatusId: number | null; newStatusId: number | null } | null>(null);
-  const [lostStatusReason, setLostStatusReason] = useState('');
-  const [lostStatusSubmitting, setLostStatusSubmitting] = useState(false);
+  const [statusChangePending, setStatusChangePending] = useState<{ orderId: number; currentStatusId: number | null; newStatusId: number | null } | null>(null);
+  const [statusChangeForm, setStatusChangeForm] = useState({ title: '', description: '' });
+  const [statusChangeAttachments, setStatusChangeAttachments] = useState<{ id: string; file: File | null; title: string }[]>([{ id: crypto.randomUUID(), file: null, title: '' }]);
+  const [statusChangeSubmitting, setStatusChangeSubmitting] = useState(false);
   const [deleteOrderId, setDeleteOrderId] = useState<number | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const didDragRef = React.useRef(false);
+  const pendingToStatus = statusChangePending ? statuses.find((s) => s.id === statusChangePending.newStatusId) : null;
+  const pendingStatusRequiresAttachment = Boolean(pendingToStatus?.attachment_required_on_kanban_change);
 
   const toggleGroupCollapsed = useCallback((key: string) => {
     setCollapsedGroups((prev) => {
@@ -174,7 +177,7 @@ export const OrdersPage: React.FC = () => {
     setEditingStatus(null);
     setAddingGroup(false);
     setGroupForm({ code: '', label: '', expected_duration_days: undefined, display_order: orderStatusGroups.length, is_active: true, hex_color: '' });
-    setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, hex_color: '' });
+    setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, hex_color: '', attachment_required_on_kanban_change: false });
     setShowOrderStatusModal(true);
     marketingAPI.getOrderStatusGroups().then(setOrderStatusGroups).catch(() => setOrderStatusGroups([]));
     marketingAPI.getOrderStatuses().then((list) => {
@@ -219,13 +222,13 @@ export const OrdersPage: React.FC = () => {
   const openAddOrderStatusToGroup = (groupId: number) => {
     setEditingStatus(null);
     const statusesInGroup = orderStatusesFull.filter((s) => s.group_id === groupId);
-    setStatusForm({ code: '', label: '', display_order: statusesInGroup.length, group_id: groupId, is_active: true, is_final: false, hex_color: '' });
+    setStatusForm({ code: '', label: '', display_order: statusesInGroup.length, group_id: groupId, is_active: true, is_final: false, hex_color: '', attachment_required_on_kanban_change: false });
     setShowOrderStatusModal(true);
   };
 
   const openEditOrderStatus = (s: OrderStatusOption) => {
     setEditingStatus(s);
-    setStatusForm({ code: s.code, label: s.label, display_order: s.display_order, group_id: s.group_id ?? undefined, is_active: s.is_active, is_final: s.is_final ?? false, hex_color: s.hex_color ?? '' });
+    setStatusForm({ code: s.code, label: s.label, display_order: s.display_order, group_id: s.group_id ?? undefined, is_active: s.is_active, is_final: s.is_final ?? false, hex_color: s.hex_color ?? '', attachment_required_on_kanban_change: s.attachment_required_on_kanban_change ?? false });
   };
 
   const saveOrderStatus = async () => {
@@ -237,17 +240,17 @@ export const OrdersPage: React.FC = () => {
     setSavingStatus(true);
     try {
       if (editingStatus) {
-        await marketingAPI.updateOrderStatus(editingStatus.id, { code, label: statusForm.label.trim(), display_order: statusForm.display_order, group_id: statusForm.group_id ?? undefined, is_active: statusForm.is_active, is_final: statusForm.is_final, hex_color: statusForm.hex_color?.trim() || undefined });
+        await marketingAPI.updateOrderStatus(editingStatus.id, { code, label: statusForm.label.trim(), display_order: statusForm.display_order, group_id: statusForm.group_id ?? undefined, is_active: statusForm.is_active, is_final: statusForm.is_final, hex_color: statusForm.hex_color?.trim() || undefined, attachment_required_on_kanban_change: statusForm.attachment_required_on_kanban_change });
         showToast('Status updated', 'success');
       } else {
-        await marketingAPI.createOrderStatus({ code, label: statusForm.label.trim(), group_id: statusForm.group_id ?? undefined, display_order: statusForm.display_order, is_active: statusForm.is_active, is_final: statusForm.is_final, hex_color: statusForm.hex_color?.trim() || undefined });
+        await marketingAPI.createOrderStatus({ code, label: statusForm.label.trim(), group_id: statusForm.group_id ?? undefined, display_order: statusForm.display_order, is_active: statusForm.is_active, is_final: statusForm.is_final, hex_color: statusForm.hex_color?.trim() || undefined, attachment_required_on_kanban_change: statusForm.attachment_required_on_kanban_change });
         showToast('Status created', 'success');
       }
       const list = await marketingAPI.getOrderStatuses();
       setOrderStatusesFull(list);
       setStatuses(list.filter((s) => s.is_active));
       setEditingStatus(null);
-      setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, hex_color: '' });
+      setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, hex_color: '', attachment_required_on_kanban_change: false });
     } catch (e: any) {
       showToast(e?.message || 'Failed to save status', 'error');
     } finally {
@@ -323,14 +326,6 @@ export const OrdersPage: React.FC = () => {
     setDragOverStatusId(null);
   };
 
-  const isLostOrderStatus = (statusId: number | null): boolean => {
-    if (statusId == null) return false;
-    const s = statuses.find((x) => x.id === statusId);
-    if (!s) return false;
-    const text = `${s.code || ''} ${s.label || ''}`.toLowerCase();
-    return text.includes('lost');
-  };
-
   /** True if order is in Won (final) or Lost status – these orders are not draggable. */
   const isWonOrLostOrderStatus = (statusId: number | null): boolean => {
     if (statusId == null) return false;
@@ -345,24 +340,55 @@ export const OrdersPage: React.FC = () => {
     orderId: number,
     currentStatusId: number | null,
     newStatusId: number | null,
-    reason?: string
+    reason: string
   ) => {
+    const enteredTitle = statusChangeForm.title.trim();
+    const enteredDescription = statusChangeForm.description.trim();
+    const toUpload = statusChangeAttachments.filter((a) => a.file);
+    if (!enteredTitle) {
+      showToast('Title is required', 'error');
+      return;
+    }
+    if (!enteredDescription) {
+      showToast('Description is required', 'error');
+      return;
+    }
+    const targetStatus = newStatusId != null ? statuses.find((s) => s.id === newStatusId) : null;
+    const requiresAttachment = Boolean(targetStatus?.attachment_required_on_kanban_change);
+    if (requiresAttachment && toUpload.length === 0) {
+      showToast('At least one attachment is required', 'error');
+      return;
+    }
     setUpdatingOrderId(orderId);
+    setStatusChangeSubmitting(true);
     try {
+      const created = await marketingAPI.createOrderActivity(orderId, {
+        activity_type: 'order_status_change',
+        title: enteredTitle,
+        description: enteredDescription,
+        from_status_id: currentStatusId ?? undefined,
+        to_status_id: newStatusId ?? undefined,
+        activity_date: new Date().toISOString(),
+      });
+      await marketingAPI.uploadOrderActivityAttachments(orderId, created.id, toUpload.map((a) => a.file!));
       await marketingAPI.updateOrder(orderId, {
         status_id: newStatusId ?? null,
-        status_change_reason: reason?.trim() || undefined,
+        status_change_reason: reason.trim() || enteredDescription,
       });
-      showToast('Order status updated', 'success');
+      showToast('Order status updated and log saved', 'success');
       const newOption = newStatusId != null ? statuses.find((s) => s.id === newStatusId) : null;
       setOrders((prev) =>
         prev.map((o) =>
           o.id === orderId ? { ...o, status_id: newStatusId ?? undefined, status_option: newOption ?? undefined, status: newOption?.code ?? undefined } : o
         )
       );
+      setStatusChangePending(null);
+      setStatusChangeForm({ title: '', description: '' });
+      setStatusChangeAttachments([{ id: crypto.randomUUID(), file: null, title: '' }]);
     } catch (err: any) {
       showToast(err?.message || 'Failed to update order status', 'error');
     } finally {
+      setStatusChangeSubmitting(false);
       setUpdatingOrderId(null);
       setDraggedOrderId(null);
     }
@@ -383,32 +409,21 @@ export const OrdersPage: React.FC = () => {
       return;
     }
     if (currentStatusId === newStatusId) return;
-    if (isLostOrderStatus(newStatusId)) {
-      setLostStatusChangePending({ orderId, currentStatusId, newStatusId });
-      setLostStatusReason('');
-      setDraggedOrderId(null);
-      return;
-    }
-    await applyOrderStatusChange(orderId, currentStatusId, newStatusId);
+    setStatusChangePending({ orderId, currentStatusId, newStatusId });
+    setStatusChangeForm({ title: '', description: '' });
+    setStatusChangeAttachments([{ id: crypto.randomUUID(), file: null, title: '' }]);
+    setDraggedOrderId(null);
   };
 
-  const handleConfirmLostStatusChange = async () => {
-    if (!lostStatusChangePending) return;
-    const reason = lostStatusReason.trim();
-    if (reason.length < 100) {
-      showToast('Lost reason must be at least 100 characters', 'error');
-      return;
-    }
-    setLostStatusSubmitting(true);
+  const handleConfirmStatusChange = async () => {
+    if (!statusChangePending) return;
+    const reason = statusChangeForm.description.trim();
     await applyOrderStatusChange(
-      lostStatusChangePending.orderId,
-      lostStatusChangePending.currentStatusId,
-      lostStatusChangePending.newStatusId,
+      statusChangePending.orderId,
+      statusChangePending.currentStatusId,
+      statusChangePending.newStatusId,
       reason
     );
-    setLostStatusSubmitting(false);
-    setLostStatusChangePending(null);
-    setLostStatusReason('');
   };
 
   const displayOrders = searchTerm.trim()
@@ -1004,7 +1019,7 @@ export const OrdersPage: React.FC = () => {
           setEditingStatus(null);
           setAddingGroup(false);
           setGroupForm({ code: '', label: '', expected_duration_days: undefined, display_order: 0, is_active: true, hex_color: '' });
-          setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, hex_color: '' });
+          setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, hex_color: '', attachment_required_on_kanban_change: false });
         }}
         title="Order status groups & statuses"
         contentClassName="max-w-4xl"
@@ -1081,6 +1096,7 @@ export const OrdersPage: React.FC = () => {
                   <th className="pb-2 pr-2">Order</th>
                   <th className="pb-2 pr-2">Active</th>
                   <th className="pb-2 pr-2">Final</th>
+                  <th className="pb-2 pr-2" title="Require at least one attachment when moving to this status from Kanban">Attachment compulsory</th>
                   <th className="pb-2 pr-2">Color</th>
                   <th className="pb-2" />
                 </tr>
@@ -1100,7 +1116,7 @@ export const OrdersPage: React.FC = () => {
                     const groupLabel = groupId === 'none' ? '— No group —' : orderStatusGroups.find((g) => g.id === groupId)?.label ?? `Group #${groupId}`;
                     return (
                       <React.Fragment key={groupId === 'none' ? 'nogroup' : groupId}>
-                        <tr className="bg-slate-100/80"><td colSpan={7} className="py-1.5 px-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">{groupLabel}</td></tr>
+                        <tr className="bg-slate-100/80"><td colSpan={8} className="py-1.5 px-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">{groupLabel}</td></tr>
                         {statusForm.group_id === groupId && !editingStatus && (
                           <tr className="border-b border-slate-100 bg-slate-50/80">
                             <td className="py-2 pr-2"><input className="h-8 w-full max-w-[7rem] rounded border border-slate-200 bg-white px-2 text-sm font-mono" placeholder="Code" value={statusForm.code} onChange={(e) => setStatusForm((f) => ({ ...f, code: e.target.value }))} /></td>
@@ -1108,12 +1124,13 @@ export const OrdersPage: React.FC = () => {
                             <td className="py-2 pr-2"><input type="number" className="h-8 w-14 rounded border border-slate-200 bg-white px-2 text-sm" value={statusForm.display_order} onChange={(e) => setStatusForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))} /></td>
                             <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Active</span></label></td>
                             <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Final</span></label></td>
+                            <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Yes</span></label></td>
                             <td className="py-2 pr-2"><div className="flex items-center gap-1.5"><input type="color" className="h-8 w-10 cursor-pointer rounded border border-slate-200 bg-white p-0.5" value={statusForm.hex_color && /^#[0-9A-Fa-f]{6}$/.test(statusForm.hex_color) ? statusForm.hex_color : '#3b82f6'} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} /><input className="h-8 w-20 rounded border border-slate-200 bg-white px-2 text-sm font-mono" placeholder="#3b82f6" value={statusForm.hex_color} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} /></div></td>
-                            <td className="py-2"><div className="flex gap-1"><Button size="xs" onClick={saveOrderStatus} disabled={savingStatus || !statusForm.label?.trim()}>{savingStatus ? '...' : 'Save'}</Button><Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, hex_color: '' }); }}>Cancel</Button></div></td>
+                            <td className="py-2"><div className="flex gap-1"><Button size="xs" onClick={saveOrderStatus} disabled={savingStatus || !statusForm.label?.trim()}>{savingStatus ? '...' : 'Save'}</Button><Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, hex_color: '', attachment_required_on_kanban_change: false }); }}>Cancel</Button></div></td>
                           </tr>
                         )}
                         {statusesInGroup.length === 0 && statusForm.group_id !== groupId ? (
-                          <tr><td colSpan={7} className="py-2 px-2 text-slate-400 text-xs italic">No statuses yet. Click &quot;Add status&quot; next to the group.</td></tr>
+                          <tr><td colSpan={8} className="py-2 px-2 text-slate-400 text-xs italic">No statuses yet. Click &quot;Add status&quot; next to the group.</td></tr>
                         ) : (
                           statusesInGroup.map((s) =>
                             editingStatus?.id === s.id ? (
@@ -1123,8 +1140,9 @@ export const OrdersPage: React.FC = () => {
                                 <td className="py-2 pr-2"><input type="number" className="h-8 w-14 rounded border border-slate-200 bg-white px-2 text-sm" value={statusForm.display_order} onChange={(e) => setStatusForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))} /></td>
                                 <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Active</span></label></td>
                                 <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Final</span></label></td>
+                                <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Yes</span></label></td>
                                 <td className="py-2 pr-2"><div className="flex items-center gap-1.5"><input type="color" className="h-8 w-10 cursor-pointer rounded border border-slate-200 bg-white p-0.5" value={statusForm.hex_color && /^#[0-9A-Fa-f]{6}$/.test(statusForm.hex_color) ? statusForm.hex_color : '#3b82f6'} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} /><input className="h-8 w-20 rounded border border-slate-200 bg-white px-2 text-sm font-mono" value={statusForm.hex_color} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} /></div></td>
-                                <td className="py-2"><div className="flex gap-1"><Button size="xs" onClick={saveOrderStatus} disabled={savingStatus || !statusForm.label?.trim()}>{savingStatus ? '...' : 'Save'}</Button><Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, hex_color: '' }); }}>Cancel</Button></div></td>
+                                <td className="py-2"><div className="flex gap-1"><Button size="xs" onClick={saveOrderStatus} disabled={savingStatus || !statusForm.label?.trim()}>{savingStatus ? '...' : 'Save'}</Button><Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, hex_color: '', attachment_required_on_kanban_change: false }); }}>Cancel</Button></div></td>
                               </tr>
                             ) : (
                               <tr key={s.id} className="border-b border-slate-100">
@@ -1133,6 +1151,7 @@ export const OrdersPage: React.FC = () => {
                                 <td className="py-2 pr-2">{s.display_order}</td>
                                 <td className="py-2 pr-2">{s.is_active ? 'Yes' : 'No'}</td>
                                 <td className="py-2 pr-2">{s.is_final ? 'Yes' : '—'}</td>
+                                <td className="py-2 pr-2">{s.attachment_required_on_kanban_change ? 'Yes' : '—'}</td>
                                 <td className="py-2 pr-2">{s.hex_color ? <span className="inline-flex items-center gap-1.5"><span className="inline-block h-5 w-5 rounded border border-slate-300 shrink-0" style={{ backgroundColor: s.hex_color }} /><span className="text-xs font-mono text-slate-600">{s.hex_color}</span></span> : '—'}</td>
                                 <td className="py-2"><Button variant="ghost" size="xs" onClick={() => openEditOrderStatus(s)}>Edit</Button><Button variant="ghost" size="xs" className="text-rose-600" onClick={() => setDeleteStatusId(s.id)}>Delete</Button></td>
                               </tr>
@@ -1150,37 +1169,124 @@ export const OrdersPage: React.FC = () => {
       </Modal>
 
       <Modal
-        isOpen={lostStatusChangePending != null}
-        onClose={() => { setLostStatusChangePending(null); setLostStatusReason(''); }}
-        title="Mark order as Lost"
+        isOpen={statusChangePending != null}
+        onClose={() => {
+          setStatusChangePending(null);
+          setStatusChangeForm({ title: '', description: '' });
+          setStatusChangeAttachments([{ id: crypto.randomUUID(), file: null, title: '' }]);
+        }}
+        title="Change order status"
         footer={
           <div className="flex justify-end gap-2 w-full">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => { setLostStatusChangePending(null); setLostStatusReason(''); }}
-              disabled={lostStatusSubmitting}
+              onClick={() => {
+                setStatusChangePending(null);
+                setStatusChangeForm({ title: '', description: '' });
+                setStatusChangeAttachments([{ id: crypto.randomUUID(), file: null, title: '' }]);
+              }}
+              disabled={statusChangeSubmitting}
             >
               Cancel
             </Button>
-            <Button size="sm" onClick={handleConfirmLostStatusChange} disabled={lostStatusSubmitting || lostStatusReason.trim().length < 100}>
-              {lostStatusSubmitting ? 'Saving...' : 'Confirm'}
+            <Button
+              size="sm"
+              onClick={handleConfirmStatusChange}
+              disabled={
+                statusChangeSubmitting ||
+                !statusChangeForm.title.trim() ||
+                !statusChangeForm.description.trim() ||
+                (pendingStatusRequiresAttachment && !statusChangeAttachments.some((a) => a.file))
+              }
+            >
+              {statusChangeSubmitting ? 'Saving...' : 'Confirm & change status'}
             </Button>
           </div>
         }
       >
-        <div className="space-y-2">
-          <p className="text-sm text-slate-600">Please provide a detailed reason for marking this order as Lost (minimum 100 characters).</p>
-          <textarea
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[130px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="Describe why the order is being marked as lost..."
-            value={lostStatusReason}
-            onChange={(e) => setLostStatusReason(e.target.value)}
-          />
-          <p className={`text-xs ${lostStatusReason.trim().length >= 100 ? 'text-emerald-600' : 'text-slate-500'}`}>
-            {lostStatusReason.trim().length}/100 minimum characters
-          </p>
-        </div>
+        {statusChangePending && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-slate-500 block text-xs font-medium mb-0.5">From status</span>
+                <span className="font-medium text-slate-800">
+                  {statuses.find((s) => s.id === statusChangePending.currentStatusId)?.label ?? 'No status'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 block text-xs font-medium mb-0.5">To status</span>
+                <span className="font-medium text-slate-800">
+                  {statuses.find((s) => s.id === statusChangePending.newStatusId)?.label ?? 'No status'}
+                </span>
+              </div>
+            </div>
+
+            <Input
+              label="Title *"
+              placeholder="e.g. Status changed after customer confirmation"
+              value={statusChangeForm.title}
+              onChange={(e) => setStatusChangeForm((f) => ({ ...f, title: e.target.value }))}
+            />
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Description *</label>
+              <textarea
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[100px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Add details for this status change..."
+                value={statusChangeForm.description}
+                onChange={(e) => setStatusChangeForm((f) => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">File attachments {pendingStatusRequiresAttachment ? '*' : '(optional)'}</label>
+              <p className="text-xs text-slate-500 mb-2">
+                {pendingStatusRequiresAttachment ? 'At least one attachment is required to change to this status.' : 'You can attach files for this status change.'}
+              </p>
+              <div className="space-y-2">
+                {statusChangeAttachments.map((row) => (
+                  <div key={row.id} className="flex flex-wrap items-center gap-2">
+                    <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
+                      <Upload size={12} />
+                      <span className="truncate max-w-[180px]">{row.file ? row.file.name : 'Choose file'}</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, file: file ?? null } : r)));
+                        }}
+                      />
+                    </label>
+                    <input
+                      className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs min-w-[120px] flex-1 max-w-[220px]"
+                      placeholder="Attachment title"
+                      value={row.title}
+                      onChange={(e) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r)))}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setStatusChangeAttachments((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))}
+                      className="p-1.5 rounded text-slate-400 hover:bg-slate-200 hover:text-rose-600"
+                      title="Remove"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+                  onClick={() => setStatusChangeAttachments((prev) => [...prev, { id: crypto.randomUUID(), file: null, title: '' }])}
+                >
+                  <Plus size={12} /> Add file
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
 
       <ConfirmModal isOpen={deleteGroupId !== null} onClose={() => setDeleteGroupId(null)} onConfirm={confirmDeleteOrderGroup} title="Delete group?" message="Remove this status group? Statuses in it must be moved or deleted first." confirmLabel="Delete" variant="danger" />

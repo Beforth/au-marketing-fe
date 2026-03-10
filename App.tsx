@@ -36,6 +36,7 @@ import { InvoicesPage } from './pages/InvoicesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SupportPage } from './pages/SupportPage';
 import { SchemaPage } from './pages/SchemaPage';
+import { ReportTemplatesPage } from './pages/ReportTemplatesPage';
 import { ToastType } from './components/ui/Toast';
 
 const NumberingSeriesPage = lazy(() => import('./pages/NumberingSeriesPage').then(m => ({ default: m.NumberingSeriesPage })));
@@ -264,6 +265,7 @@ const AppMain: React.FC = () => {
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="financials" element={<FinancialsPage />} />
             <Route path="reports" element={<ReportsPage />} />
+            <Route path="report-templates" element={<ReportTemplatesPage />} />
             <Route path="reports/expected-order/new" element={<ExpectedOrderNewPage />} />
             <Route path="reports/od-plan" element={<ODPlanPage />} />
             <Route path="invoices" element={<InvoicesPage />} />

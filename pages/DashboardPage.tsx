@@ -1,18 +1,19 @@
 
-import React, { useState, useEffect, useCallback, useId } from 'react';
+import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../App';
-import { useAppSelector } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
+import { addManualTask, completeTaskById, fetchTodayTasks, selectTasksLoading, selectTodayTasks } from '../store/slices/tasksSlice';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { PageLayout } from '../components/layout/PageLayout';
 import { marketingAPI } from '../lib/marketing-api';
 import { ApiError } from '../lib/api';
 import { StatItem } from '../types';
-import { Lead, DashboardTargetStats, ScopeTargetStats, ReportScopeResponse, TaskItem, HeadDashboardSummaryResponse, leadDisplayName, leadDisplayCompany, SavedDashboardResponse } from '../lib/marketing-api';
+import { Lead, DashboardTargetStats, ScopeTargetStats, ReportScopeResponse, HeadDashboardSummaryResponse, leadDisplayName, leadDisplayCompany, SavedDashboardResponse, AssignableUser } from '../lib/marketing-api';
 import { Modal } from '../components/ui/Modal';
-import { Download, Layout as LayoutIcon, Check, RefreshCw, Users, UserCircle, Quote, FileText, ShieldAlert, Target, Trophy, XCircle, ListTodo, CheckSquare, Square, Plus, MessageSquare, Upload, Trash2 } from 'lucide-react';
+import { Download, Layout as LayoutIcon, Check, RefreshCw, Users, UserCircle, Quote, FileText, ShieldAlert, Target, Trophy, XCircle, ListTodo, CheckSquare, Square, Plus, MessageSquare, Upload, Trash2, UserPlus, Wand2, Edit3 } from 'lucide-react';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from '../constants';
@@ -80,6 +81,13 @@ const WIDGET_TYPE_OPTIONS: { value: DashboardWidgetType; label: string }[] = [
   { value: 'stat', label: 'Stat card' },
 ];
 
+const AI_SCOPE_OPTIONS = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'employee', label: 'Employee scope' },
+  { value: 'region', label: 'Region scope' },
+  { value: 'domain', label: 'Domain scope' },
+] as const;
+
 // Same activity types as lead page Add log form (quotations, attachments, status change, etc.)
 const ACTIVITY_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'note', label: 'Note' },
@@ -104,63 +112,31 @@ const ACTIVITY_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'order_loss_3', label: '3 - Order Loss' },
 ];
 
-/** Fetches and displays result of execute-widget (SQL or preset). */
+/** Displays backend-rendered SQL widget data (frontend does not execute SQL). */
 function CustomSqlWidgetContent({
   code,
   chartType,
-  onError,
+  data,
+  error,
 }: {
   code?: string;
   chartType?: string;
-  onError: (msg: string) => void;
+  data?: unknown[];
+  error?: string | null;
 }) {
   const gradientId = useId();
-  const [data, setData] = useState<unknown[]>([]);
-  const [loading, setLoading] = useState(!!code);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!code?.trim()) {
-      setLoading(false);
-      setData([]);
-      setError(null);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    marketingAPI
-      .executeWidget({
-        chart_type: chartType || 'table',
-        data_source: { kind: 'sql', value: code.trim() },
-      })
-      .then((res) => {
-        setData(Array.isArray(res.data) ? res.data : []);
-      })
-      .catch((e) => {
-        const msg = e?.message || 'Failed to run SQL';
-        setError(msg);
-        onError(msg);
-      })
-      .finally(() => setLoading(false));
-  }, [code, chartType, onError]);
+  const rowsData = Array.isArray(data) ? data : [];
 
   if (!code?.trim()) {
-    return <p className="text-sm text-slate-500 p-4">Add SQL in edit mode (SELECT only). Save dashboard to backend to run.</p>;
-  }
-  if (loading) {
-    return (
-      <div className="p-4 flex items-center justify-center text-slate-500">
-        <RefreshCw size={20} className="animate-spin" />
-      </div>
-    );
+    return <p className="text-sm text-slate-500 p-4">Add SQL in edit mode. Use scope placeholders like <code>{'{{employee_id}}'}</code> or <code>{'{{domain_id}}'}</code>.</p>;
   }
   if (error) {
     return <p className="text-sm text-rose-600 p-4">{error}</p>;
   }
-  if (data.length === 0) {
+  if (rowsData.length === 0) {
     return <p className="text-sm text-slate-500 p-4">No rows returned.</p>;
   }
-  const rows = data as Record<string, unknown>[];
+  const rows = rowsData as Record<string, unknown>[];
   const allKeys = Array.from(
     rows.reduce((set, row) => {
       Object.keys(row || {}).forEach((k) => set.add(k));
@@ -169,7 +145,35 @@ function CustomSqlWidgetContent({
   );
   const keys = allKeys.length > 0 ? allKeys : Object.keys(rows[0] || {});
 
-  const isChart = chartType && chartType !== 'table' && ['bar', 'line', 'pie', 'heatmap'].includes(chartType);
+  const cellValue = (row: Record<string, unknown>, k: string) => {
+    const v = row[k];
+    if (v === null || v === undefined) return '—';
+    if (typeof v === 'string' && v.trim() === '') return '—';
+    return String(v);
+  };
+
+  const isNumberCard = chartType === 'number-card';
+  const isChart = chartType && chartType !== 'table' && !isNumberCard && ['bar', 'line', 'pie', 'heatmap'].includes(chartType);
+
+  if (isNumberCard) {
+    const primary = rows[0];
+    const labelCandidates = ['label', 'metric', 'name', 'category', 'title'];
+    const valueCandidates = ['value', 'count', 'total', 'amount', 'sum', 'y'];
+    const labelKey = keys.find((k) => labelCandidates.includes(k.toLowerCase())) ?? keys[0];
+    const valueKey = keys.find((k) => valueCandidates.includes(k.toLowerCase())) ?? keys.find((k) => typeof primary[k] === 'number') ?? keys[0];
+    const rawLabel = labelKey && labelKey !== valueKey ? cellValue(primary, labelKey) : undefined;
+    const labelText = rawLabel && rawLabel !== '—' ? rawLabel : (labelKey !== valueKey ? labelKey : undefined);
+    const valueText = cellValue(primary, valueKey);
+    return (
+      <div className="flex w-full flex-col gap-1 rounded-[1rem] border border-slate-100/80 bg-white/80 px-4 py-3 shadow-sm">
+        {labelText && <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{labelText}</p>}
+        <p className="text-3xl font-bold uppercase text-slate-900 leading-tight">{valueText}</p>
+        {rows.length > 1 && (
+          <p className="text-[10px] text-slate-500">{`Showing first row of ${rows.length} rows`}</p>
+        )}
+      </div>
+    );
+  }
 
   if (isChart) {
     const labelCandidates = ['label', 'name', 'category', 'x'];
@@ -264,12 +268,6 @@ function CustomSqlWidgetContent({
     }
   }
 
-  const cellValue = (row: Record<string, unknown>, k: string) => {
-    const v = row[k];
-    if (v === null || v === undefined) return '—';
-    if (typeof v === 'string' && v.trim() === '') return '—';
-    return String(v);
-  };
   return (
     <div className="overflow-x-auto p-2">
       <table className="w-full text-left text-xs border border-slate-200">
@@ -290,15 +288,19 @@ function CustomSqlWidgetContent({
           ))}
         </tbody>
       </table>
-      {data.length > 100 && <p className="text-xs text-slate-500 mt-1">Showing first 100 of {data.length} rows.</p>}
+      {rowsData.length > 100 && <p className="text-xs text-slate-500 mt-1">Showing first 100 of {rowsData.length} rows.</p>}
     </div>
   );
 }
 
 export const DashboardPage: React.FC = () => {
   const { showToast } = useApp();
+  const showToastRef = useRef(showToast);
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const canViewReport = useAppSelector(selectHasPermission('marketing.view_report'));
+  const canCreateDashboard = useAppSelector(selectHasPermission('marketing.create_dashboard')) || useAppSelector(selectHasPermission('marketing.admin'));
+  const canAssignDashboard = useAppSelector(selectHasPermission('marketing.assign_dashboard')) || useAppSelector(selectHasPermission('marketing.admin'));
   const [isExporting, setIsExporting] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -312,9 +314,9 @@ export const DashboardPage: React.FC = () => {
   const [reportScope, setReportScope] = useState<ReportScopeResponse | null>(null);
   const [headSummary, setHeadSummary] = useState<HeadDashboardSummaryResponse | null>(null);
   const [headSummaryLoading, setHeadSummaryLoading] = useState(false);
-  const [todayTasks, setTodayTasks] = useState<TaskItem[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
+  const todayTasks = useAppSelector(selectTodayTasks);
+  const tasksLoading = useAppSelector(selectTasksLoading);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [manualTaskTitle, setManualTaskTitle] = useState('');
   const [manualTaskDescription, setManualTaskDescription] = useState('');
   const [showAddTask, setShowAddTask] = useState(false);
@@ -338,6 +340,8 @@ export const DashboardPage: React.FC = () => {
   const [taskModalAttachments, setTaskModalAttachments] = useState<AttachmentEntry[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
   const [taskModalQuotationSeriesCode, setTaskModalQuotationSeriesCode] = useState('');
   const [taskModalQuotationIsRevised, setTaskModalQuotationIsRevised] = useState(false);
+  const [quickQuotationFile, setQuickQuotationFile] = useState<File | null>(null);
+  const [quickQuotationSubmitting, setQuickQuotationSubmitting] = useState(false);
 
   const [layout, setLayout] = useState<WidgetConfig[]>(() => {
     try {
@@ -351,10 +355,20 @@ export const DashboardPage: React.FC = () => {
 
   const [savedDashboards, setSavedDashboards] = useState<SavedDashboardResponse[]>([]);
   const [selectedDashboardId, setSelectedDashboardId] = useState<number | null>(null);
+  const [dashboardDateFrom, setDashboardDateFrom] = useState('');
+  const [dashboardDateTo, setDashboardDateTo] = useState('');
   const [savedDashboardsLoading, setSavedDashboardsLoading] = useState(false);
   const [showCreateDashboardModal, setShowCreateDashboardModal] = useState(false);
   const [createDashboardName, setCreateDashboardName] = useState('');
   const [createDashboardSubmitting, setCreateDashboardSubmitting] = useState(false);
+  const [showAssignDashboardModal, setShowAssignDashboardModal] = useState(false);
+  const [savedDashboardAssignments, setSavedDashboardAssignments] = useState<{ id: number; dashboard_id: number; assignee_employee_id: number; can_edit: boolean; created_at: string }[]>([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+  const [assigningDashboard, setAssigningDashboard] = useState(false);
+  const [assignEmployeeId, setAssignEmployeeId] = useState('');
+  const [assignCanEdit, setAssignCanEdit] = useState(false);
+  const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
+  const [assignableUsersLoading, setAssignableUsersLoading] = useState(false);
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [showAddWidgetModal, setShowAddWidgetModal] = useState(false);
@@ -362,6 +376,21 @@ export const DashboardPage: React.FC = () => {
   const [addWidgetTitle, setAddWidgetTitle] = useState('');
   const [addWidgetCode, setAddWidgetCode] = useState('');
   const [addWidgetChartType, setAddWidgetChartType] = useState<string>('table');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiScopeMode, setAiScopeMode] = useState<'auto' | 'employee' | 'region' | 'domain'>('auto');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [sqlPreviewData, setSqlPreviewData] = useState<unknown[]>([]);
+  const [sqlPreviewChartType, setSqlPreviewChartType] = useState<string>('table');
+  const [sqlPreviewError, setSqlPreviewError] = useState<string | null>(null);
+  const [sqlPreviewCompiledSql, setSqlPreviewCompiledSql] = useState('');
+  const [sqlPreviewLoading, setSqlPreviewLoading] = useState(false);
+  const [sqlWidgetData, setSqlWidgetData] = useState<Record<string, { data?: unknown[]; chart_type?: string; error?: string }>>({});
+  const lastPersistedLayoutRef = useRef<string>('');
+  const [editingWidgetId, setEditingWidgetId] = useState<string | null>(null);
+
+  useEffect(() => {
+    showToastRef.current = showToast;
+  }, [showToast]);
 
   const loadDashboard = useCallback(async () => {
     if (permissionDenied) {
@@ -371,13 +400,13 @@ export const DashboardPage: React.FC = () => {
     setLoading(true);
     try {
       const [leadsRes, contactsRes, customersRes, summary, statuses, targetStatsRes, scopeStatsRes, scopeRes] = await Promise.all([
-        marketingAPI.getLeads({ page: 1, page_size: 10 }),
+        marketingAPI.getLeads({ page: 1, page_size: 10, date_from: dashboardDateFrom || undefined, date_to: dashboardDateTo || undefined }),
         marketingAPI.getContacts({ page: 1, page_size: 10 }),
         marketingAPI.getCustomers({ page: 1, page_size: 10 }),
-        canViewReport ? marketingAPI.getReportsSummary().catch(() => null) : Promise.resolve(null),
+        canViewReport ? marketingAPI.getReportsSummary({ date_from: dashboardDateFrom || undefined, date_to: dashboardDateTo || undefined }).catch(() => null) : Promise.resolve(null),
         marketingAPI.getLeadStatuses({ is_active: true }).catch(() => []),
-        marketingAPI.getDashboardTargetStats().catch(() => null),
-        marketingAPI.getScopeTargetStats().catch(() => null),
+        marketingAPI.getDashboardTargetStats({ date_from: dashboardDateFrom || undefined, date_to: dashboardDateTo || undefined }).catch(() => null),
+        marketingAPI.getScopeTargetStats({ date_from: dashboardDateFrom || undefined, date_to: dashboardDateTo || undefined }).catch(() => null),
         marketingAPI.getReportsScope().catch(() => null),
       ]);
 
@@ -420,9 +449,9 @@ export const DashboardPage: React.FC = () => {
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {
         setPermissionDenied(true);
-        showToast('You don\'t have permission to view this dashboard', 'error');
+        showToastRef.current('You don\'t have permission to view this dashboard', 'error');
       } else {
-        showToast('Failed to load dashboard data', 'error');
+        showToastRef.current('Failed to load dashboard data', 'error');
       }
       setStats([]);
       setRecentLeads([]);
@@ -431,20 +460,18 @@ export const DashboardPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [showToast, permissionDenied, canViewReport]);
+  }, [permissionDenied, canViewReport, dashboardDateFrom, dashboardDateTo]);
 
   const loadTasks = useCallback(async () => {
     if (permissionDenied) return;
-    setTasksLoading(true);
     try {
-      const list = await marketingAPI.getTodayTasks();
-      setTodayTasks(list);
+      await dispatch(fetchTodayTasks()).unwrap();
     } catch {
-      setTodayTasks([]);
+      // handled in slice
     } finally {
-      setTasksLoading(false);
+      // loading handled in slice
     }
-  }, [permissionDenied]);
+  }, [dispatch, permissionDenied]);
 
   useEffect(() => {
     loadDashboard();
@@ -456,24 +483,29 @@ export const DashboardPage: React.FC = () => {
     if (permissionDenied || loading || !reportScope) return;
     if (isHeadRole) {
       setHeadSummaryLoading(true);
-      marketingAPI.getHeadDashboardSummary()
+      marketingAPI.getHeadDashboardSummary({ date_from: dashboardDateFrom || undefined, date_to: dashboardDateTo || undefined })
         .then(setHeadSummary)
         .catch(() => setHeadSummary(null))
         .finally(() => setHeadSummaryLoading(false));
     } else {
       setHeadSummary(null);
     }
-  }, [permissionDenied, loading, reportScope, isHeadRole]);
+  }, [permissionDenied, loading, reportScope, isHeadRole, dashboardDateFrom, dashboardDateTo]);
 
   useEffect(() => {
-    if (!permissionDenied && !loading && reportScope && !isHeadRole) loadTasks();
+    if (!permissionDenied && !loading && reportScope && !isHeadRole) {
+      loadTasks();
+    }
   }, [permissionDenied, loading, reportScope, isHeadRole, loadTasks]);
 
+  const selectedTask = todayTasks.find((task) => task.id === selectedTaskId) ?? null;
+
   useEffect(() => {
-    if (selectedDashboardId == null) {
-      localStorage.setItem('dashboard-layout', JSON.stringify(layout));
+    if (selectedTaskId == null) return;
+    if (!todayTasks.some((task) => task.id === selectedTaskId)) {
+      setSelectedTaskId(null);
     }
-  }, [layout, selectedDashboardId]);
+  }, [selectedTaskId, todayTasks]);
 
   useEffect(() => {
     if (permissionDenied) return;
@@ -485,18 +517,36 @@ export const DashboardPage: React.FC = () => {
   }, [permissionDenied]);
 
   useEffect(() => {
-    if (selectedDashboardId == null) return;
-    const d = savedDashboards.find((x) => x.id === selectedDashboardId);
-    if (d?.config?.layout && Array.isArray(d.config.layout)) {
-      setLayout(migrateLayout(d.config.layout as WidgetConfig[]));
-    } else {
-      marketingAPI.getSavedDashboard(selectedDashboardId).then((res) => {
-        if (res.config?.layout && Array.isArray(res.config.layout)) {
-          setLayout(migrateLayout(res.config.layout as WidgetConfig[]));
-        }
-      }).catch(() => setSavedDashboards((prev) => prev.filter((x) => x.id !== selectedDashboardId)));
+    if (savedDashboards.length === 0) {
+      setSelectedDashboardId(null);
+      return;
     }
-  }, [selectedDashboardId]);
+    setSelectedDashboardId((prev) => {
+      if (prev != null && savedDashboards.some((d) => d.id === prev)) return prev;
+      return savedDashboards[0].id;
+    });
+  }, [savedDashboards]);
+
+  useEffect(() => {
+    if (selectedDashboardId == null) {
+      setSqlWidgetData({});
+      return;
+    }
+    marketingAPI.getSavedDashboard(selectedDashboardId, {
+      date_from: dashboardDateFrom || undefined,
+      date_to: dashboardDateTo || undefined,
+    }).then((res) => {
+      const layoutFromApi = Array.isArray(res.config?.layout) ? (res.config?.layout as WidgetConfig[]) : [];
+      const nextLayout = migrateLayout(layoutFromApi);
+      setLayout(nextLayout);
+      lastPersistedLayoutRef.current = JSON.stringify(nextLayout);
+      setSqlWidgetData(res.widget_data ?? {});
+    }).catch((e: unknown) => {
+      setSqlWidgetData({});
+      const msg = e instanceof Error ? e.message : 'Failed to load selected dashboard';
+      showToastRef.current(msg, 'error');
+    });
+  }, [selectedDashboardId, dashboardDateFrom, dashboardDateTo]);
 
   useEffect(() => {
     if (selectedTask?.lead_id) {
@@ -529,7 +579,49 @@ export const DashboardPage: React.FC = () => {
     setLayout(prev => prev.filter(w => w.id !== id));
   };
 
+  const openEditWidget = (config: WidgetConfig) => {
+    setEditingWidgetId(config.id);
+    setAddWidgetType((config.type ?? config.id) as DashboardWidgetType);
+    setAddWidgetTitle(config.title ?? '');
+    setAddWidgetCode(config.code ?? '');
+    setAddWidgetChartType(config.chart_type ?? 'table');
+    setSqlPreviewData([]);
+    setSqlPreviewError(null);
+    setSqlPreviewCompiledSql('');
+    setShowAddWidgetModal(true);
+  };
+
+  const closeWidgetModal = () => {
+    setShowAddWidgetModal(false);
+    setEditingWidgetId(null);
+    setAddWidgetTitle('');
+    setAddWidgetCode('');
+    setAddWidgetChartType('table');
+    setAddWidgetType('target-card');
+    setAiPrompt('');
+    setAiScopeMode('auto');
+    setSqlPreviewData([]);
+    setSqlPreviewError(null);
+    setSqlPreviewLoading(false);
+    setSqlPreviewChartType('table');
+    setSqlPreviewCompiledSql('');
+  };
+
   const addWidget = () => {
+    if (editingWidgetId) {
+      setLayout(prev => prev.map((w) => {
+        if (w.id !== editingWidgetId) return w;
+        return {
+          ...w,
+          type: addWidgetType,
+          title: addWidgetTitle.trim() || undefined,
+          code: addWidgetType === 'custom_code' || addWidgetType === 'custom_sql' ? addWidgetCode.trim() || undefined : undefined,
+          chart_type: addWidgetType === 'custom_sql' ? (addWidgetChartType || 'table') : undefined,
+        };
+      }));
+      closeWidgetModal();
+      return;
+    }
     const id = `widget-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const widget: WidgetConfig = {
       id,
@@ -540,11 +632,74 @@ export const DashboardPage: React.FC = () => {
       chart_type: addWidgetType === 'custom_sql' ? (addWidgetChartType || 'table') : undefined,
     };
     setLayout(prev => [...prev, widget]);
-    setShowAddWidgetModal(false);
-    setAddWidgetTitle('');
-    setAddWidgetCode('');
-    setAddWidgetChartType('table');
-    setAddWidgetType('target-card');
+    closeWidgetModal();
+  };
+
+  const runSqlPreview = useCallback(async (sqlText?: string, chartTypeText?: string) => {
+    const sql = (sqlText ?? addWidgetCode).trim();
+    if (!sql) {
+      setSqlPreviewError('Enter SQL to preview');
+      setSqlPreviewData([]);
+      return;
+    }
+    setSqlPreviewLoading(true);
+    setSqlPreviewError(null);
+    try {
+      const schema = await marketingAPI.getSchema();
+        const preview = await marketingAPI.previewSqlTemplate({
+          sql,
+          chart_type: (chartTypeText ?? addWidgetChartType) as 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card',
+        date_from: dashboardDateFrom || undefined,
+        date_to: dashboardDateTo || undefined,
+        schema: (schema.tables || []).map((t) => ({
+          name: t.name,
+          columns: (t.columns || []).map((c) => ({ name: c.name, type: c.type })),
+        })),
+      });
+      setSqlPreviewData(Array.isArray(preview.data) ? preview.data : []);
+      setSqlPreviewChartType(preview.chart_type || (chartTypeText ?? addWidgetChartType) || 'table');
+      setSqlPreviewCompiledSql(preview.compiled_sql || '');
+      setSqlPreviewError(null);
+    } catch (e: unknown) {
+      setSqlPreviewData([]);
+      const msg = e instanceof Error ? e.message : 'Failed to preview SQL';
+      setSqlPreviewError(msg);
+      showToast(msg, 'error');
+    } finally {
+      setSqlPreviewLoading(false);
+    }
+  }, [addWidgetCode, addWidgetChartType, dashboardDateFrom, dashboardDateTo, showToast]);
+
+  const handleGenerateWidgetWithAI = async () => {
+    if (!aiPrompt.trim()) {
+      showToast('Enter report context for AI generation', 'error');
+      return;
+    }
+    setAiGenerating(true);
+    try {
+      const schema = await marketingAPI.getSchema();
+      const ai = await marketingAPI.generateWidgetWithAI({
+        prompt: aiPrompt.trim(),
+        date_from: dashboardDateFrom || undefined,
+        date_to: dashboardDateTo || undefined,
+        schema: (schema.tables || []).map((t) => ({
+          name: t.name,
+          columns: (t.columns || []).map((c) => ({ name: c.name, type: c.type })),
+        })),
+        scope_mode: aiScopeMode,
+        preferred_chart: addWidgetType === 'custom_sql' ? (addWidgetChartType as 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card') : undefined,
+      });
+      setAddWidgetType('custom_sql');
+      setAddWidgetTitle(ai.title || addWidgetTitle);
+      setAddWidgetCode(ai.sql || '');
+      setAddWidgetChartType(ai.chart_type || 'table');
+      await runSqlPreview(ai.sql || '', ai.chart_type || 'table');
+      showToast('AI generated widget SQL. Review and add.');
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : 'Failed to generate widget with AI', 'error');
+    } finally {
+      setAiGenerating(false);
+    }
   };
 
   const handleDragStart = (index: number) => {
@@ -576,14 +731,24 @@ export const DashboardPage: React.FC = () => {
       onResize: () => toggleResize(config.id),
       className: `${config.span === 1 ? 'col-span-1' : config.span === 2 ? 'col-span-2' : 'col-span-3'} ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''}`,
       headerAction: isEditMode ? (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); removeWidget(config.id); }}
-          className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-          aria-label="Remove widget"
-        >
-          <Trash2 size={14} />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); openEditWidget(config); }}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            aria-label="Edit widget"
+          >
+            <Edit3 size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); removeWidget(config.id); }}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+            aria-label="Remove widget"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       ) : undefined,
     };
 
@@ -612,7 +777,6 @@ export const DashboardPage: React.FC = () => {
         }
         return (
           <Card
-            key={config.id}
             {...commonProps}
             title={scopeLabel === 'My' ? "This month's target" : `${scopeLabel} target this month`}
             description={scopeLabel === 'My'
@@ -991,12 +1155,14 @@ export const DashboardPage: React.FC = () => {
           </Card>
         );
       case 'custom_sql':
+        const widgetRuntime = sqlWidgetData[config.id];
         return (
-          <Card {...commonProps} title={config.title || 'Custom SQL'} description="Run your SQL (SELECT only); data from backend.">
+      <Card {...commonProps} title={config.title || 'Custom SQL'}>
             <CustomSqlWidgetContent
               code={config.code}
-              chartType={config.chart_type || 'table'}
-              onError={(msg) => showToast(msg, 'error')}
+              chartType={widgetRuntime?.chart_type || config.chart_type || 'table'}
+              data={widgetRuntime?.data}
+              error={widgetRuntime?.error || null}
             />
           </Card>
         );
@@ -1014,54 +1180,172 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleSaveLayout = async () => {
-    if (selectedDashboardId != null) {
-      try {
-        await marketingAPI.updateSavedDashboard(selectedDashboardId, { config: { layout } });
-        showToast('Dashboard saved to backend', 'success');
-      } catch (e: unknown) {
-        showToast(e instanceof Error ? e.message : 'Failed to save dashboard', 'error');
-        return;
-      }
-    } else {
-      showToast('Dashboard layout saved (local)', 'success');
+    if (selectedDashboardId == null) {
+      showToast('No dashboard selected', 'error');
+      return;
+    }
+    const selectedSavedDashboard = selectedDashboardId != null ? savedDashboards.find((d) => d.id === selectedDashboardId) ?? null : null;
+    const canEditSelectedDashboard = !!selectedSavedDashboard && (!!selectedSavedDashboard.can_edit || canCreateDashboard);
+    if (!canEditSelectedDashboard) {
+      showToast('You do not have permission to edit this dashboard', 'error');
+      return;
+    }
+    try {
+      await marketingAPI.updateSavedDashboard(selectedDashboardId, { config: { layout } });
+      lastPersistedLayoutRef.current = JSON.stringify(layout);
+      showToast('Dashboard saved to backend', 'success');
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : 'Failed to save dashboard', 'error');
+      return;
     }
     setIsEditMode(false);
   };
 
+  const selectedSavedDashboard = selectedDashboardId != null ? savedDashboards.find((d) => d.id === selectedDashboardId) ?? null : null;
+  const canEditSelectedDashboard = !!selectedSavedDashboard && (!!selectedSavedDashboard.can_edit || canCreateDashboard);
+  const canCustomizeDashboard = canEditSelectedDashboard;
+
+  useEffect(() => {
+    if (selectedDashboardId == null) return;
+    if (!canEditSelectedDashboard) return;
+
+    const serialized = JSON.stringify(layout);
+    if (serialized === lastPersistedLayoutRef.current) return;
+
+    const timer = window.setTimeout(async () => {
+      try {
+        await marketingAPI.updateSavedDashboard(selectedDashboardId, { config: { layout } });
+        lastPersistedLayoutRef.current = serialized;
+      } catch (e: unknown) {
+        showToast(e instanceof Error ? e.message : 'Failed to auto-save dashboard', 'error');
+      }
+    }, 600);
+
+    return () => window.clearTimeout(timer);
+  }, [layout, selectedDashboardId, canEditSelectedDashboard, showToast]);
+
+  const loadDashboardAssignments = useCallback(async () => {
+    if (!selectedDashboardId || !canAssignDashboard) {
+      setSavedDashboardAssignments([]);
+      return;
+    }
+    setAssignmentsLoading(true);
+    try {
+      const rows = await marketingAPI.getSavedDashboardAssignments(selectedDashboardId);
+      setSavedDashboardAssignments(rows);
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : 'Failed to load assignments', 'error');
+      setSavedDashboardAssignments([]);
+    } finally {
+      setAssignmentsLoading(false);
+    }
+  }, [selectedDashboardId, canAssignDashboard, showToast]);
+
+  useEffect(() => {
+    if (showAssignDashboardModal) {
+      loadDashboardAssignments();
+      setAssignableUsersLoading(true);
+      marketingAPI.getAssignableUsers()
+        .then(setAssignableUsers)
+        .catch(() => setAssignableUsers([]))
+        .finally(() => setAssignableUsersLoading(false));
+    }
+  }, [showAssignDashboardModal, loadDashboardAssignments]);
+
   const actions = (
-    <>
-      <Select
-        className="min-w-[180px]"
-        placeholder="Dashboard"
-        value={selectedDashboardId != null ? String(selectedDashboardId) : ''}
-        onChange={(v) => setSelectedDashboardId(v ? parseInt(String(v), 10) : null)}
-        options={[
-          { value: '', label: 'Local (this device)' },
-          ...savedDashboards.map((d) => ({ value: String(d.id), label: d.name })),
-        ]}
-      />
-      <Button variant="outline" size="sm" onClick={() => setShowCreateDashboardModal(true)}>
-        Save as new
-      </Button>
-      <Button variant="outline" size="sm" onClick={loadDashboard} disabled={loading || permissionDenied} leftIcon={<RefreshCw size={14} className={loading ? 'animate-spin' : ''} />}>
-        Refresh
-      </Button>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="min-w-[220px]">
+        <Select
+          className="min-w-[220px]"
+          placeholder="Dashboard"
+          value={selectedDashboardId != null ? String(selectedDashboardId) : ''}
+          onChange={(v) => setSelectedDashboardId(v ? parseInt(String(v), 10) : null)}
+          options={savedDashboards.map((d) => ({ value: String(d.id), label: d.name }))}
+        />
+      </div>
+
+      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-sm">
+        <div className="flex items-center gap-1.5 px-1">
+          <Input
+            type="date"
+            value={dashboardDateFrom}
+            onChange={(e) => setDashboardDateFrom(e.target.value)}
+            containerClassName="mb-0"
+          />
+          <span className="text-xs text-slate-500">to</span>
+          <Input
+            type="date"
+            value={dashboardDateTo}
+            onChange={(e) => setDashboardDateTo(e.target.value)}
+            containerClassName="mb-0"
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setDashboardDateFrom(''); setDashboardDateTo(''); }}
+            disabled={!dashboardDateFrom && !dashboardDateTo}
+            className="text-slate-500"
+          >
+            Clear
+          </Button>
+        </div>
+        {canCreateDashboard && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCreateDashboardModal(true)}
+            leftIcon={<Plus size={14} />}
+            className="border-slate-300"
+          >
+            New Dashboard
+          </Button>
+        )}
+        {canAssignDashboard && selectedDashboardId != null && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAssignDashboardModal(true)}
+            leftIcon={<UserPlus size={14} />}
+            className="border-slate-300"
+          >
+            Assign
+          </Button>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={loadDashboard}
+          disabled={loading || permissionDenied}
+          leftIcon={<RefreshCw size={14} className={loading ? 'animate-spin' : ''} />}
+          className="border-slate-300"
+        >
+          Reload
+        </Button>
+      </div>
+
       <Button
-        variant={isEditMode ? 'primary' : 'outline'}
+        variant={isEditMode ? 'secondary' : 'primary'}
         size="sm"
         title="Drag to reorder; save to backend when a saved dashboard is selected"
         onClick={() => {
+          if (!canCustomizeDashboard) {
+            showToast('You do not have permission to customize this dashboard', 'error');
+            return;
+          }
           if (isEditMode) handleSaveLayout();
           else setIsEditMode(true);
         }}
+        disabled={!canCustomizeDashboard}
         leftIcon={isEditMode ? <Check size={14} /> : <LayoutIcon size={14} />}
+        className={isEditMode ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
       >
-        {isEditMode ? 'Save layout' : 'Customize widget order'}
+        {isEditMode ? 'Save Layout' : 'Edit Layout'}
       </Button>
-      <Button size="sm" onClick={handleExport} isLoading={isExporting} leftIcon={<Download size={14} />}>
+
+      <Button size="sm" onClick={handleExport} isLoading={isExporting} leftIcon={<Download size={14} />} variant="outline">
         Export
       </Button>
-    </>
+    </div>
   );
 
   const dashboardRole = reportScope?.role ?? 'self';
@@ -1112,6 +1396,7 @@ export const DashboardPage: React.FC = () => {
                 size="sm"
                 leftIcon={<Plus size={14} />}
                 onClick={() => setShowAddWidgetModal(true)}
+                disabled={!canCustomizeDashboard}
               >
                 Add widget
               </Button>
@@ -1121,12 +1406,12 @@ export const DashboardPage: React.FC = () => {
                 <LayoutIcon className="mx-auto h-12 w-12 text-slate-300 mb-4" />
                 <h3 className="text-base font-semibold text-slate-700 mb-1">No widgets yet</h3>
                 <p className="text-sm text-slate-500 mb-4 max-w-sm mx-auto">Add cards, graphs, heatmaps, tables, or custom code. Your layout is saved and you can reorder anytime.</p>
-                <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => setShowAddWidgetModal(true)}>
+                <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => setShowAddWidgetModal(true)} disabled={!canCustomizeDashboard}>
                   Add widget
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-3 transition-all duration-300" style={{ gap: 'var(--ui-gap)' }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 transition-all duration-300" style={{ gap: 'var(--ui-gap)' }}>
                 {layout.map((config) => (
                   <div key={config.id} className="contents">
                     {renderWidget(config)}
@@ -1150,18 +1435,23 @@ export const DashboardPage: React.FC = () => {
                     <div
                       key={task.id}
                       className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer ${task.completed_at ? 'bg-slate-50' : 'bg-white border-slate-200'}`}
-                      onClick={() => setSelectedTask(task)}
+                      onClick={() => setSelectedTaskId(task.id)}
                     >
-                      <button type="button" className="shrink-0 mt-0.5" onClick={async (e) => { e.stopPropagation(); if (task.completed_at) return; try { await marketingAPI.completeTask(task.id); setTodayTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed_at: new Date().toISOString() } : t)); showToast('Task marked complete'); } catch { showToast('Failed to complete task', 'error'); } }}>
+                      <button type="button" className="shrink-0 mt-0.5" onClick={async (e) => { e.stopPropagation(); if (task.completed_at) return; try { await dispatch(completeTaskById(task.id)).unwrap(); showToast('Task marked complete'); } catch { showToast('Failed to complete task', 'error'); } }}>
                         {task.completed_at ? <CheckSquare size={18} className="text-emerald-600" /> : <Square size={18} />}
                       </button>
-                      <p className={`text-xs flex-1 truncate ${task.completed_at ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{task.title}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-medium truncate ${task.completed_at ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{task.title}</p>
+                        {task.description && (
+                          <p className={`text-[11px] truncate ${task.completed_at ? 'text-slate-400' : 'text-slate-500'}`}>{task.description}</p>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
               <div className="pt-2 border-t border-slate-100 mt-2">
-                <Button variant="outline" size="sm" className="w-full" leftIcon={<Plus size={14} />} onClick={() => { setShowAddTask(true); setManualTaskTitle(''); setManualTaskDescription(''); }}>Add task</Button>
+                <Button type="button" variant="outline" size="sm" className="w-full" leftIcon={<Plus size={14} />} onClick={() => { setShowAddTask(true); setManualTaskTitle(''); setManualTaskDescription(''); }}>Add task</Button>
               </div>
             </Card>
           </div>
@@ -1170,13 +1460,14 @@ export const DashboardPage: React.FC = () => {
 
           {/* Today's tasks - right column (desktop); hidden for admin/domain head */}
           {!isHeadRole && (
-          <div className="w-80 flex-shrink-0 hidden lg:block" style={{ minHeight: '80vh' }}>
+          <div className="w-80 flex-shrink-0 hidden lg:block self-start">
             <Card
-              className="sticky top-4 h-[80vh] flex flex-col"
+              className="sticky top-4 h-[calc(100vh-2rem)] flex flex-col overflow-hidden"
+              contentClassName="p-0 overflow-hidden"
               title="Today's tasks"
               description="Auto (follow-up) or manual. Click to open; add enquiry to complete."
             >
-              <div className="flex-1 min-h-0 flex flex-col p-0">
+              <div className="h-full min-h-0 flex flex-col">
                 {tasksLoading ? (
                   <div className="p-4 flex items-center justify-center text-slate-500">
                     <RefreshCw size={20} className="animate-spin" />
@@ -1193,7 +1484,7 @@ export const DashboardPage: React.FC = () => {
                             className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors ${
                               task.completed_at ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/30'
                             }`}
-                            onClick={() => setSelectedTask(task)}
+                            onClick={() => setSelectedTaskId(task.id)}
                           >
                             <button
                               type="button"
@@ -1202,8 +1493,7 @@ export const DashboardPage: React.FC = () => {
                                 e.stopPropagation();
                                 if (task.completed_at) return;
                                 try {
-                                  await marketingAPI.completeTask(task.id);
-                                  setTodayTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed_at: new Date().toISOString() } : t));
+                                  await dispatch(completeTaskById(task.id)).unwrap();
                                   showToast('Task marked complete');
                                 } catch {
                                   showToast('Failed to complete task', 'error');
@@ -1221,6 +1511,9 @@ export const DashboardPage: React.FC = () => {
                               <p className={`text-xs font-medium truncate ${task.completed_at ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
                                 {task.title}
                               </p>
+                              {task.description && (
+                                <p className={`text-[11px] truncate ${task.completed_at ? 'text-slate-400' : 'text-slate-500'}`}>{task.description}</p>
+                              )}
                               {task.lead_name && (
                                 <p className="text-[10px] text-slate-500 truncate">{task.lead_series || task.lead_name}</p>
                               )}
@@ -1231,6 +1524,7 @@ export const DashboardPage: React.FC = () => {
                     </div>
                     <div className="p-2 border-t border-slate-100">
                       <Button
+                        type="button"
                         variant="outline"
                         size="sm"
                         className="w-full justify-center"
@@ -1253,11 +1547,12 @@ export const DashboardPage: React.FC = () => {
           <Modal
             isOpen={!!selectedTask}
             onClose={() => {
-              setSelectedTask(null);
+              setSelectedTaskId(null);
               setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' });
               setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
               setTaskModalQuotationSeriesCode('');
               setTaskModalQuotationIsRevised(false);
+              setQuickQuotationFile(null);
             }}
             title={selectedTask.title}
           >
@@ -1266,20 +1561,119 @@ export const DashboardPage: React.FC = () => {
                 <p className="text-sm text-slate-600 whitespace-pre-wrap">{selectedTask.description}</p>
               )}
               {selectedTask.lead_id != null && !selectedTask.completed_at && (
-                <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-3 max-h-[60vh] overflow-y-auto">
+                <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-4 max-h-[70vh] overflow-y-auto">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-slate-700">Add enquiry log (same as lead page) — then task is done</p>
-                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setSelectedTask(null); navigate(`/leads/${selectedTask.lead_id}/edit`); }}>Open lead →</Button>
+                    <p className="text-xs font-medium text-slate-700">Add enquiry / quotation to complete this task</p>
+                    <Button variant="ghost" size="sm" type="button" className="text-xs" onClick={() => { setSelectedTaskId(null); navigate(`/leads/${selectedTask.lead_id}/edit`); }}>Open lead →</Button>
                   </div>
-                  <div className="grid grid-cols-1 gap-2">
-                    <Select
-                      label="Type"
-                      options={ACTIVITY_TYPE_OPTIONS}
-                      value={enquiryForm.activity_type}
-                      onChange={(v) => setEnquiryForm(f => ({ ...f, activity_type: (v ?? 'call') as string }))}
-                      searchable={false}
-                    />
-                    <Input label="Title *" value={enquiryForm.title} onChange={(e) => setEnquiryForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Follow-up call" />
+
+                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3 space-y-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">Add quotation</p>
+                      <p className="text-xs text-slate-600">Upload a file to add an enquiry with title "Added quotation". No need to fill title or description.</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Choose file</label>
+                        <label className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                          <Upload size={14} />
+                          <span className="truncate">{quickQuotationFile ? quickQuotationFile.name : 'Choose file'}</span>
+                          <input
+                            type="file"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                            className="hidden"
+                            onChange={(e) => setQuickQuotationFile(e.target.files?.[0] ?? null)}
+                          />
+                        </label>
+                      </div>
+                      {taskModalSeriesList.length > 0 && (
+                        <Select
+                          label="Quotation series"
+                          value={taskModalQuotationSeriesCode}
+                          onChange={(v) => setTaskModalQuotationSeriesCode((v ?? '') as string)}
+                          options={taskModalSeriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
+                          placeholder="Choose series"
+                        />
+                      )}
+                    </div>
+                    <label className="inline-flex items-center gap-2 text-xs text-slate-700">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        checked={taskModalQuotationIsRevised}
+                        onChange={(e) => setTaskModalQuotationIsRevised(e.target.checked)}
+                      />
+                      Mark as revised quotation
+                    </label>
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={!quickQuotationFile || quickQuotationSubmitting}
+                        onClick={async () => {
+                          if (!selectedTask.lead_id || !quickQuotationFile) return;
+                          setQuickQuotationSubmitting(true);
+                          try {
+                            const created = await marketingAPI.createLeadActivity(selectedTask.lead_id, {
+                              activity_type: 'qtn_submitted',
+                              title: 'Added quotation',
+                              activity_date: new Date().toISOString(),
+                            });
+                            await marketingAPI.uploadLeadActivityAttachments(
+                              selectedTask.lead_id,
+                              created.id,
+                              [quickQuotationFile],
+                              ['quotation'],
+                              undefined,
+                              undefined,
+                              taskModalQuotationSeriesCode || undefined,
+                              taskModalQuotationIsRevised
+                            );
+                            await dispatch(completeTaskById(selectedTask.id)).unwrap();
+                            setSelectedTaskId(null);
+                            setQuickQuotationFile(null);
+                            setTaskModalQuotationIsRevised(false);
+                            setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' });
+                            setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
+                            showToast('Quotation added and task completed');
+                          } catch (err: unknown) {
+                            showToast(err instanceof Error ? err.message : 'Failed to add quotation', 'error');
+                          } finally {
+                            setQuickQuotationSubmitting(false);
+                          }
+                        }}
+                      >
+                        {quickQuotationSubmitting ? 'Adding quotation...' : 'Add quotation'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="pt-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Or add detailed log</p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
+                    <div className="grid grid-cols-1 gap-2">
+                      <Select
+                        label="Type"
+                        options={ACTIVITY_TYPE_OPTIONS}
+                        value={enquiryForm.activity_type}
+                        onChange={(v) => setEnquiryForm(f => ({ ...f, activity_type: (v ?? 'call') as string }))}
+                        searchable={false}
+                      />
+                      {enquiryForm.activity_type === 'qtn_submitted' ? (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                          Title will be set automatically: <strong>Added quotation</strong>
+                        </div>
+                      ) : (
+                        <Input
+                          label="Title *"
+                          value={enquiryForm.title}
+                          onChange={(e) => setEnquiryForm(f => ({ ...f, title: e.target.value }))}
+                          placeholder="e.g. Called to discuss requirements"
+                        />
+                      )}
+                    </div>
                   </div>
                   {enquiryForm.activity_type === 'lead_status_change' && (
                     <div className="grid grid-cols-2 gap-2 p-2 rounded-lg bg-slate-100 border border-slate-200">
@@ -1302,47 +1696,82 @@ export const DashboardPage: React.FC = () => {
                   )}
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">File attachments (optional)</label>
-                    <p className="text-[10px] text-slate-500 mb-1">Quotation or general attachment; choose type per file.</p>
+                    <p className="text-[10px] text-slate-500 mb-1">Add quotations (trackable) and/or general attachments (diagrams, docs).</p>
                     <div className="space-y-2">
                       {taskModalAttachments.map((row) => (
-                        <div key={row.id} className="flex flex-wrap items-center gap-2">
-                          <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
-                            <Upload size={12} /><span className="truncate max-w-[100px]">{row.file ? row.file.name : 'Choose file'}</span>
-                            <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; setTaskModalAttachments(prev => prev.map(r => r.id === row.id ? { ...r, file: file || null } : r)); }} />
-                          </label>
-                          <select className="rounded border border-slate-200 px-2 py-1 text-xs w-24" value={row.kind} onChange={(e) => setTaskModalAttachments(prev => prev.map(r => r.id === row.id ? { ...r, kind: e.target.value as 'quotation' | 'attachment' } : r))}>
-                            <option value="quotation">Quotation</option>
-                            <option value="attachment">Attachment</option>
-                          </select>
-                          {row.kind === 'quotation' ? (
-                            <span className="text-xs text-slate-500">Auto from lead</span>
+                        <div key={row.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
+                              <Upload size={12} /><span className="truncate max-w-[180px]">{row.file ? row.file.name : 'Choose file'}</span>
+                              <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; setTaskModalAttachments(prev => prev.map(r => r.id === row.id ? { ...r, file: file || null } : r)); }} />
+                            </label>
+                            <select className="rounded border border-slate-200 px-2 py-1 text-xs" value={row.kind} onChange={(e) => setTaskModalAttachments(prev => prev.map(r => r.id === row.id ? { ...r, kind: e.target.value as 'quotation' | 'attachment' } : r))}>
+                              <option value="quotation">Quotation</option>
+                              <option value="attachment">Attachment</option>
+                            </select>
+                            <button type="button" onClick={() => setTaskModalAttachments(prev => prev.length > 1 ? prev.filter(r => r.id !== row.id) : prev)} className="p-1.5 rounded text-slate-400 hover:bg-slate-200 hover:text-rose-600"><Trash2 size={14} /></button>
+                          </div>
+                          {row.kind === 'attachment' ? (
+                            <input className="w-full rounded border border-slate-200 px-2 py-1 text-xs" placeholder="Title (e.g. Diagram, Documentation)" value={row.title} onChange={(e) => setTaskModalAttachments(prev => prev.map(r => r.id === row.id ? { ...r, title: e.target.value } : r))} />
                           ) : (
-                            <input className="rounded border border-slate-200 px-2 py-1 text-xs min-w-[100px] flex-1 max-w-[140px]" placeholder="Title" value={row.title} onChange={(e) => setTaskModalAttachments(prev => prev.map(r => r.id === row.id ? { ...r, title: e.target.value } : r))} />
+                            <p className="text-[11px] text-slate-500">Quote numbers use selected series and revision rules.</p>
                           )}
-                          <button type="button" onClick={() => setTaskModalAttachments(prev => prev.length > 1 ? prev.filter(r => r.id !== row.id) : prev)} className="p-1.5 rounded text-slate-400 hover:bg-slate-200 hover:text-rose-600"><Trash2 size={14} /></button>
                         </div>
                       ))}
-                      <button type="button" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1" onClick={() => setTaskModalAttachments(prev => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])}><Plus size={12} /> Add file</button>
+                      <button type="button" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1" onClick={() => setTaskModalAttachments(prev => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])}><Plus size={12} /> Add another file</button>
                     </div>
                     {taskModalAttachments.some(e => e.kind === 'quotation') && (
-                      <p className="mt-1 text-xs text-slate-500">Quotation numbers are generated from the lead; further ones get rev2, rev3 automatically.</p>
+                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {taskModalSeriesList.length > 0 && (
+                          <Select
+                            label="Quotation series"
+                            value={taskModalQuotationSeriesCode}
+                            onChange={(v) => setTaskModalQuotationSeriesCode((v ?? '') as string)}
+                            options={taskModalSeriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
+                            placeholder="Choose series"
+                          />
+                        )}
+                        <label className="inline-flex items-center gap-2 text-xs text-slate-700 mt-6">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            checked={taskModalQuotationIsRevised}
+                            onChange={(e) => setTaskModalQuotationIsRevised(e.target.checked)}
+                          />
+                          Mark quotation as revised
+                        </label>
+                      </div>
                     )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">What was discussed / notes</label>
-                    <textarea className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm min-h-[60px]" placeholder="e.g. Asked about timeline, budget." value={enquiryForm.description} onChange={(e) => setEnquiryForm(f => ({ ...f, description: e.target.value }))} />
+                    <textarea className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm min-h-[70px]" placeholder="e.g. Asked about timeline, budget. They need chamber by Q2." value={enquiryForm.description} onChange={(e) => setEnquiryForm(f => ({ ...f, description: e.target.value }))} />
                   </div>
                   <Button
+                    type="button"
                     size="sm"
                     leftIcon={<MessageSquare size={14} />}
-                    disabled={!enquiryForm.title.trim() || enquirySubmitting}
+                    disabled={enquirySubmitting}
                     onClick={async () => {
-                      if (!enquiryForm.title.trim() || !selectedTask.lead_id) return;
+                      if (!selectedTask.lead_id) return;
+                      const isQuotationLog = enquiryForm.activity_type === 'qtn_submitted';
+                      const effectiveTitle = isQuotationLog ? 'Added quotation' : enquiryForm.title.trim();
+                      if (!effectiveTitle) {
+                        showToast('Please enter title', 'error');
+                        return;
+                      }
+                      if (isQuotationLog) {
+                        const quotationFiles = taskModalAttachments.filter(a => a.file && a.kind === 'quotation');
+                        if (quotationFiles.length === 0) {
+                          showToast('Please upload quotation file', 'error');
+                          return;
+                        }
+                      }
                       setEnquirySubmitting(true);
                       try {
                         const created = await marketingAPI.createLeadActivity(selectedTask.lead_id, {
                           activity_type: enquiryForm.activity_type,
-                          title: enquiryForm.title.trim(),
+                          title: effectiveTitle,
                           description: enquiryForm.description?.trim() || undefined,
                           activity_date: new Date().toISOString(),
                           from_status_id: enquiryForm.activity_type === 'lead_status_change' ? enquiryForm.from_status_id : undefined,
@@ -1354,11 +1783,20 @@ export const DashboardPage: React.FC = () => {
                         });
                         const toUpload = taskModalAttachments.filter(e => e.file);
                         if (toUpload.length > 0) {
-                          await marketingAPI.uploadLeadActivityAttachments(selectedTask.lead_id, created.id, toUpload.map(e => e.file!), toUpload.map(e => e.kind), undefined, toUpload.map(e => e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined));
+                          await marketingAPI.uploadLeadActivityAttachments(
+                            selectedTask.lead_id,
+                            created.id,
+                            toUpload.map(e => e.file!),
+                            toUpload.map(e => e.kind),
+                            undefined,
+                            toUpload.map(e => e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined),
+                            toUpload.some(e => e.kind === 'quotation') ? (taskModalQuotationSeriesCode || undefined) : undefined,
+                            toUpload.some(e => e.kind === 'quotation') ? taskModalQuotationIsRevised : undefined
+                          );
                         }
-                        await marketingAPI.completeTask(selectedTask.id);
-                        setTodayTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, completed_at: new Date().toISOString() } : t));
-                        setSelectedTask(null);
+                        await dispatch(completeTaskById(selectedTask.id)).unwrap();
+                        setSelectedTaskId(null);
+                        setQuickQuotationFile(null);
                         setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' });
                         setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
                         showToast('Enquiry added and task completed');
@@ -1369,7 +1807,7 @@ export const DashboardPage: React.FC = () => {
                       }
                     }}
                   >
-                    {enquirySubmitting ? 'Adding...' : 'Add enquiry & complete task'}
+                    {enquirySubmitting ? 'Adding...' : 'Add log'}
                   </Button>
                 </div>
               )}
@@ -1377,16 +1815,15 @@ export const DashboardPage: React.FC = () => {
                 <p className="text-xs text-slate-500">Lead: {selectedTask.lead_series || selectedTask.lead_name || `#${selectedTask.lead_id}`}</p>
               )}
               <div className="flex justify-between pt-2">
-                <Button variant="outline" size="sm" onClick={() => { setSelectedTask(null); setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' }); setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]); }}>Close</Button>
+                <Button variant="outline" size="sm" type="button" onClick={() => { setSelectedTaskId(null); setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' }); setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]); }}>Close</Button>
                 {!selectedTask.completed_at && (
                   <Button
+                    type="button"
                     size="sm"
                     leftIcon={<CheckSquare size={14} />}
                     onClick={async () => {
                       try {
-                        await marketingAPI.completeTask(selectedTask.id);
-                        setTodayTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, completed_at: new Date().toISOString() } : t));
-                        setSelectedTask(prev => prev ? { ...prev, completed_at: new Date().toISOString() } : null);
+                        await dispatch(completeTaskById(selectedTask.id)).unwrap();
                         showToast('Task marked complete');
                       } catch {
                         showToast('Failed to complete task', 'error');
@@ -1426,19 +1863,19 @@ export const DashboardPage: React.FC = () => {
                 />
               </div>
               <div className="flex justify-end gap-2 pt-1">
-                <Button variant="outline" size="sm" onClick={() => setShowAddTask(false)}>Cancel</Button>
+                <Button variant="outline" size="sm" type="button" onClick={() => setShowAddTask(false)}>Cancel</Button>
                 <Button
+                  type="button"
                   size="sm"
                   disabled={manualTaskSubmitting}
                   onClick={async () => {
                     if (!manualTaskTitle.trim()) { showToast('Enter a title', 'error'); return; }
                     setManualTaskSubmitting(true);
                     try {
-                      const created = await marketingAPI.createManualTask({
+                      await dispatch(addManualTask({
                         title: manualTaskTitle.trim(),
                         description: manualTaskDescription.trim() || undefined,
-                      });
-                      setTodayTasks(prev => [created, ...prev]);
+                      })).unwrap();
                       setShowAddTask(false);
                       setManualTaskTitle('');
                       setManualTaskDescription('');
@@ -1487,6 +1924,7 @@ export const DashboardPage: React.FC = () => {
                         });
                         setSavedDashboards((prev) => [created, ...prev]);
                         setSelectedDashboardId(created.id);
+                        lastPersistedLayoutRef.current = JSON.stringify(layout);
                         setShowCreateDashboardModal(false);
                         setCreateDashboardName('');
                         showToast('Dashboard created. You can assign it to users from HRMS permissions (marketing.assign_dashboard).');
@@ -1504,14 +1942,153 @@ export const DashboardPage: React.FC = () => {
             </Modal>
           )}
 
+          {showAssignDashboardModal && (
+            <Modal
+              isOpen
+              onClose={() => {
+                setShowAssignDashboardModal(false);
+                setAssignEmployeeId('');
+                setAssignCanEdit(false);
+              }}
+              title="Assign dashboard"
+            >
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600">Assign <span className="font-semibold text-slate-800">{selectedSavedDashboard?.name ?? 'dashboard'}</span> to a user in marketing (domain head, region head, or employee).</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Select
+                    label="User"
+                    placeholder={assignableUsersLoading ? 'Loading users...' : 'Select user'}
+                    value={assignEmployeeId}
+                    onChange={(v) => setAssignEmployeeId(v != null ? String(v) : '')}
+                    options={[
+                      { value: '', label: 'Select user' },
+                      ...assignableUsers.map((u) => ({ value: String(u.id), label: u.name })),
+                    ]}
+                    searchable
+                    disabled={assignableUsersLoading}
+                  />
+                  <label className="flex items-center gap-2 text-sm text-slate-700 mt-6 sm:mt-0">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      checked={assignCanEdit}
+                      onChange={(e) => setAssignCanEdit(e.target.checked)}
+                    />
+                    Allow editing
+                  </label>
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    disabled={assigningDashboard || !assignEmployeeId.trim() || assignableUsersLoading}
+                    onClick={async () => {
+                      if (!selectedDashboardId) return;
+                      const employeeId = parseInt(assignEmployeeId, 10);
+                      if (!Number.isFinite(employeeId) || employeeId <= 0) {
+                        showToast('Select a user', 'error');
+                        return;
+                      }
+                      setAssigningDashboard(true);
+                      try {
+                        await marketingAPI.assignSavedDashboard(selectedDashboardId, {
+                          assignee_employee_id: employeeId,
+                          can_edit: assignCanEdit,
+                        });
+                        showToast('Dashboard assignment updated', 'success');
+                        setAssignEmployeeId('');
+                        setAssignCanEdit(false);
+                        await loadDashboardAssignments();
+                      } catch (e: unknown) {
+                        showToast(e instanceof Error ? e.message : 'Failed to assign dashboard', 'error');
+                      } finally {
+                        setAssigningDashboard(false);
+                      }
+                    }}
+                  >
+                    {assigningDashboard ? 'Assigning...' : 'Assign'}
+                  </Button>
+                </div>
+
+                <div className="border-t border-slate-200 pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Current assignments</p>
+                  {assignmentsLoading ? (
+                    <div className="text-sm text-slate-500 flex items-center gap-2"><RefreshCw size={14} className="animate-spin" /> Loading...</div>
+                  ) : savedDashboardAssignments.length === 0 ? (
+                    <p className="text-sm text-slate-500">No assignments yet.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                      {savedDashboardAssignments.map((assignment) => (
+                        <div key={assignment.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-2.5">
+                          <div>
+                            <p className="text-sm text-slate-800">{assignableUsers.find((u) => u.id === assignment.assignee_employee_id)?.name ?? `Employee #${assignment.assignee_employee_id}`}</p>
+                            <p className="text-xs text-slate-500">{assignment.can_edit ? 'Can edit' : 'View only'}</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              if (!selectedDashboardId) return;
+                              try {
+                                await marketingAPI.deleteSavedDashboardAssignment(selectedDashboardId, assignment.id);
+                                showToast('Assignment removed', 'success');
+                                setSavedDashboardAssignments((prev) => prev.filter((row) => row.id !== assignment.id));
+                              } catch (e: unknown) {
+                                showToast(e instanceof Error ? e.message : 'Failed to remove assignment', 'error');
+                              }
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Modal>
+          )}
+
           {/* Add widget modal */}
           {showAddWidgetModal && (
             <Modal
               isOpen
-              onClose={() => { setShowAddWidgetModal(false); setAddWidgetTitle(''); setAddWidgetCode(''); setAddWidgetChartType('table'); setAddWidgetType('target-card'); }}
-              title="Add widget"
+              onClose={closeWidgetModal}
+              title={editingWidgetId ? 'Edit widget' : 'Add widget'}
             >
               <div className="space-y-4">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-800">
+                    <Wand2 size={14} />
+                    <p className="text-xs font-semibold">AI widget generator</p>
+                  </div>
+                  <textarea
+                    className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder="Describe the report you need. Example: show monthly quotations by region for my scope."
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Select
+                      label="Scope mode"
+                      value={aiScopeMode}
+                      onChange={(v) => setAiScopeMode((v ?? 'auto') as 'auto' | 'employee' | 'region' | 'domain')}
+                      options={AI_SCOPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                      searchable={false}
+                    />
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="w-full"
+                        leftIcon={<Wand2 size={14} />}
+                        disabled={aiGenerating || !aiPrompt.trim()}
+                        onClick={handleGenerateWidgetWithAI}
+                      >
+                        {aiGenerating ? 'Generating...' : 'Generate with AI'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Widget type</label>
                   <Select
@@ -1519,6 +2096,9 @@ export const DashboardPage: React.FC = () => {
                     onChange={(v) => {
                       const newType = (v ?? 'target-card') as DashboardWidgetType;
                       setAddWidgetType(newType);
+                      setSqlPreviewData([]);
+                      setSqlPreviewError(null);
+                      setSqlPreviewCompiledSql('');
                       if (newType === 'custom_sql' && !addWidgetCode.trim()) {
                         setAddWidgetCode('SELECT column1, column2 FROM table_name LIMIT 100');
                       }
@@ -1550,19 +2130,20 @@ export const DashboardPage: React.FC = () => {
                           <ol className="list-decimal list-inside space-y-0.5">
                             <li>Choose <strong>Custom SQL chart</strong> as widget type.</li>
                             <li>Optionally set a <strong>Title</strong> for the card.</li>
-                            <li>Write a <strong>SELECT</strong> query below (only SELECT is allowed; no INSERT/UPDATE/DELETE).</li>
+                            <li>Write a <strong>SELECT</strong> query below with scope placeholders like <code>{'{{employee_id}}'}</code> or <code>{'{{domain_id}}'}</code>.</li>
+                            <li>For date filtering from dashboard header, use <code>{'{{date_from}}'}</code> and <code>{'{{date_to}}'}</code>.</li>
                             <li>Use <Link to="/schema" className="text-indigo-600 hover:underline">Schema / ER diagram</Link> to see table and column names.</li>
-                            <li>Pick <strong>Chart / display</strong> (Table, Bar, Line, Pie, or Heatmap).</li>
+                            <li>Pick <strong>Chart / display</strong> (Table, Bar, Line, Pie, Heatmap, or Number card).</li>
                             <li>Click <strong>Add widget</strong>. Data is loaded from the backend when the dashboard is viewed.</li>
                           </ol>
-                          <p className="mt-1.5 text-slate-500">Example: <code className="bg-slate-200 px-1 rounded">SELECT id, series FROM leads LIMIT 100</code></p>
+                          <p className="mt-1.5 text-slate-500">Example: <code className="bg-slate-200 px-1 rounded">SELECT status, count(*) AS total FROM leads WHERE assigned_to_employee_id = {'{{employee_id}}'} AND DATE(created_at) BETWEEN {'{{date_from}}'} AND {'{{date_to}}'} GROUP BY status</code></p>
                         </div>
                       </>
                     )}
                     <textarea
                       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono min-h-[100px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       value={addWidgetCode}
-                      onChange={(e) => setAddWidgetCode(e.target.value)}
+                      onChange={(e) => { setAddWidgetCode(e.target.value); setSqlPreviewError(null); }}
                       placeholder={addWidgetType === 'custom_sql' ? 'e.g. SELECT id, series FROM leads LIMIT 100' : 'Paste code or notes to display in the widget...'}
                     />
                   </div>
@@ -1578,14 +2159,48 @@ export const DashboardPage: React.FC = () => {
                         { value: 'bar', label: 'Bar chart' },
                         { value: 'line', label: 'Line chart' },
                         { value: 'pie', label: 'Pie chart' },
+                        { value: 'number-card', label: 'Number card' },
                         { value: 'heatmap', label: 'Heatmap' },
                       ]}
                     />
+                    <div className="mt-2 flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={sqlPreviewLoading || !addWidgetCode.trim()}
+                        onClick={() => runSqlPreview()}
+                      >
+                        {sqlPreviewLoading ? 'Previewing...' : 'Preview'}
+                      </Button>
+                    </div>
+                    {(sqlPreviewLoading || sqlPreviewError || sqlPreviewData.length > 0) && (
+                      <div className="mt-3 rounded-lg border border-slate-200 bg-white">
+                        {sqlPreviewLoading ? (
+                          <div className="p-3 text-sm text-slate-500 flex items-center gap-2"><RefreshCw size={14} className="animate-spin" /> Loading preview...</div>
+                        ) : (
+                          <>
+                            {sqlPreviewCompiledSql && (
+                              <div className="border-b border-slate-200 p-2">
+                                <p className="text-[11px] font-semibold text-slate-600 mb-1">Compiled SQL (current user scope)</p>
+                                <pre className="text-[10px] whitespace-pre-wrap break-words text-slate-700 bg-slate-50 border border-slate-200 rounded p-2">{sqlPreviewCompiledSql}</pre>
+                              </div>
+                            )}
+                            <CustomSqlWidgetContent
+                              code={addWidgetCode}
+                              chartType={sqlPreviewChartType || addWidgetChartType}
+                              data={sqlPreviewData}
+                              error={sqlPreviewError}
+                            />
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="flex justify-end gap-2 pt-2">
-                  <Button variant="outline" size="sm" onClick={() => { setShowAddWidgetModal(false); setAddWidgetTitle(''); setAddWidgetCode(''); setAddWidgetChartType('table'); }}>Cancel</Button>
-                  <Button size="sm" onClick={addWidget}>Add widget</Button>
+                  <Button variant="outline" size="sm" onClick={closeWidgetModal}>Cancel</Button>
+                  <Button size="sm" onClick={addWidget}>{editingWidgetId ? 'Save' : 'Add widget'}</Button>
                 </div>
               </div>
             </Modal>
@@ -1595,4 +2210,3 @@ export const DashboardPage: React.FC = () => {
     </PageLayout>
   );
 };
-
