@@ -8,6 +8,7 @@ import { Modal } from '../components/ui/Modal';
 import { PageLayout } from '../components/layout/PageLayout';
 import {
   marketingAPI,
+  leadDisplayName,
   ReportTemplateResponse,
   ReportSection,
   ReportTemplateAssignmentResponse,
@@ -172,7 +173,7 @@ export const ReportTemplatesPage: React.FC = () => {
           if (key === 'lead_id' || key === 'lead_ids') {
             const res = await marketingAPI.getLeads({ page: 1, page_size: 150 });
             const items = res.items ?? [];
-            setEntityOptions((prev) => ({ ...prev, [key]: items.map((l) => ({ value: String(l.id), label: (l.series ?? l.company ?? `Lead #${l.id}`).trim() || `Lead #${l.id}` })) }));
+            setEntityOptions((prev) => ({ ...prev, [key]: items.map((l) => ({ value: String(l.id), label: (l.series ? `${l.series} – ${leadDisplayName(l)}` : leadDisplayName(l)) || `Lead #${l.id}` })) }));
           } else if (key === 'domain_id' || key === 'domain_ids') {
             const res = await marketingAPI.getDomains({ is_active: true, page: 1, page_size: 100 });
             const items = res.items ?? [];
@@ -197,7 +198,7 @@ export const ReportTemplatesPage: React.FC = () => {
             const items = res.items ?? [];
             setEntityOptions((prev) => ({ ...prev, [key]: items.map((o) => ({ value: String(o.id), label: o.name })) }));
           } else if (key === 'plant_id' || key === 'plant_ids') {
-            const plants = await marketingAPI.getPlants({ page: 1, page_size: 200 });
+            const plants = await marketingAPI.getPlants();
             setEntityOptions((prev) => ({ ...prev, [key]: plants.map((p) => ({ value: String(p.id), label: p.plant_name || `Plant #${p.id}` })) }));
           }
         } catch {
@@ -667,7 +668,7 @@ export const ReportTemplatesPage: React.FC = () => {
               <Select
                 label="Employee"
                 value={assignEmployeeId}
-                onChange={setAssignEmployeeId}
+                onChange={(val: string | number | undefined) => setAssignEmployeeId(val !== undefined && val !== null ? String(val) : '')}
                 options={assignableUsers.map((u) => ({ value: String(u.id), label: u.name }))}
                 placeholder="Select employee"
                 searchable
