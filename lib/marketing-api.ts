@@ -1433,7 +1433,7 @@ class MarketingAPIService {
 
   // Saved dashboards (user-created; assignable; widgets with SQL or preset)
   async getSavedDashboards(): Promise<SavedDashboardResponse[]> {
-    return apiClient.get<SavedDashboardResponse[]>('/api/saved-dashboards/');
+    return apiClient.get<SavedDashboardResponse[]>('/api/saved-dashboards');
   }
   async getSavedDashboard(id: number, params?: { date_from?: string; date_to?: string }): Promise<SavedDashboardResponse> {
     const sp = new URLSearchParams();
@@ -1443,7 +1443,7 @@ class MarketingAPIService {
     return apiClient.get<SavedDashboardResponse>(`/api/saved-dashboards/${id}${qs ? `?${qs}` : ''}`);
   }
   async createSavedDashboard(data: { name: string; description?: string; config?: { layout?: unknown[] } }): Promise<SavedDashboardResponse> {
-    return apiClient.post<SavedDashboardResponse>('/api/saved-dashboards/', data);
+    return apiClient.post<SavedDashboardResponse>('/api/saved-dashboards', data);
   }
   async updateSavedDashboard(id: number, data: { name?: string; description?: string; config?: { layout?: unknown[] } }): Promise<SavedDashboardResponse> {
     return apiClient.patch<SavedDashboardResponse>(`/api/saved-dashboards/${id}`, data);
