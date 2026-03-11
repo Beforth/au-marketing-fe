@@ -179,7 +179,7 @@ export const ReportTemplatesPage: React.FC = () => {
             const items = res.items ?? [];
             setEntityOptions((prev) => ({ ...prev, [key]: items.map((d) => ({ value: String(d.id), label: d.name })) }));
           } else if (key === 'region_id' || key === 'region_ids') {
-            const res = await marketingAPI.getRegions({ is_active: true, page: 1, page_size: 200 });
+            const res = await marketingAPI.getRegions({ is_active: true, page: 1, page_size: 100 });
             const items = res.items ?? [];
             setEntityOptions((prev) => ({ ...prev, [key]: items.map((r) => ({ value: String(r.id), label: r.name })) }));
           } else if (key === 'employee_id') {
