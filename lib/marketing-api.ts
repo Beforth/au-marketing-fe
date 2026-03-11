@@ -1466,7 +1466,7 @@ class MarketingAPIService {
 
   // Report templates (like dashboards: template + SQL sections, assign to employees)
   async getReportTemplates(): Promise<ReportTemplateResponse[]> {
-    return apiClient.get<ReportTemplateResponse[]>('/api/report-templates/');
+    return apiClient.get<ReportTemplateResponse[]>('/api/report-templates');
   }
   async getReportTemplate(id: number, params?: ReportTemplateEntityParams): Promise<ReportTemplateResponse> {
     const sp = new URLSearchParams();
@@ -1491,7 +1491,7 @@ class MarketingAPIService {
     return apiClient.get<ReportTemplateResponse>(`/api/report-templates/${id}${qs ? `?${qs}` : ''}`);
   }
   async createReportTemplate(data: { name: string; description?: string; config?: { sections?: ReportSection[] } }): Promise<ReportTemplateResponse> {
-    return apiClient.post<ReportTemplateResponse>('/api/report-templates/', data);
+    return apiClient.post<ReportTemplateResponse>('/api/report-templates', data);
   }
   async updateReportTemplate(id: number, data: { name?: string; description?: string; config?: { sections?: ReportSection[] } }): Promise<ReportTemplateResponse> {
     return apiClient.patch<ReportTemplateResponse>(`/api/report-templates/${id}`, data);
