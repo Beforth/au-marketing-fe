@@ -26,6 +26,10 @@ import {
   Trash2,
   Edit3,
   Wand2,
+  Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 
 const AI_SCOPE_OPTIONS = [
@@ -73,6 +77,11 @@ export const ReportTemplatesPage: React.FC = () => {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiScopeMode, setAiScopeMode] = useState<'auto' | 'employee' | 'region' | 'domain'>('auto');
+
+  // Per-section: search text, sort (column + dir), and optional column filter (column key + value)
+  const [sectionSearch, setSectionSearch] = useState<Record<string, string>>({});
+  const [sectionSort, setSectionSort] = useState<Record<string, { column: string; dir: 'asc' | 'desc' }>>({});
+  const [sectionFilter, setSectionFilter] = useState<Record<string, { column: string; value: string }>>({});
 
   const loadTemplates = useCallback(async () => {
     if (!canViewLead) return;
@@ -234,6 +243,44 @@ export const ReportTemplatesPage: React.FC = () => {
 
   const sections = (templateDetail?.config?.sections ?? []) as ReportSection[];
   const sectionData = templateDetail?.section_data ?? {};
+
+  /** Filter and sort rows for a section (client-side search, column filter, and sort). */
+  const getFilteredAndSortedRows = useCallback(
+    (sectionId: string, rows: Record<string, unknown>[]): Record<string, unknown>[] => {
+      if (!rows.length) return [];
+      const search = (sectionSearch[sectionId] ?? '').trim().toLowerCase();
+      const filter = sectionFilter[sectionId];
+      const sort = sectionSort[sectionId];
+      let out = rows;
+      if (search) {
+        out = out.filter((row) =>
+          Object.values(row).some((v) => String(v ?? '').toLowerCase().includes(search))
+        );
+      }
+      if (filter?.column && (filter.value ?? '').trim()) {
+        const val = filter.value.trim().toLowerCase();
+        out = out.filter((row) =>
+          String(row[filter.column] ?? '').toLowerCase().includes(val)
+        );
+      }
+      if (sort?.column && out.length) {
+        const key = sort.column;
+        const dir = sort.dir === 'asc' ? 1 : -1;
+        out = [...out].sort((a, b) => {
+          const va = a[key];
+          const vb = b[key];
+          const na = Number(va);
+          const nb = Number(vb);
+          if (!Number.isNaN(na) && !Number.isNaN(nb)) return dir * (na - nb);
+          const sa = String(va ?? '');
+          const sb = String(vb ?? '');
+          return dir * sa.localeCompare(sb, undefined, { numeric: true });
+        });
+      }
+      return out;
+    },
+    [sectionSearch, sectionFilter, sectionSort]
+  );
 
   const handleCreateTemplate = async () => {
     if (!createName.trim()) return;
@@ -490,6 +537,11 @@ export const ReportTemplatesPage: React.FC = () => {
                         const data = sectionData[sec.id];
                         const rows = (data?.data ?? []) as Record<string, unknown>[];
                         const err = data?.error;
+                        const columns = rows.length ? Object.keys(rows[0]) : [];
+                        const filteredRows = getFilteredAndSortedRows(sec.id, rows);
+                        const filterCol = sectionFilter[sec.id]?.column ?? '';
+                        const filterVal = sectionFilter[sec.id]?.value ?? '';
+                        const sortState = sectionSort[sec.id];
                         return (
                           <div key={sec.id} className="rounded-lg border border-slate-200 bg-white overflow-hidden">
                             <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
@@ -515,6 +567,49 @@ export const ReportTemplatesPage: React.FC = () => {
                                 </div>
                               )}
                             </div>
+                            {!err && rows.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-slate-100 bg-slate-50/30">
+                                <div className="flex items-center gap-1.5 min-w-[200px]">
+                                  <Search size={14} className="text-slate-400 shrink-0" />
+                                  <input
+                                    type="text"
+                                    placeholder="Search in section..."
+                                    value={sectionSearch[sec.id] ?? ''}
+                                    onChange={(e) => setSectionSearch((prev) => ({ ...prev, [sec.id]: e.target.value }))}
+                                    className="flex-1 rounded border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs text-slate-500">Filter by column:</span>
+                                  <select
+                                    value={filterCol}
+                                    onChange={(e) => setSectionFilter((prev) => ({
+                                      ...prev,
+                                      [sec.id]: { column: e.target.value, value: prev[sec.id]?.value ?? '' },
+                                    }))}
+                                    className="rounded border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                  >
+                                    <option value="">— Column —</option>
+                                    {columns.map((c) => (
+                                      <option key={c} value={c}>{c}</option>
+                                    ))}
+                                  </select>
+                                  <input
+                                    type="text"
+                                    placeholder="Value..."
+                                    value={filterVal}
+                                    onChange={(e) => setSectionFilter((prev) => ({
+                                      ...prev,
+                                      [sec.id]: { column: prev[sec.id]?.column ?? '', value: e.target.value },
+                                    }))}
+                                    className="w-32 rounded border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                  />
+                                </div>
+                                <span className="text-xs text-slate-500">
+                                  {filteredRows.length} of {rows.length} row{rows.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            )}
                             <div className="overflow-x-auto">
                               {err ? (
                                 <p className="p-3 text-sm text-rose-600">{err}</p>
@@ -524,13 +619,29 @@ export const ReportTemplatesPage: React.FC = () => {
                                 <table className="w-full text-sm">
                                   <thead>
                                     <tr className="border-b border-slate-200 bg-slate-50/50">
-                                      {Object.keys(rows[0]).map((k) => (
-                                        <th key={k} className="text-left px-3 py-2 font-medium text-slate-700">{k}</th>
+                                      {columns.map((k) => (
+                                        <th
+                                          key={k}
+                                          className="text-left px-3 py-2 font-medium text-slate-700 cursor-pointer select-none hover:bg-slate-100"
+                                          onClick={() => {
+                                            const nextDir = sortState?.column === k
+                                              ? (sortState.dir === 'asc' ? 'desc' : 'asc')
+                                              : 'asc';
+                                            setSectionSort((prev) => ({ ...prev, [sec.id]: { column: k, dir: nextDir } }));
+                                          }}
+                                        >
+                                          <span className="inline-flex items-center gap-1">
+                                            {k}
+                                            {sortState?.column === k
+                                              ? (sortState.dir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)
+                                              : <ArrowUpDown size={12} className="text-slate-300" />}
+                                          </span>
+                                        </th>
                                       ))}
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {rows.map((row, i) => (
+                                    {filteredRows.map((row, i) => (
                                       <tr key={i} className="border-b border-slate-100 hover:bg-slate-50/50">
                                         {Object.entries(row).map(([k, v]) => (
                                           <td key={k} className="px-3 py-2 text-slate-800">
