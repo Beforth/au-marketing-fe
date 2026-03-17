@@ -13,7 +13,8 @@ import { ApiError } from '../lib/api';
 import { StatItem } from '../types';
 import { Lead, DashboardTargetStats, ScopeTargetStats, ReportScopeResponse, HeadDashboardSummaryResponse, leadDisplayName, leadDisplayCompany, SavedDashboardResponse, AssignableUser } from '../lib/marketing-api';
 import { Modal } from '../components/ui/Modal';
-import { Download, Layout as LayoutIcon, Check, RefreshCw, Users, UserCircle, Quote, FileText, ShieldAlert, Target, Trophy, XCircle, ListTodo, CheckSquare, Square, Plus, MessageSquare, Upload, Trash2, UserPlus, Wand2, Edit3 } from 'lucide-react';
+import { Download, Layout as LayoutIcon, Check, RefreshCw, Users, UserCircle, Quote, FileText, ShieldAlert, Target, Trophy, XCircle, ListTodo, CheckSquare, Square, Plus, MessageSquare, Upload, Trash2, UserPlus, Wand2, Edit3, X, Search, Calendar } from 'lucide-react';
+import { cn } from '../lib/utils';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from '../constants';
@@ -1252,50 +1253,96 @@ export const DashboardPage: React.FC = () => {
     }
   }, [showAssignDashboardModal, loadDashboardAssignments]);
 
-  const actions = (
-      <div className="flex flex-wrap items-center justify-end gap-2">
-      <div className="min-w-[220px]">
+  const headerActions = (
+    <div className="flex items-center gap-2.5">
+      <button
+        onClick={loadDashboard}
+        disabled={loading || permissionDenied}
+        className="p-1.5 text-slate-300 hover:text-indigo-500 transition-all active:rotate-180 duration-500"
+        title="Refresh"
+      >
+        <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+      </button>
+
+      <Button
+        variant={isEditMode ? 'primary' : 'outline'}
+        size="sm"
+        onClick={() => {
+          if (!canCustomizeDashboard) {
+            showToast('No permission', 'error');
+            return;
+          }
+          if (isEditMode) handleSaveLayout();
+          else setIsEditMode(true);
+        }}
+        disabled={!canCustomizeDashboard}
+        leftIcon={isEditMode ? <Check size={14} /> : <LayoutIcon size={14} />}
+        className={cn(
+          "h-8 font-medium px-4 transition-all duration-300 rounded-xl text-[11px]",
+          isEditMode ? "bg-indigo-600 hover:bg-indigo-700 border-none shadow-lg shadow-indigo-500/20 text-white" : "bg-white border-slate-100 shadow-sm"
+        )}
+      >
+        {isEditMode ? 'Save Layout' : 'Edit Layout'}
+      </Button>
+
+      <Button 
+        size="sm" 
+        onClick={handleExport} 
+        isLoading={isExporting} 
+        leftIcon={<Download size={14} />} 
+        variant="outline"
+        className="h-8 bg-white border-slate-100 font-medium px-4 hover:bg-slate-50 transition-all rounded-xl shadow-sm text-[11px]"
+      >
+        Export
+      </Button>
+    </div>
+  );
+
+  const commandToolbar = (
+    <div className="flex flex-wrap items-center gap-4 p-1 bg-white border border-slate-200 rounded-2xl shadow-sm mb-4 w-full">
+      {/* Dashboard Selection (Clean, No Search Icon) */}
+      <div className="flex flex-1 min-w-[160px] items-center pl-4 pr-2 border-r border-slate-100">
         <Select
-          className="min-w-[220px]"
-          placeholder="Dashboard"
+          className="flex-1 !border-none !shadow-none !bg-transparent text-[11px] h-9 font-medium !ring-0 focus:!ring-0 cursor-pointer"
+          placeholder="fav dash"
           value={selectedDashboardId != null ? String(selectedDashboardId) : ''}
           onChange={(v) => setSelectedDashboardId(v ? parseInt(String(v), 10) : null)}
           options={savedDashboards.map((d) => ({ value: String(d.id), label: d.name }))}
         />
       </div>
 
-      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-sm">
-        <div className="flex items-center gap-1.5 px-1">
-          <Input
+      {/* Date Range Picker (Widened for visibility) */}
+      <div className="flex items-center gap-3 px-4 h-9">
+        <Calendar size={15} className="text-slate-400 shrink-0" />
+        <div className="flex items-center gap-0">
+          <input
             type="date"
             value={dashboardDateFrom}
             onChange={(e) => setDashboardDateFrom(e.target.value)}
-            containerClassName="mb-0"
+            className="bg-transparent border-none text-[11px] font-medium text-slate-700 outline-none focus:ring-0 px-1 w-[115px] cursor-pointer"
           />
-          <span className="text-xs text-slate-500">to</span>
-          <Input
+          <span className="text-slate-300 mx-1.5 flex items-center">—</span>
+          <input
             type="date"
             value={dashboardDateTo}
             onChange={(e) => setDashboardDateTo(e.target.value)}
-            containerClassName="mb-0"
+            className="bg-transparent border-none text-[11px] font-medium text-slate-700 outline-none focus:ring-0 px-1 w-[115px] cursor-pointer"
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { setDashboardDateFrom(''); setDashboardDateTo(''); }}
-            disabled={!dashboardDateFrom && !dashboardDateTo}
-            className="text-slate-500"
-          >
-            Clear
-          </Button>
         </div>
+      </div>
+
+      {/* Visual Separator | */}
+      <div className="text-slate-200 font-light mx-2 text-xl self-center hidden sm:block">|</div>
+
+      {/* Final Action Buttons */}
+      <div className="flex items-center gap-3 pr-2 ml-auto">
         {canCreateDashboard && (
           <Button
-            variant="outline"
+            variant="primary"
             size="sm"
             onClick={() => setShowCreateDashboardModal(true)}
-            leftIcon={<Plus size={14} />}
-            className="border-slate-300"
+            leftIcon={<Plus size={16} />}
+            className="h-9 px-6 font-medium rounded-xl shadow-lg shadow-indigo-500/10 text-xs"
           >
             New Dashboard
           </Button>
@@ -1305,46 +1352,12 @@ export const DashboardPage: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={() => setShowAssignDashboardModal(true)}
-            leftIcon={<UserPlus size={14} />}
-            className="border-slate-300"
+            className="h-9 px-6 border-slate-100 bg-slate-50 font-medium hover:bg-slate-100 transition-all rounded-xl text-slate-700 text-xs"
           >
             Assign
           </Button>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadDashboard}
-          disabled={loading || permissionDenied}
-          leftIcon={<RefreshCw size={14} className={loading ? 'animate-spin' : ''} />}
-          className="border-slate-300"
-        >
-          Reload
-        </Button>
       </div>
-
-      <Button
-        variant={isEditMode ? 'secondary' : 'primary'}
-        size="sm"
-        title="Drag to reorder; save to backend when a saved dashboard is selected"
-        onClick={() => {
-          if (!canCustomizeDashboard) {
-            showToast('You do not have permission to customize this dashboard', 'error');
-            return;
-          }
-          if (isEditMode) handleSaveLayout();
-          else setIsEditMode(true);
-        }}
-        disabled={!canCustomizeDashboard}
-        leftIcon={isEditMode ? <Check size={14} /> : <LayoutIcon size={14} />}
-        className={isEditMode ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
-      >
-        {isEditMode ? 'Save Layout' : 'Edit Layout'}
-      </Button>
-
-      <Button size="sm" onClick={handleExport} isLoading={isExporting} leftIcon={<Download size={14} />} variant="outline">
-        Export
-      </Button>
     </div>
   );
 
@@ -1353,10 +1366,7 @@ export const DashboardPage: React.FC = () => {
     dashboardRole === 'super_admin' ? 'Marketing overview' :
     dashboardRole === 'domain_head' ? 'Domain dashboard' :
     dashboardRole === 'region_head' ? 'Region dashboard' : 'Dashboard';
-  const dashboardDescription =
-    dashboardRole === 'super_admin' ? 'All domains — leads and team activity.' :
-    dashboardRole === 'domain_head' ? 'Domain leads and team activity.' :
-    dashboardRole === 'region_head' ? 'Region leads and team activity.' : 'Your leads, contacts, and activity.';
+  const dashboardDescription = 'Track campaigns & performance';
   const scopeLabel = scopeTargetStats?.scope_label ?? 'My';
 
   const breadcrumbs = [{ label: dashboardTitle }];
@@ -1364,9 +1374,10 @@ export const DashboardPage: React.FC = () => {
     <PageLayout
       title={dashboardTitle}
       description={dashboardDescription}
-      actions={actions}
+      actions={headerActions}
       breadcrumbs={breadcrumbs}
     >
+      {commandToolbar}
       {permissionDenied ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 rounded-lg border border-amber-200 bg-amber-50">
           <ShieldAlert className="w-12 h-12 text-amber-600 mb-4" />
@@ -1402,13 +1413,18 @@ export const DashboardPage: React.FC = () => {
               </Button>
             </div>
             {layout.length === 0 ? (
-              <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-12 text-center">
-                <LayoutIcon className="mx-auto h-12 w-12 text-slate-300 mb-4" />
-                <h3 className="text-base font-semibold text-slate-700 mb-1">No widgets yet</h3>
-                <p className="text-sm text-slate-500 mb-4 max-w-sm mx-auto">Add cards, graphs, heatmaps, tables, or custom code. Your layout is saved and you can reorder anytime.</p>
-                <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => setShowAddWidgetModal(true)} disabled={!canCustomizeDashboard}>
-                  Add widget
-                </Button>
+              <div className="rounded-[2rem] border border-slate-200/60 bg-white/40 backdrop-blur-sm p-16 text-center shadow-sm relative overflow-hidden group/empty">
+                <div className="absolute inset-0 bg-gradient-to-b from-indigo-50/20 to-transparent opacity-0 group-hover/empty:opacity-100 transition-opacity duration-700" />
+                <div className="relative z-10">
+                  <div className="mx-auto h-20 w-20 bg-indigo-50 rounded-3xl flex items-center justify-center mb-6 shadow-inner">
+                    <LayoutIcon className="h-10 w-10 text-indigo-500" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-800 mb-2 tracking-tight">Your Workspace is Empty</h3>
+                  <p className="text-sm text-slate-500 mb-8 max-w-sm mx-auto font-medium leading-relaxed">Customize your command center by adding graphs, key metrics, or live data tables from the widget gallery.</p>
+                  <Button size="lg" variant="primary" leftIcon={<Plus size={18} />} onClick={() => setShowAddWidgetModal(true)} disabled={!canCustomizeDashboard} className="shadow-xl shadow-indigo-500/20 px-8 rounded-2xl h-11">
+                    Initialize Dashboard
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 transition-all duration-300" style={{ gap: 'var(--ui-gap)' }}>
