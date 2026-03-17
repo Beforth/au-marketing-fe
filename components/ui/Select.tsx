@@ -31,6 +31,7 @@ interface SelectProps {
   label?: string;
   error?: string;
   containerClassName?: string;
+  clearable?: boolean;
 }
 
 // Simple fuzzy search function
@@ -61,6 +62,7 @@ export const Select: React.FC<SelectProps> = ({
   required = false,
   className,
   searchable = true,
+  clearable = true,
   getSearchText,
   exactValueMatchWhenQueryMatches,
   getOptionKey,
@@ -177,7 +179,7 @@ export const Select: React.FC<SelectProps> = ({
             {selectedOption ? selectedOption.label : placeholder}
           </span>
           <div className="flex items-center gap-1">
-            {value && !disabled && (
+            {value && !disabled && clearable && (
               <div
                 onClick={(e) => {
                   e.stopPropagation();

@@ -486,7 +486,8 @@ export const DomainsPage: React.FC = () => {
                 value={String(targetMonth)}
                 onChange={(val) => val && setTargetMonth(Number(val))}
                 searchable={false}
-                className="min-w-[100px]"
+                clearable={false}
+                className="min-w-[80px] w-auto"
               />
               <Select
                 options={Array.from({ length: 15 }, (_, i) => {
@@ -496,7 +497,8 @@ export const DomainsPage: React.FC = () => {
                 value={String(targetYear)}
                 onChange={(val) => val && setTargetYear(Number(val))}
                 searchable={false}
-                className="min-w-[90px]"
+                clearable={false}
+                className="min-w-[100px] w-auto"
               />
             </div>
             {targetSummaryLoading && <span className="text-sm text-slate-500">Loading targets…</span>}

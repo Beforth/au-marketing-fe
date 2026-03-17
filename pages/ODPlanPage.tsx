@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
 import { AsyncSelect } from '../components/ui/AsyncSelect';
 import { Modal } from '../components/ui/Modal';
 import { marketingAPI } from '../lib/marketing-api';
@@ -500,7 +501,7 @@ export const ODPlanPage: React.FC = () => {
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Date</label>
-            <Input type="date" value={entryFormDate} onChange={(e) => { setEntryFormDate(e.target.value); setEntryForm((f) => ({ ...f, plan_date: e.target.value })); }} />
+            <DatePicker value={entryFormDate} onChange={(v) => { setEntryFormDate(v || ''); setEntryForm((f) => ({ ...f, plan_date: v || '' })); }} />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Type</label>

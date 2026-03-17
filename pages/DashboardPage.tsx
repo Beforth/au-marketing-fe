@@ -17,6 +17,7 @@ import { Download, Layout as LayoutIcon, Check, RefreshCw, Users, UserCircle, Qu
 import { cn } from '../lib/utils';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from '../constants';
 import { serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import { WidgetConfig, WidgetId, DashboardWidgetType } from '../types';
@@ -43,7 +44,6 @@ import {
   LeadStatusPieChart,
   RegionBreakdownBarChart,
   InquiriesQuotationsBarChart,
-  HeatmapWidget,
   CustomCodeWidget,
 } from '../components/ui/ChartsSection';
 
@@ -75,7 +75,6 @@ const WIDGET_TYPE_OPTIONS: { value: DashboardWidgetType; label: string }[] = [
   { value: 'bar_chart', label: 'Bar chart' },
   { value: 'pie_chart', label: 'Pie chart' },
   { value: 'area_chart', label: 'Area chart' },
-  { value: 'heatmap', label: 'Heatmap' },
   { value: 'table', label: 'Table' },
   { value: 'custom_code', label: 'Custom / code' },
   { value: 'custom_sql', label: 'Custom SQL chart' },
@@ -154,7 +153,7 @@ function CustomSqlWidgetContent({
   };
 
   const isNumberCard = chartType === 'number-card';
-  const isChart = chartType && chartType !== 'table' && !isNumberCard && ['bar', 'line', 'pie', 'heatmap'].includes(chartType);
+  const isChart = chartType && chartType !== 'table' && !isNumberCard && ['bar', 'line', 'pie'].includes(chartType);
 
   if (isNumberCard) {
     const primary = rows[0];
@@ -186,24 +185,6 @@ function CustomSqlWidgetContent({
       value: Number(row[valueKey]) || 0,
     })).filter((d) => d.value !== 0 || chartType === 'bar' || chartType === 'line');
 
-    if (chartType === 'heatmap') {
-      const rowKey = keys[0];
-      const colKey = keys[1];
-      const valKey = keys[2] ?? keys[1];
-      const rowVals = Array.from(new Set(rows.map((r) => String(r[rowKey] ?? ''))));
-      const colVals = Array.from(new Set(rows.map((r) => String(r[colKey] ?? ''))));
-      const matrix: number[][] = rowVals.map(() => colVals.map(() => 0));
-      rows.forEach((r) => {
-        const ri = rowVals.indexOf(String(r[rowKey] ?? ''));
-        const ci = colVals.indexOf(String(r[colKey] ?? ''));
-        if (ri >= 0 && ci >= 0) matrix[ri][ci] = Number(r[valKey]) || 0;
-      });
-      return (
-        <div className="h-[260px] w-full p-2">
-          <HeatmapWidget rows={rowVals} columns={colVals} data={matrix} />
-        </div>
-      );
-    }
 
     if (chartData.length === 0) {
       return <p className="text-sm text-slate-500 p-4">No data to chart (need label + value columns).</p>;
@@ -649,7 +630,7 @@ export const DashboardPage: React.FC = () => {
       const schema = await marketingAPI.getSchema();
         const preview = await marketingAPI.previewSqlTemplate({
           sql,
-          chart_type: (chartTypeText ?? addWidgetChartType) as 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card',
+        chart_type: (chartTypeText ?? addWidgetChartType) as 'table' | 'bar' | 'line' | 'pie' | 'number-card',
         date_from: dashboardDateFrom || undefined,
         date_to: dashboardDateTo || undefined,
         schema: (schema.tables || []).map((t) => ({
@@ -688,7 +669,7 @@ export const DashboardPage: React.FC = () => {
           columns: (t.columns || []).map((c) => ({ name: c.name, type: c.type })),
         })),
         scope_mode: aiScopeMode,
-        preferred_chart: addWidgetType === 'custom_sql' ? (addWidgetChartType as 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card') : undefined,
+        preferred_chart: addWidgetType === 'custom_sql' ? (addWidgetChartType as 'table' | 'bar' | 'line' | 'pie' | 'number-card') : undefined,
       });
       setAddWidgetType('custom_sql');
       setAddWidgetTitle(ai.title || addWidgetTitle);
@@ -758,12 +739,12 @@ export const DashboardPage: React.FC = () => {
         if (!isHeadRole || !headSummary?.region_breakdown.length) {
           return (
             <Card {...commonProps} title="Leads by region" description="Total, won, lost per region">
-              <p className="text-sm text-slate-500 p-4">Available for domain head and admin.</p>
+              <p className="text-sm text-slate-500 p-4 italic">Available for domain head and admin.</p>
             </Card>
           );
         }
         return (
-          <Card {...commonProps} title="Leads by region" description="Total, won, lost per region">
+          <Card {...commonProps} title="Leads by region" description="Total, won, lost per region" contentClassName="px-2 pb-2 pt-0">
             <RegionBreakdownBarChart data={headSummary.region_breakdown} />
           </Card>
         );
@@ -835,25 +816,25 @@ export const DashboardPage: React.FC = () => {
             ) : headSummary ? (
               <div className="p-4 space-y-4">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                  <div className="px-3.5 py-2.5 rounded-lg bg-slate-50 border border-slate-100">
                     <p className="text-xs font-medium text-slate-500">Total leads</p>
                     <p className="text-xl font-bold text-slate-900">{headSummary.total_leads}</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-100">
+                  <div className="px-3.5 py-2.5 rounded-lg bg-amber-50 border border-amber-100">
                     <p className="text-xs font-medium text-slate-500">Hot cases</p>
                     <p className="text-xl font-bold text-amber-800">{headSummary.hot_cases_count}</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                  <div className="px-3.5 py-2.5 rounded-lg bg-slate-50 border border-slate-100">
                     <p className="text-xs font-medium text-slate-500">Conversion ratio</p>
                     <p className="text-xl font-bold text-slate-900">{headSummary.conversion_ratio_pct != null ? `${headSummary.conversion_ratio_pct}%` : '—'}</p>
                   </div>
-                  <div className="p-3 rounded-lg flex gap-2">
-                    <div className="flex-1 p-2 rounded bg-emerald-50 border border-emerald-100">
-                      <p className="text-[10px] font-medium text-slate-500">Won</p>
+                  <div className="flex gap-2">
+                    <div className="flex-1 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100">
+                      <p className="text-[10px] font-medium text-emerald-600">Won</p>
                       <p className="text-lg font-bold text-emerald-800">{headSummary.won_count}</p>
                     </div>
-                    <div className="flex-1 p-2 rounded bg-rose-50 border border-rose-100">
-                      <p className="text-[10px] font-medium text-slate-500">Lost</p>
+                    <div className="flex-1 px-3 py-2 rounded-lg bg-rose-50 border border-rose-100">
+                      <p className="text-[10px] font-medium text-rose-600">Lost</p>
                       <p className="text-lg font-bold text-rose-800">{headSummary.lost_count}</p>
                     </div>
                   </div>
@@ -907,7 +888,7 @@ export const DashboardPage: React.FC = () => {
           );
         }
         return (
-          <Card {...commonProps} title="Target vs achieved" description={`${scopeLabel} — ${new Date(s.year, s.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}`}>
+          <Card {...commonProps} title="Target vs achieved" description={`${scopeLabel} scope — ${new Date(s.year, s.month - 1).toLocaleString('default', { month: 'short', year: 'numeric' })}`} contentClassName="px-2 pb-4 pt-0">
             <TargetAchievedBarChart target={s.monthly_target} achieved={s.achieved_this_month} year={s.year} month={s.month} />
           </Card>
         );
@@ -922,7 +903,7 @@ export const DashboardPage: React.FC = () => {
           );
         }
         return (
-          <Card {...commonProps} title="Won vs lost (this month)" description="Closed leads in scope">
+          <Card {...commonProps} title="Won vs lost" description="This month performance" contentClassName="p-1">
             <WonLostPieChart won={s.won_leads_count_this_month} lost={s.lost_leads_count_this_month} />
           </Card>
         );
@@ -936,7 +917,7 @@ export const DashboardPage: React.FC = () => {
           );
         }
         return (
-          <Card {...commonProps} title="Leads by status" description="From recent leads in scope">
+          <Card {...commonProps} title="Leads by status" description="Current pipeline" contentClassName="p-1">
             <LeadStatusPieChart data={leadStatusCounts} />
           </Card>
         );
@@ -949,7 +930,7 @@ export const DashboardPage: React.FC = () => {
           );
         }
         return (
-          <Card {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`}>
+          <Card {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`} contentClassName="px-2 pb-4 pt-0">
             <InquiriesQuotationsBarChart inquiries={reportSummary.inquiries_count} quotations={reportSummary.quotations_sent_count} />
           </Card>
         );
@@ -1074,12 +1055,6 @@ export const DashboardPage: React.FC = () => {
             </div>
           </Card>
         );
-      case 'heatmap':
-        return (
-          <Card {...commonProps} title={config.title || 'Heatmap'} description="Matrix view">
-            <HeatmapWidget title={config.title} />
-          </Card>
-        );
       case 'custom_code':
         return (
           <Card {...commonProps} title={config.title || 'Custom / code'} description="Your code or notes">
@@ -1102,21 +1077,21 @@ export const DashboardPage: React.FC = () => {
         );
       case 'bar_chart':
         return (
-          <Card {...commonProps} title={config.title || 'Bar chart'} description="Chart">
+          <Card {...commonProps} title={config.title || 'Bar chart'} description="Report data" contentClassName="px-2 pb-4 pt-0">
             {reportSummary != null ? (
               <InquiriesQuotationsBarChart inquiries={reportSummary.inquiries_count} quotations={reportSummary.quotations_sent_count} />
             ) : (
-              <div className="h-[220px] flex items-center justify-center text-slate-500 text-sm p-4">No data. Add report permission or data.</div>
+              <div className="h-[220px] flex items-center justify-center text-slate-400 text-xs italic p-4">No report data available.</div>
             )}
           </Card>
         );
       case 'pie_chart':
         return (
-          <Card {...commonProps} title={config.title || 'Pie chart'} description="Distribution">
+          <Card {...commonProps} title={config.title || 'Pie chart'} description="Distribution" contentClassName="p-1">
             {leadStatusCounts.length > 0 ? (
               <LeadStatusPieChart data={leadStatusCounts} />
             ) : (
-              <div className="h-[220px] flex items-center justify-center text-slate-500 text-sm p-4">No lead status data yet.</div>
+              <div className="h-[220px] flex items-center justify-center text-slate-400 text-xs italic p-4">No data available.</div>
             )}
           </Card>
         );
@@ -1312,23 +1287,20 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Date Range Picker (Widened for visibility) */}
-      <div className="flex items-center gap-3 px-4 h-9">
-        <Calendar size={15} className="text-slate-400 shrink-0" />
-        <div className="flex items-center gap-0">
-          <input
-            type="date"
-            value={dashboardDateFrom}
-            onChange={(e) => setDashboardDateFrom(e.target.value)}
-            className="bg-transparent border-none text-[11px] font-medium text-slate-700 outline-none focus:ring-0 px-1 w-[115px] cursor-pointer"
-          />
-          <span className="text-slate-300 mx-1.5 flex items-center">—</span>
-          <input
-            type="date"
-            value={dashboardDateTo}
-            onChange={(e) => setDashboardDateTo(e.target.value)}
-            className="bg-transparent border-none text-[11px] font-medium text-slate-700 outline-none focus:ring-0 px-1 w-[115px] cursor-pointer"
-          />
-        </div>
+      <div className="flex items-center gap-2 px-4 h-9">
+        <DatePicker
+          value={dashboardDateFrom}
+          onChange={(v) => setDashboardDateFrom(v || '')}
+          className="w-[140px]"
+          placeholder="From"
+        />
+        <span className="text-slate-300 flex items-center">—</span>
+        <DatePicker
+          value={dashboardDateTo}
+          onChange={(v) => setDashboardDateTo(v || '')}
+          className="w-[140px]"
+          placeholder="To"
+        />
       </div>
 
       {/* Visual Separator | */}
@@ -2176,7 +2148,6 @@ export const DashboardPage: React.FC = () => {
                         { value: 'line', label: 'Line chart' },
                         { value: 'pie', label: 'Pie chart' },
                         { value: 'number-card', label: 'Number card' },
-                        { value: 'heatmap', label: 'Heatmap' },
                       ]}
                     />
                     <div className="mt-2 flex justify-end">

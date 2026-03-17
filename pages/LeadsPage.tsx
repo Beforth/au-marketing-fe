@@ -8,6 +8,7 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { DataTable } from '../components/ui/DataTable';
 import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, List, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash } from 'lucide-react';
@@ -1288,21 +1289,18 @@ export const LeadsPage: React.FC = () => {
           )}
           {isHeadOrAdmin && viewMode === 'kanban' && (
             <div className="flex items-center gap-2 flex-wrap">
-              <Calendar size={16} className="text-slate-500 shrink-0" />
-              <input
-                type="date"
+              <DatePicker
                 value={dateFromInput}
-                onChange={(e) => setDateFromInput(e.target.value)}
-                className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800 bg-white"
-                title="From date"
+                onChange={(v) => setDateFromInput(v || '')}
+                className="w-[140px]"
+                placeholder="From"
               />
               <span className="text-slate-400 text-sm">to</span>
-              <input
-                type="date"
+              <DatePicker
                 value={dateToInput}
-                onChange={(e) => setDateToInput(e.target.value)}
-                className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800 bg-white"
-                title="To date"
+                onChange={(v) => setDateToInput(v || '')}
+                className="w-[140px]"
+                placeholder="To"
               />
               <Button
                 size="sm"

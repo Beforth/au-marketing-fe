@@ -8,6 +8,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select, SelectOption } from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
 import { AsyncSelect } from '../components/ui/AsyncSelect';
 import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
@@ -2163,10 +2164,9 @@ export const LeadFormPage: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Expected Closing Date</label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={formData.expected_closing_date || ''}
-                  onChange={(e) => setFormData({ ...formData, expected_closing_date: e.target.value })}
+                  onChange={(v) => setFormData({ ...formData, expected_closing_date: v || '' })}
                 />
               </div>
             </div>

@@ -6,6 +6,7 @@ import { useNavigate, useParams, useSearchParams, useLocation } from 'react-rout
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { DatePicker } from '../components/ui/DatePicker';
 import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
@@ -500,11 +501,10 @@ export const OrderFormPage: React.FC = () => {
             value={editForm.order_value ?? ''}
             onChange={(e) => setEditForm((f) => ({ ...f, order_value: e.target.value === '' ? undefined : Number(e.target.value) }))}
           />
-          <Input
+          <DatePicker
             label="Expected delivery (date)"
-            type="date"
             value={editForm.expected_delivery_at ? new Date(editForm.expected_delivery_at).toISOString().slice(0, 10) : ''}
-            onChange={(e) => setEditForm((f) => ({ ...f, expected_delivery_at: e.target.value ? new Date(e.target.value).toISOString() : undefined }))}
+            onChange={(v) => setEditForm((f) => ({ ...f, expected_delivery_at: v ? new Date(v).toISOString() : undefined }))}
           />
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
