@@ -379,3 +379,25 @@ class EmployeeRegionAssignment(Base):
 
 5. **How do we handle region deletion?**
    - Answer: Archive region, reassign customers, or prevent deletion if customers exist
+
+### 13. Modern UI/UX Design System
+
+The system uses a custom, premium UI library located in the `UI/` folder, designed for high-density ERP applications.
+
+#### Design Principles:
+- **Visual Excellence**: Professional color palettes (Indigo primaries with Slate neutrals) and premium micro-interactions.
+- **High Density**: Compact layouts with optimized spacing to maximize information visibility for expert users.
+- **Modular Architecture**: Components are broken down into their smallest functional units (atoms) for maximum reusability.
+
+#### Core UI Components:
+- **Data Display**: Granular `Table` system (`TableHeader`, `TableBody`, `TableRow`, `TableCell`) for flexible data presentation.
+- **Form Controls**: Custom styled `Input`, `Select`, `Checkbox`, `Radio`, and `Switch` with consistent focus and error states.
+- **Navigation & Overlays**: Accessible `Modal`, `Tabs`, and `Pagination`.
+- **Feedback Systems**: `Notification` (Toasts), `Badge`, and `Skeleton` loaders for a responsive feel.
+- **Advanced UX**: `SearchBar` with integrated loading/clear actions and a `Changelog` system for version transparency.
+
+#### Component Usage Pattern:
+All UI components are exported from a central `UI/index.ts`.
+```tsx
+import { Button, Input, Table, TableHeader, TableRow, TableCell } from './UI';
+```
