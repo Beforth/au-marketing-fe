@@ -24,6 +24,7 @@ interface AsyncSelectProps {
   label?: string;
   error?: string;
   initialOptions?: AsyncSelectOption[];
+  inputSize?: 'sm' | 'md' | 'lg';
 }
 
 export const AsyncSelect: React.FC<AsyncSelectProps> = ({
@@ -37,6 +38,7 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
   label,
   error,
   initialOptions = [],
+  inputSize = 'md',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -193,9 +195,12 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
           onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
           className={cn(
-            'w-full px-3 py-2 border rounded-lg text-sm text-left transition-all',
+            'w-full border rounded-lg text-left transition-all',
             'focus:outline-none focus:ring-2 focus:ring-indigo-500',
             'bg-white border-slate-300',
+            inputSize === 'sm' && 'h-9 px-3 text-xs',
+            inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
+            inputSize === 'lg' && 'h-12 px-5 text-base font-medium',
             disabled && 'bg-slate-50 cursor-not-allowed opacity-50',
             error && 'border-rose-300 bg-rose-50',
             'flex items-center justify-between gap-2'
@@ -232,7 +237,7 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
         {isOpen && dropdownRect && createPortal(
           <div
             ref={dropdownRef}
-            className="fixed z-[9999] bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-hidden"
+            className="fixed z-[9999] bg-white border border-slate-200 rounded-lg shadow-lg max-h-80 overflow-hidden flex flex-col animate-spring-in"
             style={{
               top: dropdownRect.top,
               left: dropdownRect.left,

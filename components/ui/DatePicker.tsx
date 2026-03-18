@@ -13,6 +13,7 @@ interface DatePickerProps {
   showIcon?: boolean;
   required?: boolean;
   disabled?: boolean;
+  inputSize?: 'sm' | 'md' | 'lg';
 }
 
 const MONTHS = [
@@ -31,7 +32,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   icon,
   showIcon = true,
   required,
-  disabled
+  disabled,
+  inputSize = 'md'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
@@ -188,9 +190,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           onClick={handleToggle}
           disabled={disabled}
           className={cn(
-            'w-full px-3 py-2 border rounded-lg text-sm text-left transition-all',
+            'w-full border rounded-lg text-left transition-all',
             'focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]',
             'bg-white border-slate-300',
+            inputSize === 'sm' && 'h-9 px-3 text-xs',
+            inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
+            inputSize === 'lg' && 'h-12 px-5 text-base font-medium',
             disabled && 'bg-slate-50 cursor-not-allowed opacity-50',
             'flex items-center justify-between gap-2 group'
           )}
@@ -228,7 +233,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         {isOpen && dropdownRect && createPortal(
           <div
             ref={dropdownRef}
-            className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl p-4 animate-in fade-in zoom-in-95 duration-100"
+            className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl p-3 shadow-indigo-100/20 animate-spring-in"
             style={{
               top: dropdownRect.top,
               left: dropdownRect.left,
