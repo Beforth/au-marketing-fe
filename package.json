@@ -13,6 +13,7 @@
     "clsx": "^2.1.1",
     "country-list-with-dial-code-and-flag": "^5.1.1",
     "firebase": "^10.14.1",
+    "framer-motion": "^12.38.0",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.460.0",
     "react": "^19.0.0",
