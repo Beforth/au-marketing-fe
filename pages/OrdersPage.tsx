@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { DataTable, Column } from '../components/ui/DataTable';
+import { SearchInput } from '../components/ui/SearchInput';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Pagination } from '../components/ui/Pagination';
@@ -600,14 +601,11 @@ export const OrdersPage: React.FC = () => {
                   <List size={16} /> Table
                 </button>
               </div>
-              <Input
-                variant="white"
-                inputSize="sm"
-                className="rounded-full shadow-sm"
-                icon={<Search size={14} strokeWidth={2.5} />}
+              <SearchInput
                 placeholder="Search by order ref, lead name, company, email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onClear={() => setSearchTerm('')}
                 containerClassName="max-w-md"
               />
               {viewMode === 'table' && (

@@ -7,6 +7,8 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
+import { motion, AnimatePresence } from 'framer-motion';
+
 export interface SelectOption {
   value: string | number;
   label: string;
@@ -218,8 +220,8 @@ export const Select: React.FC<SelectProps> = ({
             disabled={disabled}
             className={cn(
               'w-full border rounded-lg text-left transition-all',
-              'focus:outline-none focus:ring-2 focus:ring-indigo-500',
-              'bg-white border-slate-300',
+              'focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm',
+              'bg-white border-slate-300 hover:border-slate-400 hover:bg-slate-50/30',
               inputSize === 'sm' && 'h-9 px-3 text-xs',
               inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
               inputSize === 'lg' && 'h-12 px-5 text-base font-medium',
@@ -258,64 +260,69 @@ export const Select: React.FC<SelectProps> = ({
           </button>
         )}
 
-        {isOpen && dropdownRect && createPortal(
-          <div
-            ref={dropdownRef}
-            className="fixed z-[9999] bg-white border border-slate-200 rounded-lg shadow-lg max-h-80 overflow-hidden flex flex-col animate-spring-in"
-            style={{
-              top: dropdownRect.top,
-              left: dropdownRect.left,
-              width: dropdownRect.width,
-              minWidth: 160,
-            }}
-          >
-            {searchable && !isCombobox && (
-              <div className="p-2 border-b border-slate-200">
-                <div className="relative">
-                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search..."
-                    className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    onClick={(e) => e.stopPropagation()}
-                  />
+        <AnimatePresence>
+          {isOpen && dropdownRect && createPortal(
+            <motion.div
+              ref={dropdownRef}
+              initial={{ opacity: 0, y: dropdownRect.openUp ? 10 : -10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: dropdownRect.openUp ? 10 : -10, scale: 0.98 }}
+              transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+              className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl max-h-80 overflow-hidden flex flex-col"
+              style={{
+                top: dropdownRect.top,
+                left: dropdownRect.left,
+                width: dropdownRect.width,
+                minWidth: 160,
+              }}
+            >
+              {searchable && !isCombobox && (
+                <div className="p-2 border-b border-slate-200">
+                  <div className="relative group/search">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-indigo-600 transition-colors" />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search..."
+                      className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition-all shadow-inner"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
-            <div className="overflow-y-auto max-h-48">
-              {filteredOptions.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-slate-500 text-center">
-                  No options found
-                </div>
-              ) : (
-                filteredOptions.map((option, index) => (
-                  <button
-                    key={getOptionKey ? getOptionKey(option, index) : option.value}
-                    type="button"
-                    onClick={() => !option.disabled && handleSelect(option.value)}
-                    disabled={option.disabled}
-                    className={cn(
-                      'w-full px-3 py-2 text-sm text-left hover:bg-slate-50 transition-colors',
-                      'flex items-center justify-between',
-                      value === option.value && 'bg-indigo-50 text-indigo-700 font-medium',
-                      option.disabled && 'opacity-50 cursor-not-allowed',
-                      'first:rounded-t-lg last:rounded-b-lg'
-                    )}
-                  >
-                    <span>{option.label}</span>
-                    {value === option.value && (
-                      <span className="text-indigo-600">✓</span>
-                    )}
-                  </button>
-                ))
               )}
-            </div>
-          </div>,
-          document.body
-        )}
+              <div className="overflow-y-auto max-h-48 scrollbar-hide py-1">
+                {filteredOptions.length === 0 ? (
+                  <div className="px-3 py-6 text-sm text-slate-500 text-center uppercase tracking-widest font-black opacity-30">
+                    No results
+                  </div>
+                ) : (
+                  filteredOptions.map((option, index) => (
+                    <button
+                      key={getOptionKey ? getOptionKey(option, index) : option.value}
+                      type="button"
+                      onClick={() => !option.disabled && handleSelect(option.value)}
+                      disabled={option.disabled}
+                      className={cn(
+                        'w-full px-4 py-2 text-sm text-left hover:bg-slate-50 transition-colors',
+                        'flex items-center justify-between mx-1 rounded-lg w-[calc(100%-8px)]',
+                        value === option.value && 'bg-indigo-50 text-indigo-700 font-bold',
+                        option.disabled && 'opacity-50 cursor-not-allowed'
+                      )}
+                    >
+                      <span className="truncate">{option.label}</span>
+                      {value === option.value && (
+                        <div className="h-2 w-2 rounded-full bg-indigo-600 shadow-sm" />
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+            </motion.div>,
+            document.body
+          )}
+        </AnimatePresence>
       </div>
       {error && (
         <p className="text-[11px] text-rose-500 font-medium ml-0.5 animate-in fade-in slide-in-from-top-1">

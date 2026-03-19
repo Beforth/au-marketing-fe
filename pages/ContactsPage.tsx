@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
+import { SearchInput } from '../components/ui/SearchInput';
 import { Select } from '../components/ui/Select';
 import { AsyncSelect } from '../components/ui/AsyncSelect';
 import { FilterPopover } from '../components/ui/FilterPopover';
@@ -143,14 +143,11 @@ export const ContactsPage: React.FC = () => {
     <PageLayout title="Contacts" actions={actions} breadcrumbs={breadcrumbs}>
       <div className="space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
-          <Input
-            variant="white"
-            inputSize="sm"
-            className="rounded-full shadow-sm"
-            icon={<Search size={14} strokeWidth={2.5} />}
+          <SearchInput
             placeholder="Search contacts..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onClear={() => setSearchTerm('')}
             containerClassName="max-w-md"
           />
           <div ref={filterButtonRef} className="inline-block">

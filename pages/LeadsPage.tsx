@@ -7,6 +7,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { SearchInput } from '../components/ui/SearchInput';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { FilterPopover } from '../components/ui/FilterPopover';
@@ -1198,14 +1199,11 @@ export const LeadsPage: React.FC = () => {
               <List size={16} /> Table
             </button>
           </div>
-          <Input
-            variant="white"
-            inputSize="sm"
-            className="rounded-full shadow-sm"
-            icon={<Search size={14} strokeWidth={2.5} />}
+          <SearchInput
             placeholder="Search leads..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onClear={() => setSearchTerm('')}
             containerClassName="max-w-md"
           />
           <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-600 hover:text-slate-800">

@@ -7,6 +7,7 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { SearchInput } from '../components/ui/SearchInput';
 import { Select } from '../components/ui/Select';
 import { PageLayout } from '../components/layout/PageLayout';
 import { DataTable } from '../components/ui/DataTable';

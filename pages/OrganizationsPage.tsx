@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
+import { SearchInput } from '../components/ui/SearchInput';
 import { PageLayout } from '../components/layout/PageLayout';
 import { DataTable } from '../components/ui/DataTable';
 import { Pagination } from '../components/ui/Pagination';
@@ -90,14 +90,11 @@ export const OrganizationsPage: React.FC = () => {
       actions={actions}
     >
       <div className="flex items-center gap-3 mb-4">
-        <Input
-          variant="white"
-          inputSize="sm"
-          className="rounded-full shadow-sm"
-          icon={<Search size={14} strokeWidth={2.5} />}
+        <SearchInput
           placeholder="Search organizations..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          onClear={() => setSearchTerm('')}
           containerClassName="max-w-md"
         />
       </div>

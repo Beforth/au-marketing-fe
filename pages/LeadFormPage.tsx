@@ -7,6 +7,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { SearchInput } from '../components/ui/SearchInput';
 import { Select, SelectOption } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { AsyncSelect } from '../components/ui/AsyncSelect';
@@ -417,7 +418,7 @@ export const LeadFormPage: React.FC = () => {
   /** True when lead has contact/customer linked, or is creating new contact (org selected + some contact details) so quote number can be generated */
   const hasEffectiveContactOrCustomerForQuote = !isEdit
     ? (formData.contact_id != null || formData.customer_id != null) ||
-      (Boolean(inlineContactForm.organization_id) && Boolean(inlineContactForm.first_name?.trim() || inlineContactForm.last_name?.trim() || inlineContactForm.contact_email?.trim() || leadSearchName.trim()))
+    (Boolean(inlineContactForm.organization_id) && Boolean(inlineContactForm.first_name?.trim() || inlineContactForm.last_name?.trim() || inlineContactForm.contact_email?.trim() || leadSearchName.trim()))
     : (formData.contact_id != null || formData.customer_id != null);
 
   const linkLeadToContact = useCallback((c: Contact) => {
@@ -1649,15 +1650,13 @@ export const LeadFormPage: React.FC = () => {
                     <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setTimeout(() => { setLeadSearchContactResults([]); setLeadSearchCustomerResults([]); setLeadSearchLoading(false); }, 200); }}>
                       <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1.5 block">Search for existing contact or customer</label>
                       <div className="relative group">
-                        <Input 
-                          placeholder="Type name, email or company to search..." 
-                          value={inlineContactForm.first_name || ''} 
+                        <SearchInput
+                          placeholder="Type name, email or company to search..."
+                          value={inlineContactForm.first_name || ''}
                           onChange={(e) => setInlineContactForm(prev => ({ ...prev, first_name: e.target.value }))}
-                          className="pl-9 h-9 text-xs rounded-xl shadow-sm border-slate-200 transition-all focus:ring-indigo-500/10 placeholder:text-slate-400/80"
+                          onClear={() => setInlineContactForm(prev => ({ ...prev, first_name: '' }))}
+                          containerClassName="w-full"
                         />
-                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-                          <Search size={18} />
-                        </div>
                       </div>
 
                       {showLeadSearchDropdown && (
@@ -1718,10 +1717,10 @@ export const LeadFormPage: React.FC = () => {
                         </div>
                       </div>
                       <Input label="Last name" value={inlineContactForm.last_name} onChange={(e) => setInlineContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Enter last name" />
-                      
+
                       <Input label="Email address" type="email" value={inlineContactForm.contact_email} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
                       <Input label="Designation" value={inlineContactForm.contact_job_title} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="e.g. Purchase Manager" />
-                      
+
                       <div className="flex gap-2">
                         <div className="w-32 shrink-0">
                           <Select label="Code" options={COUNTRY_CODES} value={inlineContactForm.contact_phone_code} onChange={(v) => setInlineContactForm(prev => ({ ...prev, contact_phone_code: (v ?? DEFAULT_COUNTRY_CODE) as string }))} searchable getSearchText={getCountryCodeSearchText} getOptionKey={(o) => o.label} />
@@ -1732,11 +1731,11 @@ export const LeadFormPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                    {/* Organization & Plant Section */}
-                    <div className="space-y-4 pt-2 border-t border-slate-100/50 mt-2">
+                  {/* Organization & Plant Section */}
+                  <div className="space-y-4 pt-2 border-t border-slate-100/50 mt-2">
                     <div className="md:col-span-2 relative">
                       <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight mb-1 block">Organization</label>
-                      <Input
+                      <SearchInput
                         value={inlineContactOrgQuery}
                         onChange={(e) => {
                           const v = e.target.value;
@@ -1749,10 +1748,9 @@ export const LeadFormPage: React.FC = () => {
                               .catch(() => setInlineContactOrgSuggestions([]));
                           }, 300);
                         }}
-                        onBlur={() => setTimeout(() => setInlineContactOrgSuggestions([]), 150)}
+                        onClear={() => setInlineContactOrgQuery('')}
                         placeholder="Search organization..."
                         disabled={!!inlineContactForm.organization_id}
-                        className="h-9 text-xs"
                       />
                       {inlineContactForm.organization_id && (
                         <button type="button" onClick={() => { setInlineContactForm(prev => ({ ...prev, organization_id: undefined, plant_id: undefined })); setInlineContactOrgQuery(''); setFormData(prev => ({ ...prev, company: '' })); setInlineContactPlants([]); setShowInlineNewPlant(false); }} className="mt-1 text-xs text-rose-600 hover:text-rose-700">Clear organization</button>
@@ -1778,7 +1776,7 @@ export const LeadFormPage: React.FC = () => {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                               <div className="h-6 w-6 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-                                 <Building2 size={14} className="text-indigo-600" />
+                                <Building2 size={14} className="text-indigo-600" />
                               </div>
                               <div>
                                 <h4 className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">Create New Organization</h4>
@@ -1789,7 +1787,7 @@ export const LeadFormPage: React.FC = () => {
                               <X size={14} />
                             </button>
                           </div>
-                          
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Input label="Org Code" value={inlineNewOrgForm.code} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="e.g. CORE-001" inputSize="sm" />
                             <Input label="Website" value={inlineNewOrgForm.website} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." inputSize="sm" />
@@ -1842,7 +1840,7 @@ export const LeadFormPage: React.FC = () => {
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2.5">
                                   <div className="h-6 w-6 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-                                     <Factory size={14} className="text-indigo-600" />
+                                    <Factory size={14} className="text-indigo-600" />
                                   </div>
                                   <div>
                                     <h4 className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">Add New Plant</h4>
@@ -1933,26 +1931,26 @@ export const LeadFormPage: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="relative !space-y-1">
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight ml-0.5">Potential Value</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-xs z-10">₹</span>
-                      <Input 
-                        className="pl-7"
-                        inputSize="sm"
-                        type="number" 
-                        value={formData.potential_value ?? ''} 
-                        onChange={(e) => setFormData({ ...formData, potential_value: e.target.value ? Number(e.target.value) : undefined })} 
-                        placeholder="0.00"
-                      />
-                    </div>
+                <div className="relative !space-y-1">
+                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight ml-0.5">Potential Value</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-xs z-10">₹</span>
+                    <Input
+                      className="pl-7"
+                      inputSize="sm"
+                      type="number"
+                      value={formData.potential_value ?? ''}
+                      onChange={(e) => setFormData({ ...formData, potential_value: e.target.value ? Number(e.target.value) : undefined })}
+                      placeholder="0.00"
+                    />
                   </div>
-                  <DatePicker 
-                    label="Expected Closing Date"
-                    value={formData.expected_closing_date?.split('T')[0]} 
-                    onChange={(d) => setFormData({ ...formData, expected_closing_date: d })} 
-                    inputSize="sm"
-                  />
+                </div>
+                <DatePicker
+                  label="Expected Closing Date"
+                  value={formData.expected_closing_date?.split('T')[0]}
+                  onChange={(d) => setFormData({ ...formData, expected_closing_date: d })}
+                  inputSize="sm"
+                />
               </div>
             </div>
 
@@ -1965,7 +1963,7 @@ export const LeadFormPage: React.FC = () => {
                 </div>
                 <div className="h-px bg-slate-200 flex-1" />
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <AsyncSelect
                   label="Domain"
@@ -2014,7 +2012,6 @@ export const LeadFormPage: React.FC = () => {
                   <Select
                     options={[
                       { value: 'none', label: 'None' },
-                      { value: 'employee', label: 'Employee' },
                       { value: 'customer', label: 'Customer' },
                       { value: 'contact', label: 'Contact' },
                     ]}
@@ -2033,7 +2030,7 @@ export const LeadFormPage: React.FC = () => {
 
                 <div className="p-4 rounded-2xl bg-slate-50/50 border border-slate-100 min-h-[80px] flex flex-col justify-center">
                   {referredByType === 'none' && <p className="text-xs text-slate-400 italic text-center">No referral information provided</p>}
-                  
+
                   {referredByType === 'contact' && (
                     formData.through_contact_id != null && selectedThroughContactForDisplay ? (
                       <div className="flex items-center justify-between">
@@ -2045,11 +2042,11 @@ export const LeadFormPage: React.FC = () => {
                       </div>
                     ) : (
                       <div className="relative">
-                        <Input
+                        <SearchInput
                           placeholder="Search existing contact..."
                           value={throughContactSearchName}
                           onChange={(e) => setThroughContactSearchName(e.target.value)}
-                          className="h-10 rounded-xl"
+                          onClear={() => setThroughContactSearchName('')}
                         />
                         {throughContactSearchName.trim().length >= 2 && (throughContactSearchResults.length > 0 || throughContactSearchLoading) && (
                           <div className="absolute left-0 right-0 top-full z-20 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl max-h-60 overflow-auto">
@@ -2101,7 +2098,7 @@ export const LeadFormPage: React.FC = () => {
                 </div>
                 <div className="h-px bg-slate-200 flex-1" />
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Quote Number Generation */}
                 <div className="space-y-2">
@@ -2309,131 +2306,131 @@ export const LeadFormPage: React.FC = () => {
                   )}
 
                   {/* Attach files toggle */}
-                <div className="mt-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowAttachments((v) => !v)}
-                    className="text-xs text-slate-500 hover:text-indigo-600 flex items-center gap-1"
-                  >
-                    <Paperclip size={12} />
-                    {showAttachments ? 'Hide files' : 'Attach files'}
-                  </button>
-                  {showAttachments && (
-                  <>
-                  <div className="mt-2 space-y-2">
-                    {attachmentEntries.map((row) => (
-                      <div key={row.id} className="flex flex-wrap md:flex-nowrap items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-white shadow-sm">
-                        <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-700 hover:bg-slate-100 shrink-0 min-w-[120px] justify-center">
-                          <Upload size={14} />
-                          <span className="truncate max-w-[140px]">{row.file ? row.file.name : 'Choose file'}</span>
-                          <input
-                            type="file"
-                            accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                            className="hidden"
-                            multiple
-                            onChange={(e) => {
-                              const fileList = e.target.files;
-                              if (!fileList?.length) return;
-                              const files = Array.from(fileList);
-                              if (files.length === 1) {
-                                setAttachmentEntries((prev) =>
-                                  prev.map((r) => (r.id === row.id ? { ...r, file: files[0] } : r))
-                                );
-                              } else {
-                                const newRows = files.map((file) => ({
-                                  id: crypto.randomUUID(),
-                                  kind: 'attachment' as const,
-                                  file: file as File,
-                                  quotationNumber: '',
-                                  title: '',
-                                }));
-                                setAttachmentEntries((prev) =>
-                                  prev.map((r) => (r.id === row.id ? { ...r, file: files[0] } : r)).concat(newRows.slice(1))
-                                );
-                              }
-                              e.target.value = '';
-                            }}
-                          />
-                        </label>
-                        <div className="w-28 shrink-0 [&_button]:!h-9 [&_button]:!min-h-0 [&_button]:!py-0">
-                          <Select
-                            options={[
-                              { value: 'quotation', label: 'Quotation' },
-                              { value: 'attachment', label: 'Attachment' },
-                            ]}
-                            value={row.kind}
-                            onChange={(val) =>
-                              setAttachmentEntries((prev) =>
-                                prev.map((r) => (r.id === row.id ? { ...r, kind: (val || 'attachment') as 'quotation' | 'attachment' } : r))
-                              )
-                            }
-                            className="w-full"
-                            searchable={false}
-                          />
+                  <div className="mt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowAttachments((v) => !v)}
+                      className="text-xs text-slate-500 hover:text-indigo-600 flex items-center gap-1"
+                    >
+                      <Paperclip size={12} />
+                      {showAttachments ? 'Hide files' : 'Attach files'}
+                    </button>
+                    {showAttachments && (
+                      <>
+                        <div className="mt-2 space-y-2">
+                          {attachmentEntries.map((row) => (
+                            <div key={row.id} className="flex flex-wrap md:flex-nowrap items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-white shadow-sm">
+                              <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-700 hover:bg-slate-100 shrink-0 min-w-[120px] justify-center">
+                                <Upload size={14} />
+                                <span className="truncate max-w-[140px]">{row.file ? row.file.name : 'Choose file'}</span>
+                                <input
+                                  type="file"
+                                  accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                                  className="hidden"
+                                  multiple
+                                  onChange={(e) => {
+                                    const fileList = e.target.files;
+                                    if (!fileList?.length) return;
+                                    const files = Array.from(fileList);
+                                    if (files.length === 1) {
+                                      setAttachmentEntries((prev) =>
+                                        prev.map((r) => (r.id === row.id ? { ...r, file: files[0] } : r))
+                                      );
+                                    } else {
+                                      const newRows = files.map((file) => ({
+                                        id: crypto.randomUUID(),
+                                        kind: 'attachment' as const,
+                                        file: file as File,
+                                        quotationNumber: '',
+                                        title: '',
+                                      }));
+                                      setAttachmentEntries((prev) =>
+                                        prev.map((r) => (r.id === row.id ? { ...r, file: files[0] } : r)).concat(newRows.slice(1))
+                                      );
+                                    }
+                                    e.target.value = '';
+                                  }}
+                                />
+                              </label>
+                              <div className="w-28 shrink-0 [&_button]:!h-9 [&_button]:!min-h-0 [&_button]:!py-0">
+                                <Select
+                                  options={[
+                                    { value: 'quotation', label: 'Quotation' },
+                                    { value: 'attachment', label: 'Attachment' },
+                                  ]}
+                                  value={row.kind}
+                                  onChange={(val) =>
+                                    setAttachmentEntries((prev) =>
+                                      prev.map((r) => (r.id === row.id ? { ...r, kind: (val || 'attachment') as 'quotation' | 'attachment' } : r))
+                                    )
+                                  }
+                                  className="w-full"
+                                  searchable={false}
+                                />
+                              </div>
+                              {row.kind === 'quotation' ? (
+                                <span className="text-xs text-slate-500 shrink-0">Number auto from lead</span>
+                              ) : (
+                                <Input
+                                  placeholder="Title (e.g. Diagram, Documentation)"
+                                  value={row.title}
+                                  onChange={(e) =>
+                                    setAttachmentEntries((prev) =>
+                                      prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r))
+                                    )
+                                  }
+                                  inputSize="sm"
+                                  containerClassName="min-w-[160px] max-w-[220px] flex-1 !space-y-0"
+                                />
+                              )}
+                              <div className="ml-auto flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setAttachmentEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))
+                                  }
+                                  className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                                  title="Remove"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])
+                                  }
+                                  className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                  title="Add row"
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        {row.kind === 'quotation' ? (
-                          <span className="text-xs text-slate-500 shrink-0">Number auto from lead</span>
-                        ) : (
-                          <Input
-                            placeholder="Title (e.g. Diagram, Documentation)"
-                            value={row.title}
-                            onChange={(e) =>
-                              setAttachmentEntries((prev) =>
-                                prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r))
-                              )
-                            }
-                            inputSize="sm"
-                            containerClassName="min-w-[160px] max-w-[220px] flex-1 !space-y-0"
-                          />
+                        {attachmentEntries.some((e) => e.kind === 'quotation') && (
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg border border-indigo-100 bg-indigo-50/50">
+                            <Select
+                              label="Quotation series"
+                              value={quotationSeriesCode}
+                              onChange={(v) => setQuotationSeriesCode((v ?? '') as string)}
+                              options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
+                              placeholder="Choose series"
+                            />
+                            <label className="inline-flex items-center gap-2 text-xs text-slate-700 mt-2 md:mt-7">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                checked={quotationIsRevised}
+                                onChange={(e) => setQuotationIsRevised(e.target.checked)}
+                              />
+                              Mark quotation as revised
+                            </label>
+                          </div>
                         )}
-                        <div className="ml-auto flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setAttachmentEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))
-                            }
-                            className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                            title="Remove"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])
-                            }
-                            className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
-                            title="Add row"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      </>
+                    )}
                   </div>
-                  {attachmentEntries.some((e) => e.kind === 'quotation') && (
-                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg border border-indigo-100 bg-indigo-50/50">
-                      <Select
-                        label="Quotation series"
-                        value={quotationSeriesCode}
-                        onChange={(v) => setQuotationSeriesCode((v ?? '') as string)}
-                        options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
-                        placeholder="Choose series"
-                      />
-                      <label className="inline-flex items-center gap-2 text-xs text-slate-700 mt-2 md:mt-7">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                          checked={quotationIsRevised}
-                          onChange={(e) => setQuotationIsRevised(e.target.checked)}
-                        />
-                        Mark quotation as revised
-                      </label>
-                    </div>
-                  )}
-                  </>
-                  )}
-                </div>
                 </div>
               </form>
             </>
@@ -3204,7 +3201,7 @@ export const LeadFormPage: React.FC = () => {
                 </div>
                 <div className="h-px bg-slate-200 flex-1" />
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4">
                 <div className="md:col-span-2">
                   <Select label="Title" options={NAME_PREFIXES} value={formData.title} onChange={(v) => setFormData({ ...formData, title: (v ?? '') as string })} placeholder="Prefix" inputSize="sm" />
@@ -3215,7 +3212,7 @@ export const LeadFormPage: React.FC = () => {
                 <div className="md:col-span-5">
                   <Input label="Last Name" value={formData.last_name || ''} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} placeholder="Last name" required inputSize="sm" />
                 </div>
-                
+
                 <div className="md:col-span-6">
                   <Input label="Company" value={formData.company || ''} onChange={(e) => setFormData({ ...formData, company: e.target.value })} placeholder="Company name" inputSize="sm" />
                 </div>

@@ -2,290 +2,127 @@
 
 This document contains the source code and design prompts for the key UI components used in the **au-marketing-fe** project. These components follow the **High-Density ERP** design system, prioritizing efficiency, visual excellence, and smooth animations.
 
-### Dependencies Requirement:
-- `framer-motion`, `lucide-react`, `zustand`, `date-fns`, `cmdk`, `@radix-ui/react-popover`, `@radix-ui/react-dialog`
+### 📦 Essential Dependencies
+To use these components, ensure the following are installed:
+- `framer-motion`, `lucide-react`, `zustand`, `date-fns`, `cmdk`, `@radix-ui/react-popover`, `@radix-ui/react-dialog`, `class-variance-authority`
 
 ---
 
-## 📅 Premium Calendar System
-**Prompt:** *Integrate a shadcn-compliant calendar with a year/month combobox and quick navigation. Ensure it supports custom items (features) with color-coded statuses.*
+## 📅 Premium Calendar System (Shadcn-style)
+**Design:** *A full-featured, interactive calendar with month/year pickers and keyboard-friendly search. Uses Zustand for localized state management.*
+
+**Key Features:**
+- **Smooth Animations**: Uses `framer-motion` for popovers and dialogs.
+- **Click-to-Add**: Supports `onDateClick` for rapid data entry.
+- **High-Density**: Compact design with bold uppercase headers and subtle hover states.
 
 ```tsx
-// components/ui/calendar.tsx
-// (Source includes: CalendarProvider, CalendarHeader, CalendarBody, CalendarItem, useCalendar zustand store)
+// components/ui/calendar.tsx (Core exports: CalendarProvider, CalendarHeader, CalendarBody, CalendarItem)
+// Zustand state: useCalendar() hook for month/year navigation.
 ```
 
 ---
 
-## 🔍 Command & Pickers
-**Design:** *Fuzzy-search enabled pickers for month/year selection. Built on cmdk and Radix UI Popover.*
+## 🔍 Command & Pickers (Animated)
+**Design:** *Fuzzy-search enabled pickers for month/year selection. Built on cmdk and Radix UI.*
 
 ```tsx
-// components/ui/command.tsx
-// components/ui/popover.tsx
+// components/ui/popover.tsx (with smooth motion.div wrapper)
+// components/ui/command.tsx (fuzzy-search logic)
+```
+
+---
+
+## 🏗️ Dialog / Modal (Motion Enhanced)
+**Design:** *Radix UI based overlays with backdrop blur and springy entrance animations.*
+
+```tsx
+// components/ui/dialog.tsx
+// Style: rounded-2xl, shadow-2xl, bg-black/40 backdrop
 ```
 
 ---
 
 ## 🔘 SegmentToggle
-**Prompt:** *Adapt a theme switcher pattern to create a premium "List / Review" toggle for a marketing module. Use high-density typography (font-black, uppercase) and a sliding background animation with spring easing.*
+**Design:** *A premium segmented control with a sliding selector animation.*
 
 ```tsx
 // components/ui/SegmentToggle.tsx
-import React from 'react';
-import { motion } from 'framer-motion';
-import { cn } from '../../lib/utils';
-import { LucideIcon } from 'lucide-react';
-
-interface SegmentOption<T> {
-	label: string | React.ReactNode;
-	icon?: LucideIcon;
-	value: T;
-}
-
-interface SegmentToggleProps<T extends string | number> {
-	options: SegmentOption<T>[];
-	value: T;
-	onChange: (value: T) => void;
-	className?: string;
-	layoutId?: string;
-}
-
-export function SegmentToggle<T extends string | number>({
-	options,
-	value,
-	onChange,
-	className,
-	layoutId = 'segment-toggle'
-}: SegmentToggleProps<T>) {
-	return (
-		<div
-			className={cn(
-				'bg-slate-100 inline-flex items-center p-1 rounded-lg border border-slate-200 shadow-sm relative min-w-[140px]',
-				className
-			)}
-			role="radiogroup"
-		>
-			{options.map((option) => (
-				<button
-					key={String(option.value)}
-					className={cn(
-						'relative flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-all z-10 active:scale-[0.98]',
-						value === option.value
-							? 'text-indigo-600'
-							: 'text-slate-500 hover:text-slate-800',
-					)}
-					role="radio"
-					aria-checked={value === option.value}
-					onClick={() => onChange(option.value)}
-				>
-					{value === option.value && (
-						<motion.div
-							layoutId={layoutId}
-							transition={{ type: 'spring', bounce: 0.1, duration: 0.4 }}
-							className="absolute inset-0 bg-white shadow-sm border border-slate-200/50 rounded-md"
-						/>
-					)}
-					<span className="relative z-20 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider">
-						{option.icon && <option.icon className="size-3.5" />}
-						{option.label}
-					</span>
-				</button>
-			))}
-		</div>
-	);
-}
+// Variants: 'indigo', 'slate'
 ```
 
 ---
 
 ## 🌊 WaveLoader
-**Prompt:** *Create a bouncing bar loader (5 dots) that uses Framer Motion for height scaling. Theme it with Indigo-600 and add a pulsed message below.*
+**Design:** *A themed bouncing dots animation for localized loading states.*
 
 ```tsx
 // components/ui/WaveLoader.tsx
-'use client';
-
-import React from 'react';
-import { motion } from 'framer-motion';
-import { cn } from '../../lib/utils';
-
-export interface WaveLoaderProps {
-  bars?: number;
-  message?: string;
-  className?: string;
-  barClassName?: string;
-}
-
-export function WaveLoader({
-  bars = 5,
-  message,
-  className,
-  barClassName,
-}: WaveLoaderProps) {
-  return (
-    <div className={cn('flex flex-col gap-3 items-center justify-center py-4', className)}>
-      <div className="flex gap-1.5 items-end justify-center h-8">
-        {Array.from({ length: bars }).map((_, index) => (
-          <motion.div
-            key={index}
-            className={cn('w-1.5 rounded-full bg-indigo-600 shadow-sm shadow-indigo-200/50', barClassName)}
-            initial={{ height: 8 }}
-            animate={{ height: [8, 24, 8] }}
-            transition={{
-              duration: 1,
-              repeat: Infinity,
-              delay: index * 0.1,
-              ease: "easeInOut"
-            }}
-          />
-        ))}
-      </div>
-      {message && (
-        <div className="text-[11px] font-black uppercase tracking-widest text-slate-500 animate-pulse">
-          {message}
-        </div>
-      )}
-    </div>
-  );
-}
+// Props: messagePlacement (bottom | right | left), message (optional string)
 ```
 
 ---
 
-## 🌀 Loader (Spinner)
-**Design:** *A standardized, high-performance circular spinner using Framer Motion for linear rotation. Supports primary, white, and slate variants.*
-
-```tsx
-// components/ui/Loader.tsx
-import React from 'react';
-import { motion } from 'framer-motion';
-import { cn } from '../../lib/utils';
-
-interface LoaderProps {
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-  className?: string;
-  variant?: 'primary' | 'white' | 'slate';
-}
-
-export const Loader: React.FC<LoaderProps> = ({ 
-  size = 'md', 
-  variant = 'primary',
-  className 
-}) => {
-  const sizeClasses = {
-    xs: 'h-3 w-3 border-[1.5px]',
-    sm: 'h-4 w-4 border-2',
-    md: 'h-8 w-8 border-2',
-    lg: 'h-12 w-12 border-3',
-    xl: 'h-16 w-16 border-4',
-  };
-
-  const variantClasses = {
-    primary: 'border-indigo-600/20 border-t-indigo-600',
-    white: 'border-white/20 border-t-white',
-    slate: 'border-slate-200 border-t-slate-500',
-  };
-
-  return (
-    <div className={cn('flex items-center justify-center', className)} role="status">
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-        className={cn(
-          'rounded-full border-solid',
-          sizeClasses[size],
-          variantClasses[variant]
-        )}
-      />
-      <span className="sr-only">Loading...</span>
-    </div>
-  );
-};
-```
-
----
-
-## 📅 Select (Extended)
-**Features:** *Fuzzy search, Combobox mode support, loose comparison for pagination values, and standardized Slate/Indigo styling.*
-
-```tsx
-// components/ui/Select.tsx (Key logic for finding options)
-const selectedOption = options.find(opt => opt.value == value); // Loose comparison for string/number match
-
-// Combobox rendering logic
-{isCombobox ? (
-  <input
-    ref={searchInputRef}
-    value={isOpen ? searchQuery : (selectedOption?.label || '')}
-    ...
-  />
-) : (
- ...
-)}
-```
-
----
-
-## 🔘 Button
-**Features:** *Multi-variant (ghost, primary, link, etc.), scale-down micro-interaction, and integrated loading state.*
+## 🔘 Universal Button
+**Design:** *A unified button component merging shadcn standards with premium icons/loading states.*
 
 ```tsx
 // components/ui/Button.tsx
-export const Button: React.FC<ButtonProps> = ({ ... }) => {
-  const variants = {
-    primary: 'bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 hover:shadow-indigo-500/20',
-    outline: 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300',
-    ghost: 'text-slate-500 hover:bg-slate-100 hover:text-slate-900',
-    link: 'text-indigo-600 hover:underline font-semibold p-0 h-auto',
-    ...
-  };
-  ...
-}
+// Variants: primary, destructive, outline, ghost, link
+// Sizes: xs, sm, md, lg, icon
 ```
 
 ---
 
-## 📇 Card
-**Features:** *Glassmorphism-ready (solid by default), draggable supports, group hover actions, and standardized internal padding.*
+## ⏳ Loader (Circular)
+**Design:** *Clean, spinning loader for data fetching overlays.*
 
 ```tsx
-// components/ui/Card.tsx
-export const Card: React.FC<CardProps> = ({ ... }) => {
-  return (
-    <div className={cn(
-      'bg-white border border-slate-200/50 transition-all duration-500 relative group/card flex flex-col min-h-[140px] shadow-[0_1px_3px_rgba(0,0,0,0.05),0_10px_40px_-15px_rgba(0,0,0,0.02)]',
-      onClick && 'cursor-pointer hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.08)] hover:border-indigo-200/50 hover:-translate-y-1',
-      className
-    )}>
-      ...
-    </div>
-  );
-}
+// (Used as a standalone Component or via Button's isLoading prop)
 ```
 
 ---
 
-## 📏 Pagination
-**Features:** *Rows-per-page selector, "X of Y" total display, and disabled state handling for edge cases.*
+## 🔍 SearchInput (Capsule Design)
+**Design:** *A premium search component with a capsule shape, automatic clear button, and smooth focus animations. Replaces legacy inputs for all search-related interactions.*
+
+**Key Features:**
+- **Capsule Shape**: `rounded-full` for a modern, distinct search look.
+- **Auto-Clear**: Built-in `onClear` functionality with a smooth hover effect.
+- **Enhanced Focus**: Indigo focus rings and shadow-sm depth.
 
 ```tsx
-// components/ui/Pagination.tsx
-<Select
-  options={pageSizeOptions.map((n) => ({ value: n, label: String(n) }))}
-  value={pageSize}
-  onChange={(v) => v !== undefined && onPageSizeChange(Number(v))}
-  clearable={false}
-  searchable={false}
-/>
+// components/ui/SearchInput.tsx
+// Props: value, onChange, onClear, placeholder, containerClassName
 ```
 
 ---
 
-## 🎨 Global Design Tokens (Tailwind)
-**File:** `tailwind.config.js` or `index.html` root:
-- **Primary**: `#4f46e5` (Indigo 600)
-- **Background**: `#f8fafc` (Slate 50)
-- **Border**: `#e2e8f0` (Slate 200)
-- **Radius**: `1.25rem` (Card), `0.5rem` (Buttons)
-- **Font**: Inter (Standardized weights: 400, 600, 700, 900)
+## 🔼 Select & AsyncSelect (Motion Driven)
+**Design:** *High-density ERP select components with smooth dropdown transitions using Framer Motion. Supports fuzzy search and remote data loading.*
+
+**Key Features:**
+- **Smooth Transitions**: `AnimatePresence` and `motion` for dropdown exposure.
+- **Integrated Search**: Internal `SearchInput`-style bar for searchable options.
+- **Premium Depth**: `shadow-2xl` and `rounded-xl` for the dropdown menu.
+
+```tsx
+// components/ui/Select.tsx (Static options)
+// components/ui/AsyncSelect.tsx (Remote data with loadOptions)
+```
+
+---
+
+## 🎨 Design Tokens (Cheat Sheet)
+- **Primary**: `indigo-600` (#4f46e5)
+- **Secondary**: `slate-500` (Main), `slate-400` (Tertiary)
+- **Radius**:
+  - `rounded-lg`: Standard Buttons/Inputs.
+  - `rounded-xl`: Cards, Dropdowns, and Search Bars.
+  - `rounded-2xl`: Modals and Popovers.
+  - `rounded-full`: Capsule Search Inputs and Status Badges.
+- **Shadows**:
+  - `shadow-sm`: Trigger/Inputs.
+  - `shadow-md`: Hover states.
+  - `shadow-2xl`: Overlay systems (Modals/Dropdowns).
+- **Typography**: `font-black text-[10px] uppercase tracking-widest` (Headers/Labels).

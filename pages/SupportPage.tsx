@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { Card } from '../components/ui/Card';
 import { HelpCircle, MessageSquare, Book, FileQuestion, ArrowRight, Search } from 'lucide-react';
-import { Input } from '../components/ui/Input';
+import { SearchInput } from '../components/ui/SearchInput';
 import { Button } from '../components/ui/Button';
 import { useApp } from '../App';
 import { PageLayout } from '../components/layout/PageLayout';
@@ -38,15 +38,11 @@ export const SupportPage: React.FC = () => {
 
   const actions = (
     <div className="w-full lg:max-w-md">
-      <Input
-        variant="white"
-        inputSize="sm"
-        className="rounded-xl shadow-sm"
+      <SearchInput
         placeholder="Search documentation..."
         value={globalSearch}
         onChange={(e) => setGlobalSearch(e.target.value)}
         onClear={() => setGlobalSearch('')}
-        icon={<Search size={16} className="text-slate-400" strokeWidth={2.5} />}
       />
     </div>
   );
