@@ -83,7 +83,7 @@ export const Select: React.FC<SelectProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const selectedOption = options.find(opt => opt.value === value);
+  const selectedOption = options.find(opt => opt.value == value);
 
   const trimmedQuery = (searchQuery ?? '').trim();
   const isQueryDialCode = exactValueMatchWhenQueryMatches?.test(trimmedQuery);
@@ -140,10 +140,7 @@ export const Select: React.FC<SelectProps> = ({
   }, [isOpen]);
 
   const handleSelect = (optionValue: string | number) => {
-    if (optionValue === value) {
-      // Allow deselecting if clicking the same option
-      onChange(undefined);
-    } else {
+    if (optionValue != value) {
       onChange(optionValue);
     }
     setIsOpen(false);

@@ -37,8 +37,10 @@ export const Pagination: React.FC<PaginationProps> = ({
         <Select
           options={pageSizeOptions.map((n) => ({ value: n, label: String(n) }))}
           value={pageSize}
-          onChange={(v) => onPageSizeChange(Number(v))}
+          onChange={(v) => v !== undefined && onPageSizeChange(Number(v))}
           className="w-20"
+          clearable={false}
+          searchable={false}
         />
         <span className="text-xs text-slate-500">
           {total === 0 ? '0' : `${start}–${end}`} of {total}
