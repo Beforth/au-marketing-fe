@@ -11,11 +11,13 @@ import { SearchInput } from '../components/ui/SearchInput';
 import { Select } from '../components/ui/Select';
 import { AsyncSelect } from '../components/ui/AsyncSelect';
 import { FilterPopover } from '../components/ui/FilterPopover';
-import { Search, UserPlus, Filter, Edit, Trash2, Eye, Building2, Mail, Phone, MapPin, X } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
+import { NavLink } from 'react-router-dom';
+import { Database, Users, UserCircle, Search, UserPlus, Filter, Edit, Trash2, Eye, Building2, Mail, Phone, MapPin, X } from 'lucide-react';
+import { cn } from '../lib/utils';
 import { DataTable } from '../components/ui/DataTable';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
@@ -141,116 +143,132 @@ export const ContactsPage: React.FC = () => {
 
   return (
     <PageLayout title="Contacts" actions={actions} breadcrumbs={breadcrumbs}>
-      <div className="space-y-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <SearchInput
-            placeholder="Search contacts..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onClear={() => setSearchTerm('')}
-            containerClassName="max-w-md"
-          />
-          <div ref={filterButtonRef} className="inline-block">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="rounded-full" 
-              leftIcon={<Filter size={14} />}
-              onClick={() => {
-                setTempSelectedDomain(selectedDomain);
-                setTempSelectedRegion(selectedRegion);
-                setShowFilters(!showFilters);
-              }}
-            >
-              Filter
-            </Button>
+      {/* Consolidated Command Bar */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-3 mb-4">
+        <div className="flex items-center justify-between gap-6 flex-wrap lg:flex-nowrap">
+          {/* Internal Navigation group */}
+          <div className="flex items-center gap-6 border-r border-slate-100 pr-6">
+            <nav className="flex gap-4">
+              {[
+                { path: '/database/organizations', label: 'Organizations', icon: Building2, permission: 'marketing.view_organization' },
+                { path: '/database/customers', label: 'Customers', icon: Users, permission: 'marketing.view_customer' },
+                { path: '/database/contacts', label: 'Contacts', icon: UserCircle, permission: 'marketing.view_contact' },
+              ].map((tab) => (
+                <NavLink
+                  key={tab.path}
+                  to={tab.path}
+                  className={({ isActive }) =>
+                    cn(
+                      'flex items-center gap-2 py-2 px-1 text-sm font-bold transition-all border-b-2',
+                      isActive
+                        ? 'border-indigo-600 text-indigo-600'
+                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                    )
+                  }
+                >
+                  <tab.icon size={14} strokeWidth={2.5} />
+                  <span className="uppercase tracking-widest text-[11px] whitespace-nowrap">{tab.label}</span>
+                </NavLink>
+              ))}
+            </nav>
           </div>
-          {(selectedDomain || selectedRegion) && (
-            <Badge variant="outline" className="text-xs">
-              Filtered
-            </Badge>
-          )}
-          {(selectedDomain || selectedRegion) && (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedDomain(null);
-                setSelectedRegion(null);
-                setTempSelectedDomain(null);
-                setTempSelectedRegion(null);
-              }}
-              className="p-1.5 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-              title="Clear filters"
-            >
-              <X size={16} strokeWidth={2.5} />
-            </button>
-          )}
-        </div>
 
-        {/* Filter Popover */}
-        <FilterPopover
-          isOpen={showFilters}
-          onClose={() => setShowFilters(false)}
-          triggerRef={filterButtonRef}
-          onApply={() => {
-            setSelectedDomain(tempSelectedDomain);
-            setSelectedRegion(tempSelectedRegion);
-            setShowFilters(false);
-          }}
-          onClear={() => {
-            setTempSelectedDomain(null);
-            setTempSelectedRegion(null);
-            setSelectedDomain(null);
-            setSelectedRegion(null);
-            setShowFilters(false);
-          }}
-        >
-          <AsyncSelect
-            label="Domain"
-            loadOptions={async (search) => {
-              if (search) {
-                const res = await marketingAPI.getDomains({ is_active: true, page: 1, page_size: 25, search });
-                return [
-                  { value: '', label: 'All Domains' },
-                  ...res.items.map(d => ({ value: d.id, label: d.name }))
-                ];
-              }
-              return [{ value: '', label: 'All Domains' }];
-            }}
-            value={tempSelectedDomain || ''}
-            onChange={(val) => {
-              const domainId = val ? Number(val) : null;
-              setTempSelectedDomain(domainId);
-              setTempSelectedRegion(null);
-            }}
-            placeholder="All Domains"
-            initialOptions={[{ value: '', label: 'All Domains' }]}
-          />
-
-          {tempSelectedDomain && (
-            <AsyncSelect
-              label="Region"
-              loadOptions={async (search) => {
-                const res = await marketingAPI.getRegions({
-                  domain_id: tempSelectedDomain,
-                  is_active: true,
-                  page: 1,
-                  page_size: 25,
-                  search: search || undefined
-                });
-                return [
-                  { value: '', label: 'All Regions' },
-                  ...res.items.map(r => ({ value: r.id, label: r.name }))
-                ];
-              }}
-              value={tempSelectedRegion || ''}
-              onChange={(val) => setTempSelectedRegion(val ? Number(val) : null)}
-              placeholder="All Regions"
-              initialOptions={[]}
+          {/* Action group: search & filter */}
+          <div className="flex flex-1 items-center gap-3">
+            <SearchInput
+              placeholder="Search contacts..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onClear={() => setSearchTerm('')}
+              containerClassName="max-w-md shadow-none border-slate-100"
             />
-          )}
-        </FilterPopover>
+            <div ref={filterButtonRef} className="inline-block">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="rounded-full border-slate-200 h-10 px-6 font-bold text-slate-600" 
+                leftIcon={<Filter size={14} strokeWidth={2.5} />}
+                onClick={() => {
+                  setTempSelectedDomain(selectedDomain);
+                  setTempSelectedRegion(selectedRegion);
+                  setShowFilters(!showFilters);
+                }}
+              >
+                Filter
+              </Button>
+            </div>
+            {(selectedDomain || selectedRegion) && (
+              <Badge variant="outline" className="text-xs h-7">
+                Active Filter
+              </Badge>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Filter Popover */}
+      <FilterPopover
+        isOpen={showFilters}
+        onClose={() => setShowFilters(false)}
+        triggerRef={filterButtonRef}
+        onApply={() => {
+          setSelectedDomain(tempSelectedDomain);
+          setSelectedRegion(tempSelectedRegion);
+          setShowFilters(false);
+        }}
+        onClear={() => {
+          setTempSelectedDomain(null);
+          setTempSelectedRegion(null);
+          setSelectedDomain(null);
+          setSelectedRegion(null);
+          setShowFilters(false);
+        }}
+      >
+        <AsyncSelect
+          label="Domain"
+          loadOptions={async (search) => {
+            if (search) {
+              const res = await marketingAPI.getDomains({ is_active: true, page: 1, page_size: 25, search });
+              return [
+                { value: '', label: 'All Domains' },
+                ...res.items.map(d => ({ value: d.id, label: d.name }))
+              ];
+            }
+            return [{ value: '', label: 'All Domains' }];
+          }}
+          value={tempSelectedDomain || ''}
+          onChange={(val) => {
+            const domainId = val ? Number(val) : null;
+            setTempSelectedDomain(domainId);
+            setTempSelectedRegion(null);
+          }}
+          placeholder="All Domains"
+          initialOptions={[{ value: '', label: 'All Domains' }]}
+        />
+
+        {tempSelectedDomain && (
+          <AsyncSelect
+            label="Region"
+            loadOptions={async (search) => {
+              const res = await marketingAPI.getRegions({
+                domain_id: tempSelectedDomain,
+                is_active: true,
+                page: 1,
+                page_size: 25,
+                search: search || undefined
+              });
+              return [
+                { value: '', label: 'All Regions' },
+                ...res.items.map(r => ({ value: r.id, label: r.name }))
+              ];
+            }}
+            value={tempSelectedRegion || ''}
+            onChange={(val) => setTempSelectedRegion(val ? Number(val) : null)}
+            placeholder="All Regions"
+            initialOptions={[]}
+          />
+        )}
+      </FilterPopover>
 
       <div className="mt-4">
         {/* Contacts List */}

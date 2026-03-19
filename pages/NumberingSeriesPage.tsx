@@ -107,6 +107,7 @@ export const NumberingSeriesPage: React.FC = () => {
   const [filterActive, setFilterActive] = useState<boolean | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [generatedValue, setGeneratedValue] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | undefined>(undefined);
 
   // Form state (when isForm)
   const [formName, setFormName] = useState('');
@@ -132,7 +133,7 @@ export const NumberingSeriesPage: React.FC = () => {
       return;
     }
     loadList();
-  }, [canView, isForm, isEdit, isNewForm, id, debouncedSearch, filterActive, page, pageSize]);
+  }, [canView, isForm, isEdit, isNewForm, id, debouncedSearch, filterActive, page, pageSize, sortConfig]);
 
   const loadList = async () => {
     setIsLoading(true);
@@ -142,6 +143,8 @@ export const NumberingSeriesPage: React.FC = () => {
         page_size: pageSize,
         search: debouncedSearch || undefined,
         is_active: filterActive !== null ? filterActive : undefined,
+        order_by: sortConfig?.key,
+        order_dir: sortConfig?.direction,
       });
       setList(res.items);
       setTotal(res.total);
@@ -517,6 +520,8 @@ export const NumberingSeriesPage: React.FC = () => {
                   rowKey={(s) => s.id}
                   dense={true}
                   showVerticalLines={true}
+                  sortConfig={sortConfig}
+                  onSort={(key, direction) => setSortConfig({ key, direction })}
                   columns={[
                     {
                       key: 'name',
@@ -588,13 +593,20 @@ export const NumberingSeriesPage: React.FC = () => {
                         <div className="flex items-center justify-end gap-1.5">
                           {canGenerate && s.is_active && (
                             <Tooltip content="Generate next value">
-                              <Button
-                                variant="outline"
-                                size="xxs"
-                                onClick={(e) => { e.stopPropagation(); handleGenerateNext(s.id); }}
+                              <div
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleGenerateNext(s.id);
+                                }}
                               >
-                                <Hash size={12} strokeWidth={2.5} />
-                              </Button>
+                                <Button
+                                  variant="outline"
+                                  size="xxs"
+                                >
+                                  <Hash size={12} strokeWidth={2.5} />
+                                </Button>
+                              </div>
                             </Tooltip>
                           )}
                           {canEdit && (

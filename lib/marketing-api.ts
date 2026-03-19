@@ -547,6 +547,8 @@ class MarketingAPIService {
     search?: string;
     date_from?: string;
     date_to?: string;
+    order_by?: string;
+    order_dir?: 'asc' | 'desc';
   }): Promise<PaginatedResponse<Lead>> {
     const queryParams = new URLSearchParams();
     queryParams.append('page', String(params?.page ?? 1));
@@ -562,6 +564,8 @@ class MarketingAPIService {
     if (params?.date_from) queryParams.append('date_from', params.date_from);
     if (params?.date_to) queryParams.append('date_to', params.date_to);
     if (params?.search) queryParams.append('search', params.search);
+    if (params?.order_by) queryParams.append('order_by', params.order_by);
+    if (params?.order_dir) queryParams.append('order_dir', params.order_dir);
     return apiClient.get<PaginatedResponse<Lead>>(`/api/leads/?${queryParams.toString()}`);
   }
 
@@ -1256,6 +1260,8 @@ class MarketingAPIService {
     is_active?: boolean;
     entity_type?: string;
     search?: string;
+    order_by?: string;
+    order_dir?: 'asc' | 'desc';
   }): Promise<PaginatedResponse<Series>> {
     const queryParams = new URLSearchParams();
     queryParams.append('page', String(params?.page ?? 1));
@@ -1263,6 +1269,8 @@ class MarketingAPIService {
     if (params?.is_active !== undefined) queryParams.append('is_active', String(params.is_active));
     if (params?.entity_type) queryParams.append('entity_type', params.entity_type);
     if (params?.search) queryParams.append('search', params.search);
+    if (params?.order_by) queryParams.append('order_by', params.order_by);
+    if (params?.order_dir) queryParams.append('order_dir', params.order_dir);
     return apiClient.get<PaginatedResponse<Series>>(`/api/series/?${queryParams.toString()}`);
   }
 

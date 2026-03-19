@@ -98,6 +98,7 @@ export const LeadsPage: React.FC = () => {
   const [addingGroup, setAddingGroup] = useState(false);
   const [groupForm, setGroupForm] = useState({ code: '', label: '', expected_duration_days: undefined as number | undefined, follow_up_interval_days: undefined as number | undefined, display_order: 0, is_active: true, hex_color: '' as string });
   const [savingGroup, setSavingGroup] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | undefined>({ key: 'created_at', direction: 'desc' });
   const [deleteGroupId, setDeleteGroupId] = useState<number | null>(null);
   const [draggedLeadId, setDraggedLeadId] = useState<number | null>(null);
   const [dragOverStatusId, setDragOverStatusId] = useState<number | null>(null);
@@ -212,7 +213,7 @@ export const LeadsPage: React.FC = () => {
   useEffect(() => {
     if (!canView) return;
     loadLeads();
-  }, [canView, debouncedSearchTerm, selectedStatus, page, pageSize, viewMode, appliedDateFrom, appliedDateTo, selectedAssignedToIds, createdByMeOnly, includeWonLost]);
+  }, [canView, debouncedSearchTerm, selectedStatus, page, pageSize, viewMode, appliedDateFrom, appliedDateTo, selectedAssignedToIds, createdByMeOnly, includeWonLost, sortConfig]);
 
   useEffect(() => {
     if (includeWonLost) return;
@@ -240,6 +241,8 @@ export const LeadsPage: React.FC = () => {
         assigned_to: selectedAssignedToIds.length > 0 ? selectedAssignedToIds : undefined,
         created_by_me: createdByMeOnly || undefined,
         include_won_lost: includeWonLost || undefined,
+        order_by: sortConfig?.key,
+        order_dir: sortConfig?.direction,
       });
       setLeads(res.items);
       setTotal(res.total);
@@ -1654,6 +1657,8 @@ export const LeadsPage: React.FC = () => {
                 getRowClassName={(lead: Lead) => isDueForFollowUp(lead) ? 'bg-amber-50 hover:bg-amber-100/80 border-l-4 border-l-amber-400' : ''}
                 dense={true}
                 showVerticalLines={true}
+                sortConfig={sortConfig}
+                onSort={(key, direction) => setSortConfig({ key, direction })}
               />
             </Card>
             ) : (

@@ -93,8 +93,8 @@ export function DataTable<T>({
             </tr>
           </thead>
         )}
-        <tbody className="divide-y divide-slate-100">
-          {isLoading ? (
+        <tbody className="divide-y divide-slate-100 relative">
+          {isLoading && data.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="py-20 text-center">
                 <div className="inline-block w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
@@ -107,35 +107,42 @@ export function DataTable<T>({
               </td>
             </tr>
           ) : (
-            data.map((item) => (
-              <tr
-                key={String(rowKey(item))}
-                onClick={() => onRowClick?.(item)}
-                className={cn(
-                  "group transition-colors",
-                  onRowClick ? "cursor-pointer hover:bg-slate-50/80 active:bg-slate-100/50" : "hover:bg-slate-50/30",
-                  getRowClassName?.(item)
-                )}
-              >
-                {columns.map((col, idx) => (
-                  <td
-                    key={String(col.key)}
-                    className={cn(
-                      "px-4 py-2.5 text-slate-600 truncate transition-colors",
-                      col.align === 'center' && "text-center",
-                      col.align === 'right' && "text-right",
-                      idx === 0 && "pl-6",
-                      showVerticalLines && idx < columns.length - 1 && "border-r border-slate-100",
-                      col.cellClassName
-                    )}
-                  >
-                    {col.render
-                      ? col.render(item, (item as any)[col.key])
-                      : String((item as any)[col.key] ?? '')}
-                  </td>
-                ))}
-              </tr>
-            ))
+            <>
+              {isLoading && (
+                <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-30 flex items-center justify-center transition-all duration-300">
+                  <div className="w-6 h-6 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                </div>
+              )}
+              {data.map((item) => (
+                <tr
+                  key={String(rowKey(item))}
+                  onClick={() => onRowClick?.(item)}
+                  className={cn(
+                    "group transition-colors",
+                    onRowClick ? "cursor-pointer hover:bg-slate-50/80 active:bg-slate-100/50" : "hover:bg-slate-50/30",
+                    getRowClassName?.(item)
+                  )}
+                >
+                  {columns.map((col, idx) => (
+                    <td
+                      key={String(col.key)}
+                      className={cn(
+                        "px-4 py-2.5 text-slate-600 truncate transition-colors",
+                        col.align === 'center' && "text-center",
+                        col.align === 'right' && "text-right",
+                        idx === 0 && "pl-6",
+                        showVerticalLines && idx < columns.length - 1 && "border-r border-slate-100",
+                        col.cellClassName
+                      )}
+                    >
+                      {col.render
+                        ? col.render(item, (item as any)[col.key])
+                        : String((item as any)[col.key] ?? '')}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </>
           )}
         </tbody>
       </table>

@@ -27,13 +27,6 @@ export const DashboardLayout: React.FC = () => {
         </div>
       </main>
 
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={onCloseToast}
-        />
-      )}
     </div>
   );
 };

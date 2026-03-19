@@ -37,8 +37,8 @@ import { SettingsPage } from './pages/SettingsPage';
 import { SupportPage } from './pages/SupportPage';
 import { SchemaPage } from './pages/SchemaPage';
 import { ReportTemplatesPage } from './pages/ReportTemplatesPage';
-import { ToastType } from './components/ui/Toast';
 import { TooltipProvider } from './components/ui/Tooltip';
+import { Toast, ToastType } from './components/ui/Toast';
 
 const NumberingSeriesPage = lazy(() => import('./pages/NumberingSeriesPage').then(m => ({ default: m.NumberingSeriesPage })));
 import { AppNotification } from './types';
@@ -158,7 +158,9 @@ const AppMain: React.FC = () => {
     initWebPushRegistration().catch(() => {});
   }, [token]);
 
-  const showToast = (message: string, type: ToastType = 'success') => setToast({ message, type });
+  const showToast = useCallback((message: string, type: ToastType = 'success') => {
+    setToast({ message, type });
+  }, []);
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
@@ -281,6 +283,13 @@ const AppMain: React.FC = () => {
             </Route>
           </Routes>
         </BrowserRouter>
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
       </TooltipProvider>
     </AppContext.Provider>
   );

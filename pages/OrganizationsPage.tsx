@@ -10,11 +10,13 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { DataTable } from '../components/ui/DataTable';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { Search, Plus, Edit, Trash2, Building2 } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { marketingAPI, Organization, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
+import { NavLink } from 'react-router-dom';
+import { Users, UserCircle, Search, Plus, Edit, Trash2, Building2 } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 export const OrganizationsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -89,14 +91,47 @@ export const OrganizationsPage: React.FC = () => {
       description="Manage organizations and their plants. Select an organization when adding a customer or contact."
       actions={actions}
     >
-      <div className="flex items-center gap-3 mb-4">
-        <SearchInput
-          placeholder="Search organizations..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          onClear={() => setSearchTerm('')}
-          containerClassName="max-w-md"
-        />
+      {/* Consolidated Command Bar */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-3 mb-4">
+        <div className="flex items-center justify-between gap-6 flex-wrap lg:flex-nowrap">
+          {/* Internal Navigation group */}
+          <div className="flex items-center gap-6 border-r border-slate-100 pr-6">
+            <nav className="flex gap-4">
+              {[
+                { path: '/database/organizations', label: 'Organizations', icon: Building2, permission: 'marketing.view_organization' },
+                { path: '/database/customers', label: 'Customers', icon: Users, permission: 'marketing.view_customer' },
+                { path: '/database/contacts', label: 'Contacts', icon: UserCircle, permission: 'marketing.view_contact' },
+              ].map((tab) => (
+                <NavLink
+                  key={tab.path}
+                  to={tab.path}
+                  className={({ isActive }) =>
+                    cn(
+                      'flex items-center gap-2 py-2 px-1 text-sm font-bold transition-all border-b-2',
+                      isActive
+                        ? 'border-indigo-600 text-indigo-600'
+                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                    )
+                  }
+                >
+                  <tab.icon size={14} strokeWidth={2.5} />
+                  <span className="uppercase tracking-widest text-[11px] whitespace-nowrap">{tab.label}</span>
+                </NavLink>
+              ))}
+            </nav>
+          </div>
+
+          {/* Action group: search */}
+          <div className="flex flex-1 items-center gap-3">
+            <SearchInput
+              placeholder="Search organizations..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onClear={() => setSearchTerm('')}
+              containerClassName="max-w-md shadow-none border-slate-100"
+            />
+          </div>
+        </div>
       </div>
 
       <Card noPadding contentClassName="py-0">
