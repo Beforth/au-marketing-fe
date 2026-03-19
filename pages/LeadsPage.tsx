@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -12,8 +13,10 @@ import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { DataTable } from '../components/ui/DataTable';
+import { SegmentToggle } from '../components/ui/SegmentToggle';
 import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, List, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash } from 'lucide-react';
 import { useApp } from '../App';
+import { Tooltip } from '../components/ui/Tooltip';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
@@ -319,7 +322,12 @@ export const LeadsPage: React.FC = () => {
       label: 'Lead No.',
       sortable: true,
       render: (lead: Lead) => (
-        <span className="text-slate-700 font-medium tabular-nums">{lead.series ?? '—'}</span>
+        <div className="flex items-center gap-2">
+          <Tooltip content="Lead Reference Number">
+            <Hash size={12} className="text-slate-400" strokeWidth={2.5} />
+          </Tooltip>
+          <span className="text-slate-700 font-medium tabular-nums">{lead.series ?? '—'}</span>
+        </div>
       ),
     },
     {
@@ -415,30 +423,59 @@ export const LeadsPage: React.FC = () => {
       label: '',
       sortable: false,
       render: (lead: Lead) => (
-        <div className="flex items-center gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
           {canEdit && wonStatusId && lead.status_id !== wonStatusId && !lead.status_option?.is_lost && (
-            <Button variant="ghost" size="xs" onClick={() => openMarkAsWonModal(lead.id)} className="text-emerald-600 hover:text-emerald-700" title="Mark as Won">
-              <Trophy size={12} className="mr-0.5" /> Won
-            </Button>
+            <Tooltip content="Mark as Won">
+              <Button
+                variant="ghost"
+                size="xxs"
+                onClick={() => openMarkAsWonModal(lead.id)}
+                className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+              >
+                <Trophy size={12} />
+              </Button>
+            </Tooltip>
           )}
           {canEdit && lostStatusId && lead.status_id !== lostStatusId && !lead.status_option?.is_final && (
-            <Button variant="ghost" size="xs" onClick={() => setLeadToMarkLost(lead.id)} className="text-rose-600 hover:text-rose-700" title="Mark as Lost">
-              <XCircle size={12} className="mr-0.5" /> Lost
-            </Button>
+            <Tooltip content="Mark as Lost">
+              <Button
+                variant="ghost"
+                size="xxs"
+                onClick={() => setLeadToMarkLost(lead.id)}
+                className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+              >
+                <XCircle size={12} />
+              </Button>
+            </Tooltip>
           )}
           {canEdit && (
-            <Button variant="ghost" size="xs" onClick={() => navigate(`/leads/${lead.id}/edit`)} leftIcon={<Edit size={12} />}>
-              Edit
-            </Button>
+            <Tooltip content="Edit Lead">
+              <Button
+                variant="ghost"
+                size="xxs"
+                onClick={() => navigate(`/leads/${lead.id}/edit`)}
+              >
+                <Edit size={12} />
+              </Button>
+            </Tooltip>
           )}
           {canDelete && (
-            <Button variant="ghost" size="xs" onClick={() => openDeleteConfirm(lead.id)} leftIcon={<Trash2 size={12} />} className="text-rose-600 hover:text-rose-700">
-              Delete
-            </Button>
+            <Tooltip content="Delete Lead">
+              <Button
+                variant="ghost"
+                size="xxs"
+                onClick={() => openDeleteConfirm(lead.id)}
+                className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+              >
+                <Trash2 size={12} />
+              </Button>
+            </Tooltip>
           )}
-          <Button variant="link" size="xs" onClick={() => navigate(`/leads/${lead.id}/edit`)} rightIcon={<Eye size={12} />}>
-            View
-          </Button>
+          <Tooltip content="View History & Updates">
+            <Button variant="link" size="xs" onClick={() => navigate(`/leads/${lead.id}/edit`)} rightIcon={<Eye size={12} />}>
+              View
+            </Button>
+          </Tooltip>
         </div>
       ),
     },
@@ -1181,24 +1218,16 @@ export const LeadsPage: React.FC = () => {
     >
       <div className="space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex rounded-full border border-slate-200 p-0.5 bg-slate-100/50">
-            <button
-              type="button"
-              onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${viewMode === 'kanban' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-                }`}
-            >
-              <LayoutGrid size={16} /> Kanban
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${viewMode === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-                }`}
-            >
-              <List size={16} /> Table
-            </button>
-          </div>
+          <SegmentToggle<ViewMode>
+            value={viewMode}
+            onChange={setViewMode}
+            options={[
+              { value: 'kanban', label: 'Kanban', icon: LayoutGrid },
+              { value: 'table', label: 'Table', icon: List },
+            ]}
+            className="h-9 min-w-[200px]"
+            layoutId="leads-view-mode"
+          />
           <SearchInput
             placeholder="Search leads..."
             value={searchTerm}
@@ -1381,17 +1410,18 @@ export const LeadsPage: React.FC = () => {
             </Badge>
           )}
           {viewMode === 'table' && selectedStatus !== 'all' && (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedStatus('all');
-                setTempSelectedStatus('all');
-              }}
-              className="p-1.5 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-              title="Clear filters"
-            >
-              <X size={16} strokeWidth={2.5} />
-            </button>
+            <Tooltip content="Clear all filters">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedStatus('all');
+                  setTempSelectedStatus('all');
+                }}
+                className="p-1.5 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              >
+                <X size={16} strokeWidth={2.5} />
+              </button>
+            </Tooltip>
           )}
         </div>
 
@@ -1615,14 +1645,17 @@ export const LeadsPage: React.FC = () => {
         ) : (
           <>
             {filteredLeads.length > 0 ? (
+            <Card noPadding className="mt-4 overflow-hidden">
               <DataTable<Lead>
                 data={filteredLeads}
                 columns={leadColumns}
-                rowKey={(lead) => lead.id}
-                onRowClick={canEdit ? (lead) => navigate(`/leads/${lead.id}/edit`) : undefined}
-                getRowClassName={(lead) => isDueForFollowUp(lead) ? 'bg-amber-50 hover:bg-amber-100/80 border-l-4 border-l-amber-400' : ''}
-                className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+                rowKey={(lead: Lead) => lead.id}
+                onRowClick={canEdit ? (lead: Lead) => navigate(`/leads/${lead.id}/edit`) : undefined}
+                getRowClassName={(lead: Lead) => isDueForFollowUp(lead) ? 'bg-amber-50 hover:bg-amber-100/80 border-l-4 border-l-amber-400' : ''}
+                dense={true}
+                showVerticalLines={true}
               />
+            </Card>
             ) : (
               <div className="text-center py-24">
                 <p className="text-slate-900 font-black text-sm uppercase tracking-widest">

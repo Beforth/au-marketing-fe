@@ -113,16 +113,53 @@ To use these components, ensure the following are installed:
 
 ---
 
+---
+
+## 🏗️ DataTable (High-Density)
+**Design:** *A streamlined, high-performance table designed for heavy data loads. Prioritizes stability and readability over manual customization.*
+
+**Key Features:**
+- **Simplified Layout**: Fixed-width columns for predictable horizontal alignment.
+- **Advanced Sorting**: Integrated visual feedback with `Chevron` icons and smooth hover highlights.
+- **Zebra Striping**: Subtle `slate-50/10` striping for better row isolation.
+- **Custom Renderers**: Supports granular cell control for badges, icons, and action groups.
+
+```tsx
+// components/ui/DataTable.tsx
+// Props: data, columns, rowKey, onRowClick, sortConfig, onSort, dense, showVerticalLines
+```
+
+---
+
+## 💊 Tooltip (Vercel-Inspired)
+**Design:** *A minimalist, light-themed tooltip system following the latest modern web standards. Built with Radix UI for accessibility and performance.*
+
+**Key Features:**
+- **Clean Aesthetic**: White background (`bg-white`) with a subtle `slate-200` border.
+- **Refined Typography**: `font-medium text-xs` in standard casing for a balanced, modern look.
+- **Smooth Presence**: `AnimatePresence` and Radix `Portal` for flicker-free overlays.
+- **Integrated Arrow**: Crisp white triangular pointers with matching borders.
+
+```tsx
+// components/ui/Tooltip.tsx
+// Usage: Wrapper component `<Tooltip content="Label">{children}</Tooltip>`
+```
+
+---
+
 ## 🎨 Design Tokens (Cheat Sheet)
 - **Primary**: `indigo-600` (#4f46e5)
 - **Secondary**: `slate-500` (Main), `slate-400` (Tertiary)
 - **Radius**:
-  - `rounded-lg`: Standard Buttons/Inputs.
-  - `rounded-xl`: Cards, Dropdowns, and Search Bars.
+  - `rounded-lg`: Tooltips and Standard Buttons.
+  - `rounded-xl`: Inputs, Cards, and Dropdowns.
   - `rounded-2xl`: Modals and Popovers.
   - `rounded-full`: Capsule Search Inputs and Status Badges.
 - **Shadows**:
   - `shadow-sm`: Trigger/Inputs.
   - `shadow-md`: Hover states.
+  - `shadow-lg`: Tooltips.
   - `shadow-2xl`: Overlay systems (Modals/Dropdowns).
-- **Typography**: `font-black text-[10px] uppercase tracking-widest` (Headers/Labels).
+- **Typography**: 
+  - **Headers**: `font-black text-[11px] uppercase tracking-widest`.
+  - **Captions**: `font-medium text-xs` (Tooltips/Secondary Info).

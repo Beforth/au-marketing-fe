@@ -122,6 +122,8 @@ export const OrganizationsPage: React.FC = () => {
               data={organizations}
               rowKey={(o) => o.id}
               onRowClick={canEdit ? (o) => navigate(`/organizations/${o.id}/edit`) : undefined}
+              dense={true}
+              showVerticalLines={true}
               columns={[
                 {
                   key: 'name',
@@ -163,32 +165,32 @@ export const OrganizationsPage: React.FC = () => {
                   sortable: false,
                   align: 'right',
                   render: (o) => (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-end gap-1.5">
                       {canEdit && (
                         <Button
                           variant="outline"
-                          size="sm"
+                          size="xxs"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/organizations/${o.id}/edit`);
                           }}
-                          leftIcon={<Edit size={14} />}
+                          title="Edit"
                         >
-                          Edit
+                          <Edit size={12} strokeWidth={2.5} />
                         </Button>
                       )}
                       {canDelete && (
                         <Button
-                          variant="ghost"
-                          size="sm"
+                          variant="outline"
+                          size="xxs"
                           onClick={(e) => {
                             e.stopPropagation();
                             setDeleteId(o.id);
                           }}
-                          className="text-red-600 hover:text-red-700"
-                          leftIcon={<Trash2 size={14} />}
+                          className="text-rose-600 hover:text-rose-700 hover:border-rose-300"
+                          title="Delete"
                         >
-                          Delete
+                          <Trash2 size={12} strokeWidth={2.5} />
                         </Button>
                       )}
                     </div>

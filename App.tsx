@@ -38,6 +38,7 @@ import { SupportPage } from './pages/SupportPage';
 import { SchemaPage } from './pages/SchemaPage';
 import { ReportTemplatesPage } from './pages/ReportTemplatesPage';
 import { ToastType } from './components/ui/Toast';
+import { TooltipProvider } from './components/ui/Tooltip';
 
 const NumberingSeriesPage = lazy(() => import('./pages/NumberingSeriesPage').then(m => ({ default: m.NumberingSeriesPage })));
 import { AppNotification } from './types';
@@ -224,61 +225,63 @@ const AppMain: React.FC = () => {
 
   return (
     <AppContext.Provider value={contextValue}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={
-            <ProtectedRoute>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<DashboardPage />} />
-            <Route path="employees" element={<EmployeesPage />} />
-            <Route path="database" element={<DatabaseLayout />}>
-              <Route index element={<Navigate to="organizations" replace />} />
-              <Route path="organizations" element={<OrganizationsPage />} />
-              <Route path="customers" element={<CustomersPage />} />
+      <TooltipProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<DashboardPage />} />
+              <Route path="employees" element={<EmployeesPage />} />
+              <Route path="database" element={<DatabaseLayout />}>
+                <Route index element={<Navigate to="organizations" replace />} />
+                <Route path="organizations" element={<OrganizationsPage />} />
+                <Route path="customers" element={<CustomersPage />} />
+                <Route path="contacts" element={<ContactsPage />} />
+              </Route>
+              <Route path="domains" element={<DomainsPage />} />
+              <Route path="domains/new" element={<DomainFormPage />} />
+              <Route path="domains/:id/edit" element={<DomainFormPage />} />
+              <Route path="domains/:domainId/regions/new" element={<RegionFormPage />} />
+              <Route path="domains/:domainId/regions/:regionId/edit" element={<RegionFormPage />} />
               <Route path="contacts" element={<ContactsPage />} />
+              <Route path="contacts/new" element={<ContactFormPage />} />
+              <Route path="contacts/:id/edit" element={<ContactFormPage />} />
+              <Route path="leads" element={<LeadsPage />} />
+              <Route path="leads/new" element={<LeadFormPage />} />
+              <Route path="leads/:id/edit" element={<LeadFormPage />} />
+              <Route path="customers" element={<CustomersPage />} />
+              <Route path="customers/new" element={<CustomerFormPage />} />
+              <Route path="customers/:id/edit" element={<CustomerFormPage />} />
+              <Route path="orders" element={<OrdersPage />} />
+              <Route path="orders/new" element={<OrderFormPage />} />
+              <Route path="orders/:id" element={<OrderFormPage />} />
+              <Route path="quotations" element={<EnquiryQuotationsPage />} />
+              <Route path="organizations" element={<OrganizationsPage />} />
+              <Route path="organizations/new" element={<OrganizationFormPage />} />
+              <Route path="organizations/:id/edit" element={<OrganizationFormPage />} />
+              <Route path="customers" element={<CustomersPage />} />
+              <Route path="inventory" element={<InventoryPage />} />
+              <Route path="financials" element={<FinancialsPage />} />
+              <Route path="reports" element={<ReportsPage />} />
+              <Route path="report-templates" element={<ReportTemplatesPage />} />
+              <Route path="reports/expected-order/new" element={<ExpectedOrderNewPage />} />
+              <Route path="reports/od-plan" element={<ODPlanPage />} />
+              <Route path="invoices" element={<InvoicesPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="support" element={<SupportPage />} />
+              <Route path="numbering-series" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
+              <Route path="numbering-series/new" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
+              <Route path="numbering-series/:id/edit" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
+              <Route path="schema" element={<SchemaPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
-            <Route path="domains" element={<DomainsPage />} />
-            <Route path="domains/new" element={<DomainFormPage />} />
-            <Route path="domains/:id/edit" element={<DomainFormPage />} />
-            <Route path="domains/:domainId/regions/new" element={<RegionFormPage />} />
-            <Route path="domains/:domainId/regions/:regionId/edit" element={<RegionFormPage />} />
-            <Route path="contacts" element={<ContactsPage />} />
-            <Route path="contacts/new" element={<ContactFormPage />} />
-            <Route path="contacts/:id/edit" element={<ContactFormPage />} />
-            <Route path="leads" element={<LeadsPage />} />
-            <Route path="leads/new" element={<LeadFormPage />} />
-            <Route path="leads/:id/edit" element={<LeadFormPage />} />
-            <Route path="customers" element={<CustomersPage />} />
-            <Route path="customers/new" element={<CustomerFormPage />} />
-            <Route path="customers/:id/edit" element={<CustomerFormPage />} />
-            <Route path="orders" element={<OrdersPage />} />
-            <Route path="orders/new" element={<OrderFormPage />} />
-            <Route path="orders/:id" element={<OrderFormPage />} />
-            <Route path="quotations" element={<EnquiryQuotationsPage />} />
-            <Route path="organizations" element={<OrganizationsPage />} />
-            <Route path="organizations/new" element={<OrganizationFormPage />} />
-            <Route path="organizations/:id/edit" element={<OrganizationFormPage />} />
-            <Route path="customers" element={<CustomersPage />} />
-            <Route path="inventory" element={<InventoryPage />} />
-            <Route path="financials" element={<FinancialsPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="report-templates" element={<ReportTemplatesPage />} />
-            <Route path="reports/expected-order/new" element={<ExpectedOrderNewPage />} />
-            <Route path="reports/od-plan" element={<ODPlanPage />} />
-            <Route path="invoices" element={<InvoicesPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="support" element={<SupportPage />} />
-            <Route path="numbering-series" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
-            <Route path="numbering-series/new" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
-            <Route path="numbering-series/:id/edit" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
-            <Route path="schema" element={<SchemaPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
     </AppContext.Provider>
   );
 };

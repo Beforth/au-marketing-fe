@@ -41,6 +41,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           className="w-20"
           clearable={false}
           searchable={false}
+          dropdownWidth={100}
         />
         <span className="text-xs text-slate-500">
           {total === 0 ? '0' : `${start}–${end}`} of {total}

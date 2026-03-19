@@ -138,6 +138,8 @@ export const CustomersPage: React.FC = () => {
               data={filteredCustomers}
               rowKey={(c) => c.id}
               onRowClick={canEdit ? (c) => navigate(`/customers/${c.id}/edit`) : undefined}
+              dense={true}
+              showVerticalLines={true}
               columns={[
                 {
                   key: 'company_name',
@@ -199,7 +201,7 @@ export const CustomersPage: React.FC = () => {
                         <Button
                           type="button"
                           variant="link"
-                          size="xs"
+                          size="xxs"
                           className="text-indigo-600 p-0 h-auto min-w-0 text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -222,13 +224,13 @@ export const CustomersPage: React.FC = () => {
                     canEdit ? (
                       <Button
                         variant="outline"
-                        size="sm"
+                        size="xxs"
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/customers/${c.id}/edit`);
                         }}
                       >
-                        <Edit size={14} />
+                        <Edit size={12} />
                       </Button>
                     ) : null,
                 },

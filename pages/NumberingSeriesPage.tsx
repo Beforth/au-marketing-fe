@@ -11,8 +11,10 @@ import { SearchInput } from '../components/ui/SearchInput';
 import { Select } from '../components/ui/Select';
 import { PageLayout } from '../components/layout/PageLayout';
 import { DataTable } from '../components/ui/DataTable';
+import { Tooltip } from '../components/ui/Tooltip';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { SegmentToggle } from '../components/ui/SegmentToggle';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
@@ -469,15 +471,16 @@ export const NumberingSeriesPage: React.FC = () => {
             onChange={(e) => setSearch(e.target.value)}
             containerClassName="max-w-md"
           />
-          <Select
-            value={filterActive === null ? '' : String(filterActive)}
-            onChange={(val) => setFilterActive(val === '' || val === undefined ? null : String(val) === 'true')}
+          <SegmentToggle<string>
+            value={filterActive === null ? 'all' : String(filterActive)}
+            onChange={(val) => setFilterActive(val === 'all' ? null : val === 'true')}
             options={[
-              { value: '', label: 'All' },
+              { value: 'all', label: 'All' },
               { value: 'true', label: 'Active' },
               { value: 'false', label: 'Inactive' },
             ]}
-            className="w-32"
+            className="h-9 min-w-[220px]"
+            layoutId="series-filter-active"
           />
         </div>
 
@@ -491,14 +494,14 @@ export const NumberingSeriesPage: React.FC = () => {
         )}
 
         <div className="mt-4">
-          <Card noPadding contentClassName="py-6 px-4">
+          <Card noPadding>
             {isLoading ? (
               <div className="text-center py-12">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                 <p className="mt-4 text-slate-600">Loading numbering series...</p>
               </div>
             ) : list.length === 0 ? (
-              <div className="text-center py-12">
+              <div className="p-12 text-center">
                 <Hash className="w-12 h-12 text-slate-400 mx-auto mb-4" />
                 <p className="text-slate-600">No numbering series found</p>
                 {canCreate && (
@@ -512,7 +515,8 @@ export const NumberingSeriesPage: React.FC = () => {
                 <DataTable<Series>
                   data={list}
                   rowKey={(s) => s.id}
-                  className="border-none"
+                  dense={true}
+                  showVerticalLines={true}
                   columns={[
                     {
                       key: 'name',
@@ -528,7 +532,7 @@ export const NumberingSeriesPage: React.FC = () => {
                       key: 'entity_type',
                       label: 'Used for',
                       render: (s) => (
-                        <span className="text-slate-600 text-sm">
+                        <span className="text-slate-600 text-[10px] font-black uppercase tracking-widest bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/50 shadow-sm">
                           {s.entity_type ? s.entity_type.charAt(0).toUpperCase() + s.entity_type.slice(1) : 'Generic'}
                         </span>
                       ),
@@ -546,7 +550,7 @@ export const NumberingSeriesPage: React.FC = () => {
                       key: 'pattern',
                       label: 'Pattern',
                       render: (s) => (
-                        <span className="font-mono text-sm text-slate-600 max-w-xs truncate block" title={s.pattern}>
+                        <span className="font-mono text-[11px] text-slate-500 max-w-xs truncate block" title={s.pattern}>
                           {s.pattern}
                         </span>
                       ),
@@ -554,13 +558,13 @@ export const NumberingSeriesPage: React.FC = () => {
                     {
                       key: 'next_value',
                       label: 'Next',
-                      render: (s) => <span className="text-slate-600">{s.next_value}</span>,
+                      render: (s) => <span className="text-slate-900 font-bold">{s.next_value}</span>,
                     },
                     {
                       key: 'last_generated_at',
                       label: 'Last generated',
                       render: (s) => (
-                        <span className="text-slate-500 text-sm">
+                        <span className="text-slate-500 text-[11px]">
                           {s.last_generated_at ? new Date(s.last_generated_at).toLocaleString() : '—'}
                         </span>
                       ),
@@ -581,35 +585,40 @@ export const NumberingSeriesPage: React.FC = () => {
                       sortable: false,
                       align: 'right',
                       render: (s) => (
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           {canGenerate && s.is_active && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => { e.stopPropagation(); handleGenerateNext(s.id); }}
-                              title="Generate next"
-                            >
-                              <Hash size={14} />
-                            </Button>
+                            <Tooltip content="Generate next value">
+                              <Button
+                                variant="outline"
+                                size="xxs"
+                                onClick={(e) => { e.stopPropagation(); handleGenerateNext(s.id); }}
+                              >
+                                <Hash size={12} strokeWidth={2.5} />
+                              </Button>
+                            </Tooltip>
                           )}
                           {canEdit && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => { e.stopPropagation(); navigate(`/numbering-series/${s.id}/edit`); }}
-                            >
-                              <Edit size={14} />
-                            </Button>
+                            <Tooltip content="Edit numbering series">
+                              <Button
+                                variant="outline"
+                                size="xxs"
+                                onClick={(e) => { e.stopPropagation(); navigate(`/numbering-series/${s.id}/edit`); }}
+                              >
+                                <Edit size={12} strokeWidth={2.5} />
+                              </Button>
+                            </Tooltip>
                           )}
                           {canDelete && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => { e.stopPropagation(); setDeleteId(s.id); }}
-                              className="text-rose-600 hover:text-rose-700 hover:border-rose-300"
-                            >
-                              <Trash2 size={14} />
-                            </Button>
+                            <Tooltip content="Delete numbering series">
+                              <Button
+                                variant="outline"
+                                size="xxs"
+                                onClick={(e) => { e.stopPropagation(); setDeleteId(s.id); }}
+                                className="text-rose-600 hover:text-rose-700 hover:border-rose-300"
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                            </Tooltip>
                           )}
                         </div>
                       ),

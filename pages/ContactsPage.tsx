@@ -270,7 +270,8 @@ export const ContactsPage: React.FC = () => {
             <DataTable<Contact>
               data={filteredContacts}
               rowKey={(c) => c.id}
-              className="border-none"
+              dense={true}
+              showVerticalLines={true}
               columns={[
                 {
                   key: 'organization',
@@ -331,15 +332,32 @@ export const ContactsPage: React.FC = () => {
                   sortable: false,
                   align: 'right',
                   render: (contact) => (
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1">
                       {canEdit && (
-                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${contact.id}/edit`); }}>
-                          <Edit size={14} />
+                        <Button
+                          variant="ghost"
+                          size="xxs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/contacts/${contact.id}/edit`);
+                          }}
+                          title="Edit Contact"
+                        >
+                          <Edit size={12} />
                         </Button>
                       )}
                       {canDelete && !contact.is_converted && (
-                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); openDeleteContactConfirm(contact.id); }}>
-                          <Trash2 size={14} />
+                        <Button
+                          variant="ghost"
+                          size="xxs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDeleteContactConfirm(contact.id);
+                          }}
+                          className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                          title="Delete Contact"
+                        >
+                          <Trash2 size={12} />
                         </Button>
                       )}
                     </div>
