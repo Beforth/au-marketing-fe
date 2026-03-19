@@ -33,6 +33,8 @@ interface SelectProps {
   containerClassName?: string;
   clearable?: boolean;
   inputSize?: 'sm' | 'md' | 'lg';
+  triggerClassName?: string;
+  isCombobox?: boolean;
 }
 
 // Simple fuzzy search function
@@ -71,6 +73,8 @@ export const Select: React.FC<SelectProps> = ({
   error,
   containerClassName,
   inputSize = 'md',
+  triggerClassName,
+  isCombobox = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -160,50 +164,102 @@ export const Select: React.FC<SelectProps> = ({
           {required && <span className="text-red-500 ml-1">*</span>}
         </label>
       )}
-      <div className="relative" ref={selectRef}>
-        <button
-          type="button"
-          onClick={() => !disabled && setIsOpen(!isOpen)}
-          disabled={disabled}
-          className={cn(
-            'w-full border rounded-lg text-left transition-all',
-            'focus:outline-none focus:ring-2 focus:ring-indigo-500',
-            'bg-white border-slate-300',
-            inputSize === 'sm' && 'h-9 px-3 text-xs',
-            inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
-            inputSize === 'lg' && 'h-12 px-5 text-base font-medium',
-            disabled && 'bg-slate-50 cursor-not-allowed opacity-50',
-            error && 'border-rose-300 bg-rose-50',
-            'flex items-center justify-between gap-2'
-          )}
-        >
-          <span className={cn(
-            'flex-1 truncate',
-            !selectedOption && 'text-slate-400'
-          )}>
-            {selectedOption ? selectedOption.label : placeholder}
-          </span>
-          <div className="flex items-center gap-1">
-            {value && !disabled && clearable && (
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleClear(e as any);
-                }}
-                className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-              >
-                <X size={14} />
-              </div>
-            )}
-            <ChevronDown
-              size={16}
+      <div className={cn("relative", isCombobox && "group/combobox")} ref={selectRef}>
+        {isCombobox ? (
+          <div className="relative flex items-center">
+            <input
+              ref={searchInputRef}
+              type="text"
+              disabled={disabled}
+              placeholder={placeholder}
+              value={isOpen ? searchQuery : (selectedOption?.label || '')}
+              onChange={(e) => {
+                if (!isOpen) setIsOpen(true);
+                setSearchQuery(e.target.value);
+              }}
+              onFocus={() => !disabled && setIsOpen(true)}
+              onClick={() => !disabled && !isOpen && setIsOpen(true)}
               className={cn(
-                'text-slate-400 transition-transform',
-                isOpen && 'transform rotate-180'
+                'w-full border rounded-lg text-left transition-all',
+                'focus:outline-none focus:ring-2 focus:ring-indigo-500',
+                'bg-white border-slate-300',
+                inputSize === 'sm' && 'h-9 px-3 text-xs',
+                inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
+                inputSize === 'lg' && 'h-12 px-5 text-base font-medium',
+                disabled && 'bg-slate-50 cursor-not-allowed opacity-50',
+                error && 'border-rose-300 bg-rose-50',
+                'pr-10', // Space for chevron
+                triggerClassName
               )}
             />
+            <div className="absolute right-3 flex items-center gap-1">
+              {value && !disabled && clearable && (
+                <div
+                  onClick={handleClear}
+                  className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X size={14} />
+                </div>
+              )}
+              <ChevronDown
+                size={16}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  !disabled && setIsOpen(!isOpen);
+                }}
+                className={cn(
+                  'text-slate-400 transition-transform cursor-pointer',
+                  isOpen && 'transform rotate-180'
+                )}
+              />
+            </div>
           </div>
-        </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => !disabled && setIsOpen(!isOpen)}
+            disabled={disabled}
+            className={cn(
+              'w-full border rounded-lg text-left transition-all',
+              'focus:outline-none focus:ring-2 focus:ring-indigo-500',
+              'bg-white border-slate-300',
+              inputSize === 'sm' && 'h-9 px-3 text-xs',
+              inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
+              inputSize === 'lg' && 'h-12 px-5 text-base font-medium',
+              disabled && 'bg-slate-50 cursor-not-allowed opacity-50',
+              error && 'border-rose-300 bg-rose-50',
+              'flex items-center justify-between gap-2',
+              triggerClassName
+            )}
+          >
+            <span className={cn(
+              'flex-1 truncate',
+              !selectedOption && 'text-slate-400'
+            )}>
+              {selectedOption ? selectedOption.label : placeholder}
+            </span>
+            <div className="flex items-center gap-1">
+              {value && !disabled && clearable && (
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleClear(e as any);
+                  }}
+                  className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X size={14} />
+                </div>
+              )}
+              <ChevronDown
+                size={16}
+                className={cn(
+                  'text-slate-400 transition-transform',
+                  isOpen && 'transform rotate-180'
+                )}
+              />
+            </div>
+          </button>
+        )}
 
         {isOpen && dropdownRect && createPortal(
           <div
@@ -216,7 +272,7 @@ export const Select: React.FC<SelectProps> = ({
               minWidth: 160,
             }}
           >
-            {searchable && (
+            {searchable && !isCombobox && (
               <div className="p-2 border-b border-slate-200">
                 <div className="relative">
                   <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />

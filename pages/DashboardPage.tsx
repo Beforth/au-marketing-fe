@@ -1275,11 +1275,14 @@ export const DashboardPage: React.FC = () => {
 
   const commandToolbar = (
     <div className="flex flex-wrap items-center gap-4 p-1 bg-white border border-slate-200 rounded-2xl shadow-sm mb-4 w-full">
-      {/* Dashboard Selection (Clean, No Search Icon) */}
-      <div className="flex flex-1 min-w-[160px] items-center pl-4 pr-2 border-r border-slate-100">
+      {/* Dashboard Selection (Clean & Integrated) */}
+      <div className="flex flex-1 min-w-[200px] items-center pl-4 pr-1 border-r border-slate-100 group">
+        <Search size={14} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors shrink-0" />
         <Select
-          className="flex-1 !border-none !shadow-none !bg-transparent text-[11px] h-9 font-medium !ring-0 focus:!ring-0 cursor-pointer"
-          placeholder="fav dash"
+          isCombobox={true}
+          containerClassName="flex-1 !space-y-0"
+          triggerClassName="!border-none !shadow-none !bg-transparent text-[11px] h-9 font-medium !ring-0 focus:!ring-0 cursor-pointer w-full"
+          placeholder="Search dashboards..."
           value={selectedDashboardId != null ? String(selectedDashboardId) : ''}
           onChange={(v) => setSelectedDashboardId(v ? parseInt(String(v), 10) : null)}
           options={savedDashboards.map((d) => ({ value: String(d.id), label: d.name }))}

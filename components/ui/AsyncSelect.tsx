@@ -25,6 +25,8 @@ interface AsyncSelectProps {
   error?: string;
   initialOptions?: AsyncSelectOption[];
   inputSize?: 'sm' | 'md' | 'lg';
+  triggerClassName?: string;
+  containerClassName?: string;
 }
 
 export const AsyncSelect: React.FC<AsyncSelectProps> = ({
@@ -39,6 +41,8 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
   error,
   initialOptions = [],
   inputSize = 'md',
+  triggerClassName,
+  containerClassName,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -182,7 +186,7 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
   };
 
   return (
-    <div className={cn('space-y-1.5 w-full', className)}>
+    <div className={cn('space-y-1.5 w-full', containerClassName || className)}>
       {label && (
         <label className="text-xs font-semibold text-slate-700 ml-0.5">
           {label}
@@ -203,7 +207,8 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
             inputSize === 'lg' && 'h-12 px-5 text-base font-medium',
             disabled && 'bg-slate-50 cursor-not-allowed opacity-50',
             error && 'border-rose-300 bg-rose-50',
-            'flex items-center justify-between gap-2'
+            'flex items-center justify-between gap-2',
+            triggerClassName
           )}
         >
           <span className={cn(
