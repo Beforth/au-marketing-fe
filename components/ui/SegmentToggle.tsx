@@ -53,7 +53,7 @@ export function SegmentToggle<T extends string | number>({
 							className="absolute inset-x-0 inset-y-[-1px] bg-white shadow-[0_2px_10px_rgba(0,0,0,0.1)] border border-slate-200 rounded-full"
 						/>
 					)}
-					<span className="relative z-20 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+					<span className="relative z-20 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap">
 						{option.icon && <option.icon className="size-3.5" />}
 						{option.label}
 					</span>
