@@ -21,7 +21,9 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { marketingAPI, Domain, Region, AssignmentWithEmployee, HRMSEmployee, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, DomainTargetSummaryResponse } from '../lib/marketing-api';
-import { Target } from 'lucide-react';
+import { Target, List, Eye } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { SegmentToggle } from '../components/ui/SegmentToggle';
 
 type ViewMode = 'list' | 'review';
 
@@ -442,22 +444,14 @@ export const DomainsPage: React.FC = () => {
 
   const actions = (
     <div className="flex items-center gap-2">
-      <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-50/80">
-        <button
-          type="button"
-          onClick={() => setViewMode('list')}
-          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
-        >
-          List
-        </button>
-        <button
-          type="button"
-          onClick={() => setViewMode('review')}
-          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'review' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
-        >
-          Review
-        </button>
-      </div>
+      <SegmentToggle
+        options={[
+          { value: 'list', label: 'List', icon: List },
+          { value: 'review', label: 'Review', icon: Eye },
+        ]}
+        value={viewMode}
+        onChange={(val) => setViewMode(val as ViewMode)}
+      />
       {canCreate && (
         <Button
           size="sm"
@@ -486,7 +480,8 @@ export const DomainsPage: React.FC = () => {
                 value={String(targetMonth)}
                 onChange={(val) => val && setTargetMonth(Number(val))}
                 searchable={false}
-                className="min-w-[100px]"
+                clearable={false}
+                className="min-w-[80px] w-auto"
               />
               <Select
                 options={Array.from({ length: 15 }, (_, i) => {
@@ -496,7 +491,8 @@ export const DomainsPage: React.FC = () => {
                 value={String(targetYear)}
                 onChange={(val) => val && setTargetYear(Number(val))}
                 searchable={false}
-                className="min-w-[90px]"
+                clearable={false}
+                className="min-w-[100px] w-auto"
               />
             </div>
             {targetSummaryLoading && <span className="text-sm text-slate-500">Loading targets…</span>}

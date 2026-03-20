@@ -102,8 +102,8 @@ export const EnquiryQuotationsPage: React.FC = () => {
                   icon={<Search size={14} className="text-slate-400" />}
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-slate-600">Lead</label>
+              <div className="flex items-center gap-2 shrink-0">
+                <label className="text-xs font-medium text-slate-600 whitespace-nowrap">Lead</label>
                 <Select
                   options={[
                     { value: '', label: 'All leads' },
@@ -116,10 +116,11 @@ export const EnquiryQuotationsPage: React.FC = () => {
                   onChange={(val) => setFilterLeadId(val === '' ? '' : Number(val))}
                   className="min-w-[180px]"
                   searchable={true}
+                  clearable={false}
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-slate-600">Sort by</label>
+              <div className="flex items-center gap-2 shrink-0">
+                <label className="text-xs font-medium text-slate-600 whitespace-nowrap">Sort by</label>
                 <Select
                   options={[
                     { value: 'quotation_number', label: 'Quotation no.' },
@@ -132,6 +133,7 @@ export const EnquiryQuotationsPage: React.FC = () => {
                   onChange={(val) => setSortBy((val as SortField) ?? 'quotation_number')}
                   className="min-w-[130px]"
                   searchable={false}
+                  clearable={false}
                 />
                 <Select
                   options={[
@@ -142,6 +144,7 @@ export const EnquiryQuotationsPage: React.FC = () => {
                   onChange={(val) => setSortOrder((val as SortOrder) ?? 'asc')}
                   className="min-w-[120px]"
                   searchable={false}
+                  clearable={false}
                 />
               </div>
               {(searchInput.trim() || filterLeadId !== '' || dateFrom || dateTo) && (

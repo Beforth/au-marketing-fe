@@ -1,16 +1,17 @@
-
-import React, { useState, useMemo } from 'react';
-import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import React, { useState, useRef, useCallback } from 'react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 export interface Column<T> {
   key: keyof T | string;
   label: string;
   sortable?: boolean;
+  resizable?: boolean;
   align?: 'left' | 'center' | 'right';
-  render?: (item: T) => React.ReactNode;
+  width?: number | string;
+  render?: (item: T, value: any) => React.ReactNode;
   headerClassName?: string;
   cellClassName?: string;
-  width?: string;
 }
 
 interface DataTableProps<T> {
@@ -19,9 +20,14 @@ interface DataTableProps<T> {
   rowKey: (item: T) => string | number;
   onRowClick?: (item: T) => void;
   getRowClassName?: (item: T) => string;
-  className?: string;
+  sortConfig?: { key: string; direction: 'asc' | 'desc' };
+  onSort?: (key: string, direction: 'asc' | 'desc') => void;
+  isLoading?: boolean;
+  dense?: boolean;
+  resizable?: boolean;
+  showVerticalLines?: boolean;
   hideHeader?: boolean;
-  enableSorting?: boolean;
+  className?: string;
 }
 
 export function DataTable<T>({
@@ -30,80 +36,56 @@ export function DataTable<T>({
   rowKey,
   onRowClick,
   getRowClassName,
-  className = '',
+  sortConfig,
+  onSort,
+  isLoading = false,
+  dense = false,
+  showVerticalLines = false,
   hideHeader = false,
-  enableSorting = true
+  className,
 }: DataTableProps<T>) {
-  const [sortConfig, setSortConfig] = useState<{ key: keyof T | string | null; direction: 'asc' | 'desc' | null }>({
-    key: null,
-    direction: null,
-  });
 
-  const handleSort = (key: keyof T | string) => {
-    let direction: 'asc' | 'desc' | null = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    } else if (sortConfig.key === key && sortConfig.direction === 'desc') {
-      direction = null;
-    }
-    setSortConfig({ key: direction ? key : null, direction });
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig?.key === key && sortConfig.direction === 'asc') direction = 'desc';
+    onSort?.(key, direction);
   };
-
-  const isColumnSortable = (col: Column<T>) => {
-    return enableSorting && col.sortable !== false && col.label !== '';
-  };
-
-  const sortedData = useMemo(() => {
-    if (!sortConfig.key || !sortConfig.direction) return data;
-
-    return [...data].sort((a, b) => {
-      let aValue: any = (a as any)[sortConfig.key!];
-      let bValue: any = (b as any)[sortConfig.key!];
-
-      const parseValue = (val: any) => {
-        if (val === undefined || val === null) return -Infinity;
-        if (typeof val === 'number') return val;
-        const str = String(val).trim();
-        if (str.includes('$') || str.match(/^-?\$/)) return parseFloat(str.replace(/[$,]/g, '')) || 0;
-        const timestamp = Date.parse(str);
-        if (!isNaN(timestamp)) return timestamp;
-        return str.toLowerCase();
-      };
-
-      const valA = parseValue(aValue);
-      const valB = parseValue(bValue);
-
-      if (typeof valA === 'string' && typeof valB === 'string') {
-        return sortConfig.direction === 'asc'
-          ? valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' })
-          : valB.localeCompare(valA, undefined, { numeric: true, sensitivity: 'base' });
-      }
-
-      if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [data, sortConfig]);
 
   return (
-    <div className={`overflow-x-auto relative ${className}`}>
-      <table className="w-full text-left border-separate border-spacing-0">
+    <div className={cn("relative w-full overflow-auto customize-scrollbar border border-slate-200 rounded-xl bg-white", className)}>
+      <table className={cn("w-full border-separate border-spacing-0 text-sm")}>
         {!hideHeader && (
-          <thead>
-            <tr className="bg-slate-50/50">
-              {columns.map((col) => {
-                const sortable = isColumnSortable(col);
+          <thead className="sticky top-0 z-20">
+            <tr>
+              {columns.map((col, idx) => {
+                const colKey = String(col.key);
+                const isSortable = col.sortable !== false && !!onSort;
+                const isLast = idx === columns.length - 1;
+
                 return (
                   <th
-                    key={String(col.key)}
-                    className={`border-b border-slate-200 transition-all select-none group/header ${sortable ? 'cursor-pointer hover:bg-slate-100' : ''} ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}`}
-                    style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}
-                    onClick={() => sortable && handleSort(col.key)}
+                    key={colKey}
+                    id={`th-${colKey}`}
+                    className={cn(
+                      'h-10 px-4 text-left font-semibold text-slate-600 bg-[#F8FAFC] border-b border-slate-200 transition-colors relative select-none uppercase tracking-wider text-[11px]',
+                      isSortable && "cursor-pointer hover:bg-slate-100/80 hover:text-indigo-600",
+                      col.align === 'center' && "text-center",
+                      col.align === 'right' && "text-right",
+                      idx === 0 && "pl-6",
+                      showVerticalLines && !isLast && "border-r border-slate-200/50",
+                      col.headerClassName
+                    )}
+                    style={{ width: col.width ? (typeof col.width === 'number' ? `${col.width}px` : col.width) : 'auto' }}
+                    onClick={() => isSortable && handleSort(colKey)}
                   >
-                    <div className={`flex items-center gap-2 ${col.align === 'center' ? 'justify-center' : col.align === 'right' ? 'justify-end' : ''}`}>
-                      <span className={`text-[11px] uppercase font-black tracking-wider ${sortConfig.key === col.key ? 'text-indigo-600' : 'text-slate-500 group-hover/header:text-slate-900'}`}>
-                        {col.label}
-                      </span>
+                    <div className={cn("flex items-center gap-1.5", col.align === 'center' && "justify-center", col.align === 'right' && "justify-end")}>
+                      <span className="truncate">{col.label}</span>
+                      {isSortable && (
+                        <div className="flex flex-col text-slate-300">
+                          <ChevronUp size={10} className={cn(sortConfig?.key === colKey && sortConfig.direction === 'asc' && "text-indigo-600")} />
+                          <ChevronDown size={10} className={cn(sortConfig?.key === colKey && sortConfig.direction === 'desc' && "text-indigo-600")} />
+                        </div>
+                      )}
                     </div>
                   </th>
                 );
@@ -111,31 +93,56 @@ export function DataTable<T>({
             </tr>
           </thead>
         )}
-        <tbody className="divide-y divide-slate-100 bg-white">
-          {sortedData.length > 0 ? sortedData.map((item, idx) => (
-            <tr
-              key={String(rowKey(item))}
-              onClick={() => onRowClick?.(item)}
-              className={`group transition-all duration-200 ${onRowClick ? 'cursor-pointer' : ''} hover:bg-slate-50/50 ${getRowClassName ? getRowClassName(item) : ''}`}
-            >
-              {columns.map((col) => (
-                <td
-                  key={String(col.key)}
-                  className={`${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''} ${col.cellClassName || ''}`}
-                  style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}
-                >
-                  <div className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium">
-                    {col.render ? col.render(item) : (item as any)[col.key]}
-                  </div>
-                </td>
-              ))}
-            </tr>
-          )) : (
+        <tbody className="divide-y divide-slate-100 relative">
+          {isLoading && data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-6 py-20 text-center">
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-300">No records found</p>
+              <td colSpan={columns.length} className="py-20 text-center">
+                <div className="inline-block w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
               </td>
             </tr>
+          ) : data.length === 0 ? (
+            <tr>
+              <td colSpan={columns.length} className="py-20 text-center text-slate-400 uppercase tracking-widest text-xs font-bold opacity-30">
+                No Data Found
+              </td>
+            </tr>
+          ) : (
+            <>
+              {isLoading && (
+                <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-30 flex items-center justify-center transition-all duration-300">
+                  <div className="w-6 h-6 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                </div>
+              )}
+              {data.map((item) => (
+                <tr
+                  key={String(rowKey(item))}
+                  onClick={() => onRowClick?.(item)}
+                  className={cn(
+                    "group transition-colors",
+                    onRowClick ? "cursor-pointer hover:bg-slate-50/80 active:bg-slate-100/50" : "hover:bg-slate-50/30",
+                    getRowClassName?.(item)
+                  )}
+                >
+                  {columns.map((col, idx) => (
+                    <td
+                      key={String(col.key)}
+                      className={cn(
+                        "px-4 py-2.5 text-slate-600 truncate transition-colors",
+                        col.align === 'center' && "text-center",
+                        col.align === 'right' && "text-right",
+                        idx === 0 && "pl-6",
+                        showVerticalLines && idx < columns.length - 1 && "border-r border-slate-100",
+                        col.cellClassName
+                      )}
+                    >
+                      {col.render
+                        ? col.render(item, (item as any)[col.key])
+                        : String((item as any)[col.key] ?? '')}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </>
           )}
         </tbody>
       </table>

@@ -11,7 +11,7 @@ import { AsyncSelect } from '../components/ui/AsyncSelect';
 import { Select } from '../components/ui/Select';
 import { Modal } from '../components/ui/Modal';
 import { DataTable, Column } from '../components/ui/DataTable';
-import { Users, MapPin, UserPlus, Trash2, Search, Globe } from 'lucide-react';
+import { Users, MapPin, UserPlus, Trash2, Search, Globe, Settings2 } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
@@ -333,7 +333,8 @@ export const EmployeesPage: React.FC = () => {
           <DataTable<AssignedUserRow>
             data={paginatedRows}
             rowKey={(r) => r.employee_id}
-            className="border-none"
+            dense={true}
+            showVerticalLines={true}
             columns={[
               { key: 'name', label: 'Name', render: (row) => <span className="font-medium text-slate-900">{row.name}</span> },
               { key: 'email', label: 'Email', render: (row) => <span className="text-slate-600">{row.email || '–'}</span> },
@@ -366,8 +367,8 @@ export const EmployeesPage: React.FC = () => {
                     align: 'right' as const,
                     render: (row) => (
                       <Button
-                        variant="outline"
-                        size="sm"
+                        variant="ghost"
+                        size="xxs"
                         onClick={(e) => {
                           e.stopPropagation();
                           openAssignModal({
@@ -383,8 +384,9 @@ export const EmployeesPage: React.FC = () => {
                             is_active: true,
                           } as HRMSEmployee);
                         }}
+                        title="Manage Assignments"
                       >
-                        Manage
+                        <Settings2 size={12} />
                       </Button>
                     ),
                   } as Column<AssignedUserRow>]

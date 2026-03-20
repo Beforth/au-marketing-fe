@@ -30,16 +30,19 @@ const INVOICES: Invoice[] = [
   { id: 'INV-2023-010', customer: 'Weyland-Yutani', amount: '$312,000.00', date: 'Oct 26, 2023', status: 'Paid' },
 ];
 
+import { Tooltip } from '../components/ui/Tooltip';
+
 export const InvoicesPage: React.FC = () => {
-  const { showToast, globalSearch, setGlobalSearch } = useApp();
+  const { showToast } = useApp();
+  const [searchTerm, setSearchTerm] = React.useState('');
 
   const filteredInvoices = useMemo(() => {
     return INVOICES.filter(inv =>
-      inv.id.toLowerCase().includes(globalSearch.toLowerCase()) ||
-      inv.customer.toLowerCase().includes(globalSearch.toLowerCase()) ||
-      inv.status.toLowerCase().includes(globalSearch.toLowerCase())
+      inv.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inv.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inv.status.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [globalSearch]);
+  }, [searchTerm]);
 
   const columns: Column<Invoice>[] = [
     {
@@ -77,13 +80,15 @@ export const InvoicesPage: React.FC = () => {
       sortable: false,
       align: 'right',
       render: (inv) => (
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => showToast(`Previewing ${inv.id}`, 'info')}
-          className="text-slate-400 hover:text-indigo-600"
-          leftIcon={<MoreHorizontal size={14} />}
-        />
+        <Tooltip content="Preview Invoice">
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => showToast(`Previewing ${inv.id}`, 'info')}
+            className="text-slate-400 hover:text-indigo-600"
+            leftIcon={<MoreHorizontal size={14} />}
+          />
+        </Tooltip>
       )
     }
   ];
@@ -108,26 +113,31 @@ export const InvoicesPage: React.FC = () => {
     >
 
       <Card noPadding className="overflow-hidden">
-        <div className="p-4 flex flex-wrap gap-4 items-center justify-between bg-white border-b border-slate-100">
+        <div className="p-3.5 flex items-center gap-3 bg-white border-b border-slate-100">
           <Input
             variant="white"
             inputSize="sm"
-            className="max-w-xs rounded-full shadow-sm"
+            className="rounded-full shadow-sm"
             placeholder="Search billing..."
-            value={globalSearch}
-            onChange={(e) => setGlobalSearch(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onClear={() => setSearchTerm('')}
             icon={<Search size={14} className="text-slate-400" strokeWidth={2.5} />}
+            containerClassName="max-w-[280px]"
           />
-          <div className="flex gap-2">
+          <Tooltip content="Filter Options">
             <Button
               variant="outline"
               size="sm"
-              className="rounded-full"
+              className="rounded-full border-slate-200 text-slate-600 font-bold transition-all hover:bg-slate-50 active:scale-95"
               onClick={() => showToast('Filter menu applied', 'info')}
-              leftIcon={<Filter size={14} />}
+              leftIcon={<Filter size={14} strokeWidth={2.5} />}
             >
               Filter
             </Button>
+          </Tooltip>
+          <div className="ml-auto text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+            {filteredInvoices.length} Invoices
           </div>
         </div>
 
@@ -135,6 +145,8 @@ export const InvoicesPage: React.FC = () => {
           data={filteredInvoices}
           columns={columns}
           rowKey={(i) => i.id}
+          dense={true}
+          showVerticalLines={true}
         />
       </Card>
     </PageLayout>

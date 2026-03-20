@@ -1,19 +1,9 @@
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 /**
  * Utility to merge tailwind classes safely.
  */
-export function cn(...inputs: any[]) {
-  return inputs
-    .flat()
-    .filter(Boolean)
-    .map(x => {
-      if (typeof x === 'object') {
-        return Object.entries(x)
-          .filter(([_, enabled]) => !!enabled)
-          .map(([cls]) => cls)
-          .join(' ');
-      }
-      return String(x);
-    })
-    .join(' ');
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }

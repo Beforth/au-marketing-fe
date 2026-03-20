@@ -26,7 +26,8 @@
 - ✅ Added Contacts route in App.tsx
 - ✅ Updated constants.tsx with Contacts link
 
-## 🚧 In Progress / Pending
+### 4. Shared UI Components
+- ✅ Custom `DatePicker` component (theme-aware, custom calendar UI)
 
 ### 4. Domain Management Page
 - ⏳ List domains
