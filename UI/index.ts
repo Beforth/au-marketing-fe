@@ -21,3 +21,4 @@ export * from './Notification';
 export * from './Tooltip';
 export * from './Icon';
 export * from './Breadcrumb';
+export * from './SegmentToggle';

@@ -516,6 +516,17 @@ export interface UpdateOrderRequest {
 }
 
 /** Paginated list response (page 1-based, page_size min 10). */
+export interface AuditLog {
+  id: number;
+  employee_id: number;
+  employee_name?: string;
+  action: string;
+  entity_type: string;
+  entity_id: number | null;
+  details: string | null;
+  created_at: string;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
@@ -1608,6 +1619,21 @@ class MarketingAPIService {
   }
   async scheduleLeadFollowUp(leadId: number, data: { next_follow_up_at?: string | null; follow_up_reminder_type?: string | null; follow_up_time?: string | null }): Promise<Lead> {
     return apiClient.patch<Lead>(`/api/leads/${leadId}/follow-up`, data);
+  }
+
+  // Audit Logs
+  async getAuditLogs(params?: {
+    page?: number;
+    page_size?: number;
+    entity_type?: string;
+    employee_id?: number;
+  }): Promise<PaginatedResponse<AuditLog>> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', String(params?.page ?? 1));
+    queryParams.append('page_size', String(params?.page_size ?? 25));
+    if (params?.entity_type) queryParams.append('entity_type', params.entity_type);
+    if (params?.employee_id) queryParams.append('employee_id', String(params.employee_id));
+    return apiClient.get<PaginatedResponse<AuditLog>>(`/api/audit-logs/?${queryParams.toString()}`);
   }
 }
 

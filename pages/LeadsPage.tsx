@@ -1220,7 +1220,7 @@ export const LeadsPage: React.FC = () => {
       breadcrumbs={breadcrumbs}
     >
       <div className="space-y-3">
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap pb-1">
           <SegmentToggle<ViewMode>
             value={viewMode}
             onChange={setViewMode}
@@ -1228,7 +1228,7 @@ export const LeadsPage: React.FC = () => {
               { value: 'kanban', label: 'Kanban', icon: LayoutGrid },
               { value: 'table', label: 'Table', icon: List },
             ]}
-            className="h-9 min-w-[200px]"
+            className="h-9 min-w-[160px]"
             layoutId="leads-view-mode"
           />
           <SearchInput
@@ -1236,199 +1236,176 @@ export const LeadsPage: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onClear={() => setSearchTerm('')}
-            containerClassName="max-w-md"
+            containerClassName="w-[180px]"
+            className="h-9 text-sm"
           />
-          <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-600 hover:text-slate-800">
-            <input
-              type="checkbox"
-              checked={includeWonLost}
-              onChange={(e) => setIncludeWonLost(e.target.checked)}
-              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            <span>Show Won &amp; Lost</span>
-          </label>
-          {/* Assigned to: top 5 avatars + plus to multi-select; Only my leads */}
-          {reportScope && reportScope.employees.length > 0 && (
-            <>
-              <div ref={employeeFilterRef} className="flex items-center gap-1.5 flex-shrink-0">
-                <span className="text-xs text-slate-500 hidden sm:inline">Assigned to</span>
-                <div className="flex items-center -space-x-2">
-                  {(selectedAssignedToIds.length > 0 ? selectedAssignedToIds.slice(0, 5) : []).map((eid) => {
-                    const emp = reportScope.employees.find((e) => e.id === eid);
-                    return (
-                      <div
-                        key={eid}
-                        className="w-8 h-8 rounded-full border-2 border-white bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-semibold shadow-sm"
-                        title={emp?.name ?? `Employee ${eid}`}
-                      >
-                        {emp ? getInitials(emp.name) : '?'}
-                      </div>
-                    );
-                  })}
+          <div className="flex items-center gap-4 flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-600 hover:text-slate-900 transition-colors">
+              <input
+                type="checkbox"
+                checked={includeWonLost}
+                onChange={(e) => setIncludeWonLost(e.target.checked)}
+                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+              />
+              <span className="font-semibold">Show Won &amp; Lost</span>
+            </label>
+
+            {reportScope && reportScope.employees.length > 0 && (
+              <div className="flex items-center gap-4">
+                <div ref={employeeFilterRef} className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden sm:inline">Assigned:</span>
+                  <div className="flex items-center -space-x-1.5">
+                    {(selectedAssignedToIds.length > 0 ? selectedAssignedToIds.slice(0, 5) : []).map((eid) => {
+                      const emp = reportScope.employees.find((e) => e.id === eid);
+                      return (
+                        <div
+                          key={eid}
+                          className="w-8 h-8 rounded-full border-2 border-white bg-indigo-50 text-indigo-700 flex items-center justify-center text-[10px] font-bold shadow-sm ring-1 ring-slate-100"
+                          title={emp?.name ?? `Employee ${eid}`}
+                        >
+                          {emp ? getInitials(emp.name) : '?'}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowEmployeeFilterPopover((v) => !v)}
+                    className="w-8 h-8 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-600 flex items-center justify-center transition-all bg-white hover:shadow-sm"
+                    title="Select employees to filter"
+                  >
+                    <Plus size={14} strokeWidth={2.5} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowEmployeeFilterPopover((v) => !v)}
-                  className="w-8 h-8 rounded-full border-2 border-dashed border-slate-300 text-slate-500 hover:border-indigo-400 hover:text-indigo-600 flex items-center justify-center transition-colors"
-                  title="Select employees to filter"
-                >
-                  <Plus size={14} strokeWidth={2.5} />
-                </button>
+
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={createdByMeOnly}
+                    onChange={(e) => setCreatedByMeOnly(e.target.checked)}
+                    className="rounded border-slate-300 text-indigo-600 w-4 h-4"
+                  />
+                  <span className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Only mine</span>
+                </label>
               </div>
-              <FilterPopover
-                isOpen={showEmployeeFilterPopover}
-                onClose={() => setShowEmployeeFilterPopover(false)}
-                triggerRef={employeeFilterRef}
-                onClear={() => setSelectedAssignedToIds([])}
-              >
-                <div className="p-2 min-w-[200px] max-h-[280px] overflow-y-auto">
-                  <p className="text-xs font-medium text-slate-600 mb-2">Filter by assigned employee</p>
-                  {reportScope.employees.map((emp) => {
-                    const checked = selectedAssignedToIds.includes(emp.id);
-                    return (
-                      <label key={emp.id} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-slate-50 rounded px-1">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            setSelectedAssignedToIds((prev) =>
-                              prev.includes(emp.id) ? prev.filter((id) => id !== emp.id) : [...prev, emp.id]
-                            );
-                          }}
-                          className="rounded border-slate-300 text-indigo-600"
-                        />
-                        <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-medium shrink-0">
-                          {getInitials(emp.name)}
-                        </span>
-                        <span className="text-sm text-slate-800 truncate">{emp.name}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </FilterPopover>
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={createdByMeOnly}
-                  onChange={(e) => setCreatedByMeOnly(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600"
-                />
-                <span className="text-sm text-slate-600">Only my leads</span>
-              </label>
-            </>
-          )}
-          {isHeadOrAdmin && viewMode === 'kanban' && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <DatePicker
-                value={dateFromInput}
-                onChange={(v) => setDateFromInput(v || '')}
-                className="w-[140px]"
-                placeholder="From"
-              />
-              <span className="text-slate-400 text-sm">to</span>
-              <DatePicker
-                value={dateToInput}
-                onChange={(v) => setDateToInput(v || '')}
-                className="w-[140px]"
-                placeholder="To"
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-full"
-                onClick={() => {
-                  setAppliedDateFrom(dateFromInput);
-                  setAppliedDateTo(dateToInput);
-                }}
-              >
-                Apply
-              </Button>
-              {(appliedDateFrom || appliedDateTo) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDateFromInput('');
-                    setDateToInput('');
-                    setAppliedDateFrom('');
-                    setAppliedDateTo('');
-                  }}
-                  className="text-xs text-slate-500 hover:text-slate-700 underline"
-                >
-                  Clear range
-                </button>
-              )}
-            </div>
-          )}
-          {/* {(canEdit || canCreate) && (
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={openStatusModal}
-                leftIcon={<Settings2 size={14} />}
-                className="rounded-full"
-              >
-                Manage statuses
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={openLeadTypeModal}
-                leftIcon={<Settings2 size={14} />}
-                className="rounded-full"
-              >
-                Manage lead types
-              </Button>
-            </div>
-          )}
-          {viewMode === 'kanban' && canCreate && (
-            <Button
-              size="sm"
-              onClick={() => openCreateLeadModal()}
-              leftIcon={<UserPlus size={14} strokeWidth={3} />}
-              className="rounded-full"
-            >
-              New Lead
-            </Button>
-          )} */}
+            )}
+          </div>
+
           {viewMode === 'table' && (
-            <div ref={filterButtonRef} className="inline-block">
+            <div ref={filterButtonRef} className="inline-block border-l border-slate-200 pl-4 ml-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-full"
+                className="rounded-lg h-9"
                 leftIcon={<Filter size={14} />}
                 onClick={() => {
                   setTempSelectedStatus(selectedStatus);
                   setShowFilters(!showFilters);
                 }}
               >
-                Filter Status
+                Status
               </Button>
             </div>
           )}
           {viewMode === 'table' && selectedStatus !== 'all' && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
               {leadStatuses.find((s) => String(s.id) === selectedStatus)?.label ?? selectedStatus}
             </Badge>
           )}
           {viewMode === 'table' && selectedStatus !== 'all' && (
-            <Tooltip content="Clear all filters">
+            <Tooltip content="Clear filter">
               <button
                 type="button"
                 onClick={() => {
                   setSelectedStatus('all');
                   setTempSelectedStatus('all');
                 }}
-                className="p-1.5 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                className="w-8 h-8 rounded-full border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 flex items-center justify-center transition-colors"
               >
-                <X size={16} strokeWidth={2.5} />
+                <X size={14} strokeWidth={2.5} />
               </button>
             </Tooltip>
           )}
         </div>
 
-        {/* Filter Popover - table view only */}
+        {isHeadOrAdmin && viewMode === 'kanban' && (
+          <div className="flex items-center gap-3 flex-wrap border-t border-slate-100 pt-3">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">View Range:</span>
+            <DatePicker
+              value={dateFromInput}
+              onChange={(v) => setDateFromInput(v || '')}
+              className="w-[120px] h-9"
+              placeholder="From"
+            />
+            <span className="text-slate-300 text-[11px] font-bold uppercase tracking-wider">to</span>
+            <DatePicker
+              value={dateToInput}
+              onChange={(v) => setDateToInput(v || '')}
+              className="w-[120px] h-9"
+              placeholder="To"
+            />
+            <Button
+              size="sm"
+              variant="primary"
+              className="rounded-lg h-9 shadow-sm px-4"
+              onClick={() => {
+                setAppliedDateFrom(dateFromInput);
+                setAppliedDateTo(dateToInput);
+              }}
+            >
+              Apply Filter
+            </Button>
+            {(appliedDateFrom || appliedDateTo) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDateFromInput('');
+                  setDateToInput('');
+                  setAppliedDateFrom('');
+                  setAppliedDateTo('');
+                }}
+                className="text-[11px] font-bold uppercase tracking-wider text-rose-500 hover:text-rose-700 underline px-1"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Filter Popover - employee multi-select */}
+        <FilterPopover
+          isOpen={showEmployeeFilterPopover}
+          onClose={() => setShowEmployeeFilterPopover(false)}
+          triggerRef={employeeFilterRef}
+          onClear={() => setSelectedAssignedToIds([])}
+        >
+          <div className="p-2 min-w-[200px] max-h-[280px] overflow-y-auto">
+            <p className="text-xs font-medium text-slate-600 mb-2">Filter by assigned employee</p>
+            {reportScope && reportScope.employees.map((emp) => {
+              const checked = selectedAssignedToIds.includes(emp.id);
+              return (
+                <label key={emp.id} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-slate-50 rounded px-1">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => {
+                      setSelectedAssignedToIds((prev) =>
+                        prev.includes(emp.id) ? prev.filter((id) => id !== emp.id) : [...prev, emp.id]
+                      );
+                    }}
+                    className="rounded border-slate-300 text-indigo-600"
+                  />
+                  <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-medium shrink-0">
+                    {getInitials(emp.name)}
+                  </span>
+                  <span className="text-sm text-slate-800 truncate">{emp.name}</span>
+                </label>
+              );
+            })}
+          </div>
+        </FilterPopover>
+
+        {/* Filter Popover - table view status filter */}
         <FilterPopover
           isOpen={showFilters}
           onClose={() => setShowFilters(false)}
@@ -1458,6 +1435,7 @@ export const LeadsPage: React.FC = () => {
           />
         </FilterPopover>
       </div>
+
 
       <div className="mt-4">
         {isLoading ? (

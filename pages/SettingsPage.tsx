@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card } from '../components/ui/Card';
 import {
   User,
   Bell,
@@ -12,16 +11,46 @@ import {
   RefreshCw,
   Link2,
   Unlink,
+  History,
+  Search,
+  ChevronDown,
+  ChevronRight,
+  Fingerprint,
+  Settings,
 } from 'lucide-react';
 import { useApp } from '../App';
 import { PageLayout } from '../components/layout/PageLayout';
-import { Button } from '../components/ui/Button';
+import {
+  Button,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+  Input,
+  Label,
+  Badge,
+  Separator,
+  Switch,
+  Breadcrumb,
+  BreadcrumbItem,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  SegmentToggle,
+} from '../UI';
 import { useTheme, Density } from '../context/ThemeContext';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { refreshUserInfo, selectUser, selectEmployee } from '../store/slices/authSlice';
-import { marketingAPI } from '../lib/marketing-api';
+import { refreshUserInfo, selectUser, selectEmployee, selectHasPermission } from '../store/slices/authSlice';
+import { marketingAPI, AuditLog } from '../lib/marketing-api';
+import { cn } from '../lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
-type SettingsTab = 'Profile' | 'Security' | 'Notifications' | 'Display' | 'Integrations';
+type SettingsTab = 'Profile' | 'Audit Logs';
 
 export const SettingsPage: React.FC = () => {
   const { showToast } = useApp();
@@ -37,9 +66,15 @@ export const SettingsPage: React.FC = () => {
   const [emailConnectionLoading, setEmailConnectionLoading] = useState(false);
   const [connectEmailLoading, setConnectEmailLoading] = useState(false);
   const [disconnectEmailLoading, setDisconnectEmailLoading] = useState(false);
-  const [notifPrefs, setNotifPrefs] = useState<{ times_per_day: number; preferred_times: string } | null>(null);
-  const [notifPrefsLoading, setNotifPrefsLoading] = useState(false);
-  const [notifPrefsSaving, setNotifPrefsSaving] = useState(false);
+
+
+  // Audit Logs state
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsTotal, setLogsTotal] = useState(0);
+  const [logsPage, setLogsPage] = useState(1);
+  const [logsSearch, setLogsSearch] = useState('');
+  const canViewAuditLogs = useAppSelector(selectHasPermission('marketing.admin')) || useAppSelector(selectHasPermission('marketing.view_reports'));
 
   // Profile display from cached auth (no profile API call for basic info)
   const displayName = employee
@@ -56,7 +91,7 @@ export const SettingsPage: React.FC = () => {
     const message = searchParams.get('message');
     if (connected === 'success') {
       showToast('Email connected successfully. You can send emails from your account.', 'success');
-      setSearchParams((prev) => {
+      setSearchParams((prev: URLSearchParams) => {
         const next = new URLSearchParams(prev);
         next.delete('email_connected');
         next.delete('message');
@@ -72,7 +107,7 @@ export const SettingsPage: React.FC = () => {
             ? 'Token exchange failed. Check that the callback URL in Google Console matches exactly (e.g. http://localhost:8003/api/auth/email/callback).'
             : 'Email connection failed.';
       showToast(msg, 'error');
-      setSearchParams((prev) => {
+      setSearchParams((prev: URLSearchParams) => {
         const next = new URLSearchParams(prev);
         next.delete('email_connected');
         next.delete('message');
@@ -93,19 +128,23 @@ export const SettingsPage: React.FC = () => {
       .finally(() => setEmailConnectionLoading(false));
   }, [activeTab]);
 
-  // Load notification preferences when Notifications tab is active
+
+
+  // Load audit logs when tab is active
   useEffect(() => {
-    if (activeTab !== 'Notifications') return;
-    setNotifPrefsLoading(true);
-    marketingAPI
-      .getNotificationPreferences()
-      .then((p) => setNotifPrefs({
-        times_per_day: p.times_per_day ?? 3,
-        preferred_times: p.preferred_times || '09:00,14:00,18:00',
-      }))
-      .catch(() => setNotifPrefs({ times_per_day: 3, preferred_times: '09:00,14:00,18:00' }))
-      .finally(() => setNotifPrefsLoading(false));
-  }, [activeTab]);
+    if (activeTab !== 'Audit Logs') return;
+    setLogsLoading(true);
+    marketingAPI.getAuditLogs({ page: logsPage, page_size: 20 })
+      .then(res => {
+        setLogs(res.items);
+        setLogsTotal(res.total);
+      })
+      .catch(() => {
+        setLogs([]);
+        setLogsTotal(0);
+      })
+      .finally(() => setLogsLoading(false));
+  }, [activeTab, logsPage]);
 
   const handleSave = () => {
     setIsSaving(true);
@@ -140,227 +179,289 @@ export const SettingsPage: React.FC = () => {
   };
 
   const renderContent = () => {
+    const sectionLabelStyle = "text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2 before:h-px before:flex-1 before:bg-slate-100 after:h-px after:flex-1 after:bg-slate-100";
+    
     switch (activeTab) {
-      case 'Notifications':
-        return (
-          <div className="space-y-6">
-            <p className="text-xs text-slate-500">Control how often you get follow-up reminders (e.g. 1–3 times per day) and at what times.</p>
-            {notifPrefsLoading ? (
-              <p className="text-sm text-slate-500 flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Loading…</p>
-            ) : notifPrefs ? (
-              <>
-                <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Reminders per day</p>
-                  <div className="flex gap-2">
-                    {[1, 2, 3].map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => setNotifPrefs((p) => p ? { ...p, times_per_day: n } : p)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium ${notifPrefs.times_per_day === n ? 'bg-[var(--primary)] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Preferred times (HH:MM, comma-separated)</p>
-                  <input
-                    type="text"
-                    value={notifPrefs.preferred_times}
-                    onChange={(e) => setNotifPrefs((p) => p ? { ...p, preferred_times: e.target.value } : p)}
-                    placeholder="09:00,14:00,18:00"
-                    className="w-full max-w-md rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1">Use 24-hour format. Up to 3 times; only the first N (from “Reminders per day”) are used.</p>
-                </div>
-                <Button
-                  size="sm"
-                  disabled={notifPrefsSaving}
-                  onClick={async () => {
-                    setNotifPrefsSaving(true);
-                    try {
-                      await marketingAPI.updateNotificationPreferences({
-                        times_per_day: notifPrefs.times_per_day,
-                        preferred_times: notifPrefs.preferred_times || undefined,
-                      });
-                      showToast('Notification preferences saved', 'success');
-                    } catch (err: any) {
-                      showToast(err?.message || 'Failed to save', 'error');
-                    } finally {
-                      setNotifPrefsSaving(false);
-                    }
-                  }}
-                >
-                  {notifPrefsSaving ? 'Saving…' : 'Save notification preferences'}
-                </Button>
-              </>
-            ) : null}
-          </div>
-        );
-
-      case 'Display':
-        return (
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Interface Density</p>
-              <div className="flex gap-2">
-                {(['compact', 'default', 'relaxed'] as Density[]).map(d => (
-                  <Button
-                    key={d}
-                    variant={density === d ? 'secondary' : 'outline'}
-                    size="sm"
-                    onClick={() => setDensity(d)}
-                    className="flex-1 rounded-xl"
-                  >
-                    {d}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-[10px] text-slate-400 italic">Density affects global component padding and whitespace.</p>
-            </div>
-
-            <div className="pt-6 border-t border-slate-100">
-              <p className="text-xs font-bold text-slate-900">Visual Aesthetic</p>
-              <p className="text-xs text-slate-400 mt-1">Dark mode has been disabled in favor of the legacy professional light interface.</p>
-            </div>
-          </div>
-        );
-
       case 'Profile':
         return (
-          <div className="space-y-6">
-            <div className="flex items-center gap-6">
-              <div className="w-20 h-20 rounded-2xl bg-slate-200 flex items-center justify-center ring-4 ring-slate-50">
-                <User size={36} className="text-slate-500" />
-              </div>
-              <div>
-                <h4 className="font-bold text-slate-900">{displayName}</h4>
-                <p className="text-xs text-slate-400 font-medium">{displayRole}{displayEmail ? ` • ${displayEmail}` : ''}</p>
-              </div>
-            </div>
-            <p className="text-xs text-slate-500">Profile info is loaded from your session and cleared on logout. No need to call the profile API repeatedly.</p>
-
-            <div className="pt-6 border-t border-slate-100">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Connect your email</p>
-              <p className="text-xs text-slate-500 mb-3">Link your Gmail so you can send emails from your own account (e.g. for leads). Uses credentials configured on the server.</p>
-              {emailConnectionLoading ? (
-                <p className="text-sm text-slate-500 flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Checking…</p>
-              ) : emailConnection?.connected && emailConnection?.email ? (
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-sm text-slate-700 flex items-center gap-1.5">
-                    <Mail size={14} /> Connected as <strong>{emailConnection.email}</strong>
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDisconnectEmail}
-                    disabled={disconnectEmailLoading}
-                    leftIcon={disconnectEmailLoading ? <Loader2 size={14} className="animate-spin" /> : <Unlink size={14} />}
-                  >
-                    {disconnectEmailLoading ? 'Disconnecting…' : 'Disconnect'}
-                  </Button>
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {/* Header Section */}
+            <div className="flex items-start gap-8">
+              <div className="relative shrink-0">
+                <div className="w-20 h-20 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 overflow-hidden group">
+                  {employee?.first_name ? (
+                    <span className="text-2xl font-semibold uppercase tracking-widest text-slate-400">{employee.first_name[0]}{employee.last_name[0]}</span>
+                  ) : (
+                    <User size={40} />
+                  )}
+                  <button className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold uppercase tracking-widest">
+                    Update
+                  </button>
                 </div>
-              ) : (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleConnectEmail}
-                  disabled={connectEmailLoading}
-                  leftIcon={connectEmailLoading ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
-                >
-                  {connectEmailLoading ? 'Redirecting…' : 'Connect email (Gmail)'}
-                </Button>
-              )}
+              </div>
+              
+              <div className="flex-1 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-5">
+                  <div className="space-y-0.5">
+                    <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Full Name</Label>
+                    <div className="text-sm font-semibold text-slate-900">{displayName || '—'}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Email Address</Label>
+                    <div className="text-sm font-semibold text-slate-900">{displayEmail || '—'}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Designation</Label>
+                    <div className="text-sm font-semibold text-slate-900">{displayRole || '—'}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Status</Label>
+                    <div className="flex items-center gap-1.5">
+                       <div className="size-1.5 rounded-full bg-emerald-500" />
+                       <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Active</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="pt-6 border-t border-slate-100">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Permissions</p>
-              <p className="text-xs text-slate-500 mb-3">User info and permissions are cached. If an admin updated your permissions in HRMS, refresh to load the latest.</p>
+            <div className="border-t border-slate-200 -mx-4 md:-mx-6 lg:-mx-8" />
+
+            {/* Connections Section */}
+            <div className="space-y-5 pt-2">
+              <h4 className="text-[11px] font-black uppercase tracking-tight text-slate-900">Integrations</h4>
+              
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-4">
+                  <div className="size-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-200">
+                    <Globe size={18} />
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-tight text-slate-900">Gmail Account</div>
+                    <div className="text-sm font-semibold text-slate-400">Connect to send automated follow-up emails.</div>
+                  </div>
+                </div>
+                
+                {emailConnectionLoading ? (
+                  <Loader2 className="animate-spin text-slate-300" size={18} />
+                ) : emailConnection?.connected ? (
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                       <div className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Authenticated</div>
+                       <div className="text-xs font-semibold text-slate-400">{emailConnection.email}</div>
+                    </div>
+                    <Button variant="outline" size="xs" onClick={handleDisconnectEmail} isLoading={disconnectEmailLoading} className="h-8 px-3 border-slate-200">
+                      Disconnect
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="secondary" size="sm" onClick={handleConnectEmail} isLoading={connectEmailLoading} className="h-8 text-xs px-4 font-semibold rounded-lg">
+                    Connect Account
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 -mx-4 md:-mx-6 lg:-mx-8" />
+
+            {/* Sync Section */}
+            <div className="flex items-center justify-between pt-2">
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-tight text-slate-900">Permissions Sync</div>
+                <div className="text-sm font-semibold text-slate-400">Force refresh your access tokens and permissions.</div>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
+                className="h-8 border-dashed text-slate-500 hover:text-indigo-600 hover:border-indigo-200 font-semibold uppercase tracking-wide text-xs"
                 onClick={async () => {
-                  setIsRefreshingPermissions(true);
-                  try {
-                    const result = await dispatch(refreshUserInfo()).unwrap();
-                    if (result) {
-                      showToast('Permissions refreshed from HRMS', 'success');
-                    } else {
-                      showToast('Could not refresh; token may be invalid', 'error');
-                    }
-                  } catch {
-                    showToast('Failed to refresh permissions', 'error');
-                  } finally {
-                    setIsRefreshingPermissions(false);
-                  }
+                   setIsRefreshingPermissions(true);
+                   try {
+                     const result = await dispatch(refreshUserInfo()).unwrap();
+                     if (result) showToast('Sync complete', 'success');
+                   } finally {
+                     setIsRefreshingPermissions(false);
+                   }
                 }}
-                disabled={isRefreshingPermissions}
-                leftIcon={isRefreshingPermissions ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                isLoading={isRefreshingPermissions}
+                leftIcon={<RefreshCw size={14} className={isRefreshingPermissions ? "animate-spin" : ""} />}
               >
-                {isRefreshingPermissions ? 'Refreshing…' : 'Refresh permissions'}
+                Clear Cache
               </Button>
             </div>
+
+            <div className="pt-6 flex justify-end gap-3">
+               <Button variant="ghost" size="sm" onClick={() => setActiveTab('Profile')} className="text-xs font-semibold text-slate-400">Reset</Button>
+               <Button onClick={handleSave} isLoading={isSaving} size="sm" className="px-8 text-xs uppercase font-semibold tracking-wide">Save Changes</Button>
+            </div>
+          </div>
+        );
+
+      case 'Audit Logs':
+        return (
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex items-center gap-2 mb-2">
+               <div className="flex-1 relative">
+                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-300" size={13} />
+                 <input 
+                    type="text" 
+                    placeholder="Specification filter..." 
+                    className="w-full h-8 pl-8 pr-3 text-xs font-semibold uppercase tracking-wide bg-slate-50 border-none rounded-lg focus:ring-1 focus:ring-indigo-500/20 outline-none placeholder:text-slate-300 placeholder:font-normal"
+                    value={logsSearch}
+                    onChange={(e) => setLogsSearch(e.target.value)}
+                 />
+               </div>
+               <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg">
+                  <button onClick={() => setLogsPage(p => Math.max(1, p - 1))} className="h-6 w-6 flex items-center justify-center rounded hover:bg-white transition-all text-slate-400 disabled:opacity-20" disabled={logsPage <= 1 || logsLoading}>
+                    <ChevronDown className="rotate-90" size={12} />
+                  </button>
+                  <span className="text-[10px] font-semibold tabular-nums text-slate-400 px-1 min-w-[40px] text-center">{logsPage}</span>
+                  <button onClick={() => setLogsPage(p => p + 1)} className="h-6 w-6 flex items-center justify-center rounded hover:bg-white transition-all text-slate-400 disabled:opacity-20" disabled={logsLoading}>
+                    <ChevronDown className="-rotate-90" size={12} />
+                  </button>
+               </div>
+            </div>
+
+            <Table containerClassName="border-slate-100/50 shadow-none rounded-2xl">
+              <TableHeader className="bg-slate-50/50">
+                <TableRow>
+                  <TableHead className="h-9 px-3 text-[10px] font-semibold">Meta / Time</TableHead>
+                  <TableHead className="h-9 px-3 text-[10px] font-semibold">Actor</TableHead>
+                  <TableHead className="h-9 px-3 text-[10px] font-semibold text-center">Protocol</TableHead>
+                  <TableHead className="h-9 px-3 text-[10px] font-semibold">Entity Pointer</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {logsLoading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <TableRow key={i}><TableCell colSpan={4} className="py-2 px-3"><div className="h-4 w-full bg-slate-50 animate-pulse rounded-md" /></TableCell></TableRow>
+                  ))
+                ) : logs.length === 0 ? (
+                  <TableRow><TableCell colSpan={4} className="h-40 text-center text-slate-300 text-xs font-semibold uppercase tracking-[0.2em] opacity-30">Null Result</TableCell></TableRow>
+                ) : (
+                  logs.filter((l: AuditLog) => 
+                    !logsSearch || 
+                    l.action?.toLowerCase().includes(logsSearch.toLowerCase()) ||
+                    l.entity_type?.toLowerCase().includes(logsSearch.toLowerCase()) ||
+                    l.employee_name?.toLowerCase().includes(logsSearch.toLowerCase()) ||
+                    l.details?.toLowerCase().includes(logsSearch.toLowerCase())
+                  ).map((log: AuditLog) => {
+                    const action = log.action?.toLowerCase() || '';
+                    const isDanger = action.includes('delete') || action.includes('remove');
+                    const isSuccess = action.includes('create') || action.includes('add') || action.includes('won');
+                    
+                    return (
+                      <TableRow key={log.id} className="hover:bg-slate-50/30">
+                        <TableCell className="px-3 py-2">
+                           <div className="text-[10px] font-mono text-slate-400 tracking-tighter uppercase leading-none mb-1">
+                             {new Date(log.created_at).toLocaleDateString('en-GB')}
+                           </div>
+                           <div className="text-xs font-semibold text-slate-300 leading-none">
+                             {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                           </div>
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
+                           <div className="flex items-center gap-1.5">
+                              <div className="size-4 rounded-sm bg-slate-200 text-slate-500 font-semibold text-[8px] flex items-center justify-center uppercase">{log.employee_name?.slice(0, 1) || 'S'}</div>
+                              <span className="text-xs font-semibold text-slate-800 truncate max-w-[80px] leading-tight">{log.employee_name || 'System'}</span>
+                           </div>
+                        </TableCell>
+                        <TableCell className="px-3 py-2 text-center">
+                           <span className={cn(
+                             "inline-block px-1.5 py-0.5 rounded-[4px] text-[8px] font-semibold uppercase tracking-wide ring-1 ring-inset",
+                             isDanger ? "bg-rose-50 text-rose-600 ring-rose-100" :
+                             isSuccess ? "bg-emerald-50 text-emerald-600 ring-emerald-100" :
+                             "bg-blue-50 text-blue-600 ring-blue-100"
+                           )}>
+                             {log.action}
+                           </span>
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
+                           <div className="text-xs font-semibold text-slate-900 uppercase tracking-tight mb-0.5">{log.entity_type.split('_').join(' ')}</div>
+                           <div className="text-[10px] text-slate-400 font-mono italic truncate max-w-[120px]" title={log.details || ''}>{log.details || 'ID: ' + (log.entity_id || 'n/a')}</div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
           </div>
         );
 
       default:
-        return <div className="py-20 text-center text-slate-400 text-sm">Module coming soon in the next update.</div>;
+        return (
+          <div className="py-20 flex flex-col items-center justify-center text-center opacity-40">
+             <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 mb-3 border border-slate-200 border-dashed">
+                <Fingerprint size={24} />
+             </div>
+             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Access Restricted</p>
+             <p className="text-[10px] font-semibold text-slate-400 mt-1 uppercase">Contact administrator for access</p>
+          </div>
+        );
     }
   };
 
   const tabs: { label: SettingsTab; icon: any }[] = [
     { label: 'Profile', icon: User },
-    { label: 'Display', icon: Monitor },
-    { label: 'Security', icon: Shield },
-    { label: 'Notifications', icon: Bell },
-    { label: 'Integrations', icon: Globe },
+    { label: 'Audit Logs', icon: History },
   ];
 
-  const breadcrumbs = [{ label: 'Settings', href: '/settings' }];
+  const breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Settings', href: '/settings' },
+    { label: activeTab }
+  ];
+
   return (
     <PageLayout
-      title="Account Configuration"
-      description="Fine-tune your environment and identity. Profile is cached and cleared on logout."
+      title={activeTab}
+      description={tabs.find(t => t.label === activeTab)?.label + " settings"}
       breadcrumbs={breadcrumbs}
     >
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <aside className="space-y-1">
-          {tabs.map((item) => (
-            <button
-              key={item.label}
-              onClick={() => setActiveTab(item.label)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${activeTab === item.label ? 'bg-[var(--primary-muted)] text-[var(--primary)] shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              <item.icon size={18} />
-              {item.label}
-            </button>
-          ))}
-        </aside>
-
-        <div className="md:col-span-3">
-          <Card
-            title={activeTab}
-            description="Manage your global system and account preferences."
-          >
-            <div className="space-y-6">
-              {renderContent()}
-              <div className="pt-6 border-t border-slate-100 flex justify-end gap-3">
-                <Button
-                  onClick={handleSave}
-                  isLoading={isSaving}
-                  size="sm"
-                  className="min-w-[120px]"
-                >
-                  Apply Settings
-                </Button>
-              </div>
-            </div>
-          </Card>
+      <div className="w-full space-y-4">
+        {/* Horizontal Navigation Control */}
+        <div className="flex items-center justify-between gap-4 py-1 border-b border-slate-100 mb-2">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth">
+            {tabs.filter(t => t.label !== 'Audit Logs' || canViewAuditLogs).map((item) => (
+              <button
+                key={item.label}
+                onClick={() => setActiveTab(item.label)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 relative group whitespace-nowrap active:scale-[0.98]",
+                  activeTab === item.label 
+                    ? "text-indigo-600 font-semibold" 
+                    : "text-slate-500 hover:text-slate-900"
+                )}
+              >
+                {activeTab === item.label && (
+                   <motion.div 
+                     layoutId="horizontal-active-indicator"
+                     className="absolute inset-0 bg-indigo-50 rounded-xl -z-10"
+                     transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+                   />
+                )}
+                <item.icon size={15} className={cn("transition-transform group-hover:scale-110", activeTab === item.label ? "text-indigo-600" : "opacity-40")} />
+                <span className="text-xs font-medium uppercase tracking-wide">{item.label}</span>
+                {activeTab === item.label && (
+                   <motion.div 
+                     layoutId="underline"
+                     className="absolute bottom-0 left-4 right-4 h-0.5 bg-indigo-600 rounded-full"
+                   />
+                )}
+              </button>
+            ))}
+          </div>
         </div>
+
+        <main className="w-full">
+          <Card className="rounded-2xl shadow-sm border-slate-200 overflow-hidden">
+            <CardContent className="p-4 md:p-6 lg:p-8">
+               {renderContent()}
+            </CardContent>
+          </Card>
+        </main>
       </div>
     </PageLayout>
   );
 };
+
