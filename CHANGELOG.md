@@ -5,7 +5,79 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-03-20] — Release: UI Polish & Database Layout Overhaul
+## [2026-03-20] — Release: Settings Overhaul, Support Page & Branding
+
+### ⚙️ Settings Page — Profile Section Refactor
+- **Horizontal Tab Navigation**  
+  Replaced the vertical sidebar layout with a horizontal tab bar (`Profile` | `Audit Logs`). The content area now expands to full width with an animated underline indicator using `framer-motion` `layoutId`.
+
+- **Removed Notifications Tab**  
+  The Notifications tab and all related state (`notifPrefs`, `notifPrefsLoading`, `notifPrefsSaving`) have been removed from the Settings page in response to user feedback.
+
+- **Profile section — High-density flat list layout**  
+  Refactored the Profile card from a nested, padded layout to a compact 2-column grid using the design guidelines:
+  - Labels: `font-black uppercase tracking-widest text-[11px]`
+  - Status: `font-black uppercase tracking-widest text-[9px]` with emerald dot
+  - Integrations: icon + title (`font-black uppercase tracking-tight`) + full-width `border-t` dividers using negative margins (`-mx-4 md:-mx-6 lg:-mx-8`) to bleed through card padding
+
+- **Removed "System Active" footer**  
+  The `CardFooter` with the green "System Active" badge has been removed. Reset and Save Changes buttons are now inline within the profile content area.
+
+- **User-friendly language**  
+  Replaced all technical jargon:
+  - `Verified Actor` → `Active`
+  - `Identity Handshake` → `Integrations`
+  - `Apply Protocol` → `Save Changes`
+  - `Active Connection` → `Authenticated`
+
+- **Card restored to design-guideline spec**  
+  Reverted the card back to `rounded-2xl shadow-sm border-slate-200 overflow-hidden` per `DESIGN_GUIDELINES.md`. Earlier attempts to flatten the card borders were incorrect.
+
+---
+
+### 🆘 Support Page — Full Rewrite
+- **Replaced dummy placeholder content** with real, workflow-specific help content sourced from the official marketing guide at `https://docy-lake.vercel.app/marketing-guide`.
+
+- **Module FAQ Accordion**  
+  7 collapsible module sections with real step-by-step answers:
+  - Leads (5 articles), Quotations (2), Orders (2), Database (3), Reports (3), Domains & Regions (2), Settings (2)
+
+- **Framer Motion accordion animation**  
+  Each FAQ section uses `AnimatePresence` + `motion.div` with `height: 0 → auto` and `opacity` for smooth expand/collapse. The chevron icon rotates 180° on open using `motion.div animate={{ rotate }}`.
+
+- **Quick Launch cards**  
+  3 cards linking directly to Full User Guide, Getting Started, and Schema Reference sections of the live docs.
+
+- **Live search**  
+  `SearchInput` component filters across all FAQ questions and answers in real time.
+
+- **Correct imports**  
+  Page now uses `../components/ui/Card`, `../components/ui/Button`, `../components/ui/SearchInput` — matching the import path used by all other pages in the project.
+
+- **Permission note footer**  
+  Informational banner: *"If a menu item or action is missing, contact your administrator."*
+
+---
+
+### 🏷️ Sidebar — Branding Update
+- **App title changed** from `BeForth` → `S&M Hub`
+- **Logo updated** from remote `https://www.beforth.in/images/befu.png` → local `aureole-logo.png` (served from project root)
+- **"Powered by BeForth"** credit preserved unchanged below the logo
+
+---
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `pages/SettingsPage.tsx` | Profile section refactor, tab layout, text cleanup, divider fix |
+| `pages/SupportPage.tsx` | Full rewrite with real FAQ content, Framer Motion accordion |
+| `components/ui/Sidebar.tsx` | Logo → aureole-logo.png, title → S&M Hub |
+| `aureole-logo.png` | Added to project root |
+| `UI_COMPONENTS_LIBRARY.md` | Added SupportPage FAQ Accordion pattern |
+
+---
+
+## [2026-03-19] — Release: UI Polish & Database Layout Overhaul
 
 ### 🏗️ Layout & Navigation
 - **Database Module — Consolidated Command Bar**  
