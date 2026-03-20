@@ -93,12 +93,12 @@ export const Sidebar: React.FC = () => {
           className="flex items-center gap-2.5 mb-7 px-2 hover:opacity-80 transition-all"
         >
           <img
-            src="https://www.beforth.in/images/befu.png"
-            alt="BeForth"
+            src="/aureole-logo.png"
+            alt="Aureole"
             className="w-10 h-10 rounded object-contain flex-shrink-0"
           />
           <span className="text-lg font-bold tracking-tight text-slate-900">
-            BeForth
+            S&amp;M Hub
           </span>
         </Link>
         <div className="px-2 -mt-5 mb-5 flex items-center justify-between gap-2">
