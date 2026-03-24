@@ -348,6 +348,8 @@ export interface CreateLeadRequest {
   referred_by_employee_id?: number | null;  // Person who referred: employee
   expected_closing_date?: string;
   series?: string;
+  /** ISO datetime — optional backdated first enquiry when creating a lead (omit when adding only an initial quotation with activity_date). */
+  initial_inquiry_at?: string;
 }
 
 export interface UpdateLeadRequest extends Partial<CreateLeadRequest> {

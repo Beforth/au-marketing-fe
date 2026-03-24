@@ -2,12 +2,11 @@
  * Async Searchable Select Component with API-based search
  * Dropdown is rendered in a portal so it is not clipped by parent overflow.
  */
-import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-import { motion, AnimatePresence } from 'framer-motion';
 
 export interface AsyncSelectOption {
   value: string | number;
@@ -60,17 +59,17 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
 
   const selectedOption = options.find(opt => opt.value === value);
 
+  /** Stable fingerprint so we resync when parent passes a new option set (e.g. regions after domain change). */
+  const initialOptionsKey = useMemo(
+    () => JSON.stringify(initialOptions.map((o) => ({ v: o.value, l: o.label }))),
+    [initialOptions]
+  );
+
   // Debounced search function with caching
   const performSearch = useCallback(async (query: string) => {
-    // Check cache first
     const cacheKey = query.toLowerCase().trim();
     if (cacheRef.current.has(cacheKey)) {
       setOptions(cacheRef.current.get(cacheKey)!);
-      return;
-    }
-
-    // Don't make API call if search hasn't changed
-    if (lastSearchRef.current === cacheKey && options.length > 0) {
       return;
     }
 
@@ -79,7 +78,6 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
     try {
       const results = await loadOptions(query);
       setOptions(results);
-      // Cache the results
       cacheRef.current.set(cacheKey, results);
     } catch (error) {
       console.error('Error loading options:', error);
@@ -87,16 +85,18 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [loadOptions, options.length]);
+  }, [loadOptions]);
 
-  // Update options when initialOptions change
+  // When initial options change (new domain, etc.), replace list + drop stale search/cache.
   useEffect(() => {
-    if (initialOptions.length > 0 && options.length === 0) {
-      setOptions(initialOptions);
-      // Cache initial options
+    setSearchQuery('');
+    setOptions(initialOptions);
+    cacheRef.current.clear();
+    lastSearchRef.current = '';
+    if (initialOptions.length > 0) {
       cacheRef.current.set('', initialOptions);
     }
-  }, [initialOptions]);
+  }, [initialOptionsKey]); // initialOptions content matches key on the render when the key changes
 
   // Load initial options when dropdown opens (only if we don't have any and no initial options)
   useEffect(() => {
@@ -151,22 +151,20 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
 
   // Close dropdown when clicking outside (trigger or portal dropdown)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (
-        selectRef.current?.contains(target) ||
-        dropdownRef.current?.contains(target)
-      ) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      const path = event.composedPath();
+      if (selectRef.current && path.includes(selectRef.current)) return;
+      if (dropdownRef.current && path.includes(dropdownRef.current)) return;
       setIsOpen(false);
       setSearchQuery('');
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('mousedown', handlePointerDown);
       setTimeout(() => searchInputRef.current?.focus(), 0);
     }
 
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [isOpen]);
 
   const handleSelect = (optionValue: string | number) => {
@@ -242,75 +240,70 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
           </div>
         </button>
 
-        <AnimatePresence>
-          {isOpen && dropdownRect && createPortal(
-            <motion.div
-              ref={dropdownRef}
-              initial={{ opacity: 0, y: dropdownRect.openUp ? 10 : -10, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: dropdownRect.openUp ? 10 : -10, scale: 0.98 }}
-              transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-              className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl max-h-80 overflow-hidden flex flex-col"
-              style={{
-                top: dropdownRect.top,
-                left: dropdownRect.left,
-                width: dropdownRect.width,
-                minWidth: 160,
-              }}
-            >
-              <div className="p-2 border-b border-slate-200">
-                <div className="relative group/search">
-                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-indigo-600 transition-colors" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search..."
-                    className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition-all shadow-inner"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  {isLoading && (
-                    <Loader2 size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 animate-spin" />
-                  )}
-                </div>
-              </div>
-              <div className="overflow-y-auto max-h-48 scrollbar-hide py-1">
-                {isLoading && options.length === 0 ? (
-                  <div className="px-3 py-8 text-sm text-slate-500 text-center">
-                    <Loader2 size={24} className="animate-spin mx-auto mb-2 text-indigo-500 opacity-50" />
-                    <p className="text-xs uppercase tracking-widest font-black opacity-30">Loading options...</p>
-                  </div>
-                ) : options.length === 0 ? (
-                  <div className="px-3 py-6 text-sm text-slate-500 text-center uppercase tracking-widest font-black opacity-30">
-                    No results found
-                  </div>
-                ) : (
-                  options.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => !option.disabled && handleSelect(option.value)}
-                      disabled={option.disabled}
-                      className={cn(
-                        'w-full px-4 py-2 text-sm text-left hover:bg-slate-50 transition-colors',
-                        'flex items-center justify-between mx-1 rounded-lg w-[calc(100%-8px)]',
-                        value === option.value && 'bg-indigo-50 text-indigo-700 font-bold',
-                        option.disabled && 'opacity-50 cursor-not-allowed'
-                      )}
-                    >
-                      <span className="truncate">{option.label}</span>
-                      {value === option.value && (
-                        <div className="h-2 w-2 rounded-full bg-indigo-600 shadow-sm" />
-                      )}
-                    </button>
-                  ))
+        {isOpen && dropdownRect && createPortal(
+          <div
+            ref={dropdownRef}
+            data-marketing-async-select-dropdown
+            className="fixed z-[99999] bg-white border border-slate-200 rounded-xl shadow-2xl max-h-80 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
+            style={{
+              top: dropdownRect.top,
+              left: dropdownRect.left,
+              width: dropdownRect.width,
+              minWidth: 160,
+            }}
+          >
+            <div className="p-2 border-b border-slate-200 shrink-0">
+              <div className="relative group/search">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-indigo-600 transition-colors" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search..."
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition-all shadow-inner"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                {isLoading && (
+                  <Loader2 size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 animate-spin" />
                 )}
               </div>
-            </motion.div>,
-            document.body
-          )}
-        </AnimatePresence>
+            </div>
+            <div className="overflow-y-auto max-h-48 scrollbar-hide py-1 min-h-0">
+              {isLoading && options.length === 0 ? (
+                <div className="px-3 py-8 text-sm text-slate-500 text-center">
+                  <Loader2 size={24} className="animate-spin mx-auto mb-2 text-indigo-500 opacity-50" />
+                  <p className="text-xs uppercase tracking-widest font-black opacity-30">Loading options...</p>
+                </div>
+              ) : options.length === 0 ? (
+                <div className="px-3 py-6 text-sm text-slate-500 text-center uppercase tracking-widest font-black opacity-30">
+                  No results found
+                </div>
+              ) : (
+                options.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => !option.disabled && handleSelect(option.value)}
+                    disabled={option.disabled}
+                    className={cn(
+                      'w-full px-4 py-2 text-sm text-left hover:bg-slate-50 transition-colors',
+                      'flex items-center justify-between mx-1 rounded-lg w-[calc(100%-8px)]',
+                      value === option.value && 'bg-indigo-50 text-indigo-700 font-bold',
+                      option.disabled && 'opacity-50 cursor-not-allowed'
+                    )}
+                  >
+                    <span className="truncate">{option.label}</span>
+                    {value === option.value && (
+                      <div className="h-2 w-2 rounded-full bg-indigo-600 shadow-sm" />
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
       </div>
       {error && (
         <p className="text-[11px] text-rose-500 font-medium ml-0.5 animate-in fade-in slide-in-from-top-1">

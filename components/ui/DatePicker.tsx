@@ -67,19 +67,17 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (
-        containerRef.current?.contains(target) ||
-        dropdownRef.current?.contains(target)
-      ) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      const path = event.composedPath();
+      if (containerRef.current && path.includes(containerRef.current)) return;
+      if (dropdownRef.current && path.includes(dropdownRef.current)) return;
       setIsOpen(false);
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('mousedown', handlePointerDown);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [isOpen]);
 
   const handleToggle = () => {

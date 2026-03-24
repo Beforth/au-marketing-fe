@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
 
 export interface SelectOption {
   value: string | number;
@@ -108,18 +107,19 @@ export const Select: React.FC<SelectProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (selectRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      const path = event.composedPath();
+      if (selectRef.current && path.includes(selectRef.current)) return;
+      if (dropdownRef.current && path.includes(dropdownRef.current)) return;
       setIsOpen(false);
       setSearchQuery('');
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('mousedown', handlePointerDown);
       setTimeout(() => searchInputRef.current?.focus(), 50);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [isOpen]);
 
   const handleSelect = (optionValue: string | number) => {
@@ -210,68 +210,63 @@ export const Select: React.FC<SelectProps> = ({
           </button>
         )}
 
-        <AnimatePresence>
-          {isOpen && dropdownRect && createPortal(
-            <motion.div
-              ref={dropdownRef}
-              initial={{ opacity: 0, y: dropdownRect.openUp ? 10 : -10, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: dropdownRect.openUp ? 10 : -10, scale: 0.98 }}
-              transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-              className="fixed z-[99999] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col border-slate-200"
-              style={{
-                top: dropdownRect.openUp ? 'auto' : dropdownRect.bottom + 4,
-                bottom: dropdownRect.openUp ? window.innerHeight - dropdownRect.top + 4 : 'auto',
-                left: dropdownRect.left,
-                width: dropdownWidth === 'trigger' ? dropdownRect.width : dropdownWidth === 'auto' ? 'auto' : dropdownWidth,
-                minWidth: dropdownWidth === 'trigger' ? dropdownRect.width : 100,
-                maxHeight: '300px'
-              }}
-            >
-              {searchable && !isCombobox && (
-                <div className="p-2 border-b border-slate-100 bg-slate-50/50">
-                  <div className="relative">
-                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      ref={searchInputRef}
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search..."
-                      className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </div>
+        {isOpen && dropdownRect && createPortal(
+          <div
+            ref={dropdownRef}
+            data-marketing-select-dropdown
+            className="fixed z-[99999] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
+            style={{
+              top: dropdownRect.openUp ? 'auto' : dropdownRect.bottom + 4,
+              bottom: dropdownRect.openUp ? window.innerHeight - dropdownRect.top + 4 : 'auto',
+              left: dropdownRect.left,
+              width: dropdownWidth === 'trigger' ? dropdownRect.width : dropdownWidth === 'auto' ? 'auto' : dropdownWidth,
+              minWidth: dropdownWidth === 'trigger' ? dropdownRect.width : 100,
+              maxHeight: '300px'
+            }}
+          >
+            {searchable && !isCombobox && (
+              <div className="p-2 border-b border-slate-100 bg-slate-50/50">
+                <div className="relative">
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    onClick={(e) => e.stopPropagation()}
+                  />
                 </div>
-              )}
-              <div className="overflow-y-auto customize-scrollbar py-1">
-                {filteredOptions.length === 0 ? (
-                  <div className="px-3 py-8 text-[10px] text-slate-300 text-center uppercase tracking-[0.2em] font-bold">
-                    No results
-                  </div>
-                ) : (
-                  filteredOptions.map((option, index) => (
-                    <button
-                      key={getOptionKey ? getOptionKey(option, index) : option.value}
-                      type="button"
-                      onClick={() => !option.disabled && handleSelect(option.value)}
-                      disabled={option.disabled}
-                      className={cn(
-                        'w-[calc(100%-8px)] mx-1 px-3 py-2 text-sm text-left transition-colors rounded-lg mb-0.5 flex items-center justify-between',
-                        value == option.value ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-600',
-                        option.disabled && 'opacity-40 cursor-not-allowed'
-                      )}
-                    >
-                      <span className="truncate">{option.label}</span>
-                      {value == option.value && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />}
-                    </button>
-                  ))
-                )}
               </div>
-            </motion.div>,
-            document.body
-          )}
-        </AnimatePresence>
+            )}
+            <div className="overflow-y-auto customize-scrollbar py-1 min-h-0">
+              {filteredOptions.length === 0 ? (
+                <div className="px-3 py-8 text-[10px] text-slate-300 text-center uppercase tracking-[0.2em] font-bold">
+                  No results
+                </div>
+              ) : (
+                filteredOptions.map((option, index) => (
+                  <button
+                    key={getOptionKey ? getOptionKey(option, index) : option.value}
+                    type="button"
+                    onClick={() => !option.disabled && handleSelect(option.value)}
+                    disabled={option.disabled}
+                    className={cn(
+                      'w-[calc(100%-8px)] mx-1 px-3 py-2 text-sm text-left transition-colors rounded-lg mb-0.5 flex items-center justify-between',
+                      value == option.value ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-600',
+                      option.disabled && 'opacity-40 cursor-not-allowed'
+                    )}
+                  >
+                    <span className="truncate">{option.label}</span>
+                    {value == option.value && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
       </div>
       {error && (
         <p className="text-[11px] text-rose-500 font-medium ml-0.5 mt-1">

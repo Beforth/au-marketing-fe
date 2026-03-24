@@ -126,6 +126,8 @@ export const LeadFormPage: React.FC = () => {
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<number | null>(null);
   /** When creating lead: optional quotation file; adds one enquiry with title "Added quotation" and no description. */
   const [initialQuotationFile, setInitialQuotationFile] = useState<File | null>(null);
+  /** Create flow: optional backdated enquiry date/time (local datetime-local value). */
+  const [initialInquiryReceivedAtLocal, setInitialInquiryReceivedAtLocal] = useState('');
   /** Quick add quotation (edit mode, enquiry tab): one file → one enquiry with auto title/description. */
   const [quickAddQuotationFile, setQuickAddQuotationFile] = useState<File | null>(null);
   const [quickAddQuotationSubmitting, setQuickAddQuotationSubmitting] = useState(false);
@@ -1203,6 +1205,16 @@ export const LeadFormPage: React.FC = () => {
       (payload as any).quote_number = generatedQuoteNumber;
     }
 
+    const initialInquiryIso =
+      !isEdit &&
+      initialInquiryReceivedAtLocal.trim() &&
+      !Number.isNaN(new Date(initialInquiryReceivedAtLocal).getTime())
+        ? new Date(initialInquiryReceivedAtLocal).toISOString()
+        : undefined;
+    if (!isEdit && initialInquiryIso && !initialQuotationFile) {
+      (payload as any).initial_inquiry_at = initialInquiryIso;
+    }
+
     setIsSubmitting(true);
     try {
       if (isEdit && id) {
@@ -1219,6 +1231,7 @@ export const LeadFormPage: React.FC = () => {
               activity_type: 'note',
               title: 'Added quotation',
               description: undefined,
+              ...(initialInquiryIso ? { activity_date: initialInquiryIso } : {}),
             });
             await marketingAPI.uploadLeadActivityAttachments(
               lead.id,
@@ -1951,6 +1964,17 @@ export const LeadFormPage: React.FC = () => {
                   onChange={(d) => setFormData({ ...formData, expected_closing_date: d })}
                   inputSize="sm"
                 />
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight ml-0.5">Inquiry received (date and time)</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full max-w-md h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs"
+                    value={initialInquiryReceivedAtLocal}
+                    onChange={(e) => setInitialInquiryReceivedAtLocal(e.target.value)}
+                    title="Optional — use when the enquiry happened earlier than you are entering the lead"
+                  />
+                  <p className="text-[10px] text-slate-400">Optional. Sets the first enquiry log to this time (including past dates). Leave blank to use the current time.</p>
+                </div>
               </div>
             </div>
 
