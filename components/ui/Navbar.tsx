@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SearchInput } from './SearchInput';
 import { Search, Bell, Settings, Command, ShoppingBag, ShieldAlert, Package, MessageSquare, User, ArrowRight, LayoutDashboard, FileText, PieChart, CreditCard, X, LogOut, UserCircle, Users, Globe, Quote, Building2, Database } from 'lucide-react';
 import { useApp } from '../../App';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
@@ -128,23 +129,22 @@ export const Navbar: React.FC = () => {
     >
       <div className="absolute bottom-0 left-8 right-8 h-px bg-slate-200/50" />
       <div className="flex-1 max-w-lg relative">
-        <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={14} />
-          <input
-            ref={searchInputRef}
-            type="text"
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg h-9 pl-10 pr-12 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/30 transition-all"
-            placeholder="Quick search... (⌘K)"
-            value={globalSearch}
-            onChange={(e) => setGlobalSearch(e.target.value)}
-            onFocus={() => setIsSearchFocused(true)}
-            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-          />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-40 group-focus-within:opacity-80 transition-opacity">
-            <Command size={10} />
-            <span className="text-[10px] font-bold">K</span>
-          </div>
-        </div>
+        <SearchInput
+          ref={searchInputRef}
+          placeholder="Quick search... (⌘K)"
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          onClear={() => setGlobalSearch('')}
+          onFocus={() => setIsSearchFocused(true)}
+          onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+          rightElement={(
+            <>
+              <Command size={10} />
+              <span className="text-[10px] font-bold uppercase">K</span>
+            </>
+          )}
+          className="!h-9 !bg-slate-50/50 !border-slate-200/50 focus:!bg-white focus:!border-indigo-500/30 transition-all font-medium"
+        />
 
         {isSearchFocused && globalSearch.length > 0 && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 shadow-xl rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">

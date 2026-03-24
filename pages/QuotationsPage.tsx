@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { DatePicker } from '../components/ui/DatePicker';
 import {
   Plus,
   Save,
@@ -80,7 +81,7 @@ export const QuotationsPage: React.FC = () => {
               <Input label="Business Entity" placeholder="Acme Corp LLC" icon={<User size={14} />} value={clientName} onChange={(e) => setClientName(e.target.value)} />
               <Input label="Recipient Email" placeholder="billing@acme.com" icon={<Send size={14} />} value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} />
               <Input label="Document Ref" icon={<Hash size={14} />} value={quotationNumber} onChange={(e) => setQuotationNumber(e.target.value)} />
-              <Input label="Expiration Date" type="date" icon={<Calendar size={14} />} value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
+              <DatePicker label="Expiration Date" icon={<Calendar size={14} />} value={expiryDate} onChange={(v) => setExpiryDate(v || '')} />
             </div>
           </Card>
 

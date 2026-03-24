@@ -4,14 +4,19 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { SearchInput } from '../components/ui/SearchInput';
 import { Select } from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { DataTable } from '../components/ui/DataTable';
+import { SegmentToggle } from '../components/ui/SegmentToggle';
 import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, List, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash } from 'lucide-react';
 import { useApp } from '../App';
+import { Tooltip } from '../components/ui/Tooltip';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
@@ -93,6 +98,7 @@ export const LeadsPage: React.FC = () => {
   const [addingGroup, setAddingGroup] = useState(false);
   const [groupForm, setGroupForm] = useState({ code: '', label: '', expected_duration_days: undefined as number | undefined, follow_up_interval_days: undefined as number | undefined, display_order: 0, is_active: true, hex_color: '' as string });
   const [savingGroup, setSavingGroup] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | undefined>({ key: 'created_at', direction: 'desc' });
   const [deleteGroupId, setDeleteGroupId] = useState<number | null>(null);
   const [draggedLeadId, setDraggedLeadId] = useState<number | null>(null);
   const [dragOverStatusId, setDragOverStatusId] = useState<number | null>(null);
@@ -207,7 +213,7 @@ export const LeadsPage: React.FC = () => {
   useEffect(() => {
     if (!canView) return;
     loadLeads();
-  }, [canView, debouncedSearchTerm, selectedStatus, page, pageSize, viewMode, appliedDateFrom, appliedDateTo, selectedAssignedToIds, createdByMeOnly, includeWonLost]);
+  }, [canView, debouncedSearchTerm, selectedStatus, page, pageSize, viewMode, appliedDateFrom, appliedDateTo, selectedAssignedToIds, createdByMeOnly, includeWonLost, sortConfig]);
 
   useEffect(() => {
     if (includeWonLost) return;
@@ -235,6 +241,8 @@ export const LeadsPage: React.FC = () => {
         assigned_to: selectedAssignedToIds.length > 0 ? selectedAssignedToIds : undefined,
         created_by_me: createdByMeOnly || undefined,
         include_won_lost: includeWonLost || undefined,
+        order_by: sortConfig?.key,
+        order_dir: sortConfig?.direction,
       });
       setLeads(res.items);
       setTotal(res.total);
@@ -317,7 +325,12 @@ export const LeadsPage: React.FC = () => {
       label: 'Lead No.',
       sortable: true,
       render: (lead: Lead) => (
-        <span className="text-slate-700 font-medium tabular-nums">{lead.series ?? '—'}</span>
+        <div className="flex items-center gap-2">
+          <Tooltip content="Lead Reference Number">
+            <Hash size={12} className="text-slate-400" strokeWidth={2.5} />
+          </Tooltip>
+          <span className="text-slate-700 font-medium tabular-nums">{lead.series ?? '—'}</span>
+        </div>
       ),
     },
     {
@@ -413,30 +426,59 @@ export const LeadsPage: React.FC = () => {
       label: '',
       sortable: false,
       render: (lead: Lead) => (
-        <div className="flex items-center gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
           {canEdit && wonStatusId && lead.status_id !== wonStatusId && !lead.status_option?.is_lost && (
-            <Button variant="ghost" size="xs" onClick={() => openMarkAsWonModal(lead.id)} className="text-emerald-600 hover:text-emerald-700" title="Mark as Won">
-              <Trophy size={12} className="mr-0.5" /> Won
-            </Button>
+            <Tooltip content="Mark as Won">
+              <Button
+                variant="ghost"
+                size="xxs"
+                onClick={() => openMarkAsWonModal(lead.id)}
+                className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+              >
+                <Trophy size={12} />
+              </Button>
+            </Tooltip>
           )}
           {canEdit && lostStatusId && lead.status_id !== lostStatusId && !lead.status_option?.is_final && (
-            <Button variant="ghost" size="xs" onClick={() => setLeadToMarkLost(lead.id)} className="text-rose-600 hover:text-rose-700" title="Mark as Lost">
-              <XCircle size={12} className="mr-0.5" /> Lost
-            </Button>
+            <Tooltip content="Mark as Lost">
+              <Button
+                variant="ghost"
+                size="xxs"
+                onClick={() => setLeadToMarkLost(lead.id)}
+                className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+              >
+                <XCircle size={12} />
+              </Button>
+            </Tooltip>
           )}
           {canEdit && (
-            <Button variant="ghost" size="xs" onClick={() => navigate(`/leads/${lead.id}/edit`)} leftIcon={<Edit size={12} />}>
-              Edit
-            </Button>
+            <Tooltip content="Edit Lead">
+              <Button
+                variant="ghost"
+                size="xxs"
+                onClick={() => navigate(`/leads/${lead.id}/edit`)}
+              >
+                <Edit size={12} />
+              </Button>
+            </Tooltip>
           )}
           {canDelete && (
-            <Button variant="ghost" size="xs" onClick={() => openDeleteConfirm(lead.id)} leftIcon={<Trash2 size={12} />} className="text-rose-600 hover:text-rose-700">
-              Delete
-            </Button>
+            <Tooltip content="Delete Lead">
+              <Button
+                variant="ghost"
+                size="xxs"
+                onClick={() => openDeleteConfirm(lead.id)}
+                className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+              >
+                <Trash2 size={12} />
+              </Button>
+            </Tooltip>
           )}
-          <Button variant="link" size="xs" onClick={() => navigate(`/leads/${lead.id}/edit`)} rightIcon={<Eye size={12} />}>
-            View
-          </Button>
+          <Tooltip content="View History & Updates">
+            <Button variant="link" size="xs" onClick={() => navigate(`/leads/${lead.id}/edit`)} rightIcon={<Eye size={12} />}>
+              View
+            </Button>
+          </Tooltip>
         </div>
       ),
     },
@@ -1178,228 +1220,192 @@ export const LeadsPage: React.FC = () => {
       breadcrumbs={breadcrumbs}
     >
       <div className="space-y-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex rounded-full border border-slate-200 p-0.5 bg-slate-100/50">
-            <button
-              type="button"
-              onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${viewMode === 'kanban' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-                }`}
-            >
-              <LayoutGrid size={16} /> Kanban
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${viewMode === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-                }`}
-            >
-              <List size={16} /> Table
-            </button>
-          </div>
-          <Input
-            variant="white"
-            inputSize="sm"
-            className="rounded-full shadow-sm"
-            icon={<Search size={14} strokeWidth={2.5} />}
+        <div className="flex items-center gap-3 flex-wrap pb-1">
+          <SegmentToggle<ViewMode>
+            value={viewMode}
+            onChange={setViewMode}
+            options={[
+              { value: 'kanban', label: 'Kanban', icon: LayoutGrid },
+              { value: 'table', label: 'Table', icon: List },
+            ]}
+            className="h-9 min-w-[160px]"
+            layoutId="leads-view-mode"
+          />
+          <SearchInput
             placeholder="Search leads..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            containerClassName="max-w-md"
+            onClear={() => setSearchTerm('')}
+            containerClassName="w-[180px]"
+            className="h-9 text-sm"
           />
-          <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-600 hover:text-slate-800">
-            <input
-              type="checkbox"
-              checked={includeWonLost}
-              onChange={(e) => setIncludeWonLost(e.target.checked)}
-              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            <span>Show Won &amp; Lost</span>
-          </label>
-          {/* Assigned to: top 5 avatars + plus to multi-select; Only my leads */}
-          {reportScope && reportScope.employees.length > 0 && (
-            <>
-              <div ref={employeeFilterRef} className="flex items-center gap-1.5 flex-shrink-0">
-                <span className="text-xs text-slate-500 hidden sm:inline">Assigned to</span>
-                <div className="flex items-center -space-x-2">
-                  {(selectedAssignedToIds.length > 0 ? selectedAssignedToIds.slice(0, 5) : []).map((eid) => {
-                    const emp = reportScope.employees.find((e) => e.id === eid);
-                    return (
-                      <div
-                        key={eid}
-                        className="w-8 h-8 rounded-full border-2 border-white bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-semibold shadow-sm"
-                        title={emp?.name ?? `Employee ${eid}`}
-                      >
-                        {emp ? getInitials(emp.name) : '?'}
-                      </div>
-                    );
-                  })}
+          <div className="flex items-center gap-4 flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-600 hover:text-slate-900 transition-colors">
+              <input
+                type="checkbox"
+                checked={includeWonLost}
+                onChange={(e) => setIncludeWonLost(e.target.checked)}
+                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+              />
+              <span className="font-semibold">Show Won &amp; Lost</span>
+            </label>
+
+            {reportScope && reportScope.employees.length > 0 && (
+              <div className="flex items-center gap-4">
+                <div ref={employeeFilterRef} className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden sm:inline">Assigned:</span>
+                  <div className="flex items-center -space-x-1.5">
+                    {(selectedAssignedToIds.length > 0 ? selectedAssignedToIds.slice(0, 5) : []).map((eid) => {
+                      const emp = reportScope.employees.find((e) => e.id === eid);
+                      return (
+                        <div
+                          key={eid}
+                          className="w-8 h-8 rounded-full border-2 border-white bg-indigo-50 text-indigo-700 flex items-center justify-center text-[10px] font-bold shadow-sm ring-1 ring-slate-100"
+                          title={emp?.name ?? `Employee ${eid}`}
+                        >
+                          {emp ? getInitials(emp.name) : '?'}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowEmployeeFilterPopover((v) => !v)}
+                    className="w-8 h-8 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-600 flex items-center justify-center transition-all bg-white hover:shadow-sm"
+                    title="Select employees to filter"
+                  >
+                    <Plus size={14} strokeWidth={2.5} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowEmployeeFilterPopover((v) => !v)}
-                  className="w-8 h-8 rounded-full border-2 border-dashed border-slate-300 text-slate-500 hover:border-indigo-400 hover:text-indigo-600 flex items-center justify-center transition-colors"
-                  title="Select employees to filter"
-                >
-                  <Plus size={14} strokeWidth={2.5} />
-                </button>
+
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={createdByMeOnly}
+                    onChange={(e) => setCreatedByMeOnly(e.target.checked)}
+                    className="rounded border-slate-300 text-indigo-600 w-4 h-4"
+                  />
+                  <span className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Only mine</span>
+                </label>
               </div>
-              <FilterPopover
-                isOpen={showEmployeeFilterPopover}
-                onClose={() => setShowEmployeeFilterPopover(false)}
-                triggerRef={employeeFilterRef}
-                onClear={() => setSelectedAssignedToIds([])}
-              >
-                <div className="p-2 min-w-[200px] max-h-[280px] overflow-y-auto">
-                  <p className="text-xs font-medium text-slate-600 mb-2">Filter by assigned employee</p>
-                  {reportScope.employees.map((emp) => {
-                    const checked = selectedAssignedToIds.includes(emp.id);
-                    return (
-                      <label key={emp.id} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-slate-50 rounded px-1">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            setSelectedAssignedToIds((prev) =>
-                              prev.includes(emp.id) ? prev.filter((id) => id !== emp.id) : [...prev, emp.id]
-                            );
-                          }}
-                          className="rounded border-slate-300 text-indigo-600"
-                        />
-                        <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-medium shrink-0">
-                          {getInitials(emp.name)}
-                        </span>
-                        <span className="text-sm text-slate-800 truncate">{emp.name}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </FilterPopover>
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={createdByMeOnly}
-                  onChange={(e) => setCreatedByMeOnly(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600"
-                />
-                <span className="text-sm text-slate-600">Only my leads</span>
-              </label>
-            </>
-          )}
-          {isHeadOrAdmin && viewMode === 'kanban' && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <Calendar size={16} className="text-slate-500 shrink-0" />
-              <input
-                type="date"
-                value={dateFromInput}
-                onChange={(e) => setDateFromInput(e.target.value)}
-                className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800 bg-white"
-                title="From date"
-              />
-              <span className="text-slate-400 text-sm">to</span>
-              <input
-                type="date"
-                value={dateToInput}
-                onChange={(e) => setDateToInput(e.target.value)}
-                className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800 bg-white"
-                title="To date"
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-full"
-                onClick={() => {
-                  setAppliedDateFrom(dateFromInput);
-                  setAppliedDateTo(dateToInput);
-                }}
-              >
-                Apply
-              </Button>
-              {(appliedDateFrom || appliedDateTo) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDateFromInput('');
-                    setDateToInput('');
-                    setAppliedDateFrom('');
-                    setAppliedDateTo('');
-                  }}
-                  className="text-xs text-slate-500 hover:text-slate-700 underline"
-                >
-                  Clear range
-                </button>
-              )}
-            </div>
-          )}
-          {/* {(canEdit || canCreate) && (
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={openStatusModal}
-                leftIcon={<Settings2 size={14} />}
-                className="rounded-full"
-              >
-                Manage statuses
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={openLeadTypeModal}
-                leftIcon={<Settings2 size={14} />}
-                className="rounded-full"
-              >
-                Manage lead types
-              </Button>
-            </div>
-          )}
-          {viewMode === 'kanban' && canCreate && (
-            <Button
-              size="sm"
-              onClick={() => openCreateLeadModal()}
-              leftIcon={<UserPlus size={14} strokeWidth={3} />}
-              className="rounded-full"
-            >
-              New Lead
-            </Button>
-          )} */}
+            )}
+          </div>
+
           {viewMode === 'table' && (
-            <div ref={filterButtonRef} className="inline-block">
+            <div ref={filterButtonRef} className="inline-block border-l border-slate-200 pl-4 ml-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-full"
+                className="rounded-lg h-9"
                 leftIcon={<Filter size={14} />}
                 onClick={() => {
                   setTempSelectedStatus(selectedStatus);
                   setShowFilters(!showFilters);
                 }}
               >
-                Filter Status
+                Status
               </Button>
             </div>
           )}
           {viewMode === 'table' && selectedStatus !== 'all' && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
               {leadStatuses.find((s) => String(s.id) === selectedStatus)?.label ?? selectedStatus}
             </Badge>
           )}
           {viewMode === 'table' && selectedStatus !== 'all' && (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedStatus('all');
-                setTempSelectedStatus('all');
-              }}
-              className="p-1.5 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-              title="Clear filters"
-            >
-              <X size={16} strokeWidth={2.5} />
-            </button>
+            <Tooltip content="Clear filter">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedStatus('all');
+                  setTempSelectedStatus('all');
+                }}
+                className="w-8 h-8 rounded-full border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 flex items-center justify-center transition-colors"
+              >
+                <X size={14} strokeWidth={2.5} />
+              </button>
+            </Tooltip>
           )}
         </div>
 
-        {/* Filter Popover - table view only */}
+        {isHeadOrAdmin && viewMode === 'kanban' && (
+          <div className="flex items-center gap-3 flex-wrap border-t border-slate-100 pt-3">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">View Range:</span>
+            <DatePicker
+              value={dateFromInput}
+              onChange={(v) => setDateFromInput(v || '')}
+              className="w-[120px] h-9"
+              placeholder="From"
+            />
+            <span className="text-slate-300 text-[11px] font-bold uppercase tracking-wider">to</span>
+            <DatePicker
+              value={dateToInput}
+              onChange={(v) => setDateToInput(v || '')}
+              className="w-[120px] h-9"
+              placeholder="To"
+            />
+            <Button
+              size="sm"
+              variant="primary"
+              className="rounded-lg h-9 shadow-sm px-4"
+              onClick={() => {
+                setAppliedDateFrom(dateFromInput);
+                setAppliedDateTo(dateToInput);
+              }}
+            >
+              Apply Filter
+            </Button>
+            {(appliedDateFrom || appliedDateTo) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDateFromInput('');
+                  setDateToInput('');
+                  setAppliedDateFrom('');
+                  setAppliedDateTo('');
+                }}
+                className="text-[11px] font-bold uppercase tracking-wider text-rose-500 hover:text-rose-700 underline px-1"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Filter Popover - employee multi-select */}
+        <FilterPopover
+          isOpen={showEmployeeFilterPopover}
+          onClose={() => setShowEmployeeFilterPopover(false)}
+          triggerRef={employeeFilterRef}
+          onClear={() => setSelectedAssignedToIds([])}
+        >
+          <div className="p-2 min-w-[200px] max-h-[280px] overflow-y-auto">
+            <p className="text-xs font-medium text-slate-600 mb-2">Filter by assigned employee</p>
+            {reportScope && reportScope.employees.map((emp) => {
+              const checked = selectedAssignedToIds.includes(emp.id);
+              return (
+                <label key={emp.id} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-slate-50 rounded px-1">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => {
+                      setSelectedAssignedToIds((prev) =>
+                        prev.includes(emp.id) ? prev.filter((id) => id !== emp.id) : [...prev, emp.id]
+                      );
+                    }}
+                    className="rounded border-slate-300 text-indigo-600"
+                  />
+                  <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-medium shrink-0">
+                    {getInitials(emp.name)}
+                  </span>
+                  <span className="text-sm text-slate-800 truncate">{emp.name}</span>
+                </label>
+              );
+            })}
+          </div>
+        </FilterPopover>
+
+        {/* Filter Popover - table view status filter */}
         <FilterPopover
           isOpen={showFilters}
           onClose={() => setShowFilters(false)}
@@ -1429,6 +1435,7 @@ export const LeadsPage: React.FC = () => {
           />
         </FilterPopover>
       </div>
+
 
       <div className="mt-4">
         {isLoading ? (
@@ -1619,14 +1626,19 @@ export const LeadsPage: React.FC = () => {
         ) : (
           <>
             {filteredLeads.length > 0 ? (
+            <Card noPadding className="mt-4 overflow-hidden">
               <DataTable<Lead>
                 data={filteredLeads}
                 columns={leadColumns}
-                rowKey={(lead) => lead.id}
-                onRowClick={canEdit ? (lead) => navigate(`/leads/${lead.id}/edit`) : undefined}
-                getRowClassName={(lead) => isDueForFollowUp(lead) ? 'bg-amber-50 hover:bg-amber-100/80 border-l-4 border-l-amber-400' : ''}
-                className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+                rowKey={(lead: Lead) => lead.id}
+                onRowClick={canEdit ? (lead: Lead) => navigate(`/leads/${lead.id}/edit`) : undefined}
+                getRowClassName={(lead: Lead) => isDueForFollowUp(lead) ? 'bg-amber-50 hover:bg-amber-100/80 border-l-4 border-l-amber-400' : ''}
+                dense={true}
+                showVerticalLines={true}
+                sortConfig={sortConfig}
+                onSort={(key, direction) => setSortConfig({ key, direction })}
               />
+            </Card>
             ) : (
               <div className="text-center py-24">
                 <p className="text-slate-900 font-black text-sm uppercase tracking-widest">

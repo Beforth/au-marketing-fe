@@ -1,16 +1,78 @@
-# Marketing Frontend
+# AP | Sales & Marketing Module — Frontend
 
-React + TypeScript frontend for the Marketing module, integrated with HRMS RBAC.
+> **au-marketing-fe** — A high-density, professional ERP-grade frontend for the Aureole Group Sales & Marketing microservice. Built with React 19, TypeScript, and a bespoke Slate/Indigo design system.
 
-## Features
+---
 
-- ✅ **HRMS RBAC Authentication** - Login with HRMS credentials
-- ✅ **Permission-Based Access** - UI elements based on user permissions
-- ✅ **Marketing API Integration** - Connected to FastAPI marketing microservice
-- ✅ **Modern UI** - Built with React, TypeScript, and Tailwind CSS
-- ✅ **Protected Routes** - Automatic redirect to login if not authenticated
+## 🧩 Tech Stack
 
-## Setup
+| Layer | Technology |
+|---|---|
+| Framework | React 19 + TypeScript |
+| Build | Vite 6 |
+| Styling | Tailwind CSS 3 + custom design tokens |
+| State | Redux Toolkit + React Context |
+| Routing | React Router DOM v6 |
+| Animations | Framer Motion 12 |
+| Charts | Recharts |
+| UI Primitives | Radix UI (Tooltip, Popover, Dialog, Dropdown) |
+| Icons | Lucide React |
+| Auth | HRMS RBAC (JWT stored in localStorage) |
+| Push Notifications | Firebase Cloud Messaging |
+
+---
+
+## ✨ Features
+
+- 🔐 **HRMS RBAC Authentication** — Login with HRMS credentials, JWT stored securely
+- 🛡️ **Permission-Based UI** — Every action/button/route is gated by HRMS permissions
+- 📊 **Dashboard & Analytics** — Live KPI stat cards, charts, and activity feeds
+- 👥 **Database Module** — Organizations, Customers, and Contacts with unified command bar
+- 🎯 **Leads Management** — Full leads lifecycle with server-side sorting, filtering, and pagination
+- 📋 **Quotations & Orders** — Enquiry and quotation pipeline
+- 🧾 **Invoices** — Invoice tracking and management
+- 🔢 **Numbering Series** — Configurable document numbering with live preview
+- 📡 **Real-Time Notifications** — Firebase-powered push notifications
+- 🔔 **Toast System** — Centralized, global feedback for all user actions
+- 🌗 **Theme Support** — Dark/light mode via ThemeProvider
+
+---
+
+## 🏗️ Project Structure
+
+```
+au-marketing-fe/
+│
+├── components/
+│   ├── layout/              # DashboardLayout, DatabaseLayout, PageLayout, Navbar, Sidebar
+│   └── ui/                  # Full component library (Button, DataTable, Modal, Toast, etc.)
+│
+├── pages/                   # One file per route
+│   ├── DashboardPage.tsx
+│   ├── LeadsPage.tsx
+│   ├── LeadFormPage.tsx
+│   ├── OrganizationsPage.tsx
+│   ├── CustomersPage.tsx
+│   ├── ContactsPage.tsx
+│   ├── NumberingSeriesPage.tsx
+│   ├── InvoicesPage.tsx
+│   └── ...
+│
+├── lib/
+│   ├── marketing-api.ts     # All API calls to the FastAPI backend
+│   └── utils.ts             # cn() utility and helpers
+│
+├── store/                   # Redux slices (auth, permissions)
+│
+├── App.tsx                  # Root provider, routes, global toast/notification state
+├── UI_COMPONENTS_LIBRARY.md # Source of truth for the design system
+├── CHANGELOG.md             # All notable changes, by date
+└── index.html
+```
+
+---
+
+## ⚙️ Setup
 
 ### 1. Install Dependencies
 
@@ -20,13 +82,16 @@ npm install
 
 ### 2. Configure Environment Variables
 
-Create a `.env` file in `marketing-fe/`:
+Create a `.env` file in the project root:
 
-**When HRMS is running locally (same machine):**
 ```env
+# Marketing FastAPI backend
 VITE_API_BASE_URL=http://localhost:8003
+
+# HRMS RBAC (local)
 VITE_HRMS_RBAC_API_URL=http://localhost:8000/api/rbac
-# Optional: Firebase web push
+
+# Firebase (optional — for push notifications)
 VITE_FIREBASE_API_KEY=
 VITE_FIREBASE_AUTH_DOMAIN=
 VITE_FIREBASE_PROJECT_ID=
@@ -36,13 +101,8 @@ VITE_FIREBASE_APP_ID=
 VITE_FIREBASE_VAPID_KEY=
 ```
 
-**When using production HRMS:**
-```env
-VITE_API_BASE_URL=http://localhost:8003
-VITE_HRMS_RBAC_API_URL=https://hrms.aureolegroup.com/api/rbac
-```
-
-If you don't create `.env`, the app defaults to local HRMS at `http://localhost:8000/api/rbac`. Restart the dev server (`npm run dev`) after changing `.env`.
+> If `.env` is absent, the app defaults to `http://localhost:8000/api/rbac` for HRMS.  
+> **Always restart the dev server after changing `.env`** — Vite bakes env vars at startup.
 
 ### 3. Start Development Server
 
@@ -50,87 +110,84 @@ If you don't create `.env`, the app defaults to local HRMS at `http://localhost:
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173` (or the port Vite prints).
+Runs at **[http://localhost:5173](http://localhost:5173)** (or the port Vite prints).
 
-### Connecting to local HRMS (including when Marketing API runs in Docker)
-
-The **browser** loads the frontend and calls HRMS. So the HRMS URL must be one the **browser** can reach on your machine: use **`http://localhost:8000/api/rbac`** (do **not** use `host.docker.internal` in the FE – that is for containers, not the browser).
-
-1. **Start HRMS** on the host on port 8000:
-   ```bash
-   python manage.py runserver 0.0.0.0:8000
-   ```
-2. **Create or edit `marketing-fe/.env`:**
-   ```env
-   VITE_API_BASE_URL=http://localhost:8003
-   VITE_HRMS_RBAC_API_URL=http://localhost:8000/api/rbac
-   ```
-3. **Restart the marketing dev server** after changing `.env` (Vite bakes env at start): `npm run dev`.
-4. **If you run the FE in Docker:** build with these env vars so the built app contains `localhost:8000` for HRMS (the browser will call that on the host).
-
-**Quick check:** open `http://localhost:8000/api/rbac/permissions/` in the browser – you should get JSON (or 401 without auth). If that fails, HRMS isn’t reachable from the browser.
-
-## Authentication
-
-Users must login with their HRMS credentials. The app will:
-1. Authenticate via HRMS RBAC API
-2. Store the token in localStorage
-3. Use the token for all API requests
-4. Check permissions for UI elements and routes
-
-## Permissions
-
-The following HRMS permissions are used:
-
-- `marketing.view_lead` - View leads
-- `marketing.create_lead` - Create leads
-- `marketing.edit_lead` - Edit leads
-- `marketing.delete_lead` - Delete leads
-- `marketing.view_campaign` - View campaigns
-- `marketing.create_campaign` - Create campaigns
-- `marketing.edit_campaign` - Edit campaigns
-- `marketing.delete_campaign` - Delete campaigns
-
-## Project Structure
-
-```
-marketing-fe/
-├── components/        # Reusable UI components
-├── context/          # React contexts (Auth, Theme)
-├── lib/              # API clients and utilities
-│   ├── api.ts        # Base API client
-│   ├── hrms-rbac.ts  # HRMS RBAC client
-│   └── marketing-api.ts  # Marketing API service
-├── pages/            # Page components
-├── App.tsx           # Main app component
-└── index.tsx         # Entry point
-```
-
-## API Integration
-
-The frontend connects to (configurable via `.env`):
-- **Marketing API** (FastAPI): default `http://localhost:8003` (`VITE_API_BASE_URL`)
-- **HRMS RBAC API**: default `http://localhost:8000/api/rbac` when running locally (`VITE_HRMS_RBAC_API_URL`)
-
-## Building for Production
+### 4. Production Build
 
 ```bash
 npm run build
 ```
 
-The built files will be in the `dist/` directory.
+Output goes to `dist/`.
 
-## Development
+---
 
-- Uses Vite for fast development
-- Hot module replacement enabled
-- TypeScript for type safety
-- Tailwind CSS for styling
+## 🔑 Authentication & Permissions
 
-## Troubleshooting
+Users log in with HRMS credentials. The app:
+1. Authenticates via `VITE_HRMS_RBAC_API_URL`
+2. Stores the JWT in `localStorage`
+3. Uses the token for every Marketing API request
+4. Derives the full permissions list and stores it in Redux
 
-**Can’t connect to HRMS from the Marketing FE (e.g. API in Docker, HRMS on host)**  
-- The FE runs in the **browser**, so it must call an URL the browser can reach. Use **`http://localhost:8000/api/rbac`** in `.env` (`VITE_HRMS_RBAC_API_URL`), not `host.docker.internal`.
-- Ensure HRMS is running on the host: `python manage.py runserver 0.0.0.0:8000`.
-- Restart the dev server after changing `.env`: `npm run dev`.
-- Test in the browser: open `http://localhost:8000/api/rbac/permissions/`; you should see JSON.
+### Key Permissions
+
+| Permission | Description |
+|---|---|
+| `marketing.view_lead` | Access leads list |
+| `marketing.create_lead` | Open lead creation form |
+| `marketing.edit_lead` | Edit existing leads |
+| `marketing.delete_lead` | Delete leads |
+| `marketing.view_contact` | View contacts database |
+| `marketing.create_contact` | Add new contacts |
+| `marketing.view_customer` | View customer registry |
+| `marketing.view_organization` | View organization database |
+
+---
+
+## 🔌 API Connections
+
+| Service | Default URL | Env Var |
+|---|---|---|
+| Marketing FastAPI | `http://localhost:8003` | `VITE_API_BASE_URL` |
+| HRMS RBAC | `http://localhost:8000/api/rbac` | `VITE_HRMS_RBAC_API_URL` |
+
+> **Docker note:** The frontend runs in the **browser**, not in a container. The HRMS URL must be reachable from the browser — use `localhost`, not `host.docker.internal`.
+
+---
+
+## 🎨 Design System
+
+All UI components follow the **Slate/Indigo High-Density ERP** visual language documented in [`UI_COMPONENTS_LIBRARY.md`](./UI_COMPONENTS_LIBRARY.md).
+
+**Key rules:**
+- Font: **Outfit** (Google Fonts)
+- Border radius: `rounded-xl` for containers, `rounded-full` for pills/capsules
+- Headers/labels: `font-black uppercase tracking-widest text-[11px]`
+- Interactive elements: `active:scale-[0.98]` click feedback
+- Animations: Framer Motion with `spring` transitions
+- Loading: Subtle glass overlay on data refetch (no jarring full-table resets)
+
+---
+
+## 🐛 Troubleshooting
+
+**Cannot connect to HRMS from the frontend**
+- Use `http://localhost:8000/api/rbac` — not `host.docker.internal` (that's for containers, not browsers).
+- Verify HRMS is running: `python manage.py runserver 0.0.0.0:8000`
+- Test in browser: open `http://localhost:8000/api/rbac/permissions/` — you should see JSON or a 401.
+- Restart dev server: `npm run dev`
+
+**Permissions not loading / all UI locked**
+- Check the JWT token in `localStorage` under key `token`.
+- Ensure the HRMS user has the relevant `marketing.*` permissions assigned.
+
+---
+
+## 📄 Changelog
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for a full history of changes.
+
+---
+
+_Built with ❤️ for Aureole Group — AP | S&M Module_

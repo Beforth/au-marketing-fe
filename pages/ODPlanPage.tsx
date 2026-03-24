@@ -1,10 +1,23 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { 
+  useCalendar, 
+  CalendarProvider, 
+  CalendarDate, 
+  CalendarDatePicker, 
+  CalendarMonthPicker, 
+  CalendarYearPicker, 
+  CalendarDatePagination, 
+  CalendarHeader, 
+  CalendarBody, 
+  CalendarItem 
+} from '../components/ui/calendar';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
 import { AsyncSelect } from '../components/ui/AsyncSelect';
 import { Modal } from '../components/ui/Modal';
 import { marketingAPI } from '../lib/marketing-api';
@@ -416,6 +429,43 @@ export const ODPlanPage: React.FC = () => {
     }
   };
 
+  // Sync Calendar Zustand store with route params
+  const { setMonth: setCalMonth, setYear: setCalYear, month: calMonth, year: calYear } = useCalendar();
+  useEffect(() => {
+    if (!isNaN(month) && !isNaN(year)) {
+      setCalMonth((month - 1) as any);
+      setCalYear(year);
+    }
+  }, [month, year, setCalMonth, setCalYear]);
+
+  // Handle calendar navigation by updating URL
+  useEffect(() => {
+    // Only navigate if we have valid internal state and it actually differs from URL
+    if (isNaN(calMonth) || isNaN(calYear)) return;
+    
+    const targetMonth = calMonth + 1;
+    if (targetMonth !== month || calYear !== year) {
+      if (!isNaN(targetMonth) && !isNaN(calYear)) {
+        navigate(`/reports/od-plan?year=${calYear}&month=${targetMonth}`, { replace: true });
+      }
+    }
+  }, [calMonth, calYear, month, year, navigate]);
+
+  const features = useMemo(() => {
+    return entries.map(e => ({
+      id: e.id,
+      name: e.entry_type === 'visit' ? (e.where_place || e.contact_name || 'Visit') : `${e.entry_type}: ${e.where_place || '—'}`,
+      startAt: new Date(e.plan_date),
+      endAt: new Date(e.plan_date),
+      status: {
+        id: e.entry_type,
+        name: e.entry_type,
+        color: e.entry_type === 'visit' ? '#4f46e5' : e.entry_type === 'travel' ? '#f59e0b' : '#64748b'
+      },
+      original: e
+    }));
+  }, [entries]);
+
   const breadcrumbs = [
     { label: 'Reports', href: '/reports' },
     { label: 'OD Plan', href: '/reports/od-plan' },
@@ -427,69 +477,64 @@ export const ODPlanPage: React.FC = () => {
       description="Add visit, travel, or return-home plans for each date. For visits, add place, travel time/type, and contact (search by email or add new)."
       breadcrumbs={breadcrumbs}
       actions={
-        <Button variant="outline" size="sm" leftIcon={<ArrowLeft size={14} />} onClick={() => navigate('/reports')}>
-          Back
-        </Button>
+        <div className="flex items-center gap-2">
+          {entries.length > 0 && (
+            <Button size="sm" leftIcon={saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} disabled={saving} onClick={handleSaveReport}>
+              {saving ? 'Saving…' : 'Save all changes'}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" leftIcon={<ArrowLeft size={14} />} onClick={() => navigate('/reports')}>
+            Back
+          </Button>
+        </div>
       }
     >
-      <Card>
+      <div className="space-y-6">
         {loading ? (
-          <div className="flex items-center gap-2 py-8 text-slate-500">
-            <Loader2 size={20} className="animate-spin" /> Loading…
-          </div>
+          <Card>
+            <div className="flex items-center gap-2 py-8 text-slate-500 justify-center">
+              <Loader2 size={20} className="animate-spin" /> Loading…
+            </div>
+          </Card>
         ) : (
-          <>
-            <div className="grid grid-cols-7 gap-1 mb-6">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <div key={day} className="text-center text-xs font-medium text-slate-500 py-1">
-                  {day}
-                </div>
-              ))}
-              {daysInMonth[0] && (() => {
-                const firstDay = daysInMonth[0].getDay();
-                return Array.from({ length: firstDay }, (_, i) => <div key={`pad-${i}`} />);
-              })()}
-              {daysInMonth.map((d) => {
-                const key = dateToKey(d);
-                const dayEntries = entriesByDate[key] || [];
-                return (
-                  <div
-                    key={key}
-                    className="min-h-[80px] border border-slate-200 rounded-lg p-2 flex flex-col"
-                  >
-                    <div className="text-xs font-medium text-slate-700 mb-1">{d.getDate()}</div>
-                    <div className="flex-1 space-y-0.5">
-                      {dayEntries.slice(0, 2).map((e) => (
-                        <button
-                          key={e.id}
-                          type="button"
-                          onClick={() => openEditEntry(e)}
-                          className="w-full text-left text-[10px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 truncate"
-                          title={`${e.entry_type}: ${e.where_place || e.notes || '—'}`}
-                        >
-                          {e.entry_type === 'visit' && <MapPin size={10} className="inline mr-0.5" />}
-                          {e.entry_type}: {e.where_place || e.contact_name || '—'}
-                        </button>
-                      ))}
-                      {dayEntries.length > 2 && <span className="text-[10px] text-slate-500">+{dayEntries.length - 2}</span>}
-                    </div>
-                    <Button variant="ghost" size="sm" className="mt-1 h-6 text-xs" onClick={() => openAddEntry(key)} leftIcon={<Plus size={10} />}>
-                      Add
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="flex items-center gap-3 pt-4 border-t border-slate-200">
-              <Button size="sm" leftIcon={saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} disabled={saving} onClick={handleSaveReport}>
-                {saving ? 'Saving…' : 'Save report for this month'}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate('/reports')}>Cancel</Button>
-            </div>
-          </>
+          <CalendarProvider>
+            <CalendarDate>
+              <CalendarDatePicker>
+                <CalendarMonthPicker />
+                <CalendarYearPicker start={2020} end={2030} />
+              </CalendarDatePicker>
+              <div className="flex items-center gap-2">
+                <CalendarDatePagination />
+              </div>
+            </CalendarDate>
+            <CalendarHeader />
+            <CalendarBody 
+              features={features}
+              onDateClick={(date) => openAddEntry(dateToKey(date))}
+            >
+              {({ feature }) => (
+                <CalendarItem 
+                  key={feature.id} 
+                  feature={feature} 
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation(); // Prevent triggering onDateClick
+                    openEditEntry((feature as any).original);
+                  }}
+                />
+              )}
+            </CalendarBody>
+          </CalendarProvider>
         )}
-      </Card>
+
+        {report && (
+          <div className="flex items-center gap-3 justify-end">
+            <Button variant="outline" size="sm" onClick={() => navigate('/reports')}>Cancel</Button>
+            <Button size="sm" leftIcon={saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} disabled={saving} onClick={handleSaveReport}>
+              {saving ? 'Saving…' : 'Save report for this month'}
+            </Button>
+          </div>
+        )}
+      </div>
 
       {/* Add/Edit entry modal */}
       <Modal
@@ -500,7 +545,7 @@ export const ODPlanPage: React.FC = () => {
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Date</label>
-            <Input type="date" value={entryFormDate} onChange={(e) => { setEntryFormDate(e.target.value); setEntryForm((f) => ({ ...f, plan_date: e.target.value })); }} />
+            <DatePicker value={entryFormDate} onChange={(v) => { setEntryFormDate(v || ''); setEntryForm((f) => ({ ...f, plan_date: v || '' })); }} />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Type</label>

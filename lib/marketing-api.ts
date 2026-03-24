@@ -516,6 +516,17 @@ export interface UpdateOrderRequest {
 }
 
 /** Paginated list response (page 1-based, page_size min 10). */
+export interface AuditLog {
+  id: number;
+  employee_id: number;
+  employee_name?: string;
+  action: string;
+  entity_type: string;
+  entity_id: number | null;
+  details: string | null;
+  created_at: string;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
@@ -547,6 +558,8 @@ class MarketingAPIService {
     search?: string;
     date_from?: string;
     date_to?: string;
+    order_by?: string;
+    order_dir?: 'asc' | 'desc';
   }): Promise<PaginatedResponse<Lead>> {
     const queryParams = new URLSearchParams();
     queryParams.append('page', String(params?.page ?? 1));
@@ -562,6 +575,8 @@ class MarketingAPIService {
     if (params?.date_from) queryParams.append('date_from', params.date_from);
     if (params?.date_to) queryParams.append('date_to', params.date_to);
     if (params?.search) queryParams.append('search', params.search);
+    if (params?.order_by) queryParams.append('order_by', params.order_by);
+    if (params?.order_dir) queryParams.append('order_dir', params.order_dir);
     return apiClient.get<PaginatedResponse<Lead>>(`/api/leads/?${queryParams.toString()}`);
   }
 
@@ -1256,6 +1271,8 @@ class MarketingAPIService {
     is_active?: boolean;
     entity_type?: string;
     search?: string;
+    order_by?: string;
+    order_dir?: 'asc' | 'desc';
   }): Promise<PaginatedResponse<Series>> {
     const queryParams = new URLSearchParams();
     queryParams.append('page', String(params?.page ?? 1));
@@ -1263,6 +1280,8 @@ class MarketingAPIService {
     if (params?.is_active !== undefined) queryParams.append('is_active', String(params.is_active));
     if (params?.entity_type) queryParams.append('entity_type', params.entity_type);
     if (params?.search) queryParams.append('search', params.search);
+    if (params?.order_by) queryParams.append('order_by', params.order_by);
+    if (params?.order_dir) queryParams.append('order_dir', params.order_dir);
     return apiClient.get<PaginatedResponse<Series>>(`/api/series/?${queryParams.toString()}`);
   }
 
@@ -1600,6 +1619,21 @@ class MarketingAPIService {
   }
   async scheduleLeadFollowUp(leadId: number, data: { next_follow_up_at?: string | null; follow_up_reminder_type?: string | null; follow_up_time?: string | null }): Promise<Lead> {
     return apiClient.patch<Lead>(`/api/leads/${leadId}/follow-up`, data);
+  }
+
+  // Audit Logs
+  async getAuditLogs(params?: {
+    page?: number;
+    page_size?: number;
+    entity_type?: string;
+    employee_id?: number;
+  }): Promise<PaginatedResponse<AuditLog>> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', String(params?.page ?? 1));
+    queryParams.append('page_size', String(params?.page_size ?? 25));
+    if (params?.entity_type) queryParams.append('entity_type', params.entity_type);
+    if (params?.employee_id) queryParams.append('employee_id', String(params.employee_id));
+    return apiClient.get<PaginatedResponse<AuditLog>>(`/api/audit-logs/?${queryParams.toString()}`);
   }
 }
 

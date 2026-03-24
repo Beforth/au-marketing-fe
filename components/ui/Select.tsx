@@ -1,11 +1,8 @@
-/**
- * Searchable Select Component with Fuzzy Search
- * Dropdown is rendered in a portal so it is not clipped by parent overflow.
- */
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export interface SelectOption {
   value: string | number;
@@ -22,32 +19,27 @@ interface SelectProps {
   required?: boolean;
   className?: string;
   searchable?: boolean;
-  /** When set, filter options by this text instead of option.label (e.g. for country code: dial + name) */
   getSearchText?: (option: SelectOption) => string;
-  /** When set and query matches this regex (e.g. /^\+?\d+$/ for dial codes), only show options whose value equals the normalized query. Stops "+91" from matching all. */
   exactValueMatchWhenQueryMatches?: RegExp;
-  /** When set, use this for React key instead of option.value (e.g. for options with duplicate values like country dial codes). */
   getOptionKey?: (option: SelectOption, index: number) => string | number;
   label?: string;
   error?: string;
   containerClassName?: string;
+  clearable?: boolean;
+  inputSize?: 'sm' | 'md' | 'lg';
+  triggerClassName?: string;
+  isCombobox?: boolean;
+  dropdownWidth?: number | 'auto' | 'trigger';
 }
 
-// Simple fuzzy search function
 const fuzzySearch = (query: string, text: string): boolean => {
   if (!query) return true;
   const queryLower = query.toLowerCase();
   const textLower = text.toLowerCase();
-
-  // Exact match
   if (textLower.includes(queryLower)) return true;
-
-  // Fuzzy match - check if all characters in query appear in order in text
   let queryIndex = 0;
   for (let i = 0; i < textLower.length && queryIndex < queryLower.length; i++) {
-    if (textLower[i] === queryLower[queryIndex]) {
-      queryIndex++;
-    }
+    if (textLower[i] === queryLower[queryIndex]) queryIndex++;
   }
   return queryIndex === queryLower.length;
 };
@@ -61,29 +53,32 @@ export const Select: React.FC<SelectProps> = ({
   required = false,
   className,
   searchable = true,
+  clearable = true,
   getSearchText,
   exactValueMatchWhenQueryMatches,
   getOptionKey,
   label,
   error,
   containerClassName,
+  inputSize = 'md',
+  triggerClassName,
+  isCombobox = false,
+  dropdownWidth = 'trigger'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number; openUp: boolean } | null>(null);
+  const [dropdownRect, setDropdownRect] = useState<{ top: number; bottom: number; left: number; width: number; openUp: boolean } | null>(null);
   const selectRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const selectedOption = options.find(opt => opt.value === value);
-
+  const selectedOption = options.find(opt => opt.value == value);
   const trimmedQuery = (searchQuery ?? '').trim();
   const isQueryDialCode = exactValueMatchWhenQueryMatches?.test(trimmedQuery);
   const normalizedDialCode = isQueryDialCode && trimmedQuery
     ? (trimmedQuery.startsWith('+') ? trimmedQuery : '+' + trimmedQuery)
     : null;
 
-  // Filter options based on search query (use getSearchText when provided, e.g. for country codes)
   const filteredOptions = searchable && trimmedQuery
     ? isQueryDialCode && normalizedDialCode
       ? options.filter(opt => String(opt.value) === normalizedDialCode)
@@ -93,7 +88,6 @@ export const Select: React.FC<SelectProps> = ({
       })
     : options;
 
-  // Position dropdown in portal (measure trigger so dropdown is not clipped by overflow)
   useLayoutEffect(() => {
     if (!isOpen || !selectRef.current) {
       setDropdownRect(null);
@@ -101,43 +95,35 @@ export const Select: React.FC<SelectProps> = ({
     }
     const rect = selectRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
-    const dropdownHeight = 260;
-    const openUp = spaceBelow < dropdownHeight && rect.top > spaceBelow;
+    const spaceAbove = rect.top;
+    const openUp = spaceBelow < 250 && spaceAbove > spaceBelow;
+
     setDropdownRect({
-      top: openUp ? rect.top - dropdownHeight : rect.bottom + 4,
+      top: rect.top,
+      bottom: rect.bottom,
       left: rect.left,
       width: rect.width,
       openUp,
     });
   }, [isOpen]);
 
-  // Close dropdown when clicking outside (trigger or portal dropdown)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (
-        selectRef.current?.contains(target) ||
-        dropdownRef.current?.contains(target)
-      ) return;
+      if (selectRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
       setIsOpen(false);
       setSearchQuery('');
     };
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      setTimeout(() => searchInputRef.current?.focus(), 0);
+      setTimeout(() => searchInputRef.current?.focus(), 50);
     }
-
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
   const handleSelect = (optionValue: string | number) => {
-    if (optionValue === value) {
-      // Allow deselecting if clicking the same option
-      onChange(undefined);
-    } else {
-      onChange(optionValue);
-    }
+    if (optionValue != value) onChange(optionValue);
     setIsOpen(false);
     setSearchQuery('');
   };
@@ -149,116 +135,146 @@ export const Select: React.FC<SelectProps> = ({
   };
 
   return (
-    <div className={cn('space-y-1.5 w-full', containerClassName || className)}>
+    <div className={cn('space-y-1.5 w-full relative', containerClassName || className)}>
       {label && (
         <label className="text-xs font-semibold text-slate-700 ml-0.5">
           {label}
           {required && <span className="text-red-500 ml-1">*</span>}
         </label>
       )}
-      <div className="relative" ref={selectRef}>
-        <button
-          type="button"
-          onClick={() => !disabled && setIsOpen(!isOpen)}
-          disabled={disabled}
-          className={cn(
-            'w-full px-3 py-2 border rounded-lg text-sm text-left transition-all',
-            'focus:outline-none focus:ring-2 focus:ring-indigo-500',
-            'bg-white border-slate-300',
-            disabled && 'bg-slate-50 cursor-not-allowed opacity-50',
-            error && 'border-rose-300 bg-rose-50',
-            'flex items-center justify-between gap-2'
-          )}
-        >
-          <span className={cn(
-            'flex-1 truncate',
-            !selectedOption && 'text-slate-400'
-          )}>
-            {selectedOption ? selectedOption.label : placeholder}
-          </span>
-          <div className="flex items-center gap-1">
-            {value && !disabled && (
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleClear(e as any);
-                }}
-                className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-              >
-                <X size={14} />
-              </div>
-            )}
-            <ChevronDown
-              size={16}
+      <div className={cn("relative", isCombobox && "group/combobox")} ref={selectRef}>
+        {isCombobox ? (
+          <div className="relative flex items-center">
+            <input
+              ref={searchInputRef}
+              type="text"
+              disabled={disabled}
+              placeholder={placeholder}
+              value={isOpen ? searchQuery : (selectedOption?.label || '')}
+              onChange={(e) => {
+                if (!isOpen) setIsOpen(true);
+                setSearchQuery(e.target.value);
+              }}
+              onFocus={() => !disabled && setIsOpen(true)}
               className={cn(
-                'text-slate-400 transition-transform',
-                isOpen && 'transform rotate-180'
+                'w-full border rounded-lg text-left transition-all',
+                'focus:outline-none focus:ring-2 focus:ring-indigo-500',
+                'bg-white border-slate-300 shadow-sm',
+                inputSize === 'sm' && 'h-9 px-3 text-xs',
+                inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
+                inputSize === 'lg' && 'h-12 px-5 text-base font-medium',
+                disabled && 'bg-slate-50 cursor-not-allowed opacity-50',
+                error && 'border-rose-300 bg-rose-50 placeholder:text-rose-400',
+                'pr-10',
+                triggerClassName
               )}
             />
-          </div>
-        </button>
-
-        {isOpen && dropdownRect && createPortal(
-          <div
-            ref={dropdownRef}
-            className="fixed z-[9999] bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-hidden"
-            style={{
-              top: dropdownRect.top,
-              left: dropdownRect.left,
-              width: dropdownRect.width,
-              minWidth: 160,
-            }}
-          >
-            {searchable && (
-              <div className="p-2 border-b border-slate-200">
-                <div className="relative">
-                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search..."
-                    className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    onClick={(e) => e.stopPropagation()}
-                  />
+            <div className="absolute right-3 flex items-center gap-1">
+              {value && !disabled && clearable && (
+                <div onClick={handleClear} className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 cursor-pointer">
+                  <X size={14} />
                 </div>
-              </div>
-            )}
-            <div className="overflow-y-auto max-h-48">
-              {filteredOptions.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-slate-500 text-center">
-                  No options found
-                </div>
-              ) : (
-                filteredOptions.map((option, index) => (
-                  <button
-                    key={getOptionKey ? getOptionKey(option, index) : option.value}
-                    type="button"
-                    onClick={() => !option.disabled && handleSelect(option.value)}
-                    disabled={option.disabled}
-                    className={cn(
-                      'w-full px-3 py-2 text-sm text-left hover:bg-slate-50 transition-colors',
-                      'flex items-center justify-between',
-                      value === option.value && 'bg-indigo-50 text-indigo-700 font-medium',
-                      option.disabled && 'opacity-50 cursor-not-allowed',
-                      'first:rounded-t-lg last:rounded-b-lg'
-                    )}
-                  >
-                    <span>{option.label}</span>
-                    {value === option.value && (
-                      <span className="text-indigo-600">✓</span>
-                    )}
-                  </button>
-                ))
               )}
+              <ChevronDown size={16} className={cn('text-slate-400 transition-transform cursor-pointer', isOpen && 'rotate-180')} />
             </div>
-          </div>,
-          document.body
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => !disabled && setIsOpen(!isOpen)}
+            disabled={disabled}
+            className={cn(
+              'w-full border rounded-lg text-left transition-all',
+              'focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm',
+              'bg-white border-slate-300 hover:border-slate-400 hover:bg-slate-50/30 font-medium',
+              inputSize === 'sm' && 'h-9 px-3 text-xs',
+              inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
+              inputSize === 'lg' && 'h-12 px-5 text-base font-medium',
+              disabled && 'bg-slate-50 cursor-not-allowed opacity-50',
+              error && 'border-rose-300 bg-rose-50',
+              'flex items-center justify-between gap-2',
+              triggerClassName
+            )}
+          >
+            <span className={cn('flex-1 truncate', !selectedOption && 'text-slate-400 font-normal')}>
+              {selectedOption ? selectedOption.label : placeholder}
+            </span>
+            <div className="flex items-center gap-1">
+              {value && !disabled && clearable && (
+                <div onClick={handleClear} className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+                  <X size={14} />
+                </div>
+              )}
+              <ChevronDown size={16} className={cn('text-slate-400 transition-transform', isOpen && 'rotate-180')} />
+            </div>
+          </button>
         )}
+
+        <AnimatePresence>
+          {isOpen && dropdownRect && createPortal(
+            <motion.div
+              ref={dropdownRef}
+              initial={{ opacity: 0, y: dropdownRect.openUp ? 10 : -10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: dropdownRect.openUp ? 10 : -10, scale: 0.98 }}
+              transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+              className="fixed z-[99999] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col border-slate-200"
+              style={{
+                top: dropdownRect.openUp ? 'auto' : dropdownRect.bottom + 4,
+                bottom: dropdownRect.openUp ? window.innerHeight - dropdownRect.top + 4 : 'auto',
+                left: dropdownRect.left,
+                width: dropdownWidth === 'trigger' ? dropdownRect.width : dropdownWidth === 'auto' ? 'auto' : dropdownWidth,
+                minWidth: dropdownWidth === 'trigger' ? dropdownRect.width : 100,
+                maxHeight: '300px'
+              }}
+            >
+              {searchable && !isCombobox && (
+                <div className="p-2 border-b border-slate-100 bg-slate-50/50">
+                  <div className="relative">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search..."
+                      className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="overflow-y-auto customize-scrollbar py-1">
+                {filteredOptions.length === 0 ? (
+                  <div className="px-3 py-8 text-[10px] text-slate-300 text-center uppercase tracking-[0.2em] font-bold">
+                    No results
+                  </div>
+                ) : (
+                  filteredOptions.map((option, index) => (
+                    <button
+                      key={getOptionKey ? getOptionKey(option, index) : option.value}
+                      type="button"
+                      onClick={() => !option.disabled && handleSelect(option.value)}
+                      disabled={option.disabled}
+                      className={cn(
+                        'w-[calc(100%-8px)] mx-1 px-3 py-2 text-sm text-left transition-colors rounded-lg mb-0.5 flex items-center justify-between',
+                        value == option.value ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-600',
+                        option.disabled && 'opacity-40 cursor-not-allowed'
+                      )}
+                    >
+                      <span className="truncate">{option.label}</span>
+                      {value == option.value && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />}
+                    </button>
+                  ))
+                )}
+              </div>
+            </motion.div>,
+            document.body
+          )}
+        </AnimatePresence>
       </div>
       {error && (
-        <p className="text-[11px] text-rose-500 font-medium ml-0.5 animate-in fade-in slide-in-from-top-1">
+        <p className="text-[11px] text-rose-500 font-medium ml-0.5 mt-1">
           {error}
         </p>
       )}

@@ -59,7 +59,6 @@ export type DashboardWidgetType =
   | 'bar_chart'
   | 'pie_chart'
   | 'area_chart'
-  | 'heatmap'
   | 'table'
   | 'custom_code'
   | 'quick_links'
@@ -83,6 +82,6 @@ export interface WidgetConfig {
   title?: string;
   /** Optional code or config (e.g. for custom_code widget, or SQL for custom_sql). */
   code?: string;
-  /** Chart type for custom_sql: line | bar | pie | heatmap | number-card | card | table | area */
+  /** Chart type for custom_sql: line | bar | pie | number-card | card | table | area */
   chart_type?: string;
 }

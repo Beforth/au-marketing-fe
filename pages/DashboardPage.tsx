@@ -13,9 +13,11 @@ import { ApiError } from '../lib/api';
 import { StatItem } from '../types';
 import { Lead, DashboardTargetStats, ScopeTargetStats, ReportScopeResponse, HeadDashboardSummaryResponse, leadDisplayName, leadDisplayCompany, SavedDashboardResponse, AssignableUser } from '../lib/marketing-api';
 import { Modal } from '../components/ui/Modal';
-import { Download, Layout as LayoutIcon, Check, RefreshCw, Users, UserCircle, Quote, FileText, ShieldAlert, Target, Trophy, XCircle, ListTodo, CheckSquare, Square, Plus, MessageSquare, Upload, Trash2, UserPlus, Wand2, Edit3 } from 'lucide-react';
+import { Download, Layout as LayoutIcon, Check, RefreshCw, Users, UserCircle, Quote, FileText, ShieldAlert, Target, Trophy, XCircle, ListTodo, CheckSquare, Square, Plus, MessageSquare, Upload, Trash2, UserPlus, Wand2, Edit3, X, Search, Calendar } from 'lucide-react';
+import { cn } from '../lib/utils';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from '../constants';
 import { serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import { WidgetConfig, WidgetId, DashboardWidgetType } from '../types';
@@ -42,7 +44,6 @@ import {
   LeadStatusPieChart,
   RegionBreakdownBarChart,
   InquiriesQuotationsBarChart,
-  HeatmapWidget,
   CustomCodeWidget,
 } from '../components/ui/ChartsSection';
 
@@ -74,7 +75,6 @@ const WIDGET_TYPE_OPTIONS: { value: DashboardWidgetType; label: string }[] = [
   { value: 'bar_chart', label: 'Bar chart' },
   { value: 'pie_chart', label: 'Pie chart' },
   { value: 'area_chart', label: 'Area chart' },
-  { value: 'heatmap', label: 'Heatmap' },
   { value: 'table', label: 'Table' },
   { value: 'custom_code', label: 'Custom / code' },
   { value: 'custom_sql', label: 'Custom SQL chart' },
@@ -153,7 +153,7 @@ function CustomSqlWidgetContent({
   };
 
   const isNumberCard = chartType === 'number-card';
-  const isChart = chartType && chartType !== 'table' && !isNumberCard && ['bar', 'line', 'pie', 'heatmap'].includes(chartType);
+  const isChart = chartType && chartType !== 'table' && !isNumberCard && ['bar', 'line', 'pie'].includes(chartType);
 
   if (isNumberCard) {
     const primary = rows[0];
@@ -185,24 +185,6 @@ function CustomSqlWidgetContent({
       value: Number(row[valueKey]) || 0,
     })).filter((d) => d.value !== 0 || chartType === 'bar' || chartType === 'line');
 
-    if (chartType === 'heatmap') {
-      const rowKey = keys[0];
-      const colKey = keys[1];
-      const valKey = keys[2] ?? keys[1];
-      const rowVals = Array.from(new Set(rows.map((r) => String(r[rowKey] ?? ''))));
-      const colVals = Array.from(new Set(rows.map((r) => String(r[colKey] ?? ''))));
-      const matrix: number[][] = rowVals.map(() => colVals.map(() => 0));
-      rows.forEach((r) => {
-        const ri = rowVals.indexOf(String(r[rowKey] ?? ''));
-        const ci = colVals.indexOf(String(r[colKey] ?? ''));
-        if (ri >= 0 && ci >= 0) matrix[ri][ci] = Number(r[valKey]) || 0;
-      });
-      return (
-        <div className="h-[260px] w-full p-2">
-          <HeatmapWidget rows={rowVals} columns={colVals} data={matrix} />
-        </div>
-      );
-    }
 
     if (chartData.length === 0) {
       return <p className="text-sm text-slate-500 p-4">No data to chart (need label + value columns).</p>;
@@ -648,7 +630,7 @@ export const DashboardPage: React.FC = () => {
       const schema = await marketingAPI.getSchema();
         const preview = await marketingAPI.previewSqlTemplate({
           sql,
-          chart_type: (chartTypeText ?? addWidgetChartType) as 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card',
+        chart_type: (chartTypeText ?? addWidgetChartType) as 'table' | 'bar' | 'line' | 'pie' | 'number-card',
         date_from: dashboardDateFrom || undefined,
         date_to: dashboardDateTo || undefined,
         schema: (schema.tables || []).map((t) => ({
@@ -687,7 +669,7 @@ export const DashboardPage: React.FC = () => {
           columns: (t.columns || []).map((c) => ({ name: c.name, type: c.type })),
         })),
         scope_mode: aiScopeMode,
-        preferred_chart: addWidgetType === 'custom_sql' ? (addWidgetChartType as 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card') : undefined,
+        preferred_chart: addWidgetType === 'custom_sql' ? (addWidgetChartType as 'table' | 'bar' | 'line' | 'pie' | 'number-card') : undefined,
       });
       setAddWidgetType('custom_sql');
       setAddWidgetTitle(ai.title || addWidgetTitle);
@@ -757,12 +739,12 @@ export const DashboardPage: React.FC = () => {
         if (!isHeadRole || !headSummary?.region_breakdown.length) {
           return (
             <Card {...commonProps} title="Leads by region" description="Total, won, lost per region">
-              <p className="text-sm text-slate-500 p-4">Available for domain head and admin.</p>
+              <p className="text-sm text-slate-500 p-4 italic">Available for domain head and admin.</p>
             </Card>
           );
         }
         return (
-          <Card {...commonProps} title="Leads by region" description="Total, won, lost per region">
+          <Card {...commonProps} title="Leads by region" description="Total, won, lost per region" contentClassName="px-2 pb-2 pt-0">
             <RegionBreakdownBarChart data={headSummary.region_breakdown} />
           </Card>
         );
@@ -834,25 +816,25 @@ export const DashboardPage: React.FC = () => {
             ) : headSummary ? (
               <div className="p-4 space-y-4">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                  <div className="px-3.5 py-2.5 rounded-lg bg-slate-50 border border-slate-100">
                     <p className="text-xs font-medium text-slate-500">Total leads</p>
                     <p className="text-xl font-bold text-slate-900">{headSummary.total_leads}</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-100">
+                  <div className="px-3.5 py-2.5 rounded-lg bg-amber-50 border border-amber-100">
                     <p className="text-xs font-medium text-slate-500">Hot cases</p>
                     <p className="text-xl font-bold text-amber-800">{headSummary.hot_cases_count}</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                  <div className="px-3.5 py-2.5 rounded-lg bg-slate-50 border border-slate-100">
                     <p className="text-xs font-medium text-slate-500">Conversion ratio</p>
                     <p className="text-xl font-bold text-slate-900">{headSummary.conversion_ratio_pct != null ? `${headSummary.conversion_ratio_pct}%` : '—'}</p>
                   </div>
-                  <div className="p-3 rounded-lg flex gap-2">
-                    <div className="flex-1 p-2 rounded bg-emerald-50 border border-emerald-100">
-                      <p className="text-[10px] font-medium text-slate-500">Won</p>
+                  <div className="flex gap-2">
+                    <div className="flex-1 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100">
+                      <p className="text-[10px] font-medium text-emerald-600">Won</p>
                       <p className="text-lg font-bold text-emerald-800">{headSummary.won_count}</p>
                     </div>
-                    <div className="flex-1 p-2 rounded bg-rose-50 border border-rose-100">
-                      <p className="text-[10px] font-medium text-slate-500">Lost</p>
+                    <div className="flex-1 px-3 py-2 rounded-lg bg-rose-50 border border-rose-100">
+                      <p className="text-[10px] font-medium text-rose-600">Lost</p>
                       <p className="text-lg font-bold text-rose-800">{headSummary.lost_count}</p>
                     </div>
                   </div>
@@ -906,7 +888,7 @@ export const DashboardPage: React.FC = () => {
           );
         }
         return (
-          <Card {...commonProps} title="Target vs achieved" description={`${scopeLabel} — ${new Date(s.year, s.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}`}>
+          <Card {...commonProps} title="Target vs achieved" description={`${scopeLabel} scope — ${new Date(s.year, s.month - 1).toLocaleString('default', { month: 'short', year: 'numeric' })}`} contentClassName="px-2 pb-4 pt-0">
             <TargetAchievedBarChart target={s.monthly_target} achieved={s.achieved_this_month} year={s.year} month={s.month} />
           </Card>
         );
@@ -921,7 +903,7 @@ export const DashboardPage: React.FC = () => {
           );
         }
         return (
-          <Card {...commonProps} title="Won vs lost (this month)" description="Closed leads in scope">
+          <Card {...commonProps} title="Won vs lost" description="This month performance" contentClassName="p-1">
             <WonLostPieChart won={s.won_leads_count_this_month} lost={s.lost_leads_count_this_month} />
           </Card>
         );
@@ -935,7 +917,7 @@ export const DashboardPage: React.FC = () => {
           );
         }
         return (
-          <Card {...commonProps} title="Leads by status" description="From recent leads in scope">
+          <Card {...commonProps} title="Leads by status" description="Current pipeline" contentClassName="p-1">
             <LeadStatusPieChart data={leadStatusCounts} />
           </Card>
         );
@@ -948,7 +930,7 @@ export const DashboardPage: React.FC = () => {
           );
         }
         return (
-          <Card {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`}>
+          <Card {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`} contentClassName="px-2 pb-4 pt-0">
             <InquiriesQuotationsBarChart inquiries={reportSummary.inquiries_count} quotations={reportSummary.quotations_sent_count} />
           </Card>
         );
@@ -1073,12 +1055,6 @@ export const DashboardPage: React.FC = () => {
             </div>
           </Card>
         );
-      case 'heatmap':
-        return (
-          <Card {...commonProps} title={config.title || 'Heatmap'} description="Matrix view">
-            <HeatmapWidget title={config.title} />
-          </Card>
-        );
       case 'custom_code':
         return (
           <Card {...commonProps} title={config.title || 'Custom / code'} description="Your code or notes">
@@ -1101,21 +1077,21 @@ export const DashboardPage: React.FC = () => {
         );
       case 'bar_chart':
         return (
-          <Card {...commonProps} title={config.title || 'Bar chart'} description="Chart">
+          <Card {...commonProps} title={config.title || 'Bar chart'} description="Report data" contentClassName="px-2 pb-4 pt-0">
             {reportSummary != null ? (
               <InquiriesQuotationsBarChart inquiries={reportSummary.inquiries_count} quotations={reportSummary.quotations_sent_count} />
             ) : (
-              <div className="h-[220px] flex items-center justify-center text-slate-500 text-sm p-4">No data. Add report permission or data.</div>
+              <div className="h-[220px] flex items-center justify-center text-slate-400 text-xs italic p-4">No report data available.</div>
             )}
           </Card>
         );
       case 'pie_chart':
         return (
-          <Card {...commonProps} title={config.title || 'Pie chart'} description="Distribution">
+          <Card {...commonProps} title={config.title || 'Pie chart'} description="Distribution" contentClassName="p-1">
             {leadStatusCounts.length > 0 ? (
               <LeadStatusPieChart data={leadStatusCounts} />
             ) : (
-              <div className="h-[220px] flex items-center justify-center text-slate-500 text-sm p-4">No lead status data yet.</div>
+              <div className="h-[220px] flex items-center justify-center text-slate-400 text-xs italic p-4">No data available.</div>
             )}
           </Card>
         );
@@ -1252,50 +1228,96 @@ export const DashboardPage: React.FC = () => {
     }
   }, [showAssignDashboardModal, loadDashboardAssignments]);
 
-  const actions = (
-      <div className="flex flex-wrap items-center justify-end gap-2">
-      <div className="min-w-[220px]">
+  const headerActions = (
+    <div className="flex items-center gap-2.5">
+      <button
+        onClick={loadDashboard}
+        disabled={loading || permissionDenied}
+        className="p-1.5 text-slate-300 hover:text-indigo-500 transition-all active:rotate-180 duration-500"
+        title="Refresh"
+      >
+        <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+      </button>
+
+      <Button
+        variant={isEditMode ? 'primary' : 'outline'}
+        size="sm"
+        onClick={() => {
+          if (!canCustomizeDashboard) {
+            showToast('No permission', 'error');
+            return;
+          }
+          if (isEditMode) handleSaveLayout();
+          else setIsEditMode(true);
+        }}
+        disabled={!canCustomizeDashboard}
+        leftIcon={isEditMode ? <Check size={14} /> : <LayoutIcon size={14} />}
+        className={cn(
+          "h-8 font-medium px-4 transition-all duration-300 rounded-xl text-[11px]",
+          isEditMode ? "bg-indigo-600 hover:bg-indigo-700 border-none shadow-lg shadow-indigo-500/20 text-white" : "bg-white border-slate-100 shadow-sm"
+        )}
+      >
+        {isEditMode ? 'Save Layout' : 'Edit Layout'}
+      </Button>
+
+      <Button 
+        size="sm" 
+        onClick={handleExport} 
+        isLoading={isExporting} 
+        leftIcon={<Download size={14} />} 
+        variant="outline"
+        className="h-8 bg-white border-slate-100 font-medium px-4 hover:bg-slate-50 transition-all rounded-xl shadow-sm text-[11px]"
+      >
+        Export
+      </Button>
+    </div>
+  );
+
+  const commandToolbar = (
+    <div className="flex flex-wrap items-center gap-4 p-1 bg-white border border-slate-200 rounded-2xl shadow-sm mb-4 w-full">
+      {/* Dashboard Selection (Clean & Integrated) */}
+      <div className="flex flex-1 min-w-[200px] items-center pl-4 pr-1 border-r border-slate-100 group">
+        <Search size={14} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors shrink-0" />
         <Select
-          className="min-w-[220px]"
-          placeholder="Dashboard"
+          isCombobox={true}
+          containerClassName="flex-1 !space-y-0"
+          triggerClassName="!border-none !shadow-none !bg-transparent text-[11px] h-9 font-medium !ring-0 focus:!ring-0 cursor-pointer w-full"
+          placeholder="Search dashboards..."
           value={selectedDashboardId != null ? String(selectedDashboardId) : ''}
           onChange={(v) => setSelectedDashboardId(v ? parseInt(String(v), 10) : null)}
           options={savedDashboards.map((d) => ({ value: String(d.id), label: d.name }))}
         />
       </div>
 
-      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-sm">
-        <div className="flex items-center gap-1.5 px-1">
-          <Input
-            type="date"
-            value={dashboardDateFrom}
-            onChange={(e) => setDashboardDateFrom(e.target.value)}
-            containerClassName="mb-0"
-          />
-          <span className="text-xs text-slate-500">to</span>
-          <Input
-            type="date"
-            value={dashboardDateTo}
-            onChange={(e) => setDashboardDateTo(e.target.value)}
-            containerClassName="mb-0"
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { setDashboardDateFrom(''); setDashboardDateTo(''); }}
-            disabled={!dashboardDateFrom && !dashboardDateTo}
-            className="text-slate-500"
-          >
-            Clear
-          </Button>
-        </div>
+      {/* Date Range Picker (Widened for visibility) */}
+      <div className="flex items-center gap-2 px-4 h-9">
+        <DatePicker
+          value={dashboardDateFrom}
+          onChange={(v) => setDashboardDateFrom(v || '')}
+          className="w-[140px]"
+          placeholder="From"
+        />
+        <span className="text-slate-300 flex items-center">—</span>
+        <DatePicker
+          value={dashboardDateTo}
+          onChange={(v) => setDashboardDateTo(v || '')}
+          className="w-[140px]"
+          placeholder="To"
+        />
+      </div>
+
+      {/* Visual Separator | */}
+      <div className="text-slate-200 font-light mx-2 text-xl self-center hidden sm:block">|</div>
+
+      {/* Final Action Buttons */}
+      <div className="flex items-center gap-3 pr-2 ml-auto">
         {canCreateDashboard && (
           <Button
-            variant="outline"
+            variant="primary"
             size="sm"
             onClick={() => setShowCreateDashboardModal(true)}
-            leftIcon={<Plus size={14} />}
-            className="border-slate-300"
+            leftIcon={<Plus size={16} />}
+            className="h-9 px-6 font-medium rounded-xl shadow-lg shadow-indigo-500/10 text-xs"
           >
             New Dashboard
           </Button>
@@ -1305,46 +1327,12 @@ export const DashboardPage: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={() => setShowAssignDashboardModal(true)}
-            leftIcon={<UserPlus size={14} />}
-            className="border-slate-300"
+            className="h-9 px-6 border-slate-100 bg-slate-50 font-medium hover:bg-slate-100 transition-all rounded-xl text-slate-700 text-xs"
           >
             Assign
           </Button>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadDashboard}
-          disabled={loading || permissionDenied}
-          leftIcon={<RefreshCw size={14} className={loading ? 'animate-spin' : ''} />}
-          className="border-slate-300"
-        >
-          Reload
-        </Button>
       </div>
-
-      <Button
-        variant={isEditMode ? 'secondary' : 'primary'}
-        size="sm"
-        title="Drag to reorder; save to backend when a saved dashboard is selected"
-        onClick={() => {
-          if (!canCustomizeDashboard) {
-            showToast('You do not have permission to customize this dashboard', 'error');
-            return;
-          }
-          if (isEditMode) handleSaveLayout();
-          else setIsEditMode(true);
-        }}
-        disabled={!canCustomizeDashboard}
-        leftIcon={isEditMode ? <Check size={14} /> : <LayoutIcon size={14} />}
-        className={isEditMode ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
-      >
-        {isEditMode ? 'Save Layout' : 'Edit Layout'}
-      </Button>
-
-      <Button size="sm" onClick={handleExport} isLoading={isExporting} leftIcon={<Download size={14} />} variant="outline">
-        Export
-      </Button>
     </div>
   );
 
@@ -1353,10 +1341,7 @@ export const DashboardPage: React.FC = () => {
     dashboardRole === 'super_admin' ? 'Marketing overview' :
     dashboardRole === 'domain_head' ? 'Domain dashboard' :
     dashboardRole === 'region_head' ? 'Region dashboard' : 'Dashboard';
-  const dashboardDescription =
-    dashboardRole === 'super_admin' ? 'All domains — leads and team activity.' :
-    dashboardRole === 'domain_head' ? 'Domain leads and team activity.' :
-    dashboardRole === 'region_head' ? 'Region leads and team activity.' : 'Your leads, contacts, and activity.';
+  const dashboardDescription = 'Track campaigns & performance';
   const scopeLabel = scopeTargetStats?.scope_label ?? 'My';
 
   const breadcrumbs = [{ label: dashboardTitle }];
@@ -1364,9 +1349,10 @@ export const DashboardPage: React.FC = () => {
     <PageLayout
       title={dashboardTitle}
       description={dashboardDescription}
-      actions={actions}
+      actions={headerActions}
       breadcrumbs={breadcrumbs}
     >
+      {commandToolbar}
       {permissionDenied ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 rounded-lg border border-amber-200 bg-amber-50">
           <ShieldAlert className="w-12 h-12 text-amber-600 mb-4" />
@@ -1402,13 +1388,18 @@ export const DashboardPage: React.FC = () => {
               </Button>
             </div>
             {layout.length === 0 ? (
-              <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-12 text-center">
-                <LayoutIcon className="mx-auto h-12 w-12 text-slate-300 mb-4" />
-                <h3 className="text-base font-semibold text-slate-700 mb-1">No widgets yet</h3>
-                <p className="text-sm text-slate-500 mb-4 max-w-sm mx-auto">Add cards, graphs, heatmaps, tables, or custom code. Your layout is saved and you can reorder anytime.</p>
-                <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => setShowAddWidgetModal(true)} disabled={!canCustomizeDashboard}>
-                  Add widget
-                </Button>
+              <div className="rounded-[2rem] border border-slate-200/60 bg-white/40 backdrop-blur-sm p-16 text-center shadow-sm relative overflow-hidden group/empty">
+                <div className="absolute inset-0 bg-gradient-to-b from-indigo-50/20 to-transparent opacity-0 group-hover/empty:opacity-100 transition-opacity duration-700" />
+                <div className="relative z-10">
+                  <div className="mx-auto h-20 w-20 bg-indigo-50 rounded-3xl flex items-center justify-center mb-6 shadow-inner">
+                    <LayoutIcon className="h-10 w-10 text-indigo-500" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-800 mb-2 tracking-tight">Your Workspace is Empty</h3>
+                  <p className="text-sm text-slate-500 mb-8 max-w-sm mx-auto font-medium leading-relaxed">Customize your command center by adding graphs, key metrics, or live data tables from the widget gallery.</p>
+                  <Button size="lg" variant="primary" leftIcon={<Plus size={18} />} onClick={() => setShowAddWidgetModal(true)} disabled={!canCustomizeDashboard} className="shadow-xl shadow-indigo-500/20 px-8 rounded-2xl h-11">
+                    Initialize Dashboard
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 transition-all duration-300" style={{ gap: 'var(--ui-gap)' }}>
@@ -2160,7 +2151,6 @@ export const DashboardPage: React.FC = () => {
                         { value: 'line', label: 'Line chart' },
                         { value: 'pie', label: 'Pie chart' },
                         { value: 'number-card', label: 'Number card' },
-                        { value: 'heatmap', label: 'Heatmap' },
                       ]}
                     />
                     <div className="mt-2 flex justify-end">

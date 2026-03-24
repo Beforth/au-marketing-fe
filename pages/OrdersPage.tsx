@@ -6,12 +6,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { DataTable, Column } from '../components/ui/DataTable';
+import { SearchInput } from '../components/ui/SearchInput';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Pagination } from '../components/ui/Pagination';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, FileText, Upload } from 'lucide-react';
+import { SegmentToggle } from '../components/ui/SegmentToggle';
+import { Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, FileText, Upload, Eye, Trophy, XCircle } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
@@ -529,19 +531,19 @@ export const OrdersPage: React.FC = () => {
       sortable: false,
       align: 'right',
       render: (o) => (
-        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="sm" onClick={() => navigate(`/orders/${o.id}`)}>
-            <MoreHorizontal size={18} strokeWidth={2.5} />
+        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <Button variant="outline" size="xxs" onClick={() => navigate(`/orders/${o.id}`)} title="View details">
+            <Eye size={12} strokeWidth={2.5} />
           </Button>
           {canDelete && (
             <Button
-              variant="ghost"
-              size="sm"
-              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+              variant="outline"
+              size="xxs"
+              className="text-slate-400 hover:text-rose-600 hover:border-rose-300"
               onClick={() => setDeleteOrderId(o.id)}
               title="Delete order"
             >
-              <Trash2 size={16} strokeWidth={2} />
+              <Trash2 size={12} strokeWidth={2.5} />
             </Button>
           )}
         </div>
@@ -558,56 +560,33 @@ export const OrdersPage: React.FC = () => {
     >
       <div className="space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex rounded-full border border-slate-200 p-0.5 bg-slate-100/50">
-            <button
-              type="button"
-              onClick={() => setOrdersTab('won')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                ordersTab === 'won' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-              }`}
-            >
-              Won
-            </button>
-            <button
-              type="button"
-              onClick={() => setOrdersTab('lost')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                ordersTab === 'lost' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-              }`}
-            >
-              Lost
-            </button>
-          </div>
+          <SegmentToggle<OrdersTab>
+            value={ordersTab}
+            onChange={setOrdersTab}
+            options={[
+              { value: 'won', label: 'Won', icon: Trophy },
+              { value: 'lost', label: 'Lost', icon: XCircle },
+            ]}
+            className="h-9 min-w-[180px]"
+            layoutId="orders-tab"
+          />
           {ordersTab === 'won' && (
             <>
-              <div className="flex rounded-full border border-slate-200 p-0.5 bg-slate-100/50">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('kanban')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    viewMode === 'kanban' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-                  }`}
-                >
-                  <LayoutGrid size={16} /> Kanban
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('table')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    viewMode === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-                  }`}
-                >
-                  <List size={16} /> Table
-                </button>
-              </div>
-              <Input
-                variant="white"
-                inputSize="sm"
-                className="rounded-full shadow-sm"
-                icon={<Search size={14} strokeWidth={2.5} />}
+              <SegmentToggle<ViewMode>
+                value={viewMode}
+                onChange={setViewMode}
+                options={[
+                  { value: 'kanban', label: 'Kanban', icon: LayoutGrid },
+                  { value: 'table', label: 'Table', icon: List },
+                ]}
+                className="h-9 min-w-[200px]"
+                layoutId="orders-view-mode"
+              />
+              <SearchInput
                 placeholder="Search by order ref, lead name, company, email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onClear={() => setSearchTerm('')}
                 containerClassName="max-w-md"
               />
               {viewMode === 'table' && (
@@ -993,6 +972,8 @@ export const OrdersPage: React.FC = () => {
                   columns={columns}
                   rowKey={(o) => String(o.id)}
                   onRowClick={(o) => navigate(`/orders/${o.id}`)}
+                  dense={true}
+                  showVerticalLines={true}
                 />
                 <div className="border-t border-slate-200 px-4 py-3">
                   <Pagination

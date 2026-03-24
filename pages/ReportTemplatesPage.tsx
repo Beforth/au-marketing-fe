@@ -4,6 +4,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
 import { Modal } from '../components/ui/Modal';
 import { PageLayout } from '../components/layout/PageLayout';
 import {
@@ -446,11 +447,10 @@ export const ReportTemplatesPage: React.FC = () => {
                   if (key === 'date_from') {
                     return (
                       <div key={key} className="min-w-[160px] max-w-[220px]">
-                        <Input
+                        <DatePicker
                           label="From"
-                          type="date"
                           value={dateFrom}
-                          onChange={(e) => setDateFrom(e.target.value)}
+                          onChange={(v) => setDateFrom(v || '')}
                         />
                       </div>
                     );
@@ -458,11 +458,10 @@ export const ReportTemplatesPage: React.FC = () => {
                   if (key === 'date_to') {
                     return (
                       <div key={key} className="min-w-[160px] max-w-[220px]">
-                        <Input
+                        <DatePicker
                           label="To"
-                          type="date"
                           value={dateTo}
-                          onChange={(e) => setDateTo(e.target.value)}
+                          onChange={(v) => setDateTo(v || '')}
                         />
                       </div>
                     );

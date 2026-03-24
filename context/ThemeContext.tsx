@@ -34,7 +34,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [color, setColor] = useState<ThemeColor>(() => (localStorage.getItem('ui-color') as ThemeColor) || 'blue');
-  const [density, setDensity] = useState<Density>(() => (localStorage.getItem('ui-density') as Density) || 'default');
+  const [density, setDensity] = useState<Density>(() => (localStorage.getItem('ui-density') as Density) || 'compact');
 
   useEffect(() => {
     const root = document.documentElement;

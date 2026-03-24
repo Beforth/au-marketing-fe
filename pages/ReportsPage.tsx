@@ -4,6 +4,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
 import { Modal } from '../components/ui/Modal';
 import { PageLayout } from '../components/layout/PageLayout';
 import { marketingAPI, ReportScopeResponse, ReportSummaryResponse, ExpectedOrderReportItem, ODPlanReportItem } from '../lib/marketing-api';
@@ -115,19 +116,17 @@ export const ReportsPage: React.FC = () => {
         <div className="flex flex-wrap items-end gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-slate-500">Date from</label>
-            <Input
-              type="date"
+            <DatePicker
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              onChange={(v) => setDateFrom(v || '')}
               className="w-[160px]"
             />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-slate-500">Date to</label>
-            <Input
-              type="date"
+            <DatePicker
               value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={(v) => setDateTo(v || '')}
               className="w-[160px]"
             />
           </div>
