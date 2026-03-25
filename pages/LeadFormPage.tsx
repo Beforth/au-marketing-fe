@@ -263,6 +263,8 @@ export const LeadFormPage: React.FC = () => {
   const [generatedQuoteNumber, setGeneratedQuoteNumber] = useState<string | null>(null);
   const [generatedQuoteSeriesCode, setGeneratedQuoteSeriesCode] = useState<string | null>(null);
   const [generatingQuoteNumberOnCreate, setGeneratingQuoteNumberOnCreate] = useState(false);
+  /** Create lead: optional manual quote number (no series); mutually exclusive with Generate */
+  const [customCreateQuoteNumber, setCustomCreateQuoteNumber] = useState('');
   const [editQuoteSeriesCode, setEditQuoteSeriesCode] = useState('');
   const [generatingQuoteNumberInEdit, setGeneratingQuoteNumberInEdit] = useState(false);
 
@@ -1199,10 +1201,12 @@ export const LeadFormPage: React.FC = () => {
       const assigned = (window.localStorage.getItem(DEFAULT_LEAD_SERIES_STORAGE_KEY) || '').trim();
       if (assigned) (payload as any).series_code = assigned;
     }
-    // Quote number (separate from lead number): send if user generated one at create
+    // Quote number (separate from lead number): generated (series + number) or manual text only
     if (!isEdit && generatedQuoteSeriesCode && generatedQuoteNumber) {
       (payload as any).quote_series_code = generatedQuoteSeriesCode;
       (payload as any).quote_number = generatedQuoteNumber;
+    } else if (!isEdit && customCreateQuoteNumber.trim()) {
+      (payload as any).quote_number = customCreateQuoteNumber.trim();
     }
 
     const initialInquiryIso =
@@ -1240,8 +1244,10 @@ export const LeadFormPage: React.FC = () => {
               ['quotation'],
               undefined,
               undefined,
-              // Use lead's quote number when we set one at create; otherwise optional series for first quotation
-              generatedQuoteNumber ? undefined : (formData.series_code?.trim() || undefined)
+              // Use lead's quote number when set at create (generated or custom); otherwise optional series for first quotation
+              generatedQuoteNumber || customCreateQuoteNumber.trim()
+                ? undefined
+                : (formData.series_code?.trim() || undefined)
             );
             showToast('Lead and enquiry created successfully', 'success');
             navigate(`/leads/${lead.id}/edit`);
@@ -1964,16 +1970,37 @@ export const LeadFormPage: React.FC = () => {
                   onChange={(d) => setFormData({ ...formData, expected_closing_date: d })}
                   inputSize="sm"
                 />
-                <div className="md:col-span-2 space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight ml-0.5">Inquiry received (date and time)</label>
-                  <input
-                    type="datetime-local"
-                    className="w-full max-w-md h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs"
-                    value={initialInquiryReceivedAtLocal}
-                    onChange={(e) => setInitialInquiryReceivedAtLocal(e.target.value)}
-                    title="Optional — use when the enquiry happened earlier than you are entering the lead"
-                  />
-                  <p className="text-[10px] text-slate-400">Optional. Sets the first enquiry log to this time (including past dates). Leave blank to use the current time.</p>
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight ml-0.5">Inquiry received (date and time)</label>
+                    <input
+                      type="datetime-local"
+                      className="w-full max-w-md h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs"
+                      value={initialInquiryReceivedAtLocal}
+                      onChange={(e) => setInitialInquiryReceivedAtLocal(e.target.value)}
+                      title="Optional — use when the enquiry happened earlier than you are entering the lead"
+                    />
+                    <p className="text-[10px] text-slate-400">Optional. Sets the first enquiry log to this time (including past dates). Leave blank to use the current time.</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight ml-0.5">Custom quote number</label>
+                    <Input
+                      inputSize="sm"
+                      className="font-mono tabular-nums"
+                      value={customCreateQuoteNumber}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setCustomCreateQuoteNumber(v);
+                        if (v.trim()) {
+                          setGeneratedQuoteNumber(null);
+                          setGeneratedQuoteSeriesCode(null);
+                        }
+                      }}
+                      placeholder="e.g. AP/QUOTE-N/2025/001 — optional"
+                      title="Your own quotation reference instead of using Generate below"
+                    />
+                    <p className="text-[10px] text-slate-400">Optional. Type the exact quote reference you already use. Saved on the lead; an initial quotation file will use this number. Clears a generated quote if you type here.</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2126,7 +2153,7 @@ export const LeadFormPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Quote Number Generation */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight block">Quote Number</label>
+                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight block">Quote number (from series)</label>
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
                       <Select
@@ -2135,6 +2162,7 @@ export const LeadFormPage: React.FC = () => {
                         onChange={(val) => {
                           setCreateFormQuoteSeriesCode(String(val ?? ''));
                           setGeneratedQuoteNumber(null);
+                          setGeneratedQuoteSeriesCode(null);
                         }}
                         options={[
                           { value: '', label: '— Select series —' },
@@ -2162,6 +2190,7 @@ export const LeadFormPage: React.FC = () => {
                           const res = await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company: company || undefined } });
                           setGeneratedQuoteNumber(res.generated_value);
                           setGeneratedQuoteSeriesCode(code);
+                          setCustomCreateQuoteNumber('');
                           showToast('Quote number generated', 'success');
                         } catch (e: any) {
                           showToast(e?.message || 'Failed to generate quote number', 'error');
@@ -2178,8 +2207,9 @@ export const LeadFormPage: React.FC = () => {
                       <span className="text-xs font-bold text-emerald-700 tabular-nums">Generated: {generatedQuoteNumber}</span>
                     </div>
                   ) : (
-                    !hasEffectiveContactOrCustomerForQuote && (
-                      <p className="text-[10px] text-amber-600 font-medium">Link a contact or customer to generate a quote number.</p>
+                    !hasEffectiveContactOrCustomerForQuote &&
+                    !customCreateQuoteNumber.trim() && (
+                      <p className="text-[10px] text-amber-600 font-medium">Link a contact or customer to generate a quote number, or enter a custom quote number next to inquiry date.</p>
                     )
                   )}
                 </div>
