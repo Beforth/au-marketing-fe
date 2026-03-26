@@ -410,7 +410,7 @@ export const LeadsPage: React.FC = () => {
       align: 'right' as const,
       render: (lead: Lead) =>
         lead.potential_value != null
-          ? <span className="font-medium text-slate-900">₹{lead.potential_value.toLocaleString()}</span>
+          ? <span className="font-medium text-slate-900">₹{Number(lead.potential_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           : '—',
     },
     {
@@ -1572,7 +1572,7 @@ export const LeadsPage: React.FC = () => {
                                       )}
                                       {lead.potential_value != null && (
                                         <div className="text-xs font-medium text-slate-700 mt-1.5">
-                                          ₹{lead.potential_value.toLocaleString()}
+                                          ₹{Number(lead.potential_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </div>
                                       )}
                                       <div className="flex items-center gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>

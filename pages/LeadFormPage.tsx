@@ -1572,12 +1572,12 @@ export const LeadFormPage: React.FC = () => {
             <div><span className="text-slate-500">Company</span><br /><span className="font-medium">{currentLead ? leadDisplayCompany(currentLead) || '—' : '—'}</span></div>
             <div><span className="text-slate-500">Status</span><br /><span className="font-medium">{leadStatuses.find(s => s.id === formData.status_id)?.label ?? '—'}</span></div>
             <div><span className="text-slate-500">Domain · Region</span><br /><span className="font-medium">{domains.find(d => d.id === formData.domain_id)?.name ?? '—'}{formData.region_id ? ` · ${regions.find(r => r.id === formData.region_id)?.name ?? ''}` : ''}</span></div>
-            {formData.potential_value != null && <div><span className="text-slate-500">Potential value</span><br /><span className="font-medium">₹{formData.potential_value.toLocaleString()}</span></div>}
+            {formData.potential_value != null && <div><span className="text-slate-500">Potential value</span><br /><span className="font-medium">₹{Number(formData.potential_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>}
             {formData.closed_value != null && formData.closed_value !== undefined && (
               <div>
                 <span className="text-slate-500">Closed value</span>
                 <br />
-                <span className="font-medium text-emerald-700">₹{Number(formData.closed_value).toLocaleString()}</span>
+                <span className="font-medium text-emerald-700">₹{Number(formData.closed_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 {formData.closed_at && (
                   <span className="text-xs text-slate-500 ml-1">
                     (closed {new Date(formData.closed_at).toLocaleDateString(undefined, { dateStyle: 'medium' })})
