@@ -1912,12 +1912,12 @@ export const LeadFormPage: React.FC = () => {
                     />
                   </div>
                 </div>
-                <DatePicker
+                {/* <DatePicker
                   label="Expected Closing Date"
                   value={formData.expected_closing_date?.split('T')[0]}
                   onChange={(d) => setFormData({ ...formData, expected_closing_date: d })}
                   inputSize="sm"
-                />
+                /> */}
                 <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-1.5">
                     <label className="text-[12px] font-semibold text-slate-700 ml-0.5">Inquiry received (date and time)</label>
