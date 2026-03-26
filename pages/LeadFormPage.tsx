@@ -2206,7 +2206,8 @@ export const LeadFormPage: React.FC = () => {
             </div>
 
             {/* Additional Information Section (Notes) */}
-            <div className="space-y-4 pt-6 border-t border-indigo-100/80 mt-6">
+            <div className="mt-8 pt-8 relative">
+              <div className="h-px w-full bg-indigo-500/20 absolute top-0 left-0" />
               <div className="space-y-3">
                 <div className="flex items-center gap-2 ml-0.5">
                   <div className="h-7 w-7 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100/50 shrink-0">
