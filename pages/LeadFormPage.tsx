@@ -30,7 +30,7 @@ import { parseNameWithPrefix, serializeNameWithPrefix, parsePhoneWithCountryCode
 import { getStoredMarketingScope } from '../lib/marketing-scope';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Modal } from '../components/ui/Modal';
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Globe, User, Building2, FileText, History, Edit2, Trash2, Paperclip, Download, Plus, Upload, X, Package, Trophy, XCircle, Search, Network, Info, Mail, List, Factory } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Globe, User, Building2, FileText, History, Edit2, Trash2, Paperclip, Download, Plus, Upload, X, Package, Trophy, XCircle, Search, Network, Info, Mail, List, Factory, MessageSquare } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface LeadFormData extends Partial<Lead> {
@@ -2171,30 +2171,55 @@ export const LeadFormPage: React.FC = () => {
                 {/* Initial Quotation Upload */}
                 <div className="space-y-2.5">
                   <label className="text-[12px] font-semibold text-slate-700 block ml-0.5">Initial Quotation</label>
-                  <div className="flex items-center gap-2">
-                    <label className="flex-1 flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs hover:border-indigo-400 hover:bg-slate-50 transition-all cursor-pointer group">
-                      <Upload size={14} className="text-slate-400 group-hover:text-indigo-500" />
-                      <span className="text-slate-600 truncate">{initialQuotationFile ? initialQuotationFile.name : 'Choose file...'}</span>
-                      <input type="file" className="hidden" onChange={(e) => setInitialQuotationFile(e.target.files?.[0] || null)} />
-                    </label>
-                    {initialQuotationFile && (
-                      <Button variant="ghost" size="sm" onClick={() => setInitialQuotationFile(null)} className="text-rose-600 h-8 text-xs">Remove</Button>
+                  <label className={cn(
+                    "flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg text-xs transition-all px-4 py-2 select-none group border",
+                    initialQuotationFile 
+                      ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-bold shadow-sm" 
+                      : "bg-slate-50/80 border-slate-200 text-slate-500 hover:bg-slate-100 hover:border-slate-300 hover:text-indigo-600 shadow-sm/50"
+                  )}>
+                    {initialQuotationFile ? (
+                      <FileText size={14} className="text-indigo-600 shrink-0" />
+                    ) : (
+                      <Paperclip size={14} className="text-slate-400 group-hover:text-indigo-500 shrink-0 transition-colors" />
                     )}
-                  </div>
+                    <span className="truncate max-w-[200px]">
+                      {initialQuotationFile ? initialQuotationFile.name : 'Attach quotation document'}
+                    </span>
+                    {initialQuotationFile && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInitialQuotationFile(null); }}
+                        className="ml-2 h-6 w-6 flex items-center justify-center rounded-full bg-indigo-100/50 hover:bg-rose-100 text-indigo-600 hover:text-rose-600 transition-all shrink-0"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                    <input 
+                      type="file" 
+                      accept=".pdf,.doc,.docx"
+                      className="hidden" 
+                      onChange={(e) => setInitialQuotationFile(e.target.files?.[0] || null)} 
+                    />
+                  </label>
                 </div>
               </div>
             </div>
 
             {/* Additional Information Section (Notes) */}
-            <div className="space-y-4 pt-4 border-t border-slate-100 mt-4">
-              <div className="space-y-2">
-                <label className="text-[12px] font-semibold text-slate-700 block ml-0.5">Additional Notes</label>
+            <div className="space-y-4 pt-6 border-t border-indigo-100/80 mt-6">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 ml-0.5">
+                  <div className="h-7 w-7 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100/50 shrink-0">
+                    <MessageSquare size={14} className="text-indigo-600" />
+                  </div>
+                  <label className="text-[12px] font-black uppercase tracking-widest text-slate-500">Additional Notes</label>
+                </div>
                 <textarea
-                  className="w-full px-3 py-2 bg-slate-50/50 border border-slate-200 rounded-xl text-xs placeholder:text-slate-400/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all"
-                  rows={3}
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm placeholder:text-slate-400/80 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all min-h-[100px] resize-none shadow-sm"
+                  rows={4}
                   value={formData.notes || ''}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Provide any additional context or requirements here..."
+                  placeholder="Provide any additional context, requirements, or special instructions here..."
                 />
               </div>
             </div>
@@ -2327,10 +2352,13 @@ export const LeadFormPage: React.FC = () => {
                       <>
                         <div className="mt-2 space-y-2">
                           {attachmentEntries.map((row) => (
-                            <div key={row.id} className="flex flex-wrap md:flex-nowrap items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-white shadow-sm">
-                              <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-700 hover:bg-slate-100 shrink-0 min-w-[120px] justify-center">
-                                <Upload size={14} />
-                                <span className="truncate max-w-[140px]">{row.file ? row.file.name : 'Choose file'}</span>
+                            <div key={row.id} className="flex flex-wrap md:flex-nowrap items-center gap-2 p-2 rounded-lg border border-slate-200 bg-white shadow-sm group/row">
+                              <label className={cn(
+                                "flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-xs font-medium transition-all duration-200 shrink-0 min-w-[130px] justify-center",
+                                row.file ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                              )}>
+                                <Upload size={14} className={row.file ? "text-indigo-600" : "text-slate-400"} />
+                                <span className="truncate max-w-[110px]">{row.file ? row.file.name : 'Choose file'}</span>
                                 <input
                                   type="file"
                                   accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
@@ -2360,7 +2388,7 @@ export const LeadFormPage: React.FC = () => {
                                   }}
                                 />
                               </label>
-                              <div className="w-28 shrink-0 [&_button]:!h-9 [&_button]:!min-h-0 [&_button]:!py-0">
+                              <div className="w-28 shrink-0 [&_button]:!h-10 [&_button]:!min-h-0 [&_button]:!py-0">
                                 <Select
                                   options={[
                                     { value: 'quotation', label: 'Quotation' },
@@ -2377,18 +2405,20 @@ export const LeadFormPage: React.FC = () => {
                                 />
                               </div>
                               {row.kind === 'quotation' ? (
-                                <span className="text-xs text-slate-500 shrink-0">Number auto from lead</span>
+                                <div className="h-10 flex-1 flex items-center px-3 bg-slate-50 border border-slate-100 rounded-lg">
+                                  <span className="text-[11px] font-medium text-slate-500 italic">Auto from Lead</span>
+                                </div>
                               ) : (
                                 <Input
-                                  placeholder="Title (e.g. Diagram, Documentation)"
+                                  placeholder="File title"
                                   value={row.title}
                                   onChange={(e) =>
                                     setAttachmentEntries((prev) =>
                                       prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r))
                                     )
                                   }
-                                  inputSize="sm"
-                                  containerClassName="min-w-[160px] max-w-[220px] flex-1 !space-y-0"
+                                  inputSize="md"
+                                  containerClassName="min-w-[160px] flex-1 !space-y-0"
                                 />
                               )}
                               <div className="ml-auto flex items-center gap-1 shrink-0">
@@ -2407,7 +2437,7 @@ export const LeadFormPage: React.FC = () => {
                                   onClick={() =>
                                     setAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])
                                   }
-                                  className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                  className="h-9 w-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-600 hover:text-white transition-colors"
                                   title="Add row"
                                 >
                                   <Plus size={14} />
@@ -3445,3 +3475,4 @@ export const LeadFormPage: React.FC = () => {
     </PageLayout>
   );
 };
+
