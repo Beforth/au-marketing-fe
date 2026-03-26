@@ -1422,7 +1422,6 @@ export const LeadFormPage: React.FC = () => {
     );
   }
 
-
   return (
     <PageLayout
       title={viewMode ? 'Lead details' : (isEdit ? 'Edit Lead' : 'Create Lead')}
@@ -1616,14 +1615,14 @@ export const LeadFormPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Contact Information Section */}
             <div className="space-y-4">
-              <div className="flex items-center gap-4 mb-4 border-b-2 border-slate-50 pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
-                    <User size={20} className="text-indigo-600" />
+              <div className="flex flex-col gap-2 mb-8 pt-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
+                    <User size={24} className="text-indigo-600" />
                   </div>
-                  <h3 className="text-[17px] font-extrabold text-slate-900 tracking-tight leading-none">Contact Information</h3>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight leading-none">Contact Information</h3>
                 </div>
-                <div className="h-0.5 bg-slate-200/60 flex-1 ml-2 rounded-full" />
+                <div className="h-px w-full bg-indigo-500/20 mt-2" />
               </div>
               {formData.contact_id != null || formData.customer_id != null ? (
                 <div className="flex items-center justify-between p-4 rounded-2xl bg-indigo-50/30 border border-indigo-100/50 animate-in fade-in zoom-in-95">
@@ -1853,15 +1852,15 @@ export const LeadFormPage: React.FC = () => {
             </div>
 
             {/* Lead Details Section */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-4 mb-4 border-b-2 border-slate-50 pb-3 mt-6">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
-                    <Info size={20} className="text-indigo-600" />
+            <div className="space-y-4 py-12">
+              <div className="flex flex-col gap-2 mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
+                    <Info size={24} className="text-indigo-600" />
                   </div>
-                  <h3 className="text-[17px] font-extrabold text-slate-900 tracking-tight leading-none">Lead Information</h3>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Lead Information</h3>
                 </div>
-                <div className="h-0.5 bg-slate-200/60 flex-1 ml-2 rounded-full" />
+                <div className="h-px w-full bg-indigo-500/20 mt-2" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* <div>
@@ -1929,7 +1928,7 @@ export const LeadFormPage: React.FC = () => {
                       onChange={(e) => setInitialInquiryReceivedAtLocal(e.target.value)}
                       title="Optional — use when the enquiry happened earlier than you are entering the lead"
                     />
-                    <p className="text-[10px] text-slate-400 italic">Optional. Sets the first enquiry log to this time.</p>
+                    <p className="text-[10px] text-amber-600 font-medium italic">Optional. Pick a date if the lead first reached out earlier than today.</p>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[12px] font-semibold text-slate-700 ml-0.5">Custom quote number</label>
@@ -1948,22 +1947,22 @@ export const LeadFormPage: React.FC = () => {
                       placeholder="e.g. AP/QUOTE-N/2025/001 — optional"
                       title="Your own quotation reference instead of using Generate below"
                     />
-                    <p className="text-[10px] text-slate-400 italic">Optional. Type the exact quote reference. Clears a generated quote.</p>
+                    <p className="text-[10px] text-amber-600 font-medium italic">Optional. Type your own quote number here and it will override the automatic one.</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Reference & Allocation Section */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-4 mb-4 border-b-2 border-slate-50 pb-3 mt-6">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
-                    <Network size={20} className="text-indigo-600" />
+            <div className="space-y-4 py-12">
+              <div className="flex flex-col gap-2 mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
+                    <Network size={24} className="text-indigo-600" />
                   </div>
-                  <h3 className="text-[17px] font-extrabold text-slate-900 tracking-tight leading-none">Reference & Allocation</h3>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Reference & Allocation</h3>
                 </div>
-                <div className="h-0.5 bg-slate-200/60 flex-1 ml-2 rounded-full" />
+                <div className="h-px w-full bg-indigo-500/20 mt-2" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -2095,15 +2094,15 @@ export const LeadFormPage: React.FC = () => {
 
 
             {/* Quote & Documentation Section */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-4 mb-4 border-b-2 border-slate-50 pb-3 mt-6">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
-                    <FileText size={20} className="text-indigo-600" />
+            <div className="space-y-4 py-12">
+              <div className="flex flex-col gap-2 mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
+                    <FileText size={24} className="text-indigo-600" />
                   </div>
-                  <h3 className="text-[17px] font-extrabold text-slate-900 tracking-tight leading-none">Quote & Documentation</h3>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Quote & Documentation</h3>
                 </div>
-                <div className="h-0.5 bg-slate-200/60 flex-1 ml-2 rounded-full" />
+                <div className="h-px w-full bg-indigo-500/20 mt-2" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

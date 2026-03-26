@@ -48,118 +48,115 @@ This 2,006-line file encapsulates the entire communication layer for the marketi
     - `is_lost`: Set to true for "Lost" statuses.
     - `set_when_quotation_added`: Boolean; if true, adding a quotation auto-updates the lead to this status.
 
-### 2.2 Critical Service Methods
-- **`getLeads(params)` (L452)**: Supports complex filtering including `assigned_to`, `created_by_me`, `is_hot`, and `search`.
-- **`createLeadActivity(leadId, data)` (L598)**: The primary entry point for the audit log.
-- **`uploadLeadActivityAttachments(...)` (L619)**:
-    - `files`: File objects.
-    - `kinds`: Array of `'quotation' | 'attachment'`.
-    - `titles`: Array of custom titles for attachments.
-    - `series_code`: Used only when `kinds` includes `quotation`.
-- **`generateNextSeriesNumberByCode(code, context)` (L1082)**:
-    - `code`: The series type (e.g., `LEAD`, `QUOTE`).
-    - `context`: Object containing `lead_id` or `lead_context` (for name parsing).
+### 2.2 Critical Service Methods (Partial List)
+- **`getLeads(params)` (L452)**: Fetches leads with support for filtering, sorting, and pagination.
+- **`createLeadActivity(leadId, data)` (L598)**: Logs an interaction/enquiry for a lead.
+- **`uploadLeadActivityAttachments(leadId, activityId, files, kinds, ...)` (L619)**: Handles multipart file uploads.
+- **`convertContactToCustomer(contactId)` (L918)**: Promotes a contact to a customer.
+- **`generateNextSeriesNumberByCode(code, context)` (L1082)**: Server-side generation of Lead/Quote numbers.
 
 ---
 
 ## 3. `pages/LeadFormPage.tsx` - Hyper-Detailed Breakdown (3,442 Lines)
 
-### 3.1 State Mapping (Line-by-Line Context)
-- **Form Data (`formData`) (L238)**: The master object for lead creation/editing. Includes `domain_id`, `region_id`, `contact_id`, `potential_value`, and `expected_closing_date`.
-- **`leadSourceType` (L105)**: Enum `'contact' | 'customer' | 'none'`. Controls conditional rendering of the person vs. company linking sections.
-- **Inline Entity Forms**:
-    - `inlineContactForm` (L217): Used for creating a new person. Fields: `title`, `first_name`, `last_name`, `email`, `phone`.
-    - `newOrgForm` (L180): Fields: `name`, `code`, `website`, `industry`, `size`.
-    - `newPlantForm` (L190): Fields: `plant_name`, `address_line1`, `city`, `state`, `postal_code`.
-- **Activity Logging**:
-    - `activityForm` (L110): Fields for `activity_type`, `title`, and `description`.
-    - `attachmentEntries` (L131): Staged array of file objects and their metadata.
-- **Won/Lost Flow**:
-    - `markWonClosedValue` (L300): Mandatory value input for winning a deal.
-    - `markLostReason` (L303): Mandatory 100-character explanation for losing a deal.
+### 3.1 Exhaustive State Mapping (Categorized)
+#### Form & Entity State
+- `formData` (L238): The master object for Lead creation/editing.
+- `leadSourceType` (L105): `'contact' | 'customer' | 'none'`. Controls UI branching.
+- `inlineContactForm` (L217): State for the "New Contact" inline creation.
+- `newOrgForm` (L180) & `newPlantForm` (L190): Secondary forms for inline entity creation.
+- `inlineNewOrgForm` (L233) & `inlineNewPlantForm` (L235): Faster "inline-inline" creation within the lead form.
 
-### 3.2 Key `useEffect` Cascades
-- **Initialization (L452)**: Loads domains and report scopes on mount. If creating a new lead, it also attempts to pre-load user assignments (Domain/Region).
-- **Lead Data Load (L482)**: If `id` exists, it fetches the full Lead object and cascades state into the form.
-- **Domain -> Region (L540)**: When `formData.domain_id` changes, it clears and reloads the `regions` list.
-- **Customer -> Plant (L550)**: When `formData.customer_id` changes, it clears and reloads the `plants` list.
-- **Search Suggestions (L562)**: Triggers `searchContactsAndCustomersByName` when the user types in the search input, with a 300ms debounce.
+#### UI & Navigation State
+- `activeTab` (L90): `'enquiry' | 'status_logs'`. Controlled by `tab` URL param.
+- `viewMode` (L88): Boolean. Controlled by `view=1` URL param. Disables editing.
+- `domainRegionCollapsed` (L107): Toggles visibility of the Domain/Region header section.
+- `showEditModal` (L208): Toggles the lead info edit overlay.
 
-### 3.3 Logic Flow: `handleCreateContactInline` (L1500)
-This is the most critical logic block in the system. It handles the "No-Click" creation flow:
-1.  **Organization Resolution**: If a user types a name but hasn't selected an ID, it searches for an exact match. If no match is found and the user has permissions, it creates the Organization first using `inlineNewOrgForm`.
-2.  **Plant Resolution**: If a plant name is provided but no ID is selected, it creates the Plant under the resolved Organization using `inlineNewPlantForm`.
-3.  **Contact Creation**: Finally, it creates the Contact linked to the resolved Org/Plant and returns the `contact_id` to be used for the Lead submission.
+#### Activity & Attachment State
+- `activityForm` (L110): Holds the data for the "Log enquiry" section.
+- `attachmentEntries` (L131): Staged files for the current activity.
+- `addAttachmentActivityId` (L145): Tracks which existing activity is receiving new files.
+- `addAttachmentRows` (L146): Staged files for the "Add attachments" sub-flow.
 
-### 3.4 Logic Flow: Won/Lost Transitions
-- **Mark as Won (L3100)**:
-    - Triggered by `handleMarkWonSubmit`.
-    - Updates Lead status to the `Won` ID.
-    - Saves `closed_value` (mandatory).
+#### Won/Lost Flow State
+- `showMarkWonModal` (L295) & `showMarkLostConfirm` (L296): Modals for final status changes.
+- `markWonClosedValue` (L297) & `markWonPO` (L298): Mandatory inputs for "Won".
+- `markLostReason` (L303): Mandatory 100-character input for "Lost".
+
+### 3.2 Key Lifecycle Hooks (`useEffect`)
+- **Initialization (L452)**: Loads domains and report scopes on mount. If in "create" mode, it loads the user's default domain/region from `localStorage`.
+- **Lead Data Load (L482)**: If an `id` is present, it fetches the full Lead object and populates all form states (cascading into `formData`, `leadSourceType`, `selectedContactForDisplay`, etc.).
+- **Cascading Dropdowns**:
+    - `L540`: When `formData.domain_id` changes, it fetches and updates `regions`.
+    - `L550`: When `formData.customer_id` changes, it fetches and updates `plants`.
+- **Search Suggestions**:
+    - `L562`: Debounced search for existing Contacts/Customers as the user types names.
+    - `L620`: Debounced search for Organizations when typing in the inline creation flow.
+
+### 3.3 Critical Logic Handlers
+- **`linkLeadToContact` (L342)**:
+    - Parses name prefix and phone number from the Contact object.
+    - Populates `formData` with `contact_id`, `plant_id`, `domain_id`, and `region_id`.
+    - Updates `selectedContactForDisplay` for the UI header.
+- **`handleSubmit` (L1082)**:
+    - Handles both Create and Update.
+    - **Crucial**: If `leadSourceType === 'none'` and inline fields are filled, it calls the inline contact creation logic first.
+    - Manages the generation or application of `quote_number` (generated vs. manual).
+    - If `initialQuotationFile` is present, it creates the lead *and then* the activity and attachment in sequence.
+- **`handleMarkWonSubmit` (L3100)**:
+    - Validates that `markWonClosedValue` is a positive number.
+    - Updates lead status and closed value.
     - Creates a `lead_status_change` activity log.
-    - Navigates to `/orders/new?lead_id=...`.
-- **Mark as Lost (L3150)**:
-    - Triggered by `handleMarkLostConfirm`.
+    - Redirects to Order creation.
+- **`handleMarkLostConfirm` (L3150)**:
     - Validates `markLostReason` length (>= 100 chars).
-    - Captures `lost_to_competitor` and `lost_at_price`.
-    - Updates Lead status to the `Lost` ID.
-
-### 3.5 Navigation & Actions (L1450-1490)
-- **Back Button**: Navigates to `/leads` or `/orders?tab=lost` (if in view mode).
-- **Edit Lead**: Opens the `showEditModal` for inline lead info updates.
-- **Create Order**: Visible only for Won leads; redirects to order creation.
+    - Captures competitor and price info.
+    - Updates lead status and creates an activity log.
 
 ---
 
 ## 4. `pages/LeadsPage.tsx` - Hyper-Detailed Breakdown (2,719 Lines)
 
 ### 4.1 Kanban Mechanics
-- **Group Mapping (L198)**: `statusGroupsForBoard` groups all `LeadStatusOption` records by their `group_id`. This determines the vertical columns.
+- **Columns (L198)**: `statusGroupsForBoard` groups `LeadStatusOption` records by their `group_id`.
 - **Drag & Drop (L540)**:
-    - Uses `onDragOver` and `onDrop`.
-    - `handleColumnDrop` captures the target status.
-    - **Logic Guard**: If the target status is `is_final` or `is_lost`, it prevents the direct update and instead opens the relevant detail modal (`WonClosedValueModal`).
+    - `handleColumnDrop`: Determines the target status ID.
+    - **Logic Interruption**: If the target status is "Won" or "Lost", it opens the respective detail modal from `LeadFormPage` logic.
 
-### 4.2 Configuration Modals
-- **Status Modal (L320)**: Admin-only UI to manage `LeadStatusOption` records. Controls colors, sorting, and "hot case" triggers.
-- **Status Change Modal (L1200)**: Triggered when dragging cards. Requires a title and description for the enquiry log.
+### 4.2 Filtering & Search
+- **Employee Filter (L600)**: Multi-select dropdown that hits `marketingAPI.getLeads` with the `assigned_to` param.
+- **Date Range**: Uses `FilterPopover` to manage `expected_closing_date` ranges.
 
 ---
 
 ## 5. UI Library Master Catalog
 
 ### 5.1 Atoms (`UI/`)
-| Component | Role | Critical Props |
+| Component | Role | Logic |
 | :--- | :--- | :--- |
-| **Button** | Action trigger | `variant` (primary, secondary, ghost, danger), `size`, `leftIcon`. |
-| **Input** | Text entry | `label`, `inputSize` (sm/md), `type` (number, text, email). |
-| **Badge** | Status pill | `className` (Emerald for Won, Rose for Lost, Amber for Hot). |
-| **Select** | Dropdown | `options` (Array of `{value, label}`), `searchable`, `inputSize`. |
+| **Button** | Action | Supports `leftIcon`, `loading` state, and `variant` (primary, ghost, link). |
+| **Input** | Text | Includes `inputSize` (sm/md) and standardized focus/error states. |
+| **Badge** | Visual | Custom logic in `LeadsPage` for dynamic background colors based on status hex codes. |
+| **SearchBar**| Search | Unified debounced input with a clear action. |
 
 ### 5.2 Molecules (`components/ui/`)
-- **`AsyncSelect`**: Used for Organizations and Employees. Fetches data on-demand via `loadOptions`.
-- **`DataTable`**: Handles high-density list views. Implements pagination, sorting, and row clicking.
-- **`FilterPopover`**: A floating panel for complex filter logic (Date ranges, Multi-select employees).
-- **`ConfirmModal`**: A safety wrapper for critical actions like deletion or bulk updates.
+- **`AsyncSelect`**: The workhorse for linking Organizations and Employees. Fetches data via `loadOptions`.
+- **`DataTable`**: Renders large lists with pagination. Used in `ContactsPage`, `LeadsPage` (Table view), and `OrdersPage`.
+- **`FilterPopover`**: A floating panel that manages complex filtering state without cluttering the header.
 
 ---
 
-## 6. Access Control (RBAC) & Scope
+## 6. Access Control & Scope
 
-- **Permission Keys (store/slices/authSlice.ts)**:
-    - `marketing.view_lead`: Global visibility of lead lists.
-    - `marketing.create_lead`: Access to `/leads/new`.
-    - `marketing.edit_lead`: Access to `/leads/:id/edit`.
-    - `marketing.admin`: Management of statuses, groups, and numbering series.
-- **Scoping Logic (lib/marketing-scope.ts)**:
-    - The system uses `getStoredMarketingScope()` on every page load to determine the user's current Domain and Region.
-    - This scope is passed as `domain_id` and `region_id` to all API calls to ensure data isolation.
+- **Permissions**: Checked using `selectHasPermission`. Common keys: `marketing.create_lead`, `marketing.admin`, `marketing.view_all_regions`.
+- **Scope**: `MarketingScope` (stored in `localStorage`) determines which Domain and Region are pre-selected in forms and which filters are applied to list APIs.
 
 ---
 
 ## 7. Developer Conventions & Standards
 
-- **Numbering Series**: Auto-generated via `marketingAPI.generateNextSeriesNumberByCode`. Manual overrides are discouraged.
+- **Numbering**: Always use `marketingAPI.generateNextSeriesNumberByCode` for Quotes/Leads.
 - **Currency**: INR (₹) formatting is mandatory using `.toLocaleString('en-IN')`.
-- **Date/Time**: Use `toDatetimeLocalValue` for form inputs. Always send ISO strings to the backend.
-- **Surgical Edits**: When modifying `LeadFormPage.tsx`, always check for cascading effects in the `useEffect` blocks between lines 450 and 600.
+- **Dates**: Use ISO strings for API communication. Use `toDatetimeLocalValue` for local input display.
+- **State Management**: Prefer local state for form-specific data; use Redux (`slices/`) for global entities like Organizations and Auth.
