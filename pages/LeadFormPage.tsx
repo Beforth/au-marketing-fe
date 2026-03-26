@@ -1852,7 +1852,7 @@ export const LeadFormPage: React.FC = () => {
             </div>
 
             {/* Lead Details Section */}
-            <div className="space-y-4 py-12">
+            <div className="space-y-4 pt-4 pb-12">
               <div className="flex flex-col gap-2 mb-8">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
@@ -1919,14 +1919,13 @@ export const LeadFormPage: React.FC = () => {
                   inputSize="sm"
                 /> */}
                 <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-1.5">
-                    <label className="text-[12px] font-semibold text-slate-700 ml-0.5">Inquiry received (date and time)</label>
-                    <input
-                      type="datetime-local"
-                      className="w-full max-w-md h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
+                  <div className="space-y-1.5 pt-1">
+                    <DatePicker
+                      label="Inquiry received (date and time)"
+                      showTime={true}
+                      showNow={true}
                       value={initialInquiryReceivedAtLocal}
-                      onChange={(e) => setInitialInquiryReceivedAtLocal(e.target.value)}
-                      title="Optional — use when the enquiry happened earlier than you are entering the lead"
+                      onChange={(v) => setInitialInquiryReceivedAtLocal(v || '')}
                     />
                     <p className="text-[10px] text-amber-600 font-medium italic">Optional. Pick a date if the lead first reached out earlier than today.</p>
                   </div>
@@ -1954,7 +1953,7 @@ export const LeadFormPage: React.FC = () => {
             </div>
 
             {/* Reference & Allocation Section */}
-            <div className="space-y-4 py-12">
+            <div className="space-y-4 pt-4 pb-12">
               <div className="flex flex-col gap-2 mb-8">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
@@ -2094,7 +2093,7 @@ export const LeadFormPage: React.FC = () => {
 
 
             {/* Quote & Documentation Section */}
-            <div className="space-y-4 py-12">
+            <div className="space-y-4 pt-4 pb-12">
               <div className="flex flex-col gap-2 mb-8">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
