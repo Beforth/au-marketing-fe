@@ -6,6 +6,7 @@ interface SearchInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   onClear?: () => void;
   containerClassName?: string;
   rightElement?: React.ReactNode;
+  inputSize?: 'sm' | 'md';
 }
 
 export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
@@ -14,12 +15,16 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
   className,
   value,
   rightElement,
+  inputSize = 'md',
   ...props
 }, ref) => {
   return (
-    <div className={cn('relative group/search flex items-center w-full max-w-md', containerClassName)}>
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-indigo-600 transition-colors pointer-events-none z-10">
-        <Search size={16} strokeWidth={2.5} />
+    <div className={cn('relative group/search flex items-center w-full', containerClassName)}>
+      <div className={cn(
+        "absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-indigo-600 transition-colors pointer-events-none z-10",
+        inputSize === 'sm' && "left-3"
+      )}>
+        <Search size={inputSize === 'sm' ? 14 : 16} strokeWidth={2.5} />
       </div>
       
       <input
@@ -27,8 +32,9 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
         type="text"
         value={value}
         className={cn(
-          'w-full h-10 pl-11 pr-10 bg-white border border-slate-200 rounded-full outline-none transition-all shadow-sm',
-          'placeholder:text-slate-400 text-sm font-medium',
+          'w-full bg-white border border-slate-200 rounded-full outline-none transition-all shadow-sm',
+          inputSize === 'sm' ? 'h-9 pl-9 pr-9 text-xs' : 'h-10 pl-11 pr-10 text-sm font-medium',
+          'placeholder:text-slate-400',
           'focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:shadow-md',
           'hover:border-slate-300 hover:bg-slate-50/50',
           className
