@@ -1,188 +1,165 @@
-# Marketing Module Context - Technical Documentation
+# Marketing Module - Hyper-Detailed Technical Master Reference
 
-This document provides a comprehensive, high-detail overview of the Marketing Module within the `au-marketing-fe` project. It is designed to serve as a primary context source for AI assistants and developers.
-
----
-
-## 1. Module Overview & Architecture
-
-The Marketing Module is a sophisticated CRM and Sales tracking system built with React, TypeScript, and Redux. It features a hierarchical access control system based on **Domains** (Domestic vs. Export) and **Regions**.
-
-### Core Hierarchy:
-- **Domains**: The top-level division (e.g., Domestic, Export).
-- **Regions**: Sub-divisions within a Domain (e.g., North America, Europe).
-- **Organizations**: Companies or entities.
-- **Plants**: Specific locations or units under an Organization.
-- **Contacts**: Individual people or initial inquiries (not yet customers).
-- **Customers**: Converted contacts with established business relations.
-- **Leads**: Opportunities associated with a Contact or Customer.
-- **Orders**: Successfully won leads.
+This document is the absolute, exhaustive source of truth for the Marketing Module in `au-marketing-fe`. It provides a granular, field-by-field, and line-by-line technical roadmap of the architecture, logic, and implementation for the entire marketing ecosystem.
 
 ---
 
-## 2. Key File Directory & Entry Points
+## 1. System Architecture & Entity Hierarchy
 
-| Feature | Primary File | Description |
-|:--- |:--- |:--- |
-| **API Service** | `lib/marketing-api.ts` | Centralized service for all marketing-related backend calls and type definitions. |
-| **RBAC / Scope** | `lib/marketing-scope.ts` | Logic for frontend domain/region filtering and user role management. |
-| **Routing** | `App.tsx` | Main application router and notification provider. |
-| **UI Atoms** | `UI/` folder | Core design system components (Table, Input, Button, etc.). |
-| **UI Molecules** | `components/ui/` | Complex UI components (DataTable, FilterPopover, Charts). |
-| **Leads Kanban** | `pages/LeadsPage.tsx` | Visual pipeline for opportunity management. |
-| **Lead Form** | `pages/LeadFormPage.tsx` | Complex form for creating/editing leads with status-driven fields. |
-| **Orders Tracking** | `pages/OrdersPage.tsx` | Lifecycle management of won/lost orders. |
-| **State (Redux)** | `store/slices/` | `authSlice.ts`, `tasksSlice.ts`, `organizationPlantsSlice.ts`. |
+The Marketing system is a domain-driven CRM designed for high-density sales tracking across international and domestic markets.
 
----
-
-## 3. Detailed Data Models (`lib/marketing-api.ts`)
-
-### `Lead` Interface (Lines 163-205)
-```typescript
-export interface Lead {
-  id: number;
-  domain_id: number;
-  region_id?: number;
-  contact_id?: number;
-  customer_id?: number;
-  plant_id?: number;
-  status_id?: number;
-  potential_value?: number;
-  quote_number?: string | null;
-  expected_closing_date?: string;
-  // Relations
-  domain?: Domain;
-  region?: Region;
-  contact?: Contact | null;
-  customer?: Customer;
-  status_option?: LeadStatusOption;
-  // ...
-}
-```
-
-### `Customer` Interface (Lines 76-108)
-```typescript
-export interface Customer {
-  id: number;
-  company_name: string;
-  domain_id: number;
-  region_id?: number;
-  organization_id?: number | null;
-  plant_id?: number | null;
-  primary_contact_contact_id?: number | null;
-  // Relations
-  organization?: Organization | null;
-  plants?: Plant[];
-  primary_contact_contact?: Contact | null;
-}
-```
-
-### `Contact` Interface (Lines 51-74)
-```typescript
-export interface Contact {
-  id: number;
-  contact_person_name?: string;
-  contact_email?: string;
-  is_converted: boolean;
-  converted_to_customer_id?: number;
-  organization_id?: number | null;
-}
-```
+### 1.1 Data Entity Hierarchy (Structural Workflow)
+1.  **Domain**: (e.g., Domestic, Export) Top-level market isolation.
+2.  **Region**: Geographic or logical sub-divisions (North, South, Europe, etc.).
+3.  **Organization**: The parent company/entity.
+4.  **Plant**: Specific manufacturing or office locations under an Organization.
+5.  **Contact**: A person (Lead data) linked to an Org/Plant. **Critical**: Can be "converted" to a Customer.
+6.  **Customer**: A verified business account (often promoted from a Contact).
+7.  **Lead**: A specific sales opportunity. Must be linked to a **Contact** OR a **Customer**.
+8.  **Order**: A successfully closed (Won) lead, transitioned to the production/delivery phase.
 
 ---
 
-## 4. API Service Breakdown (`MarketingAPIService` class)
+## 2. API Service Catalog (`lib/marketing-api.ts`)
 
-The `marketingAPI` instance (exported from `lib/marketing-api.ts`) contains methods for:
+This 2,006-line file encapsulates the entire communication layer for the marketing module.
 
-### Leads & Activities (Lines 362-588)
-- `getLeads(params)`: Supports complex filtering by `domain_id`, `region_id`, `created_by_me`, `include_won_lost`, and `search`.
-- `createLeadActivity()`: Logs interactions (Call, Email, Meeting) and handles status transitions.
-- `uploadLeadActivityAttachments()`: Handles file uploads for quotations and general attachments.
-- `updateLeadSeries()`: Manages lead numbering series (Admin only).
+### 2.1 Core Interfaces & Field Definitions
+- **`Lead` (L208-250)**:
+    - `id`: Primary key.
+    - `series`: Human-readable lead ID (e.g., AP/LEAD/2024/001).
+    - `domain_id` / `region_id`: Scope references.
+    - `contact_id` / `customer_id`: Mutually exclusive source links.
+    - `plant_id`: Specific delivery location.
+    - `status_id`: Current pipeline stage.
+    - `lead_type_id`: Categorization (e.g., Standard, Urgent).
+    - `lead_through_id`: Source attribution (e.g., Exhibition, Cold Call).
+    - `potential_value`: Estimated deal amount.
+    - `expected_closing_date`: Target date for "Won" status.
+    - `is_hot`: Boolean for high-priority monitoring.
+- **`LeadActivity` (L266-302)**:
+    - `activity_type`: Enumeration (`note`, `call`, `email`, `meeting`, `qtn_submitted`, etc.).
+    - `title`: Short summary of the action.
+    - `description`: Detailed notes.
+    - `from_status_id` / `to_status_id`: Captured only on status changes to track history.
+- **`LeadStatusOption` (L176-196)**:
+    - `hex_color`: CSS color for UI elements.
+    - `is_final`: Set to true for "Won" statuses.
+    - `is_lost`: Set to true for "Lost" statuses.
+    - `set_when_quotation_added`: Boolean; if true, adding a quotation auto-updates the lead to this status.
 
-### Orders (Lines 590-711)
-- `getOrders()`: Fetches won leads converted to orders.
-- `updateOrder()`: Tracks delivery dates and status changes.
-
-### Entity Management (Lines 730-1017)
-- `getContacts() / searchContacts()`: For initial lead entry.
-- `convertContactToCustomer()`: Critical workflow step.
-- `getOrganizations() / createOrganizationPlant()`: Managing the corporate hierarchy.
-
-### Reports & Dashboard (Lines 1084-1234)
-- `getReportsSummary()`: Aggregated metrics for employees.
-- `getDashboardTargetStats()`: Monthly targets vs. achievements.
-- `getHeadDashboardSummary()`: Region-wise breakdown for heads/admins.
-
----
-
-## 5. Scope & Access Control (`lib/marketing-scope.ts`)
-
-Access control is managed via the `MarketingScope` interface:
-```typescript
-export type MarketingScopeRole = 'super_admin' | 'domain_head' | 'region_head' | 'employee' | 'self';
-
-export interface MarketingScope {
-  role: MarketingScopeRole;
-  domain_id?: number;
-  region_id?: number;
-  region_ids?: number[];
-  employee_id?: number;
-}
-```
-Stored in `localStorage` under `marketing_scope`, this determines which data is visible in the UI and which filters are applied to API calls.
+### 2.2 Critical Service Methods
+- **`getLeads(params)` (L452)**: Supports complex filtering including `assigned_to`, `created_by_me`, `is_hot`, and `search`.
+- **`createLeadActivity(leadId, data)` (L598)**: The primary entry point for the audit log.
+- **`uploadLeadActivityAttachments(...)` (L619)**:
+    - `files`: File objects.
+    - `kinds`: Array of `'quotation' | 'attachment'`.
+    - `titles`: Array of custom titles for attachments.
+    - `series_code`: Used only when `kinds` includes `quotation`.
+- **`generateNextSeriesNumberByCode(code, context)` (L1082)**:
+    - `code`: The series type (e.g., `LEAD`, `QUOTE`).
+    - `context`: Object containing `lead_id` or `lead_context` (for name parsing).
 
 ---
 
-## 6. UI Component Library (`UI/`)
+## 3. `pages/LeadFormPage.tsx` - Hyper-Detailed Breakdown (3,442 Lines)
 
-The system uses a custom high-density design system located in the root `UI/` folder.
+### 3.1 State Mapping (Line-by-Line Context)
+- **Form Data (`formData`) (L238)**: The master object for lead creation/editing. Includes `domain_id`, `region_id`, `contact_id`, `potential_value`, and `expected_closing_date`.
+- **`leadSourceType` (L105)**: Enum `'contact' | 'customer' | 'none'`. Controls conditional rendering of the person vs. company linking sections.
+- **Inline Entity Forms**:
+    - `inlineContactForm` (L217): Used for creating a new person. Fields: `title`, `first_name`, `last_name`, `email`, `phone`.
+    - `newOrgForm` (L180): Fields: `name`, `code`, `website`, `industry`, `size`.
+    - `newPlantForm` (L190): Fields: `plant_name`, `address_line1`, `city`, `state`, `postal_code`.
+- **Activity Logging**:
+    - `activityForm` (L110): Fields for `activity_type`, `title`, and `description`.
+    - `attachmentEntries` (L131): Staged array of file objects and their metadata.
+- **Won/Lost Flow**:
+    - `markWonClosedValue` (L300): Mandatory value input for winning a deal.
+    - `markLostReason` (L303): Mandatory 100-character explanation for losing a deal.
 
-| Component | Path | Key Usage |
-|:--- |:--- |:--- |
-| **Table** | `UI/Table.tsx` | All list views (Leads, Contacts, Orders). |
-| **Badge** | `UI/Badge.tsx` | Status indicators (Hot, Won, Lost, Region labels). |
-| **Modal** | `UI/Modal.tsx` | Forms and confirmation dialogs. |
-| **Skeleton** | `UI/Skeleton.tsx` | Loading states for data-heavy tables. |
-| **SearchBar** | `UI/SearchBar.tsx` | Global and local list searching. |
+### 3.2 Key `useEffect` Cascades
+- **Initialization (L452)**: Loads domains and report scopes on mount. If creating a new lead, it also attempts to pre-load user assignments (Domain/Region).
+- **Lead Data Load (L482)**: If `id` exists, it fetches the full Lead object and cascades state into the form.
+- **Domain -> Region (L540)**: When `formData.domain_id` changes, it clears and reloads the `regions` list.
+- **Customer -> Plant (L550)**: When `formData.customer_id` changes, it clears and reloads the `plants` list.
+- **Search Suggestions (L562)**: Triggers `searchContactsAndCustomersByName` when the user types in the search input, with a 300ms debounce.
+
+### 3.3 Logic Flow: `handleCreateContactInline` (L1500)
+This is the most critical logic block in the system. It handles the "No-Click" creation flow:
+1.  **Organization Resolution**: If a user types a name but hasn't selected an ID, it searches for an exact match. If no match is found and the user has permissions, it creates the Organization first using `inlineNewOrgForm`.
+2.  **Plant Resolution**: If a plant name is provided but no ID is selected, it creates the Plant under the resolved Organization using `inlineNewPlantForm`.
+3.  **Contact Creation**: Finally, it creates the Contact linked to the resolved Org/Plant and returns the `contact_id` to be used for the Lead submission.
+
+### 3.4 Logic Flow: Won/Lost Transitions
+- **Mark as Won (L3100)**:
+    - Triggered by `handleMarkWonSubmit`.
+    - Updates Lead status to the `Won` ID.
+    - Saves `closed_value` (mandatory).
+    - Creates a `lead_status_change` activity log.
+    - Navigates to `/orders/new?lead_id=...`.
+- **Mark as Lost (L3150)**:
+    - Triggered by `handleMarkLostConfirm`.
+    - Validates `markLostReason` length (>= 100 chars).
+    - Captures `lost_to_competitor` and `lost_at_price`.
+    - Updates Lead status to the `Lost` ID.
+
+### 3.5 Navigation & Actions (L1450-1490)
+- **Back Button**: Navigates to `/leads` or `/orders?tab=lost` (if in view mode).
+- **Edit Lead**: Opens the `showEditModal` for inline lead info updates.
+- **Create Order**: Visible only for Won leads; redirects to order creation.
 
 ---
 
-## 7. Critical Workflows
+## 4. `pages/LeadsPage.tsx` - Hyper-Detailed Breakdown (2,719 Lines)
 
-### 1. Lead Lifecycle
-1. **Contact Creation**: `pages/ContactFormPage.tsx`
-2. **Lead Initialization**: `pages/LeadFormPage.tsx` (links to Contact or Customer).
-3. **Activity Logging**: Transitions Lead through `LeadStatusGroup` (Initialization -> Follow -> Quotation).
-4. **Mark as Won/Lost**:
-   - **Won**: Triggers Order creation (`pages/OrdersPage.tsx`).
-   - **Lost**: Requires `lost_reason` and `lost_to_competitor`.
+### 4.1 Kanban Mechanics
+- **Group Mapping (L198)**: `statusGroupsForBoard` groups all `LeadStatusOption` records by their `group_id`. This determines the vertical columns.
+- **Drag & Drop (L540)**:
+    - Uses `onDragOver` and `onDrop`.
+    - `handleColumnDrop` captures the target status.
+    - **Logic Guard**: If the target status is `is_final` or `is_lost`, it prevents the direct update and instead opens the relevant detail modal (`WonClosedValueModal`).
 
-### 2. Quotation Management
-- Quotations are added as `LeadActivityAttachment` with `is_quotation: true`.
-- Tracking is handled in `pages/EnquiryQuotationsPage.tsx`.
-- Series generation logic is in `marketingAPI.generateNextSeriesNumberByCode`.
-
-### 3. Reporting
-- **Expected Order Report**: Monthly projection (`pages/ExpectedOrderNewPage.tsx`).
-- **OD Plan**: Outdoor Duty/Travel planning (`pages/ODPlanPage.tsx`).
-- **Dashboard**: `pages/DashboardPage.tsx` uses `getScopeTargetStats` to show performance.
+### 4.2 Configuration Modals
+- **Status Modal (L320)**: Admin-only UI to manage `LeadStatusOption` records. Controls colors, sorting, and "hot case" triggers.
+- **Status Change Modal (L1200)**: Triggered when dragging cards. Requires a title and description for the enquiry log.
 
 ---
 
-## 8. State Management (Redux)
+## 5. UI Library Master Catalog
 
-- **`authSlice.ts`**: Handles token, user profile, and permissions.
-- **`tasksSlice.ts`**: Manages today's follow-up tasks derived from lead statuses.
-- **`organizationPlantsSlice.ts`**: Caches organization and plant data for form selectors.
+### 5.1 Atoms (`UI/`)
+| Component | Role | Critical Props |
+| :--- | :--- | :--- |
+| **Button** | Action trigger | `variant` (primary, secondary, ghost, danger), `size`, `leftIcon`. |
+| **Input** | Text entry | `label`, `inputSize` (sm/md), `type` (number, text, email). |
+| **Badge** | Status pill | `className` (Emerald for Won, Rose for Lost, Amber for Hot). |
+| **Select** | Dropdown | `options` (Array of `{value, label}`), `searchable`, `inputSize`. |
+
+### 5.2 Molecules (`components/ui/`)
+- **`AsyncSelect`**: Used for Organizations and Employees. Fetches data on-demand via `loadOptions`.
+- **`DataTable`**: Handles high-density list views. Implements pagination, sorting, and row clicking.
+- **`FilterPopover`**: A floating panel for complex filter logic (Date ranges, Multi-select employees).
+- **`ConfirmModal`**: A safety wrapper for critical actions like deletion or bulk updates.
 
 ---
 
-## 9. Formatting & Conventions
+## 6. Access Control (RBAC) & Scope
 
-- **Dates**: ISO strings (`YYYY-MM-DDTHH:mm:ss.sssZ`).
-- **Currency**: Handled as numbers in potential/closed values.
-- **Statuses**: Driven by `code` and `group_id` rather than raw strings.
-- **Filtering**: Most pages use `URLSearchParams` to sync UI state with API queries.
+- **Permission Keys (store/slices/authSlice.ts)**:
+    - `marketing.view_lead`: Global visibility of lead lists.
+    - `marketing.create_lead`: Access to `/leads/new`.
+    - `marketing.edit_lead`: Access to `/leads/:id/edit`.
+    - `marketing.admin`: Management of statuses, groups, and numbering series.
+- **Scoping Logic (lib/marketing-scope.ts)**:
+    - The system uses `getStoredMarketingScope()` on every page load to determine the user's current Domain and Region.
+    - This scope is passed as `domain_id` and `region_id` to all API calls to ensure data isolation.
+
+---
+
+## 7. Developer Conventions & Standards
+
+- **Numbering Series**: Auto-generated via `marketingAPI.generateNextSeriesNumberByCode`. Manual overrides are discouraged.
+- **Currency**: INR (₹) formatting is mandatory using `.toLocaleString('en-IN')`.
+- **Date/Time**: Use `toDatetimeLocalValue` for form inputs. Always send ISO strings to the backend.
+- **Surgical Edits**: When modifying `LeadFormPage.tsx`, always check for cascading effects in the `useEffect` blocks between lines 450 and 600.

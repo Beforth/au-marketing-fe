@@ -1616,12 +1616,14 @@ export const LeadFormPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Contact Information Section */}
             <div className="space-y-4">
-              <div className="flex items-center gap-4 mb-3">
-                <div className="flex items-center gap-2">
-                  <User size={16} className="text-slate-500" />
-                  <h3 className="text-[15px] font-bold text-slate-800 whitespace-nowrap">Contact Information</h3>
+              <div className="flex items-center gap-4 mb-4 border-b-2 border-slate-50 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
+                    <User size={20} className="text-indigo-600" />
+                  </div>
+                  <h3 className="text-[17px] font-extrabold text-slate-900 tracking-tight leading-none">Contact Information</h3>
                 </div>
-                <div className="h-px bg-slate-100 flex-1" />
+                <div className="h-0.5 bg-slate-200/60 flex-1 ml-2 rounded-full" />
               </div>
               {formData.contact_id != null || formData.customer_id != null ? (
                 <div className="flex items-center justify-between p-4 rounded-2xl bg-indigo-50/30 border border-indigo-100/50 animate-in fade-in zoom-in-95">
@@ -1693,7 +1695,7 @@ export const LeadFormPage: React.FC = () => {
                     </div>
                   </div>
                   {/* Organization & Plant Section */}
-                  <div className="space-y-4 pt-4 border-t border-slate-100/50 mt-4">
+                  <div className="space-y-6 pt-4 border-t border-slate-100/50 mt-4 border-l-2 border-indigo-50/50 pl-4 ml-1">
                     <div className="md:col-span-2 relative">
                       <label className="text-[12px] font-semibold text-slate-700 mb-1.5 block ml-0.5">Organization</label>
                       <SearchInput
@@ -1852,12 +1854,14 @@ export const LeadFormPage: React.FC = () => {
 
             {/* Lead Details Section */}
             <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-4 mb-3">
-                <div className="flex items-center gap-2">
-                  <Info size={16} className="text-slate-500" />
-                  <h3 className="text-[15px] font-bold text-slate-800 whitespace-nowrap">Lead Information</h3>
+              <div className="flex items-center gap-4 mb-4 border-b-2 border-slate-50 pb-3 mt-6">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
+                    <Info size={20} className="text-indigo-600" />
+                  </div>
+                  <h3 className="text-[17px] font-extrabold text-slate-900 tracking-tight leading-none">Lead Information</h3>
                 </div>
-                <div className="h-px bg-slate-100 flex-1" />
+                <div className="h-0.5 bg-slate-200/60 flex-1 ml-2 rounded-full" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* <div>
@@ -1952,12 +1956,14 @@ export const LeadFormPage: React.FC = () => {
 
             {/* Reference & Allocation Section */}
             <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-4 mb-3">
-                <div className="flex items-center gap-2">
-                  <Network size={16} className="text-slate-500" />
-                  <h3 className="text-[15px] font-bold text-slate-800 whitespace-nowrap">Reference & Allocation</h3>
+              <div className="flex items-center gap-4 mb-4 border-b-2 border-slate-50 pb-3 mt-6">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
+                    <Network size={20} className="text-indigo-600" />
+                  </div>
+                  <h3 className="text-[17px] font-extrabold text-slate-900 tracking-tight leading-none">Reference & Allocation</h3>
                 </div>
-                <div className="h-px bg-slate-100 flex-1" />
+                <div className="h-0.5 bg-slate-200/60 flex-1 ml-2 rounded-full" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -2090,12 +2096,14 @@ export const LeadFormPage: React.FC = () => {
 
             {/* Quote & Documentation Section */}
             <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-4 mb-3">
-                <div className="flex items-center gap-2">
-                  <FileText size={16} className="text-slate-500" />
-                  <h3 className="text-[15px] font-bold text-slate-800 whitespace-nowrap">Quote & Documentation</h3>
+              <div className="flex items-center gap-4 mb-4 border-b-2 border-slate-50 pb-3 mt-6">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
+                    <FileText size={20} className="text-indigo-600" />
+                  </div>
+                  <h3 className="text-[17px] font-extrabold text-slate-900 tracking-tight leading-none">Quote & Documentation</h3>
                 </div>
-                <div className="h-px bg-slate-100 flex-1" />
+                <div className="h-0.5 bg-slate-200/60 flex-1 ml-2 rounded-full" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
