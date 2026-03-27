@@ -30,7 +30,7 @@ import { parseNameWithPrefix, serializeNameWithPrefix, parsePhoneWithCountryCode
 import { getStoredMarketingScope } from '../lib/marketing-scope';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Modal } from '../components/ui/Modal';
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Globe, User, Building2, FileText, History, Edit2, Trash2, Paperclip, Download, Plus, Upload, X, Package, Trophy, XCircle, Search, Network, Info, Mail, List, Factory } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Globe, User, Building2, FileText, History, Edit2, Trash2, Paperclip, Download, Plus, Upload, X, Package, Trophy, XCircle, Search, Network, Info, Mail, List, Factory, MessageSquare } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface LeadFormData extends Partial<Lead> {
@@ -1422,7 +1422,6 @@ export const LeadFormPage: React.FC = () => {
     );
   }
 
-
   return (
     <PageLayout
       title={viewMode ? 'Lead details' : (isEdit ? 'Edit Lead' : 'Create Lead')}
@@ -1573,12 +1572,12 @@ export const LeadFormPage: React.FC = () => {
             <div><span className="text-slate-500">Company</span><br /><span className="font-medium">{currentLead ? leadDisplayCompany(currentLead) || '—' : '—'}</span></div>
             <div><span className="text-slate-500">Status</span><br /><span className="font-medium">{leadStatuses.find(s => s.id === formData.status_id)?.label ?? '—'}</span></div>
             <div><span className="text-slate-500">Domain · Region</span><br /><span className="font-medium">{domains.find(d => d.id === formData.domain_id)?.name ?? '—'}{formData.region_id ? ` · ${regions.find(r => r.id === formData.region_id)?.name ?? ''}` : ''}</span></div>
-            {formData.potential_value != null && <div><span className="text-slate-500">Potential value</span><br /><span className="font-medium">₹{formData.potential_value.toLocaleString()}</span></div>}
+            {formData.potential_value != null && <div><span className="text-slate-500">Potential value</span><br /><span className="font-medium">₹{Number(formData.potential_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>}
             {formData.closed_value != null && formData.closed_value !== undefined && (
               <div>
                 <span className="text-slate-500">Closed value</span>
                 <br />
-                <span className="font-medium text-emerald-700">₹{Number(formData.closed_value).toLocaleString()}</span>
+                <span className="font-medium text-emerald-700">₹{Number(formData.closed_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 {formData.closed_at && (
                   <span className="text-xs text-slate-500 ml-1">
                     (closed {new Date(formData.closed_at).toLocaleDateString(undefined, { dateStyle: 'medium' })})
@@ -1613,15 +1612,17 @@ export const LeadFormPage: React.FC = () => {
 
       {!isEdit && (
         <Card>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Contact Information Section */}
             <div className="space-y-4">
-              <div className="flex items-center gap-4 mb-2">
-                <div className="flex items-center gap-2">
-                  <User size={14} className="text-slate-400" />
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">Contact Information</h3>
+              <div className="flex flex-col gap-2 mb-8 pt-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
+                    <User size={24} className="text-indigo-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight leading-none">Contact Information</h3>
                 </div>
-                <div className="h-px bg-slate-200 flex-1" />
+                <div className="h-px w-full bg-indigo-500/20 mt-2" />
               </div>
               {formData.contact_id != null || formData.customer_id != null ? (
                 <div className="flex items-center justify-between p-4 rounded-2xl bg-indigo-50/30 border border-indigo-100/50 animate-in fade-in zoom-in-95">
@@ -1630,7 +1631,7 @@ export const LeadFormPage: React.FC = () => {
                       <FileText size={20} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">Linked {formData.contact_id != null ? 'Contact' : 'Customer'}</p>
+                      <p className="text-[10px] font-bold tracking-wider text-indigo-500">Linked {formData.contact_id != null ? 'Contact' : 'Customer'}</p>
                       <p className="text-sm font-bold text-slate-900">{currentLead ? leadDisplayName(currentLead) : 'Linked Record'}</p>
                     </div>
                   </div>
@@ -1665,95 +1666,37 @@ export const LeadFormPage: React.FC = () => {
               ) : (
                 <>
                   <div className="space-y-4">
-                    {/* Search Field - Full Width */}
-                    <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setTimeout(() => { setLeadSearchContactResults([]); setLeadSearchCustomerResults([]); setLeadSearchLoading(false); }, 200); }}>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1.5 block">Search for existing contact or customer</label>
-                      <div className="relative group">
-                        <SearchInput
-                          placeholder="Type name, email or company to search..."
-                          value={inlineContactForm.first_name || ''}
-                          onChange={(e) => setInlineContactForm(prev => ({ ...prev, first_name: e.target.value }))}
-                          onClear={() => setInlineContactForm(prev => ({ ...prev, first_name: '' }))}
-                          containerClassName="w-full"
-                        />
-                      </div>
 
-                      {showLeadSearchDropdown && (
-                        <div className="absolute left-0 right-0 top-full z-20 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl max-h-64 overflow-auto animate-in fade-in slide-in-from-top-2">
-                          {leadSearchLoading && !hasLeadSearchResults && (
-                            <p className="text-xs text-slate-500 px-4 py-4 italic">Searching records…</p>
-                          )}
-                          {!leadSearchLoading && leadSearchContactResults.length > 0 && (
-                            <>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-4 py-2 bg-slate-50/50">Existing Contacts</p>
-                              {leadSearchContactResults.map(c => (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors flex items-center justify-between group"
-                                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); linkLeadToContact(c); }}
-                                >
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors">{[c.first_name, c.last_name].filter(Boolean).join(' ') || c.contact_person_name || 'Contact'}</span>
-                                    <span className="text-xs text-slate-500">{[c.contact_email, c.organization?.name].filter(Boolean).join(' · ')}</span>
-                                  </div>
-                                  <ArrowRight size={14} className="text-slate-300 group-hover:text-indigo-400 transform translate-x-0 group-hover:translate-x-1 transition-all" />
-                                </button>
-                              ))}
-                            </>
-                          )}
-                          {!leadSearchLoading && leadSearchCustomerResults.length > 0 && (
-                            <>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-4 py-2 bg-slate-50/50 border-t border-slate-50">Customers</p>
-                              {leadSearchCustomerResults.map(cust => (
-                                <button
-                                  key={cust.id}
-                                  type="button"
-                                  className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors flex items-center justify-between group"
-                                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); linkLeadToCustomer(cust); }}
-                                >
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors">{cust.company_name}</span>
-                                    {cust.organization?.name && <span className="text-xs text-slate-500">{cust.organization.name}</span>}
-                                  </div>
-                                  <ArrowRight size={14} className="text-slate-300 group-hover:text-indigo-400 transform translate-x-0 group-hover:translate-x-1 transition-all" />
-                                </button>
-                              ))}
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
 
                     {/* Basic Info Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                       <div className="flex gap-2">
                         <div className="w-20 shrink-0">
-                          <Select label="Title" options={NAME_PREFIXES} value={inlineContactForm.title} onChange={(v) => setInlineContactForm(prev => ({ ...prev, title: (v ?? '') as string }))} placeholder="Title" />
+                          <Select label="Title" options={NAME_PREFIXES} value={inlineContactForm.title} onChange={(v) => setInlineContactForm(prev => ({ ...prev, title: (v ?? '') as string }))} placeholder="Title" inputSize="sm" />
                         </div>
                         <div className="flex-1">
-                          <Input label="First name" value={inlineContactForm.first_name} onChange={(e) => setInlineContactForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="Enter name" />
+                          <Input label="First name" value={inlineContactForm.first_name} onChange={(e) => setInlineContactForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="Enter name" inputSize="sm" />
                         </div>
                       </div>
-                      <Input label="Last name" value={inlineContactForm.last_name} onChange={(e) => setInlineContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Enter last name" />
+                      <Input label="Last name" value={inlineContactForm.last_name} onChange={(e) => setInlineContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Enter last name" inputSize="sm" />
 
-                      <Input label="Email address" type="email" value={inlineContactForm.contact_email} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
-                      <Input label="Designation" value={inlineContactForm.contact_job_title} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="e.g. Purchase Manager" />
+                      <Input label="Email address" type="email" value={inlineContactForm.contact_email} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" inputSize="sm" />
+                      <Input label="Designation" value={inlineContactForm.contact_job_title} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="e.g. Purchase Manager" inputSize="sm" />
 
                       <div className="flex gap-2">
                         <div className="w-32 shrink-0">
-                          <Select label="Code" options={COUNTRY_CODES} value={inlineContactForm.contact_phone_code} onChange={(v) => setInlineContactForm(prev => ({ ...prev, contact_phone_code: (v ?? DEFAULT_COUNTRY_CODE) as string }))} searchable getSearchText={getCountryCodeSearchText} getOptionKey={(o) => o.label} />
+                          <Select label="Code" options={COUNTRY_CODES} value={inlineContactForm.contact_phone_code} onChange={(v) => setInlineContactForm(prev => ({ ...prev, contact_phone_code: (v ?? DEFAULT_COUNTRY_CODE) as string }))} searchable getSearchText={getCountryCodeSearchText} getOptionKey={(o) => o.label} inputSize="sm" />
                         </div>
                         <div className="flex-1">
-                          <Input label="Phone number" value={inlineContactForm.contact_phone} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="10-digit number" />
+                          <Input label="Phone number" value={inlineContactForm.contact_phone} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="10-digit number" inputSize="sm" />
                         </div>
                       </div>
                     </div>
                   </div>
                   {/* Organization & Plant Section */}
-                  <div className="space-y-4 pt-2 border-t border-slate-100/50 mt-2">
+                  <div className="space-y-6 pt-4 border-t border-slate-100/50 mt-4 border-l-2 border-indigo-50/50 pl-4 ml-1">
                     <div className="md:col-span-2 relative">
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight mb-1 block">Organization</label>
+                      <label className="text-[12px] font-semibold text-slate-700 mb-1.5 block ml-0.5">Organization</label>
                       <SearchInput
                         value={inlineContactOrgQuery}
                         onChange={(e) => {
@@ -1770,6 +1713,7 @@ export const LeadFormPage: React.FC = () => {
                         onClear={() => setInlineContactOrgQuery('')}
                         placeholder="Search organization..."
                         disabled={!!inlineContactForm.organization_id}
+                        inputSize="sm"
                       />
                       {inlineContactForm.organization_id && (
                         <button type="button" onClick={() => { setInlineContactForm(prev => ({ ...prev, organization_id: undefined, plant_id: undefined })); setInlineContactOrgQuery(''); setFormData(prev => ({ ...prev, company: '' })); setInlineContactPlants([]); setShowInlineNewPlant(false); }} className="mt-1 text-xs text-rose-600 hover:text-rose-700">Clear organization</button>
@@ -1798,8 +1742,8 @@ export const LeadFormPage: React.FC = () => {
                                 <Building2 size={14} className="text-indigo-600" />
                               </div>
                               <div>
-                                <h4 className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">Create New Organization</h4>
-                                <p className="text-[11px] text-slate-500 leading-none mt-0.5">Ready to add <span className="text-indigo-600 font-bold">{inlineContactOrgQuery.trim()}</span> to your system</p>
+                                <h4 className="text-[12px] font-bold text-slate-800">Create New Organization</h4>
+                                <p className="text-[11px] text-slate-500 leading-none mt-1 italic">Ready to add <span className="text-indigo-600 font-bold">{inlineContactOrgQuery.trim()}</span> to your system</p>
                               </div>
                             </div>
                             <button type="button" onClick={() => setInlineContactOrgQuery('')} className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-all">
@@ -1836,22 +1780,24 @@ export const LeadFormPage: React.FC = () => {
                       </div>
                     </div>
                     {inlineContactForm.organization_id && (
-                      <div className="md:col-span-2 space-y-2">
-                        <label className="block text-sm font-medium text-slate-700">Plant</label>
+                      <div className="md:col-span-2 space-y-3">
+                        <label className="block text-[12px] font-semibold text-slate-700 mb-1.5 ml-0.5">Plant Location</label>
                         {inlineContactPlants.length === 0 && !showInlineNewPlant && (
-                          <p className="text-xs text-slate-500">No plants yet for this organization. Use &quot;+ Add plant&quot; below to add one.</p>
+                          <p className="text-[11px] text-slate-400 italic mb-2 ml-0.5">No plants yet for this organization. Add one below.</p>
                         )}
-                        <select
-                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                        <Select
+                          options={[
+                            { value: '', label: '— None —' },
+                            ...inlineContactPlants.map(p => ({ value: String(p.id), label: p.plant_name })),
+                          ]}
                           value={inlineContactForm.plant_id ?? ''}
-                          onChange={(e) => setInlineContactForm(prev => ({ ...prev, plant_id: e.target.value ? Number(e.target.value) : undefined }))}
-                        >
-                          <option value="">— None —</option>
-                          {inlineContactPlants.map(p => (<option key={p.id} value={p.id}>{p.plant_name}</option>))}
-                        </select>
-                        <button type="button" onClick={() => setShowInlineNewPlant(true)} className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5">
+                          onChange={(val) => setInlineContactForm(prev => ({ ...prev, plant_id: val ? Number(val) : undefined }))}
+                          inputSize="sm"
+                          placeholder="Select plant"
+                        />
+                        <button type="button" onClick={() => setShowInlineNewPlant(true)} className="text-[11px] font-bold tracking-wider text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 mt-2 transition-colors">
                           <Plus size={12} />
-                          <span>Add plant</span>
+                          <span>Add new plant</span>
                         </button>
                         <div className={cn("expand-section", showInlineNewPlant && "open")}>
                           <div className="expand-section-content">
@@ -1862,8 +1808,8 @@ export const LeadFormPage: React.FC = () => {
                                     <Factory size={14} className="text-indigo-600" />
                                   </div>
                                   <div>
-                                    <h4 className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">Add New Plant</h4>
-                                    <p className="text-[11px] text-slate-500 leading-none mt-0.5">Adding a facility for this organization</p>
+                                    <h4 className="text-[12px] font-bold text-slate-800">Add New Plant</h4>
+                                    <p className="text-[11px] text-slate-500 leading-none mt-1 italic">Adding a facility for this organization</p>
                                   </div>
                                 </div>
                                 <button type="button" onClick={() => setShowInlineNewPlant(false)} className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-all">
@@ -1906,16 +1852,18 @@ export const LeadFormPage: React.FC = () => {
             </div>
 
             {/* Lead Details Section */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-4 mb-2">
-                <div className="flex items-center gap-2">
-                  <Info size={14} className="text-slate-400" />
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">Lead Information</h3>
+            <div className="space-y-4 pt-4 pb-12">
+              <div className="flex flex-col gap-2 mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
+                    <Info size={24} className="text-indigo-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Lead Information</h3>
                 </div>
-                <div className="h-px bg-slate-200 flex-1" />
+                <div className="h-px w-full bg-indigo-500/20 mt-2" />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* <div>
                   <Select
                     label="Lead Status"
                     options={leadStatuses.map(s => ({ value: String(s.id), label: s.label }))}
@@ -1932,7 +1880,7 @@ export const LeadFormPage: React.FC = () => {
                     onChange={(v) => setFormData({ ...formData, lead_type_id: v ? Number(v) : undefined })}
                     inputSize="sm"
                   />
-                </div>
+                </div> */}
                 <div>
                   <Select
                     label="Lead Through"
@@ -1950,10 +1898,10 @@ export const LeadFormPage: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative !space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight ml-0.5">Potential Value</label>
+                <div className="relative !space-y-1.5">
+                  <label className="text-[12px] font-semibold text-slate-700 ml-0.5">Potential Value</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-xs z-10">₹</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px] z-10 shrink-0">₹</span>
                     <Input
                       className="pl-7"
                       inputSize="sm"
@@ -1964,26 +1912,25 @@ export const LeadFormPage: React.FC = () => {
                     />
                   </div>
                 </div>
-                <DatePicker
+                {/* <DatePicker
                   label="Expected Closing Date"
                   value={formData.expected_closing_date?.split('T')[0]}
                   onChange={(d) => setFormData({ ...formData, expected_closing_date: d })}
                   inputSize="sm"
-                />
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight ml-0.5">Inquiry received (date and time)</label>
-                    <input
-                      type="datetime-local"
-                      className="w-full max-w-md h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs"
+                /> */}
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5 pt-1">
+                    <DatePicker
+                      label="Inquiry received (date and time)"
+                      showTime={true}
+                      showNow={true}
                       value={initialInquiryReceivedAtLocal}
-                      onChange={(e) => setInitialInquiryReceivedAtLocal(e.target.value)}
-                      title="Optional — use when the enquiry happened earlier than you are entering the lead"
+                      onChange={(v) => setInitialInquiryReceivedAtLocal(v || '')}
                     />
-                    <p className="text-[10px] text-slate-400">Optional. Sets the first enquiry log to this time (including past dates). Leave blank to use the current time.</p>
+                    <p className="text-[10px] text-amber-600 font-medium italic">Optional. Pick a date if the lead first reached out earlier than today.</p>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight ml-0.5">Custom quote number</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[12px] font-semibold text-slate-700 ml-0.5">Custom quote number</label>
                     <Input
                       inputSize="sm"
                       className="font-mono tabular-nums"
@@ -1999,20 +1946,22 @@ export const LeadFormPage: React.FC = () => {
                       placeholder="e.g. AP/QUOTE-N/2025/001 — optional"
                       title="Your own quotation reference instead of using Generate below"
                     />
-                    <p className="text-[10px] text-slate-400">Optional. Type the exact quote reference you already use. Saved on the lead; an initial quotation file will use this number. Clears a generated quote if you type here.</p>
+                    <p className="text-[10px] text-amber-600 font-medium italic">Optional. Type your own quote number here and it will override the automatic one.</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Reference & Allocation Section */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-4 mb-2">
-                <div className="flex items-center gap-2">
-                  <Network size={14} className="text-slate-400" />
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">Reference & Allocation</h3>
+            <div className="space-y-4 pt-4 pb-12">
+              <div className="flex flex-col gap-2 mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
+                    <Network size={24} className="text-indigo-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Reference & Allocation</h3>
                 </div>
-                <div className="h-px bg-slate-200 flex-1" />
+                <div className="h-px w-full bg-indigo-500/20 mt-2" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -2028,6 +1977,7 @@ export const LeadFormPage: React.FC = () => {
                   placeholder="Select Domain"
                   required
                   initialOptions={domains.slice(0, 10).map(d => ({ value: d.id, label: d.name }))}
+                  inputSize="sm"
                 />
                 <AsyncSelect
                   label="Region"
@@ -2042,6 +1992,7 @@ export const LeadFormPage: React.FC = () => {
                   placeholder="Select Region"
                   disabled={!formData.domain_id}
                   initialOptions={regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }))}
+                  inputSize="sm"
                 />
                 {reportScope?.can_select_employee && (
                   <Select
@@ -2053,13 +2004,14 @@ export const LeadFormPage: React.FC = () => {
                     value={formData.assigned_to_employee_id != null ? String(formData.assigned_to_employee_id) : ''}
                     onChange={(val) => setFormData(prev => ({ ...prev, assigned_to_employee_id: val ? Number(val) : undefined }))}
                     placeholder="Search employee..."
+                    inputSize="sm"
                   />
                 )}
               </div>
 
               <div className="space-y-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Referred by (Optional)</label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[12px] font-semibold text-slate-700 ml-0.5">Referred by (Optional)</label>
                   <Select
                     options={[
                       { value: 'none', label: 'None' },
@@ -2141,19 +2093,21 @@ export const LeadFormPage: React.FC = () => {
 
 
             {/* Quote & Documentation Section */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-4 mb-2">
-                <div className="flex items-center gap-2">
-                  <FileText size={14} className="text-slate-400" />
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">Quote & Documentation</h3>
+            <div className="space-y-4 pt-4 pb-12">
+              <div className="flex flex-col gap-2 mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
+                    <FileText size={24} className="text-indigo-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Quote & Documentation</h3>
                 </div>
-                <div className="h-px bg-slate-200 flex-1" />
+                <div className="h-px w-full bg-indigo-500/20 mt-2" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Quote Number Generation */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight block">Quote number (from series)</label>
+                <div className="space-y-2.5">
+                  <label className="text-[12px] font-semibold text-slate-700 block ml-0.5">Quote number (from series)</label>
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
                       <Select
@@ -2215,39 +2169,65 @@ export const LeadFormPage: React.FC = () => {
                 </div>
 
                 {/* Initial Quotation Upload */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight block">Initial Quotation</label>
-                  <div className="flex items-center gap-2">
-                    <label className="flex-1 flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs hover:border-indigo-400 hover:bg-slate-50 transition-all cursor-pointer group">
-                      <Upload size={14} className="text-slate-400 group-hover:text-indigo-500" />
-                      <span className="text-slate-600 truncate">{initialQuotationFile ? initialQuotationFile.name : 'Choose file...'}</span>
-                      <input type="file" className="hidden" onChange={(e) => setInitialQuotationFile(e.target.files?.[0] || null)} />
-                    </label>
-                    {initialQuotationFile && (
-                      <Button variant="ghost" size="sm" onClick={() => setInitialQuotationFile(null)} className="text-rose-600 h-8 text-xs">Remove</Button>
+                <div className="space-y-2.5">
+                  <label className="text-[12px] font-semibold text-slate-700 block ml-0.5">Initial Quotation</label>
+                  <label className={cn(
+                    "flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg text-xs transition-all px-4 py-2 select-none group border",
+                    initialQuotationFile 
+                      ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-bold shadow-sm" 
+                      : "bg-slate-50/80 border-slate-200 text-slate-500 hover:bg-slate-100 hover:border-slate-300 hover:text-indigo-600 shadow-sm/50"
+                  )}>
+                    {initialQuotationFile ? (
+                      <FileText size={14} className="text-indigo-600 shrink-0" />
+                    ) : (
+                      <Paperclip size={14} className="text-slate-400 group-hover:text-indigo-500 shrink-0 transition-colors" />
                     )}
-                  </div>
+                    <span className="truncate max-w-[200px]">
+                      {initialQuotationFile ? initialQuotationFile.name : 'Attach quotation document'}
+                    </span>
+                    {initialQuotationFile && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInitialQuotationFile(null); }}
+                        className="ml-2 h-6 w-6 flex items-center justify-center rounded-full bg-indigo-100/50 hover:bg-rose-100 text-indigo-600 hover:text-rose-600 transition-all shrink-0"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                    <input 
+                      type="file" 
+                      accept=".pdf,.doc,.docx"
+                      className="hidden" 
+                      onChange={(e) => setInitialQuotationFile(e.target.files?.[0] || null)} 
+                    />
+                  </label>
                 </div>
               </div>
             </div>
 
             {/* Additional Information Section (Notes) */}
-            <div className="space-y-4 pt-2">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight block">Additional Notes</label>
+            <div className="mt-8 pt-8 relative">
+              <div className="h-px w-full bg-indigo-500/20 absolute top-0 left-0" />
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 ml-0.5">
+                  <div className="h-7 w-7 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100/50 shrink-0">
+                    <MessageSquare size={14} className="text-indigo-600" />
+                  </div>
+                  <label className="text-[12px] font-black uppercase tracking-widest text-slate-500">Additional Notes</label>
+                </div>
                 <textarea
-                  className="w-full px-3 py-2 bg-slate-50/50 border border-slate-200 rounded-xl text-xs placeholder:text-slate-400/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all"
-                  rows={3}
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm placeholder:text-slate-400/80 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all min-h-[100px] resize-none shadow-sm"
+                  rows={4}
                   value={formData.notes || ''}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Provide any additional context or requirements here..."
+                  placeholder="Provide any additional context, requirements, or special instructions here..."
                 />
               </div>
             </div>
 
             {/* Form Footer Actions */}
             <div className="flex items-center justify-end gap-3 pt-8 mt-4 border-t border-slate-100">
-              <Button type="button" variant="ghost" onClick={() => navigate('/leads')} className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">
+              <Button type="button" variant="ghost" onClick={() => navigate('/leads')} className="text-slate-500 font-bold tracking-widest text-[10px]">
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting} className="px-8 shadow-xl shadow-indigo-200">
@@ -2266,7 +2246,7 @@ export const LeadFormPage: React.FC = () => {
                 <div className="grid grid-cols-1 gap-3 max-w-2xl">
                   {/* Row 1: Type | Title | Add log */}
                   <div className="grid grid-cols-[auto_1fr_auto] gap-2 items-end">
-                    <div className="w-32 [&_button]:!h-9 [&_button]:!min-h-0 [&_label]:!text-[10px] [&_label]:!font-semibold [&_label]:!uppercase">
+                    <div className="w-32 [&_button]:!h-9 [&_button]:!min-h-0 [&_label]:!text-[10px] [&_label]:!font-semibold">
                       <Select
                         label="Type"
                         value={activityForm.activity_type}
@@ -2278,11 +2258,11 @@ export const LeadFormPage: React.FC = () => {
                     </div>
                     {activityForm.activity_type === 'qtn_submitted' ? (
                       <div className="flex items-end pb-2.5">
-                        <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight">Title: Added quotation</span>
+                        <span className="text-[10px] text-emerald-600 font-bold tracking-tight">Title: Added quotation</span>
                       </div>
                     ) : (
                       <div className="min-w-0 !space-y-1">
-                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight block">Title</label>
+                        <label className="text-[10px] font-semibold text-slate-500 tracking-tight block">Title</label>
                         <Input
                           value={activityForm.title}
                           onChange={(e) => setActivityForm((f) => ({ ...f, title: e.target.value }))}
@@ -2305,7 +2285,7 @@ export const LeadFormPage: React.FC = () => {
 
                   {/* Notes */}
                   <div className="!space-y-1">
-                    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-tight">Notes</label>
+                    <label className="block text-[10px] font-semibold text-slate-500 tracking-tight">Notes</label>
                     <textarea
                       rows={2}
                       className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all"
@@ -2373,10 +2353,13 @@ export const LeadFormPage: React.FC = () => {
                       <>
                         <div className="mt-2 space-y-2">
                           {attachmentEntries.map((row) => (
-                            <div key={row.id} className="flex flex-wrap md:flex-nowrap items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-white shadow-sm">
-                              <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-700 hover:bg-slate-100 shrink-0 min-w-[120px] justify-center">
-                                <Upload size={14} />
-                                <span className="truncate max-w-[140px]">{row.file ? row.file.name : 'Choose file'}</span>
+                            <div key={row.id} className="flex flex-wrap md:flex-nowrap items-center gap-2 p-2 rounded-lg border border-slate-200 bg-white shadow-sm group/row">
+                              <label className={cn(
+                                "flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-xs font-medium transition-all duration-200 shrink-0 min-w-[130px] justify-center",
+                                row.file ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                              )}>
+                                <Upload size={14} className={row.file ? "text-indigo-600" : "text-slate-400"} />
+                                <span className="truncate max-w-[110px]">{row.file ? row.file.name : 'Choose file'}</span>
                                 <input
                                   type="file"
                                   accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
@@ -2406,7 +2389,7 @@ export const LeadFormPage: React.FC = () => {
                                   }}
                                 />
                               </label>
-                              <div className="w-28 shrink-0 [&_button]:!h-9 [&_button]:!min-h-0 [&_button]:!py-0">
+                              <div className="w-28 shrink-0 [&_button]:!h-10 [&_button]:!min-h-0 [&_button]:!py-0">
                                 <Select
                                   options={[
                                     { value: 'quotation', label: 'Quotation' },
@@ -2423,18 +2406,20 @@ export const LeadFormPage: React.FC = () => {
                                 />
                               </div>
                               {row.kind === 'quotation' ? (
-                                <span className="text-xs text-slate-500 shrink-0">Number auto from lead</span>
+                                <div className="h-10 flex-1 flex items-center px-3 bg-slate-50 border border-slate-100 rounded-lg">
+                                  <span className="text-[11px] font-medium text-slate-500 italic">Auto from Lead</span>
+                                </div>
                               ) : (
                                 <Input
-                                  placeholder="Title (e.g. Diagram, Documentation)"
+                                  placeholder="File title"
                                   value={row.title}
                                   onChange={(e) =>
                                     setAttachmentEntries((prev) =>
                                       prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r))
                                     )
                                   }
-                                  inputSize="sm"
-                                  containerClassName="min-w-[160px] max-w-[220px] flex-1 !space-y-0"
+                                  inputSize="md"
+                                  containerClassName="min-w-[160px] flex-1 !space-y-0"
                                 />
                               )}
                               <div className="ml-auto flex items-center gap-1 shrink-0">
@@ -2453,7 +2438,7 @@ export const LeadFormPage: React.FC = () => {
                                   onClick={() =>
                                     setAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])
                                   }
-                                  className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                  className="h-9 w-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-600 hover:text-white transition-colors"
                                   title="Add row"
                                 >
                                   <Plus size={14} />
@@ -2986,17 +2971,17 @@ export const LeadFormPage: React.FC = () => {
             contentClassName="max-w-lg max-h-[90vh] overflow-y-auto"
           >
             <div className="space-y-4">
-              <p className="text-xs text-slate-500">Same as Customer form: link to an organization (or create one), optionally add a plant, then create the contact. The lead will be linked to the new contact.</p>
+              <p className="text-[11px] text-slate-500 italic bg-slate-50 p-2 rounded-lg border border-slate-100">Link to an organization (or create one), optionally add a plant, then create the contact. The lead will be linked to this new contact.</p>
               {/* Person fields first: Title, First name, Last name, Phone, Email */}
               <div className="flex gap-2">
                 <div className="w-24 shrink-0">
-                  <Select label="Title" options={NAME_PREFIXES} value={createContactForm.title} onChange={(v) => setCreateContactForm(prev => ({ ...prev, title: (v ?? '') as string }))} placeholder="—" />
+                  <Select label="Title" options={NAME_PREFIXES} value={createContactForm.title} onChange={(v) => setCreateContactForm(prev => ({ ...prev, title: (v ?? '') as string }))} placeholder="—" inputSize="sm" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <Input label="First name" value={createContactForm.first_name} onChange={(e) => setCreateContactForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="First name" required />
+                  <Input label="First name" value={createContactForm.first_name} onChange={(e) => setCreateContactForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="First name" required inputSize="sm" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <Input label="Last name" value={createContactForm.last_name} onChange={(e) => setCreateContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Last name" required />
+                  <Input label="Last name" value={createContactForm.last_name} onChange={(e) => setCreateContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Last name" required inputSize="sm" />
                 </div>
               </div>
               <div className="flex gap-2 items-end">
@@ -3010,14 +2995,15 @@ export const LeadFormPage: React.FC = () => {
                     searchable
                     getSearchText={getCountryCodeSearchText}
                     getOptionKey={(o) => o.label}
+                    inputSize="sm"
                   />
                 </div>
-                <Input label="Phone" value={createContactForm.contact_phone} onChange={(e) => setCreateContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="Number" containerClassName="flex-1 min-w-0" required />
+                <Input label="Phone" value={createContactForm.contact_phone} onChange={(e) => setCreateContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="Number" containerClassName="flex-1 min-w-0" required inputSize="sm" />
               </div>
-              <Input label="Email" type="email" value={createContactForm.contact_email} onChange={(e) => setCreateContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
+              <Input label="Email" type="email" value={createContactForm.contact_email} onChange={(e) => setCreateContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" inputSize="sm" />
               {/* Organization: search/select or create */}
               <div className="relative">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Organization</label>
+                <label className="block text-[12px] font-semibold text-slate-700 mb-1.5 ml-0.5">Organization</label>
                 {createContactForm.organization_id != null ? (
                   <div className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-slate-50">
                     <span className="flex-1 text-sm font-medium text-slate-800 truncate">{createContactSelectedOrg?.name || 'Organization linked'}</span>
@@ -3037,7 +3023,7 @@ export const LeadFormPage: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  <Input
+                  <SearchInput
                     value={orgSearchQuery || createContactSelectedOrg?.name || ''}
                     onChange={(e) => {
                       const v = e.target.value;
@@ -3046,7 +3032,8 @@ export const LeadFormPage: React.FC = () => {
                       orgSearchTimeoutRef.current = setTimeout(() => searchOrganizationsByName(v), 300);
                     }}
                     onBlur={() => setTimeout(() => { setOrgSuggestions([]); }, 150)}
-                    placeholder="Type to search or enter organization name"
+                    placeholder="Type to search..."
+                    inputSize="sm"
                   />
                 )}
                 {(orgSuggestions.length > 0 || (orgSearchQuery.trim().length >= 2 && canCreateOrg)) && (
@@ -3114,39 +3101,32 @@ export const LeadFormPage: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Domain <span className="text-red-500">*</span></label>
-                <select
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              <div className="grid grid-cols-2 gap-3">
+                <Select
+                  label="Domain"
+                  placeholder="Select domain"
+                  required
                   value={createContactForm.domain_id ?? ''}
-                  onChange={(e) => {
-                    const val = e.target.value ? Number(e.target.value) : undefined;
-                    setCreateContactForm(prev => ({ ...prev, domain_id: val, region_id: undefined }));
-                    if (val) loadRegions(val);
+                  onChange={(val) => {
+                    const v = val ? Number(val) : undefined;
+                    setCreateContactForm(prev => ({ ...prev, domain_id: v, region_id: undefined }));
+                    if (v) loadRegions(v);
                   }}
-                >
-                  <option value="">Select domain</option>
-                  {domains.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Region</label>
-                <select
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  options={domains.map(d => ({ value: d.id, label: d.name }))}
+                  inputSize="sm"
+                />
+                <Select
+                  label="Region"
+                  placeholder="— None —"
                   value={createContactForm.region_id ?? ''}
-                  onChange={(e) => setCreateContactForm(prev => ({ ...prev, region_id: e.target.value ? Number(e.target.value) : undefined }))}
+                  onChange={(val) => setCreateContactForm(prev => ({ ...prev, region_id: val ? Number(val) : undefined }))}
                   disabled={!createContactForm.domain_id}
-                >
-                  <option value="">— None —</option>
-                  {regions.map(r => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
-                </select>
+                  options={regions.map(r => ({ value: r.id, label: r.name }))}
+                  inputSize="sm"
+                />
               </div>
-              <div className="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <label className="block text-sm font-medium text-slate-700">Plant</label>
+              <div className="space-y-3 p-3 bg-slate-50/50 rounded-xl border border-slate-200 mt-2">
+                <label className="block text-[12px] font-semibold text-slate-700 mb-1.5 ml-0.5">Plant Location</label>
                 {createContactForm.organization_id != null ? (
                   <>
                     <div className="flex gap-2 items-end">
@@ -3160,23 +3140,24 @@ export const LeadFormPage: React.FC = () => {
                           onChange={(val) => setCreateContactForm(prev => ({ ...prev, plant_id: val ? Number(val) : undefined }))}
                           placeholder={contactCreatePlants.length === 0 ? 'No plants yet — add one below' : 'Select plant'}
                           searchable
+                          inputSize="sm"
                         />
                       </div>
                       {canCreatePlant && (
-                        <Button type="button" variant="outline" size="sm" onClick={() => setShowAddPlantInContactModal(prev => !prev)} leftIcon={<Plus size={14} />}>Add plant</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setShowAddPlantInContactModal(prev => !prev)} leftIcon={<Plus size={14} />} className="!h-9">Add plant</Button>
                       )}
                     </div>
                     {showAddPlantInContactModal && canCreatePlant && (
-                      <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-3 mt-2">
-                        <p className="text-xs font-medium text-slate-700">New plant for this organization</p>
-                        <Input label="Plant name" value={newPlantForm.plant_name} onChange={(e) => setNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="e.g. Main Plant" required />
-                        <Input label="Address line 1" value={newPlantForm.address_line1} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
-                        <Input label="Address line 2" value={newPlantForm.address_line2} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
+                      <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-3 mt-2 shadow-sm">
+                        <p className="text-[11px] font-bold text-slate-700 tracking-wider mb-2">New plant for this organization</p>
+                        <Input label="Plant name" value={newPlantForm.plant_name} onChange={(e) => setNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="e.g. Main Plant" required inputSize="sm" />
+                        <Input label="Address line 1" value={newPlantForm.address_line1} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" inputSize="sm" />
+                        <Input label="Address line 2" value={newPlantForm.address_line2} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" inputSize="sm" />
                         <div className="grid grid-cols-2 gap-2">
-                          <Input label="City" value={newPlantForm.city} onChange={(e) => setNewPlantForm(prev => ({ ...prev, city: e.target.value }))} placeholder="City" />
-                          <Input label="State" value={newPlantForm.state} onChange={(e) => setNewPlantForm(prev => ({ ...prev, state: e.target.value }))} placeholder="State" />
-                          <Input label="Country" value={newPlantForm.country} onChange={(e) => setNewPlantForm(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" />
-                          <Input label="Postal code" value={newPlantForm.postal_code} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" />
+                          <Input label="City" value={newPlantForm.city} onChange={(e) => setNewPlantForm(prev => ({ ...prev, city: e.target.value }))} placeholder="City" inputSize="sm" />
+                          <Input label="State" value={newPlantForm.state} onChange={(e) => setNewPlantForm(prev => ({ ...prev, state: e.target.value }))} placeholder="State" inputSize="sm" />
+                          <Input label="Country" value={newPlantForm.country} onChange={(e) => setNewPlantForm(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" inputSize="sm" />
+                          <Input label="Postal code" value={newPlantForm.postal_code} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" inputSize="sm" />
                         </div>
                         <div className="flex gap-2">
                           <Button type="button" size="sm" onClick={handleAddPlantInContactModal} disabled={addingPlant || !newPlantForm.plant_name?.trim()}>{addingPlant ? 'Adding...' : 'Add plant'}</Button>
@@ -3186,7 +3167,7 @@ export const LeadFormPage: React.FC = () => {
                     )}
                   </>
                 ) : (
-                  <p className="text-sm text-slate-500">Select or create an organization above to choose a plant.</p>
+                  <p className="text-[11px] text-slate-400 italic font-medium">Select or create an organization above to choose a plant.</p>
                 )}
               </div>
               <div className="flex gap-2 pt-2 border-t border-slate-200">
@@ -3251,7 +3232,7 @@ export const LeadFormPage: React.FC = () => {
               <div className="flex items-center gap-4 mb-2">
                 <div className="flex items-center gap-2">
                   <User size={14} className="text-slate-400" />
-                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">Basic Information</h4>
+                  <h4 className="text-[11px] font-bold tracking-wider text-slate-500 whitespace-nowrap">Basic Information</h4>
                 </div>
                 <div className="h-px bg-slate-200 flex-1" />
               </div>
@@ -3281,7 +3262,7 @@ export const LeadFormPage: React.FC = () => {
               <div className="flex items-center gap-4 mb-2">
                 <div className="flex items-center gap-2">
                   <Globe size={14} className="text-slate-400" />
-                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">Communication & Territory</h4>
+                  <h4 className="text-[11px] font-bold tracking-wider text-slate-500 whitespace-nowrap">Communication & Territory</h4>
                 </div>
                 <div className="h-px bg-slate-200 flex-1" />
               </div>
@@ -3290,7 +3271,7 @@ export const LeadFormPage: React.FC = () => {
                   <Input label="Email" type="email" value={formData.email || ''} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="email@example.com" required className="h-9 text-xs" />
                 </div>
                 <div className="md:col-span-6">
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight mb-1 block">Phone Number</label>
+                  <label className="text-[10px] font-semibold text-slate-500 tracking-tight mb-1 block">Phone Number</label>
                   <div className="flex gap-2">
                     <Select
                       options={COUNTRY_CODES}
@@ -3348,26 +3329,26 @@ export const LeadFormPage: React.FC = () => {
               <div className="flex items-center gap-4 mb-2">
                 <div className="flex items-center gap-2">
                   <Info size={14} className="text-slate-400" />
-                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">Lead Information</h4>
+                  <h4 className="text-[11px] font-bold tracking-wider text-slate-500 whitespace-nowrap">Lead Information</h4>
                 </div>
                 <div className="h-px bg-slate-200 flex-1" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4">
                 <div className="md:col-span-4">
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight mb-1 block">Lead Number</label>
+                  <label className="text-[10px] font-semibold text-slate-500 tracking-tight mb-1 block">Lead Number</label>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 tabular-nums">
                     {formData.series?.trim() || '—'}
                   </div>
                 </div>
                 <div className="md:col-span-8 !space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight ml-0.5">Potential Value</label>
+                  <label className="text-[10px] font-semibold text-slate-500 tracking-tight ml-0.5">Potential Value</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-xs z-10">₹</span>
                     <Input inputSize="sm" className="pl-7" type="number" value={formData.potential_value ?? ''} onChange={(e) => setFormData({ ...formData, potential_value: e.target.value ? Number(e.target.value) : undefined })} placeholder="0.00" />
                   </div>
                 </div>
                 <div className="md:col-span-12">
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-tight mb-1 block">Additional Notes</label>
+                  <label className="text-[10px] font-semibold text-slate-500 tracking-tight mb-1 block">Additional Notes</label>
                   <textarea
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs placeholder:text-slate-400/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all"
                     rows={3}
@@ -3380,7 +3361,7 @@ export const LeadFormPage: React.FC = () => {
             </div>
 
             <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
-              <Button type="button" variant="ghost" onClick={() => setShowEditModal(false)} className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">
+              <Button type="button" variant="ghost" onClick={() => setShowEditModal(false)} className="text-slate-500 font-bold tracking-widest text-[10px]">
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting} className="px-6 shadow-lg shadow-indigo-100">
@@ -3446,7 +3427,7 @@ export const LeadFormPage: React.FC = () => {
         >
           <p className="text-sm text-slate-600 mb-4">Please provide a detailed reason and the two options below. If you don't know competitor or price, use "Not sure".</p>
 
-          <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-tight mb-1">Competitor name (lost to whom)*</label>
+          <label className="block text-[10px] font-semibold text-slate-500 tracking-tight mb-1">Competitor name (lost to whom)*</label>
           <div className="flex gap-2 mb-3">
             <input
               type="text"
@@ -3458,7 +3439,7 @@ export const LeadFormPage: React.FC = () => {
             <Button type="button" variant="outline" size="sm" onClick={() => setMarkLostCompetitor('Not sure')} className="shrink-0 h-9">Not sure</Button>
           </div>
 
-          <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-tight mb-1">Lost at (at which price)*</label>
+          <label className="block text-[10px] font-semibold text-slate-500 tracking-tight mb-1">Lost at (at which price)*</label>
           <div className="flex gap-2 mb-4">
             <input
               type="text"
@@ -3470,7 +3451,7 @@ export const LeadFormPage: React.FC = () => {
             <Button type="button" variant="outline" size="sm" onClick={() => setMarkLostPrice('Not sure')} className="shrink-0 h-9">Not sure</Button>
           </div>
 
-          <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-tight mb-1">Reason (required, min 100 characters)</label>
+          <label className="block text-[10px] font-semibold text-slate-500 tracking-tight mb-1">Reason (required, min 100 characters)</label>
           <textarea
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs min-h-[100px] focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400"
             placeholder="e.g. Customer chose competitor due to pricing. Budget was cut this quarter. No response after 3 follow-ups."
@@ -3495,3 +3476,4 @@ export const LeadFormPage: React.FC = () => {
     </PageLayout>
   );
 };
+

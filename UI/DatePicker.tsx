@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar } from 'lucide-react';
+import { Calendar, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export interface DatePickerProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -18,11 +18,16 @@ export const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
         )}
         <div className="relative group">
           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none">
-            <Calendar size={18} />
+            {(props.type === 'time' || props.type === 'datetime-local') ? (
+              <Clock size={18} />
+            ) : (
+              <Calendar size={18} />
+            )}
           </div>
           <input
-            type="date"
+            {...props}
             ref={ref}
+            type={props.type || 'date'}
             className={cn(
               'flex h-11 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-semibold transition-all duration-200',
               'focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
@@ -31,7 +36,6 @@ export const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
               error ? 'border-rose-500' : '',
               className
             )}
-            {...props}
           />
         </div>
         {error && <span className="text-[10px] font-bold text-rose-500 ml-1 uppercase">{error}</span>}

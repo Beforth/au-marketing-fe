@@ -294,12 +294,12 @@ export const OrganizationFormPage: React.FC = () => {
             required
             placeholder="e.g. Acme Corp"
           />
-          <Input
+          {/* <Input
             label="Code (optional)"
             value={formData.code || ''}
             onChange={(e) => setFormData({ ...formData, code: e.target.value })}
             placeholder="e.g. ACME"
-          />
+          /> */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Important details / notes</label>
             <textarea
