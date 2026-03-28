@@ -30,7 +30,7 @@ import { parseNameWithPrefix, serializeNameWithPrefix, parsePhoneWithCountryCode
 import { getStoredMarketingScope } from '../lib/marketing-scope';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Modal } from '../components/ui/Modal';
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Globe, User, Building2, FileText, History, Edit2, Trash2, Paperclip, Download, Plus, Upload, X, Package, Trophy, XCircle, Search, Network, Info, Mail, List, Factory, MessageSquare } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Clock, ChevronDown, ChevronRight, Globe, User, Building2, FileText, History, Edit2, Trash2, Paperclip, Download, Plus, Upload, X, Package, Trophy, XCircle, Search, Network, Info, Mail, List, Factory, MessageSquare } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface LeadFormData extends Partial<Lead> {
@@ -40,6 +40,8 @@ interface LeadFormData extends Partial<Lead> {
   email?: string;
   job_title?: string;
   title?: string;
+  organization_id?: number;
+  plant_id?: number;
 }
 
 export const LeadFormPage: React.FC = () => {
@@ -162,10 +164,17 @@ export const LeadFormPage: React.FC = () => {
   const [newOrgForm, setNewOrgForm] = useState<{ name: string; code: string; description: string; website: string; industry: string; organization_size: string }>({ name: '', code: '', description: '', website: '', industry: '', organization_size: '' });
   const [showAddPlantInContactModal, setShowAddPlantInContactModal] = useState(false);
   const [addingPlant, setAddingPlant] = useState(false);
-  const [newPlantForm, setNewPlantForm] = useState<{ plant_name: string; address_line1: string; address_line2: string; city: string; state: string; country: string; postal_code: string }>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+  const [newPlantForm, setNewPlantForm] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+  const [plantModalData, setPlantModalData] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+  const [showPlantInline, setShowPlantInline] = useState(false);
+  const [savingModal, setSavingModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentLead, setCurrentLead] = useState<Lead | null>(null);
   const [selectedContactForDisplay, setSelectedContactForDisplay] = useState<Contact | null>(null);
+  const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
+  const [selectedPrimaryContact, setSelectedPrimaryContact] = useState<Contact | null>(null);
+  const [primaryContactContactId, setPrimaryContactContactId] = useState<number | null>(null);
+  const [primaryContactSearchQuery, setPrimaryContactSearchQuery] = useState('');
   const [leadSearchName, setLeadSearchName] = useState(''); // Search by contact name or company name
   const [inlineContactForm, setInlineContactForm] = useState({
     domain_id: undefined as number | undefined,
@@ -320,6 +329,17 @@ export const LeadFormPage: React.FC = () => {
     }
   }, [formData.customer_id]);
 
+  const searchOrganizationsByName = useCallback((query: string) => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setOrgSuggestions([]);
+      return;
+    }
+    marketingAPI.getOrganizations({ page: 1, page_size: 15, search: q, is_active: true })
+      .then(res => setOrgSuggestions(res.items ?? []))
+      .catch(() => setOrgSuggestions([]));
+  }, []);
+
   const searchContactsByEmailOrPhone = useCallback((query: string) => {
     if (query.trim().length < 2) {
       setContactSuggestions([]);
@@ -350,6 +370,42 @@ export const LeadFormPage: React.FC = () => {
       setLeadSearchLoading(false);
     });
   }, []);
+
+  const onOrganizationSearchChange = useCallback((value: string) => {
+    setSelectedOrganization(null);
+    setFormData(prev => ({ ...prev, organization_id: undefined, plant_id: undefined }));
+    setPlants([]);
+    setNewOrgForm(prev => ({ ...prev, name: value }));
+    setOrgSearchQuery(value);
+    if (orgSearchTimeoutRef.current) clearTimeout(orgSearchTimeoutRef.current);
+    orgSearchTimeoutRef.current = setTimeout(() => searchOrganizationsByName(value), 300);
+  }, [searchOrganizationsByName]);
+
+  const clearOrganization = useCallback(() => {
+    setSelectedOrganization(null);
+    setFormData(prev => ({ ...prev, organization_id: undefined, plant_id: undefined, company: orgSearchQuery.trim() || prev.company }));
+    setPlants([]);
+    setNewOrgForm(prev => ({ ...prev, name: orgSearchQuery.trim() || prev.name }));
+    setOrgSearchQuery('');
+    setOrgSuggestions([]);
+  }, [orgSearchQuery]);
+
+  const contactCompanyName = useCallback((c: Contact) => {
+    if (c.organization?.name) return c.organization.name;
+    return '';
+  }, []);
+
+  const contactDisplayName = useCallback((c: Contact) => {
+    const parts = [c.title, c.first_name, c.last_name].filter(Boolean);
+    if (parts.length) return parts.join(' ').trim();
+    return c.contact_person_name || contactCompanyName(c) || '';
+  }, [contactCompanyName]);
+
+  const onPrimaryContactSearchChange = useCallback((value: string) => {
+    setPrimaryContactSearchQuery(value);
+    if (contactSearchTimeoutRef.current) clearTimeout(contactSearchTimeoutRef.current);
+    contactSearchTimeoutRef.current = setTimeout(() => searchContactsByEmailOrPhone(value.trim()), 400);
+  }, [searchContactsByEmailOrPhone]);
 
   const onLeadSearchNameChange = useCallback((value: string) => {
     setLeadSearchName(value);
@@ -444,6 +500,9 @@ export const LeadFormPage: React.FC = () => {
       region_id: c.region_id ?? prev.region_id,
     }));
     setSelectedContactForDisplay(c);
+    setSelectedPrimaryContact(c);
+    setPrimaryContactContactId(c.id);
+    setSelectedOrganization(c.organization ?? null);
     setContactSuggestions([]);
     setLeadSearchContactResults([]);
     setLeadSearchCustomerResults([]);
@@ -470,6 +529,9 @@ export const LeadFormPage: React.FC = () => {
     if (cust.domain_id) loadRegions(cust.domain_id);
     setLeadSourceType('customer');
     setSelectedContactForDisplay(null);
+    setSelectedPrimaryContact(cust.primary_contact_contact ?? null);
+    setPrimaryContactContactId(cust.primary_contact_contact_id ?? null);
+    setSelectedOrganization(cust.organization ?? null);
     showToast('Customer linked', 'success');
   }, []);
 
@@ -485,16 +547,6 @@ export const LeadFormPage: React.FC = () => {
     showToast('Referrer contact linked', 'success');
   }, []);
 
-  const searchOrganizationsByName = useCallback((query: string) => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setOrgSuggestions([]);
-      return;
-    }
-    marketingAPI.getOrganizations({ page: 1, page_size: 15, search: q, is_active: true })
-      .then(res => setOrgSuggestions(res.items ?? []))
-      .catch(() => setOrgSuggestions([]));
-  }, []);
 
   const openCreateContactModal = useCallback(() => {
     setCreateContactForm({
@@ -993,13 +1045,28 @@ export const LeadFormPage: React.FC = () => {
       setCustomers(customersData);
       if (lead.contact_id) {
         setLeadSourceType('contact');
-        setSelectedContactForDisplay(lead.contact ?? null);
+        const c = lead.contact ?? null;
+        setSelectedContactForDisplay(c);
+        setSelectedPrimaryContact(c);
+        setPrimaryContactContactId(lead.contact_id);
       } else if (lead.customer_id) {
         setLeadSourceType('customer');
         setSelectedContactForDisplay(null);
+        setSelectedPrimaryContact(lead.customer?.primary_contact_contact ?? null);
+        setPrimaryContactContactId(lead.customer?.primary_contact_contact_id ?? null);
       } else {
         setLeadSourceType('none');
         setSelectedContactForDisplay(null);
+        setSelectedPrimaryContact(null);
+        setPrimaryContactContactId(null);
+      }
+
+      if (lead.contact?.organization) {
+        setSelectedOrganization(lead.contact.organization);
+      } else if (lead.customer?.organization) {
+        setSelectedOrganization(lead.customer.organization);
+      } else {
+        setSelectedOrganization(null);
       }
 
       if (lead.customer_id) {
@@ -1034,96 +1101,67 @@ export const LeadFormPage: React.FC = () => {
     const referredByContactSubmit = referredByType === 'contact';
 
     if (!isEdit && !effectiveContactId && !effectiveCustomerId) {
-      const typedName = leadSearchName.trim();
-      const typedParts = typedName.split(/\s+/).filter(Boolean);
-      const fallbackFirst = typedParts[0] || '';
-      const fallbackLast = typedParts.slice(1).join(' ') || '';
-      const resolvedFirstName = inlineContactForm.first_name?.trim() || fallbackFirst;
-      const resolvedLastName = inlineContactForm.last_name?.trim() || fallbackLast;
-      const resolvedPhone = serializePhoneWithCountryCode(inlineContactForm.contact_phone_code, inlineContactForm.contact_phone)?.trim() || '';
-      const resolvedEmail = inlineContactForm.contact_email?.trim() || '';
-      const hasInlineContact = formData.domain_id && Boolean(resolvedFirstName || resolvedLastName || resolvedEmail || resolvedPhone);
-      if (hasInlineContact) {
-        setIsSubmitting(true);
-        try {
-          let resolvedOrganizationId = inlineContactForm.organization_id ?? undefined;
-          let resolvedPlantId = inlineContactForm.plant_id ?? undefined;
-          const typedOrgName = inlineContactOrgQuery.trim();
+      const inlineContactFilled = inlineContactForm.first_name?.trim() && inlineContactForm.last_name?.trim() && serializePhoneWithCountryCode(inlineContactForm.contact_phone_code, inlineContactForm.contact_phone)?.trim();
+      const companyOrOrgName = (formData.company || inlineContactOrgQuery || newOrgForm.name || '').trim();
 
-          // If user typed an organization name but didn't explicitly select/create one, resolve it automatically on submit.
-          if (!resolvedOrganizationId && typedOrgName.length >= 2) {
-            const orgSearch = await marketingAPI.getOrganizations({ page: 1, page_size: 25, search: typedOrgName, is_active: true });
-            const exact = (orgSearch.items || []).find((o) => o.name.trim().toLowerCase() === typedOrgName.toLowerCase());
-            if (exact) {
-              resolvedOrganizationId = exact.id;
-            } else {
-              if (!canCreateOrg) {
-                showToast('Organization not found. Please select an existing organization.', 'error');
-                setIsSubmitting(false);
-                return;
-              }
-              const createdOrg = await marketingAPI.createOrganization({
-                name: typedOrgName,
-                code: inlineNewOrgForm.code.trim() || undefined,
-                website: inlineNewOrgForm.website.trim() || undefined,
-                industry: inlineNewOrgForm.industry.trim() || undefined,
-                organization_size: inlineNewOrgForm.organization_size.trim() || undefined,
-                is_active: true,
-              });
-              resolvedOrganizationId = createdOrg.id;
-            }
-          }
+      if (!primaryContactContactId && !inlineContactFilled) {
+        showToast('Please link an existing contact or fill the details below to create one on save', 'error');
+        return;
+      }
 
-          // If user entered plant details but didn't click "Add plant", create it automatically before contact creation.
-          if (resolvedOrganizationId && !resolvedPlantId && inlineNewPlantForm.plant_name.trim()) {
-            if (!canCreatePlant) {
-              showToast('Plant name entered but you do not have permission to create plants.', 'error');
-              setIsSubmitting(false);
-              return;
-            }
-            const createdPlant = await marketingAPI.createOrganizationPlant(resolvedOrganizationId, {
-              plant_name: inlineNewPlantForm.plant_name.trim(),
-              address_line1: inlineNewPlantForm.address_line1.trim() || undefined,
-              address_line2: inlineNewPlantForm.address_line2.trim() || undefined,
-              city: inlineNewPlantForm.city.trim() || undefined,
-              state: inlineNewPlantForm.state.trim() || undefined,
-              country: inlineNewPlantForm.country.trim() || undefined,
-              postal_code: inlineNewPlantForm.postal_code.trim() || undefined,
-            });
-            resolvedPlantId = createdPlant.id;
-          }
+      setIsSubmitting(true);
+      try {
+        let organization_id = selectedOrganization?.id || inlineContactForm.organization_id;
+        let plant_id = inlineContactForm.plant_id;
+        let company_name = selectedOrganization?.name || formData.company;
 
-          const contact = await marketingAPI.createContact({
-            domain_id: selectedLeadDomainId!,
-            region_id: selectedLeadRegionId ?? undefined,
-            organization_id: resolvedOrganizationId,
-            plant_id: resolvedPlantId,
-            title: inlineContactForm.title?.trim() || undefined,
-            first_name: resolvedFirstName || undefined,
-            last_name: resolvedLastName || undefined,
-            contact_job_title: inlineContactForm.contact_job_title?.trim() || undefined,
-            contact_email: resolvedEmail || undefined,
-            contact_phone: resolvedPhone || undefined,
+        // 1. Create organization first if needed
+        if (!organization_id && companyOrOrgName && canCreateOrg) {
+          const plantsToCreate = inlineNewPlantForm.plant_name?.trim()
+            ? [{ plant_name: inlineNewPlantForm.plant_name.trim(), address_line1: inlineNewPlantForm.address_line1?.trim() || undefined, address_line2: inlineNewPlantForm.address_line2?.trim() || undefined, city: inlineNewPlantForm.city?.trim() || undefined, state: inlineNewPlantForm.state?.trim() || undefined, country: inlineNewPlantForm.country?.trim() || undefined, postal_code: inlineNewPlantForm.postal_code?.trim() || undefined }]
+            : undefined;
+          const org = await marketingAPI.createOrganization({
+            name: newOrgForm.name.trim() || companyOrOrgName,
+            code: newOrgForm.code.trim() || undefined,
+            website: newOrgForm.website.trim() || undefined,
+            industry: newOrgForm.industry.trim() || undefined,
+            organization_size: newOrgForm.organization_size?.trim() || undefined,
+            is_active: true,
+            plants: plantsToCreate,
           });
-          if (
-            contact.domain_id !== selectedLeadDomainId ||
-            (contact.region_id ?? undefined) !== (selectedLeadRegionId ?? undefined)
-          ) {
-            showToast('Contact was created with different domain/region than selected in lead form. Lead was not saved.', 'error');
-            setIsSubmitting(false);
-            return;
+          organization_id = org.id;
+          company_name = org.name;
+          if (plantsToCreate?.length) {
+            const plantsList = await marketingAPI.getOrganizationPlants(org.id).catch(() => []);
+            plant_id = plantsList?.[0]?.id;
           }
-          setInlineContactForm((prev) => ({ ...prev, organization_id: resolvedOrganizationId, plant_id: resolvedPlantId }));
-          effectiveContactId = contact.id;
-          effectiveDomainId = selectedLeadDomainId;
-          effectiveRegionId = selectedLeadRegionId;
-        } catch (err: any) {
-          showToast(err?.message || 'Failed to create contact', 'error');
-          setIsSubmitting(false);
-          return;
         }
-      } else {
-        showToast('Select a contact or customer from the search, or fill the new contact form below. Domain & Region (for the lead) are required when creating a new contact.', 'error');
+
+        // 2. Create contact if needed
+        if (!primaryContactContactId && inlineContactFilled && canCreateContact) {
+          const fullPhone = serializePhoneWithCountryCode(inlineContactForm.contact_phone_code, inlineContactForm.contact_phone);
+          const contact = await marketingAPI.createContact({
+            domain_id: effectiveDomainId!,
+            region_id: effectiveRegionId,
+            organization_id: organization_id,
+            plant_id: plant_id,
+            title: inlineContactForm.title?.trim() || undefined,
+            first_name: inlineContactForm.first_name.trim(),
+            last_name: inlineContactForm.last_name.trim(),
+            contact_job_title: inlineContactForm.contact_job_title?.trim() || undefined,
+            contact_email: inlineContactForm.contact_email?.trim() || undefined,
+            contact_phone: fullPhone?.trim() || undefined,
+          });
+          effectiveContactId = contact.id;
+        } else {
+          effectiveContactId = primaryContactContactId ?? undefined;
+        }
+        
+        effectiveDomainId = formData.domain_id!;
+        effectiveRegionId = formData.region_id;
+      } catch (err: any) {
+        showToast(err?.message || 'Failed to create entities', 'error');
+        setIsSubmitting(false);
         return;
       }
     }
@@ -1611,460 +1649,261 @@ export const LeadFormPage: React.FC = () => {
       )}
 
       {!isEdit && (
-        <Card>
+        <Card className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Contact Information Section */}
-            <div className="space-y-4">
-              <div className="flex flex-col gap-2 mb-8 pt-4">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
-                    <User size={24} className="text-indigo-600" />
-                  </div>
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight leading-none">Contact Information</h3>
-                </div>
-                <div className="h-px w-full bg-indigo-500/20 mt-2" />
-              </div>
-              {formData.contact_id != null || formData.customer_id != null ? (
-                <div className="flex items-center justify-between p-4 rounded-2xl bg-indigo-50/30 border border-indigo-100/50 animate-in fade-in zoom-in-95">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                      <FileText size={20} />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold tracking-wider text-indigo-500">Linked {formData.contact_id != null ? 'Contact' : 'Customer'}</p>
-                      <p className="text-sm font-bold text-slate-900">{currentLead ? leadDisplayName(currentLead) : 'Linked Record'}</p>
-                    </div>
+            {/* 1. Primary Contact Section */}
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <User size={18} /> Primary contact
+              </h3>
+              <p className="text-xs text-slate-500 font-medium italic">Primary contact is a link to a contact record. Search results will appear as you type in names.</p>
+              
+              {primaryContactContactId != null ? (
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between gap-2 flex-wrap">
+                  <div className="text-sm text-slate-800">
+                    {selectedPrimaryContact ? (
+                      <>
+                        <p className="font-medium">{contactDisplayName(selectedPrimaryContact) || contactCompanyName(selectedPrimaryContact) || 'Contact'}</p>
+                        <p className="text-slate-600 text-xs mt-0.5">{[selectedPrimaryContact.contact_email, selectedPrimaryContact.contact_phone].filter(Boolean).join(' · ')}</p>
+                      </>
+                    ) : (
+                      <p className="font-medium">Contact linked</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {formData.contact_id != null && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => window.open(`/contacts/${formData.contact_id}/edit`, '_blank')}
-                        className="text-indigo-600 hover:bg-indigo-100/50 rounded-full"
-                        leftIcon={<ArrowRight size={14} />}
-                      >
-                        View Profile
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setFormData(prev => ({ ...prev, contact_id: undefined, customer_id: undefined }));
-                        setLeadSourceType('none');
-                        setLeadSearchContactResults([]);
-                        setLeadSearchCustomerResults([]);
-                        setSelectedContactForDisplay(null);
-                      }}
-                      className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-full"
+                    <button
+                      type="button"
+                      onClick={() => { setPrimaryContactContactId(null); setSelectedPrimaryContact(null); setPrimaryContactSearchQuery(''); setContactSuggestions([]); }}
+                      className="text-sm text-slate-600 hover:text-rose-600 font-bold"
                     >
-                      <X size={16} />
-                    </Button>
+                      Change
+                    </button>
+                    <a
+                      href={`/contacts/${primaryContactContactId}/edit`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2 py-1 text-sm text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100 rounded border border-indigo-200 transition-colors shadow-sm"
+                      title="Open contact in new tab"
+                    >
+                      <ArrowRight size={14} />
+                      View contact
+                    </a>
                   </div>
                 </div>
               ) : (
-                <>
-                  <div className="space-y-4">
-
-
-                    {/* Basic Info Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                      <div className="flex gap-2">
-                        <div className="w-20 shrink-0">
-                          <Select label="Title" options={NAME_PREFIXES} value={inlineContactForm.title} onChange={(v) => setInlineContactForm(prev => ({ ...prev, title: (v ?? '') as string }))} placeholder="Title" inputSize="sm" />
+                <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-1 relative">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="relative">
+                      <div className="flex gap-2 items-end">
+                        <div className="w-24 shrink-0">
+                          <Select label="Title" options={NAME_PREFIXES} value={inlineContactForm.title} onChange={(v) => setInlineContactForm(prev => ({ ...prev, title: (v ?? '') as string }))} placeholder="—" searchable={false} />
                         </div>
-                        <div className="flex-1">
-                          <Input label="First name" value={inlineContactForm.first_name} onChange={(e) => setInlineContactForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="Enter name" inputSize="sm" />
+                        <div className="flex-1 min-w-0">
+                          <Input
+                            label="First name"
+                            value={inlineContactForm.first_name}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setInlineContactForm(prev => ({ ...prev, first_name: v }));
+                              onPrimaryContactSearchChange(v);
+                            }}
+                            placeholder="First name"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <Input
+                            label="Last name"
+                            value={inlineContactForm.last_name}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setInlineContactForm(prev => ({ ...prev, last_name: v }));
+                              onPrimaryContactSearchChange(v);
+                            }}
+                            placeholder="Last name"
+                          />
                         </div>
                       </div>
-                      <Input label="Last name" value={inlineContactForm.last_name} onChange={(e) => setInlineContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Enter last name" inputSize="sm" />
-
-                      <Input label="Email address" type="email" value={inlineContactForm.contact_email} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" inputSize="sm" />
-                      <Input label="Designation" value={inlineContactForm.contact_job_title} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="e.g. Purchase Manager" inputSize="sm" />
-
-                      <div className="flex gap-2">
-                        <div className="w-32 shrink-0">
-                          <Select label="Code" options={COUNTRY_CODES} value={inlineContactForm.contact_phone_code} onChange={(v) => setInlineContactForm(prev => ({ ...prev, contact_phone_code: (v ?? DEFAULT_COUNTRY_CODE) as string }))} searchable getSearchText={getCountryCodeSearchText} getOptionKey={(o) => o.label} inputSize="sm" />
-                        </div>
-                        <div className="flex-1">
-                          <Input label="Phone number" value={inlineContactForm.contact_phone} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="10-digit number" inputSize="sm" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Organization & Plant Section */}
-                  <div className="space-y-6 pt-4 border-t border-slate-100/50 mt-4 border-l-2 border-indigo-50/50 pl-4 ml-1">
-                    <div className="md:col-span-2 relative">
-                      <label className="text-[12px] font-semibold text-slate-700 mb-1.5 block ml-0.5">Organization</label>
-                      <SearchInput
-                        value={inlineContactOrgQuery}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setInlineContactOrgQuery(v);
-                          if (inlineContactOrgTimeoutRef.current) clearTimeout(inlineContactOrgTimeoutRef.current);
-                          if (v.trim().length < 2) { setInlineContactOrgSuggestions([]); return; }
-                          inlineContactOrgTimeoutRef.current = setTimeout(() => {
-                            marketingAPI.getOrganizations({ page: 1, page_size: 15, search: v.trim(), is_active: true })
-                              .then(res => setInlineContactOrgSuggestions(res.items ?? []))
-                              .catch(() => setInlineContactOrgSuggestions([]));
-                          }, 300);
-                        }}
-                        onClear={() => setInlineContactOrgQuery('')}
-                        placeholder="Search organization..."
-                        disabled={!!inlineContactForm.organization_id}
-                        inputSize="sm"
-                      />
-                      {inlineContactForm.organization_id && (
-                        <button type="button" onClick={() => { setInlineContactForm(prev => ({ ...prev, organization_id: undefined, plant_id: undefined })); setInlineContactOrgQuery(''); setFormData(prev => ({ ...prev, company: '' })); setInlineContactPlants([]); setShowInlineNewPlant(false); }} className="mt-1 text-xs text-rose-600 hover:text-rose-700">Clear organization</button>
-                      )}
-                      {!inlineContactForm.organization_id && inlineContactOrgSuggestions.length > 0 && (
-                        <div className="absolute left-0 right-0 top-full z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-auto">
-                          {inlineContactOrgSuggestions.map(org => (
+                      {primaryContactSearchQuery.trim().length >= 2 && contactSuggestions.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full z-[20] mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-auto animate-in fade-in slide-in-from-top-1">
+                          <p className="text-[10px] text-slate-400 px-3 py-1.5 border-b border-slate-100 font-bold uppercase tracking-wider bg-slate-50/50">Did you mean an existing contact?</p>
+                          {contactSuggestions.map(c => (
                             <button
-                              key={org.id}
+                              key={c.id}
                               type="button"
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
-                              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setInlineContactForm(prev => ({ ...prev, organization_id: org.id, plant_id: undefined })); setInlineContactOrgQuery(org.name); setFormData(prev => ({ ...prev, company: org.name })); setInlineContactOrgSuggestions([]); marketingAPI.getOrganizationPlants(org.id).then(setInlineContactPlants).catch(() => setInlineContactPlants([])); }}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-indigo-50 flex items-center justify-between gap-2 transition-colors"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setPrimaryContactContactId(c.id);
+                                setSelectedPrimaryContact(c);
+                                setPrimaryContactSearchQuery('');
+                                setContactSuggestions([]);
+                                showToast('Contact linked', 'success');
+                              }}
                             >
-                              {org.name}
+                              <span className="font-medium text-slate-700">{contactDisplayName(c) || contactCompanyName(c)}</span>
+                              <span className="text-slate-500 text-xs truncate">{[c.contact_email, c.contact_phone].filter(Boolean).join(' · ')}</span>
                             </button>
                           ))}
                         </div>
                       )}
                     </div>
-                    <div className={cn("md:col-span-2 expand-section", !inlineContactForm.organization_id && inlineContactOrgQuery.trim().length >= 2 && "open")}>
-                      <div className="expand-section-content">
-                        <div className="p-5 bg-white rounded-2xl border border-slate-200 space-y-4 shadow-sm animate-smooth-in mb-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <div className="h-6 w-6 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-                                <Building2 size={14} className="text-indigo-600" />
-                              </div>
-                              <div>
-                                <h4 className="text-[12px] font-bold text-slate-800">Create New Organization</h4>
-                                <p className="text-[11px] text-slate-500 leading-none mt-1 italic">Ready to add <span className="text-indigo-600 font-bold">{inlineContactOrgQuery.trim()}</span> to your system</p>
-                              </div>
-                            </div>
-                            <button type="button" onClick={() => setInlineContactOrgQuery('')} className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-all">
-                              <X size={14} />
-                            </button>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input label="Org Code" value={inlineNewOrgForm.code} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="e.g. CORE-001" inputSize="sm" />
-                            <Input label="Website" value={inlineNewOrgForm.website} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." inputSize="sm" />
-                            <Input label="Industry" value={inlineNewOrgForm.industry} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="e.g. Manufacturing" inputSize="sm" />
-                            <Input label="Size" value={inlineNewOrgForm.organization_size} onChange={(e) => setInlineNewOrgForm(prev => ({ ...prev, organization_size: e.target.value }))} placeholder="e.g. 50-200" inputSize="sm" />
-                          </div>
-
-                          <div className="flex items-center justify-end gap-2 pt-2">
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setInlineContactOrgQuery('')} className="text-slate-500">Cancel</Button>
-                            <Button type="button" variant="primary" size="sm" disabled={creatingOrgInline} className="shadow-md shadow-indigo-100" onClick={async () => {
-                              setCreatingOrgInline(true);
-                              try {
-                                const orgName = inlineContactOrgQuery.trim();
-                                const org = await marketingAPI.createOrganization({ name: orgName, code: inlineNewOrgForm.code.trim() || undefined, website: inlineNewOrgForm.website.trim() || undefined, industry: inlineNewOrgForm.industry.trim() || undefined, organization_size: inlineNewOrgForm.organization_size.trim() || undefined, is_active: true });
-                                setInlineContactForm(prev => ({ ...prev, organization_id: org.id, plant_id: undefined }));
-                                setInlineContactOrgQuery(org.name);
-                                setFormData(prev => ({ ...prev, company: org.name }));
-                                setInlineNewOrgForm({ code: '', website: '', industry: '', organization_size: '' });
-                                const plants = await marketingAPI.getOrganizationPlants(org.id);
-                                setInlineContactPlants(plants ?? []);
-                                setShowInlineNewPlant(true);
-                                showToast('Organization created', 'success');
-                              } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to create organization', 'error'); } finally { setCreatingOrgInline(false); }
-                            }}>{creatingOrgInline ? 'Creating...' : 'Create Organization'}</Button>
-                          </div>
-                        </div>
+                    <div className="flex gap-2 items-end">
+                      <div className="w-24 shrink-0">
+                        <Select label="Code" options={COUNTRY_CODES} value={inlineContactForm.contact_phone_code} onChange={(v) => setInlineContactForm(prev => ({ ...prev, contact_phone_code: (v ?? '') as string }))} placeholder="Code" searchable getSearchText={getCountryCodeSearchText} triggerClassName="w-24" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Input label="Phone" type="tel" value={inlineContactForm.contact_phone} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="Number" />
                       </div>
                     </div>
-                    {inlineContactForm.organization_id && (
-                      <div className="md:col-span-2 space-y-3">
-                        <label className="block text-[12px] font-semibold text-slate-700 mb-1.5 ml-0.5">Plant Location</label>
-                        {inlineContactPlants.length === 0 && !showInlineNewPlant && (
-                          <p className="text-[11px] text-slate-400 italic mb-2 ml-0.5">No plants yet for this organization. Add one below.</p>
-                        )}
-                        <Select
-                          options={[
-                            { value: '', label: '— None —' },
-                            ...inlineContactPlants.map(p => ({ value: String(p.id), label: p.plant_name })),
-                          ]}
-                          value={inlineContactForm.plant_id ?? ''}
-                          onChange={(val) => setInlineContactForm(prev => ({ ...prev, plant_id: val ? Number(val) : undefined }))}
-                          inputSize="sm"
-                          placeholder="Select plant"
-                        />
-                        <button type="button" onClick={() => setShowInlineNewPlant(true)} className="text-[11px] font-bold tracking-wider text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 mt-2 transition-colors">
-                          <Plus size={12} />
-                          <span>Add new plant</span>
-                        </button>
-                        <div className={cn("expand-section", showInlineNewPlant && "open")}>
-                          <div className="expand-section-content">
-                            <div className="p-5 bg-white rounded-2xl border border-slate-200 space-y-4 shadow-sm animate-smooth-in mt-1 mb-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="h-6 w-6 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-                                    <Factory size={14} className="text-indigo-600" />
-                                  </div>
-                                  <div>
-                                    <h4 className="text-[12px] font-bold text-slate-800">Add New Plant</h4>
-                                    <p className="text-[11px] text-slate-500 leading-none mt-1 italic">Adding a facility for this organization</p>
-                                  </div>
-                                </div>
-                                <button type="button" onClick={() => setShowInlineNewPlant(false)} className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-all">
-                                  <X size={14} />
-                                </button>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Input label="Plant Name" value={inlineNewPlantForm.plant_name} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="e.g. Mumbai Factory" inputSize="sm" />
-                                <Input label="Address Line 1" value={inlineNewPlantForm.address_line1} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Street address" inputSize="sm" />
-                                <Input label="Address Line 2" value={inlineNewPlantForm.address_line2} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Area, locality" inputSize="sm" />
-                                <Input label="City" value={inlineNewPlantForm.city} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, city: e.target.value }))} placeholder="City" inputSize="sm" />
-                                <Input label="State" value={inlineNewPlantForm.state} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, state: e.target.value }))} placeholder="State" inputSize="sm" />
-                                <Input label="Country" value={inlineNewPlantForm.country} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" inputSize="sm" />
-                                <Input label="Postal Code" value={inlineNewPlantForm.postal_code} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" inputSize="sm" />
-                              </div>
-
-                              <div className="flex items-center justify-end gap-2 pt-2">
-                                <Button type="button" variant="ghost" size="sm" onClick={() => { setShowInlineNewPlant(false); setInlineNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' }); }} className="text-slate-500">Cancel</Button>
-                                <Button type="button" variant="primary" size="sm" disabled={!inlineNewPlantForm.plant_name.trim() || creatingPlantInline} className="shadow-md shadow-indigo-100" onClick={async () => {
-                                  setCreatingPlantInline(true);
-                                  try {
-                                    const plant = await marketingAPI.createOrganizationPlant(inlineContactForm.organization_id!, { plant_name: inlineNewPlantForm.plant_name.trim(), address_line1: inlineNewPlantForm.address_line1.trim() || undefined, address_line2: inlineNewPlantForm.address_line2.trim() || undefined, city: inlineNewPlantForm.city.trim() || undefined, state: inlineNewPlantForm.state.trim() || undefined, country: inlineNewPlantForm.country.trim() || undefined, postal_code: inlineNewPlantForm.postal_code.trim() || undefined });
-                                    setInlineContactPlants(prev => [...prev, plant]);
-                                    setInlineContactForm(prev => ({ ...prev, plant_id: plant.id }));
-                                    setShowInlineNewPlant(false);
-                                    setInlineNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
-                                    showToast('Plant added', 'success');
-                                  } catch (e: any) { showToast(e?.response?.data?.detail ? String(e.response.data.detail) : e?.message || 'Failed to add plant', 'error'); } finally { setCreatingPlantInline(false); }
-                                }}>{creatingPlantInline ? 'Adding...' : 'Add Plant'}</Button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <Input label="Email" type="email" value={inlineContactForm.contact_email} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
+                    <Input label="Designation" value={inlineContactForm.contact_job_title} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="e.g. Director" />
                   </div>
-                </>
+                </div>
               )}
             </div>
 
-            {/* Lead Details Section */}
-            <div className="space-y-4 pt-4 pb-12">
-              <div className="flex flex-col gap-2 mb-8">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
-                    <Info size={24} className="text-indigo-600" />
-                  </div>
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Lead Information</h3>
-                </div>
-                <div className="h-px w-full bg-indigo-500/20 mt-2" />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* <div>
-                  <Select
-                    label="Lead Status"
-                    options={leadStatuses.map(s => ({ value: String(s.id), label: s.label }))}
-                    value={formData.status_id != null ? String(formData.status_id) : ''}
-                    onChange={(v) => setFormData({ ...formData, status_id: v ? Number(v) : undefined })}
-                    inputSize="sm"
+            {/* 2. Organization Section */}
+            <div className="space-y-3 border-t border-slate-200 pt-4">
+              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <Building2 size={18} /> Organization
+              </h3>
+              <p className="text-sm text-slate-600">Link to an existing organization or fill details below to create one on save.</p>
+              
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-slate-700">Company / Organization name</label>
+                <div className="relative">
+                  <Input
+                    type="text"
+                    value={selectedOrganization?.name ?? orgSearchQuery}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setOrgSearchQuery(v);
+                      setNewOrgForm(prev => ({ ...prev, name: v }));
+                      setFormData(prev => ({ ...prev, company: v }));
+                      onOrganizationSearchChange(v);
+                    }}
+                    onBlur={() => setTimeout(() => setOrgSuggestions([]), 150)}
+                    placeholder="Type to search and link existing organization..."
+                    className={formData.organization_id != null ? 'pr-20' : undefined}
+                    rightElement={
+                      formData.organization_id != null ? (
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={clearOrganization}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                          >
+                            <X size={16} />
+                          </button>
+                          <a
+                            href={`/organizations/${formData.organization_id}/edit`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-indigo-600 transition-colors"
+                          >
+                            <ArrowRight size={16} />
+                          </a>
+                        </div>
+                      ) : undefined
+                    }
                   />
+                  
+                  {orgSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-auto animate-in fade-in slide-in-from-top-1">
+                      <p className="text-[10px] text-slate-500 px-3 py-1.5 border-b border-slate-100 font-bold uppercase tracking-wider">Link to existing organization:</p>
+                      {orgSuggestions.map(org => (
+                        <button
+                          key={org.id}
+                          type="button"
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedOrganization(org);
+                            setFormData(prev => ({ ...prev, organization_id: org.id, company: org.name }));
+                            setOrgSuggestions([]);
+                            setOrgSearchQuery('');
+                            marketingAPI.getOrganizationPlants(org.id).then(setPlants).catch(() => setPlants([]));
+                          }}
+                        >
+                          <span className="font-medium text-slate-700">{org.name}</span>
+                          {(org.industry || org.website || org.code) && (
+                            <span className="text-slate-500 text-xs">{[org.code, org.industry, org.website].filter(Boolean).join(' · ')}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <Select
-                    label="Lead Type"
-                    options={leadTypes.map(t => ({ value: String(t.id), label: t.label }))}
-                    value={formData.lead_type_id != null ? String(formData.lead_type_id) : ''}
-                    onChange={(v) => setFormData({ ...formData, lead_type_id: v ? Number(v) : undefined })}
-                    inputSize="sm"
-                  />
-                </div> */}
-                <div>
-                  <Select
-                    label="Lead Through"
-                    options={[
-                      { value: '', label: '— None —' },
-                      ...leadThroughOptions
-                        .filter((t) => t.is_active && ['through_contact', 'website', 'mail', 'whatsapp_campaign', 'cold_calling', 'expo', 'exhibition', 'meeting', 'colleague'].includes(t.code || ''))
-                        .map((t) => ({ value: String(t.id), label: t.label })),
-                    ]}
-                    value={formData.lead_through_id != null ? String(formData.lead_through_id) : ''}
-                    onChange={(v) => setFormData({ ...formData, lead_through_id: v ? Number(v) : undefined })}
-                    inputSize="sm"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative !space-y-1.5">
-                  <label className="text-[12px] font-semibold text-slate-700 ml-0.5">Potential Value</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px] z-10 shrink-0">₹</span>
-                    <Input
-                      className="pl-7"
-                      inputSize="sm"
-                      type="number"
-                      value={formData.potential_value ?? ''}
-                      onChange={(e) => setFormData({ ...formData, potential_value: e.target.value ? Number(e.target.value) : undefined })}
-                      placeholder="0.00"
-                    />
+                {selectedOrganization ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm mt-3 animate-in zoom-in-95 duration-200 shadow-sm">
+                    <p className="font-bold text-slate-800">Linked organization</p>
+                    <p className="text-slate-600 mt-0.5">{selectedOrganization.name}{selectedOrganization.code ? ` · ${selectedOrganization.code}` : ''}</p>
+                    {(selectedOrganization.website || selectedOrganization.industry) && (
+                      <p className="text-slate-500 text-xs mt-1 italic">{[selectedOrganization.website, selectedOrganization.industry].filter(Boolean).join(' · ')}</p>
+                    )}
                   </div>
-                </div>
-                {/* <DatePicker
-                  label="Expected Closing Date"
-                  value={formData.expected_closing_date?.split('T')[0]}
-                  onChange={(d) => setFormData({ ...formData, expected_closing_date: d })}
-                  inputSize="sm"
-                /> */}
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-1.5 pt-1">
-                    <DatePicker
-                      label="Inquiry received (date and time)"
-                      showTime={true}
-                      showNow={true}
-                      value={initialInquiryReceivedAtLocal}
-                      onChange={(v) => setInitialInquiryReceivedAtLocal(v || '')}
-                    />
-                    <p className="text-[10px] text-amber-600 font-medium italic">Optional. Pick a date if the lead first reached out earlier than today.</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[12px] font-semibold text-slate-700 ml-0.5">Custom quote number</label>
-                    <Input
-                      inputSize="sm"
-                      className="font-mono tabular-nums"
-                      value={customCreateQuoteNumber}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setCustomCreateQuoteNumber(v);
-                        if (v.trim()) {
-                          setGeneratedQuoteNumber(null);
-                          setGeneratedQuoteSeriesCode(null);
-                        }
-                      }}
-                      placeholder="e.g. AP/QUOTE-N/2025/001 — optional"
-                      title="Your own quotation reference instead of using Generate below"
-                    />
-                    <p className="text-[10px] text-amber-600 font-medium italic">Optional. Type your own quote number here and it will override the automatic one.</p>
-                  </div>
-                </div>
+                ) : (
+                  canCreateOrg && orgSearchQuery.trim() !== '' && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-3 animate-in slide-in-from-top-2">
+                      <p className="text-sm font-medium text-slate-700 font-bold">Create new organization on save</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <Input label="Organization code *" value={newOrgForm.code} onChange={(e) => setNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="e.g. ORG-123" required />
+                        <Input label="Website" value={newOrgForm.website} onChange={(e) => setNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
+                        <div className="md:col-span-2">
+                          <Input label="Description *" value={newOrgForm.description} onChange={(e) => setNewOrgForm(prev => ({ ...prev, description: e.target.value }))} placeholder="Short description of the company..." required />
+                        </div>
+                        <Input label="Industry" value={newOrgForm.industry} onChange={(e) => setNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="e.g. IT, Manufacturing" />
+                        <Select label="Size of organization" options={COMPANY_SIZES} value={newOrgForm.organization_size} onChange={(val) => setNewOrgForm(prev => ({ ...prev, organization_size: String(val ?? '') }))} placeholder="Select size" />
+                      </div>
+                    </div>
+                  )
+                )}
               </div>
             </div>
 
-            {/* Reference & Allocation Section */}
-            <div className="space-y-4 pt-4 pb-12">
-              <div className="flex flex-col gap-2 mb-8">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
-                    <Network size={24} className="text-indigo-600" />
+            {/* 3. Enquiry Details Section */}
+            <div className="space-y-4 border-t border-slate-200 pt-4">
+              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <FileText size={18} /> Enquiry Details
+              </h3>
+              <p className="text-sm text-slate-600 font-medium italic">Lead classification and source attribution</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Select
+                  label="Lead Type *"
+                  options={leadTypes.map(t => ({ value: String(t.id), label: t.label }))}
+                  value={formData.lead_type_id ? String(formData.lead_type_id) : ''}
+                  onChange={(v) => setFormData({ ...formData, lead_type_id: v ? Number(v) : undefined })}
+                  placeholder="Select type"
+                />
+                <Select
+                  label="Through *"
+                  options={leadThroughOptions.map(t => ({ value: String(t.id), label: t.label }))}
+                  value={formData.lead_through_id ? String(formData.lead_through_id) : ''}
+                  onChange={(v) => setFormData({ ...formData, lead_through_id: v ? Number(v) : undefined })}
+                  placeholder="Select source"
+                />
+                
+                <div className="md:col-span-2 p-4 bg-slate-50/50 rounded-xl border border-slate-200">
+                  <div className="max-w-xs mb-4">
+                    <Select
+                      label="Referred By"
+                      options={[
+                        { value: 'none', label: 'NONE' },
+                        { value: 'employee', label: 'EMPLOYEE' },
+                        { value: 'customer', label: 'CUSTOMER' },
+                        { value: 'contact', label: 'CONTACT' },
+                      ]}
+                      value={referredByType}
+                      onChange={(v) => setReferredByType(v as any)}
+                      searchable={false}
+                      triggerClassName="uppercase font-bold tracking-wider"
+                    />
                   </div>
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Reference & Allocation</h3>
-                </div>
-                <div className="h-px w-full bg-indigo-500/20 mt-2" />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <AsyncSelect
-                  label="Domain"
-                  loadOptions={async (search) => {
-                    if (!search && domains.length > 0) return domains.slice(0, 10).map(d => ({ value: d.id, label: d.name }));
-                    const res = await marketingAPI.getDomains({ is_active: true, page: 1, page_size: 10, search: search || undefined });
-                    return res.items.map((d: { id: number; name: string }) => ({ value: d.id, label: d.name }));
-                  }}
-                  value={formData.domain_id}
-                  onChange={(val) => setFormData({ ...formData, domain_id: val ? Number(val) : undefined, region_id: undefined })}
-                  placeholder="Select Domain"
-                  required
-                  initialOptions={domains.slice(0, 10).map(d => ({ value: d.id, label: d.name }))}
-                  inputSize="sm"
-                />
-                <AsyncSelect
-                  label="Region"
-                  loadOptions={async (search) => {
-                    if (!formData.domain_id) return [];
-                    if (!search && regions.length > 0) return regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }));
-                    const res = await marketingAPI.getRegions({ domain_id: formData.domain_id, is_active: true, page: 1, page_size: 25, search: search || undefined });
-                    return res.items.map(r => ({ value: r.id, label: r.name }));
-                  }}
-                  value={formData.region_id}
-                  onChange={(val) => setFormData({ ...formData, region_id: val ? Number(val) : undefined })}
-                  placeholder="Select Region"
-                  disabled={!formData.domain_id}
-                  initialOptions={regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }))}
-                  inputSize="sm"
-                />
-                {reportScope?.can_select_employee && (
-                  <Select
-                    label="Assign to"
-                    options={[
-                      { value: '', label: '— Me (creator) —' },
-                      ...(reportScope.employees || []).map((e) => ({ value: String(e.id), label: e.name })),
-                    ]}
-                    value={formData.assigned_to_employee_id != null ? String(formData.assigned_to_employee_id) : ''}
-                    onChange={(val) => setFormData(prev => ({ ...prev, assigned_to_employee_id: val ? Number(val) : undefined }))}
-                    placeholder="Search employee..."
-                    inputSize="sm"
-                  />
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[12px] font-semibold text-slate-700 ml-0.5">Referred by (Optional)</label>
-                  <Select
-                    options={[
-                      { value: 'none', label: 'None' },
-                      { value: 'customer', label: 'Customer' },
-                      { value: 'contact', label: 'Contact' },
-                    ]}
-                    value={referredByType}
-                    onChange={(val) => {
-                      const type = (val ?? 'none') as any;
-                      setReferredByType(type);
-                      setFormData(prev => ({ ...prev, through_contact_id: undefined, referred_by_employee_id: undefined, referred_by_customer_id: undefined }));
-                      setSelectedThroughContactForDisplay(null);
-                      setSelectedReferredByCustomerForDisplay(null);
-                    }}
-                    containerClassName="w-48"
-                    inputSize="sm"
-                  />
-                </div>
-
-                <div className="p-4 rounded-2xl bg-slate-50/50 border border-slate-100 min-h-[80px] flex flex-col justify-center">
-                  {referredByType === 'none' && <p className="text-xs text-slate-400 italic text-center">No referral information provided</p>}
-
-                  {referredByType === 'contact' && (
-                    formData.through_contact_id != null && selectedThroughContactForDisplay ? (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">{selectedThroughContactForDisplay.first_name?.[0] ?? 'C'}</div>
-                          <span className="text-sm font-semibold text-slate-700">{[selectedThroughContactForDisplay.first_name, selectedThroughContactForDisplay.last_name].filter(Boolean).join(' ')}</span>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={() => { setFormData(prev => ({ ...prev, through_contact_id: undefined })); setSelectedThroughContactForDisplay(null); }} className="text-rose-600">Unlink</Button>
-                      </div>
-                    ) : (
-                      <div className="relative">
-                        <SearchInput
-                          placeholder="Search existing contact..."
-                          value={throughContactSearchName}
-                          onChange={(e) => setThroughContactSearchName(e.target.value)}
-                          onClear={() => setThroughContactSearchName('')}
-                        />
-                        {throughContactSearchName.trim().length >= 2 && (throughContactSearchResults.length > 0 || throughContactSearchLoading) && (
-                          <div className="absolute left-0 right-0 top-full z-20 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl max-h-60 overflow-auto">
-                            {throughContactSearchResults.map(c => (
-                              <button key={c.id} type="button" className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); linkThroughContact(c); }}>
-                                <p className="text-sm font-semibold text-slate-800">{[c.first_name, c.last_name].filter(Boolean).join(' ')}</p>
-                                <p className="text-xs text-slate-500">{c.contact_email || c.organization?.name}</p>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  )}
-
+                  
                   {referredByType === 'employee' && (
                     <AsyncSelect
                       loadOptions={async (search) => {
@@ -2073,165 +1912,135 @@ export const LeadFormPage: React.FC = () => {
                       }}
                       value={formData.referred_by_employee_id ?? undefined}
                       onChange={(val) => setFormData(prev => ({ ...prev, referred_by_employee_id: val ? Number(val) : undefined }))}
-                      placeholder="Search for an employee..."
+                      placeholder="Search employee..."
                     />
                   )}
-
                   {referredByType === 'customer' && (
                     <Select
-                      options={[{ value: '', label: '— Select customer —' }, ...customers.map((c) => ({ value: String(c.id), label: c.company_name }))]}
+                      options={[{ value: '', label: 'Select customer' }, ...customers.map((c) => ({ value: String(c.id), label: c.company_name }))]}
                       value={formData.referred_by_customer_id != null ? String(formData.referred_by_customer_id) : ''}
                       onChange={(val) => setFormData(prev => ({ ...prev, referred_by_customer_id: val ? Number(val) : undefined }))}
-                      placeholder="Select referring customer"
                     />
+                  )}
+                  {referredByType === 'contact' && (
+                    <div className="space-y-3">
+                      {formData.through_contact_id != null ? (
+                        <div className="p-3 bg-white border border-slate-200 rounded-lg flex items-center justify-between gap-2 shadow-sm animate-in zoom-in-95">
+                          <div className="text-sm">
+                            <p className="font-bold text-slate-800">{contactDisplayName(selectedThroughContactForDisplay!) || 'Contact Linked'}</p>
+                            <p className="text-slate-500 text-xs">{[selectedThroughContactForDisplay?.contact_email, selectedThroughContactForDisplay?.contact_phone].filter(Boolean).join(' · ')}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { setFormData(prev => ({ ...prev, through_contact_id: undefined })); setSelectedThroughContactForDisplay(null); }}
+                            className="text-xs font-bold text-rose-600 hover:text-rose-700"
+                          >
+                            Change
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <Input
+                            placeholder="Search contact by name, email or phone..."
+                            value={throughContactSearchName}
+                            onChange={(e) => setThroughContactSearchName(e.target.value)}
+                            onBlur={() => setTimeout(() => setThroughContactSearchResults([]), 150)}
+                          />
+                          {throughContactSearchResults.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto animate-in fade-in slide-in-from-top-1">
+                              {throughContactSearchResults.map(c => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    linkThroughContact(c);
+                                  }}
+                                >
+                                  <span className="font-semibold">{contactDisplayName(c)}</span>
+                                  <span className="text-slate-500 text-xs">{[c.contact_email, c.contact_phone].filter(Boolean).join(' · ')}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
             </div>
 
-
-
-
-            {/* Quote & Documentation Section */}
-            <div className="space-y-4 pt-4 pb-12">
-              <div className="flex flex-col gap-2 mb-8">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100/50">
-                    <FileText size={24} className="text-indigo-600" />
-                  </div>
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Quote & Documentation</h3>
+            {/* 4. Domain & Region Section */}
+            <div className="border-t border-slate-200 pt-4">
+              <button
+                type="button"
+                onClick={() => setDomainRegionCollapsed(!domainRegionCollapsed)}
+                className="flex items-center justify-between w-full p-2 hover:bg-slate-50 rounded-lg transition-colors group"
+              >
+                <div className="flex items-center gap-2">
+                  <Globe size={18} className="text-slate-400 group-hover:text-indigo-600" />
+                  <span className="text-base font-semibold text-slate-900">Domain & Region</span>
                 </div>
-                <div className="h-px w-full bg-indigo-500/20 mt-2" />
-              </div>
+                <ChevronDown size={20} className={cn("text-slate-400 transition-transform", !domainRegionCollapsed && "rotate-180")} />
+              </button>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Quote Number Generation */}
-                <div className="space-y-2.5">
-                  <label className="text-[12px] font-semibold text-slate-700 block ml-0.5">Quote number (from series)</label>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1">
-                      <Select
-                        placeholder="Select number series"
-                        value={createFormQuoteSeriesCode}
-                        onChange={(val) => {
-                          setCreateFormQuoteSeriesCode(String(val ?? ''));
-                          setGeneratedQuoteNumber(null);
-                          setGeneratedQuoteSeriesCode(null);
-                        }}
-                        options={[
-                          { value: '', label: '— Select series —' },
-                          ...(seriesList
-                            .filter((s) => (s.code || '').toLowerCase().includes('quote') || (s.name || '').toLowerCase().includes('quote'))
-                            .length
-                            ? seriesList.filter((s) => (s.code || '').toLowerCase().includes('quote') || (s.name || '').toLowerCase().includes('quote'))
-                            : seriesList
-                          ).map((s) => ({ value: s.code ?? '', label: `${s.name} (${s.code})` }))
-                        ]}
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      className="h-9 shrink-0"
-                      disabled={!hasEffectiveContactOrCustomerForQuote || !createFormQuoteSeriesCode.trim() || generatingQuoteNumberOnCreate}
-                      onClick={async () => {
-                        const code = createFormQuoteSeriesCode.trim();
-                        if (!code) return;
-                        const company = (effectiveCompanyNameForQuote || (formData as any).company) ?? '';
-                        setGeneratingQuoteNumberOnCreate(true);
-                        try {
-                          const res = await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company: company || undefined } });
-                          setGeneratedQuoteNumber(res.generated_value);
-                          setGeneratedQuoteSeriesCode(code);
-                          setCustomCreateQuoteNumber('');
-                          showToast('Quote number generated', 'success');
-                        } catch (e: any) {
-                          showToast(e?.message || 'Failed to generate quote number', 'error');
-                        } finally {
-                          setGeneratingQuoteNumberOnCreate(false);
-                        }
-                      }}
-                    >
-                      {generatingQuoteNumberOnCreate ? '...' : 'Generate'}
-                    </Button>
-                  </div>
-                  {generatedQuoteNumber ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-xl">
-                      <span className="text-xs font-bold text-emerald-700 tabular-nums">Generated: {generatedQuoteNumber}</span>
-                    </div>
-                  ) : (
-                    !hasEffectiveContactOrCustomerForQuote &&
-                    !customCreateQuoteNumber.trim() && (
-                      <p className="text-[10px] text-amber-600 font-medium">Link a contact or customer to generate a quote number, or enter a custom quote number next to inquiry date.</p>
-                    )
-                  )}
+              {!domainRegionCollapsed && (
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2">
+                  <Select
+                    label="Domain *"
+                    options={domains.map(d => ({ value: String(d.id), label: d.name }))}
+                    value={formData.domain_id ? String(formData.domain_id) : ''}
+                    onChange={(v) => {
+                      const did = v ? Number(v) : undefined;
+                      setFormData({ ...formData, domain_id: did, region_id: undefined });
+                      if (did) loadRegions(did);
+                    }}
+                    placeholder="Select domain"
+                  />
+                  <Select
+                    label="Region"
+                    options={[{ value: '', label: 'None' }, ...regions.map(r => ({ value: String(r.id), label: r.name }))]}
+                    value={formData.region_id ? String(formData.region_id) : ''}
+                    onChange={(v) => setFormData({ ...formData, region_id: v ? Number(v) : undefined })}
+                    placeholder="Select region"
+                    disabled={!formData.domain_id}
+                  />
+                  <AsyncSelect
+                    label="Assigned To"
+                    loadOptions={async (search) => {
+                      const res = await marketingAPI.getEmployees({ page: 1, page_size: 30, search: search || undefined, status: 'active' });
+                      return res.employees.map((e) => ({ value: e.id, label: [e.first_name, e.last_name].filter(Boolean).join(' ') || e.email }));
+                    }}
+                    value={formData.assigned_to_employee_id ?? undefined}
+                    onChange={(val) => setFormData(prev => ({ ...prev, assigned_to_employee_id: val ? Number(val) : undefined }))}
+                    placeholder="Search employee..."
+                  />
                 </div>
-
-                {/* Initial Quotation Upload */}
-                <div className="space-y-2.5">
-                  <label className="text-[12px] font-semibold text-slate-700 block ml-0.5">Initial Quotation</label>
-                  <label className={cn(
-                    "flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg text-xs transition-all px-4 py-2 select-none group border",
-                    initialQuotationFile 
-                      ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-bold shadow-sm" 
-                      : "bg-slate-50/80 border-slate-200 text-slate-500 hover:bg-slate-100 hover:border-slate-300 hover:text-indigo-600 shadow-sm/50"
-                  )}>
-                    {initialQuotationFile ? (
-                      <FileText size={14} className="text-indigo-600 shrink-0" />
-                    ) : (
-                      <Paperclip size={14} className="text-slate-400 group-hover:text-indigo-500 shrink-0 transition-colors" />
-                    )}
-                    <span className="truncate max-w-[200px]">
-                      {initialQuotationFile ? initialQuotationFile.name : 'Attach quotation document'}
-                    </span>
-                    {initialQuotationFile && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInitialQuotationFile(null); }}
-                        className="ml-2 h-6 w-6 flex items-center justify-center rounded-full bg-indigo-100/50 hover:bg-rose-100 text-indigo-600 hover:text-rose-600 transition-all shrink-0"
-                      >
-                        <X size={12} />
-                      </button>
-                    )}
-                    <input 
-                      type="file" 
-                      accept=".pdf,.doc,.docx"
-                      className="hidden" 
-                      onChange={(e) => setInitialQuotationFile(e.target.files?.[0] || null)} 
-                    />
-                  </label>
-                </div>
-              </div>
+              )}
             </div>
 
-            {/* Additional Information Section (Notes) */}
-            <div className="mt-8 pt-8 relative">
-              <div className="h-px w-full bg-indigo-500/20 absolute top-0 left-0" />
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 ml-0.5">
-                  <div className="h-7 w-7 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100/50 shrink-0">
-                    <MessageSquare size={14} className="text-indigo-600" />
-                  </div>
-                  <label className="text-[12px] font-black uppercase tracking-widest text-slate-500">Additional Notes</label>
-                </div>
-                <textarea
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm placeholder:text-slate-400/80 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all min-h-[100px] resize-none shadow-sm"
-                  rows={4}
-                  value={formData.notes || ''}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Provide any additional context, requirements, or special instructions here..."
-                />
+            {/* 5. Additional Context */}
+            <div className="border-t border-slate-200 pt-4 space-y-4">
+              <div className="flex items-center gap-2">
+                 <MessageSquare size={16} className="text-slate-400" />
+                 <span className="text-sm font-semibold text-slate-700">Additional Context</span>
               </div>
+              <textarea
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px] bg-slate-50/30 focus:bg-white transition-all"
+                value={formData.notes || ''}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Share any special instructions or additional lead details..."
+              />
             </div>
 
-            {/* Form Footer Actions */}
-            <div className="flex items-center justify-end gap-3 pt-8 mt-4 border-t border-slate-100">
-              <Button type="button" variant="ghost" onClick={() => navigate('/leads')} className="text-slate-500 font-bold tracking-widest text-[10px]">
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting} className="px-8 shadow-xl shadow-indigo-200">
-                {isSubmitting ? 'Saving...' : 'Create Lead'}
+            {/* Form Actions */}
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-6">
+              <Button variant="ghost" type="button" onClick={() => navigate('/leads')} className="text-slate-500 font-bold px-6">Cancel</Button>
+              <Button type="submit" disabled={isSubmitting} className="h-11 px-8 bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-100 font-black text-sm uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95">
+                {isSubmitting ? 'Creating...' : 'Create Lead'}
               </Button>
             </div>
           </form>
@@ -2332,7 +2141,7 @@ export const LeadFormPage: React.FC = () => {
                       <Input label="Email" value={activityForm.contact_person_email} onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_email: e.target.value }))} placeholder="email@example.com" inputSize="sm" />
                       <div className="grid grid-cols-[auto_1fr] gap-2 items-end">
                         <div className="w-28 [&_button]:!h-9">
-                          <Select label="Code" options={COUNTRY_CODES} value={activityForm.contact_person_phone_code} onChange={(v) => setActivityForm((f) => ({ ...f, contact_person_phone_code: (v ?? '') as string }))} placeholder="+" searchable getSearchText={getCountryCodeSearchText} exactValueMatchWhenQueryMatches={/^\+?\d+$/} />
+                          <Select label="Code" options={COUNTRY_CODES} value={activityForm.contact_person_phone_code} onChange={(v) => setActivityForm((f) => ({ ...f, contact_person_phone_code: (v ?? '') as string }))} placeholder="+" searchable getSearchText={getCountryCodeSearchText} exactValueMatchWhenQueryMatches={/^\+?\d+$/} triggerClassName="w-28" />
                         </div>
                         <Input label="Phone" value={activityForm.contact_person_phone} onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_phone: e.target.value }))} placeholder="Number" inputSize="sm" />
                       </div>
@@ -2565,6 +2374,7 @@ export const LeadFormPage: React.FC = () => {
                                   getSearchText={getCountryCodeSearchText}
                                   exactValueMatchWhenQueryMatches={/^\+?\d+$/}
                                   getOptionKey={(o) => o.label}
+                                  triggerClassName="w-36"
                                 />
                               </div>
                               <div className="flex-1 min-w-0">
@@ -3283,6 +3093,7 @@ export const LeadFormPage: React.FC = () => {
                       getOptionKey={(o) => o.value}
                       containerClassName="w-28 shrink-0"
                       inputSize="sm"
+                      triggerClassName="w-28"
                     />
                     <Input type="text" value={leadPhonePart} onChange={(e) => setLeadPhonePart(e.target.value)} placeholder="Number" containerClassName="flex-1 min-w-0" inputSize="sm" />
                   </div>

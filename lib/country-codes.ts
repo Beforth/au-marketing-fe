@@ -8,7 +8,7 @@ export type CountryCodeOption = { value: string; label: string };
 
 const raw = CountryList.getAll({ withSecondary: false }).map((c) => ({
   value: c.dialCode,
-  label: `${c.flag} ${c.dialCode} ${c.name}`,
+  label: `${c.flag} ${c.dialCode}`,
 }));
 
 // Default country code for new phone inputs (India)
