@@ -11,6 +11,7 @@ import { SearchInput } from '../components/ui/SearchInput';
 import { Select, SelectOption } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { AsyncSelect } from '../components/ui/AsyncSelect';
+import { SearchSuggestion } from '../components/ui/SearchSuggestion';
 import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
@@ -495,14 +496,20 @@ export const LeadFormPage: React.FC = () => {
       ...prev,
       contact_id: c.id,
       customer_id: undefined,
+      organization_id: c.organization_id ?? undefined,
       plant_id: c.plant_id ?? prev.plant_id,
       domain_id: c.domain_id ?? prev.domain_id,
       region_id: c.region_id ?? prev.region_id,
+      company: c.organization?.name || prev.company,
     }));
     setSelectedContactForDisplay(c);
     setSelectedPrimaryContact(c);
     setPrimaryContactContactId(c.id);
     setSelectedOrganization(c.organization ?? null);
+    if (c.organization_id) {
+      marketingAPI.getOrganizationPlants(c.organization_id).then(setPlants).catch(() => setPlants([]));
+    }
+    setOrgSearchQuery('');
     setContactSuggestions([]);
     setLeadSearchContactResults([]);
     setLeadSearchCustomerResults([]);
@@ -518,9 +525,11 @@ export const LeadFormPage: React.FC = () => {
       ...prev,
       customer_id: cust.id,
       contact_id: undefined,
+      organization_id: cust.organization_id ?? undefined,
       plant_id: undefined,
       domain_id: cust.domain_id ?? prev.domain_id,
       region_id: cust.region_id ?? prev.region_id,
+      company: cust.organization?.name || prev.company,
     }));
     setLeadSearchContactResults([]);
     setLeadSearchCustomerResults([]);
@@ -532,6 +541,10 @@ export const LeadFormPage: React.FC = () => {
     setSelectedPrimaryContact(cust.primary_contact_contact ?? null);
     setPrimaryContactContactId(cust.primary_contact_contact_id ?? null);
     setSelectedOrganization(cust.organization ?? null);
+    if (cust.organization_id) {
+      marketingAPI.getOrganizationPlants(cust.organization_id).then(setPlants).catch(() => setPlants([]));
+    }
+    setOrgSearchQuery('');
     showToast('Customer linked', 'success');
   }, []);
 
@@ -1585,7 +1598,7 @@ export const LeadFormPage: React.FC = () => {
         <Card className="mb-4">
           <div className="flex items-center gap-2 mb-3">
             <List size={16} className="text-slate-600" />
-            <h3 className="text-sm font-semibold text-slate-800">Lead details</h3>
+            <h3 className="text-base font-bold text-slate-800 tracking-tight">Lead details</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <div><span className="text-slate-500">Lead No.</span><br /><span className="font-medium tabular-nums">{formData.series?.trim() || '—'}</span></div>
@@ -1653,111 +1666,163 @@ export const LeadFormPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* 1. Primary Contact Section */}
             <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight">
                 <User size={18} /> Primary contact
               </h3>
-              <p className="text-xs text-slate-500 font-medium italic">Primary contact is a link to a contact record. Search results will appear as you type in names.</p>
+              <p className="text-sm text-slate-500 font-medium">Search existing contacts or fill in details below to create a new one.</p>
               
               {primaryContactContactId != null ? (
-                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between gap-2 flex-wrap">
-                  <div className="text-sm text-slate-800">
-                    {selectedPrimaryContact ? (
-                      <>
-                        <p className="font-medium">{contactDisplayName(selectedPrimaryContact) || contactCompanyName(selectedPrimaryContact) || 'Contact'}</p>
-                        <p className="text-slate-600 text-xs mt-0.5">{[selectedPrimaryContact.contact_email, selectedPrimaryContact.contact_phone].filter(Boolean).join(' · ')}</p>
-                      </>
-                    ) : (
-                      <p className="font-medium">Contact linked</p>
-                    )}
+                <div className="p-4 bg-gradient-to-br from-indigo-50/50 to-white rounded-xl border border-indigo-100/80 flex items-start justify-between gap-4 animate-in zoom-in-95 duration-200">
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 border border-indigo-200 shadow-sm">
+                      <User size={20} />
+                    </div>
+                    <div className="min-w-0">
+                      {selectedPrimaryContact ? (
+                        <>
+                          <p className="font-bold text-slate-900 truncate tracking-tight">{contactDisplayName(selectedPrimaryContact) || contactCompanyName(selectedPrimaryContact) || 'Contact'}</p>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-slate-500 text-xs">
+                             {selectedPrimaryContact.contact_email && <span className="flex items-center gap-1"><Mail size={12} className="text-slate-400" />{selectedPrimaryContact.contact_email}</span>}
+                             {selectedPrimaryContact.contact_phone && <span className="flex items-center gap-1"><Info size={12} className="text-slate-400" />{selectedPrimaryContact.contact_phone}</span>}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="font-bold text-slate-900">Contact linked</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 pt-0.5">
                     <button
                       type="button"
-                      onClick={() => { setPrimaryContactContactId(null); setSelectedPrimaryContact(null); setPrimaryContactSearchQuery(''); setContactSuggestions([]); }}
-                      className="text-sm text-slate-600 hover:text-rose-600 font-bold"
+                      onClick={() => { 
+                        setPrimaryContactContactId(null); 
+                        setSelectedPrimaryContact(null); 
+                        setPrimaryContactSearchQuery(''); 
+                        setContactSuggestions([]); 
+                        // Clear organization when changing contact
+                        setSelectedOrganization(null);
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          contact_id: undefined, 
+                          organization_id: undefined, 
+                          plant_id: undefined 
+                        }));
+                        setPlants([]);
+                        setOrgSearchQuery('');
+                      }}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-100"
                     >
-                      Change
+                      <X size={14} /> Change
                     </button>
                     <a
                       href={`/contacts/${primaryContactContactId}/edit`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2 py-1 text-sm text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100 rounded border border-indigo-200 transition-colors shadow-sm"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:text-indigo-900 bg-white hover:bg-indigo-50 border border-indigo-200 rounded-lg transition-colors shadow-sm"
                       title="Open contact in new tab"
                     >
-                      <ArrowRight size={14} />
-                      View contact
+                      <ArrowRight size={14} /> View
                     </a>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-1 relative">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="relative">
-                      <div className="flex gap-2 items-end">
-                        <div className="w-24 shrink-0">
-                          <Select label="Title" options={NAME_PREFIXES} value={inlineContactForm.title} onChange={(v) => setInlineContactForm(prev => ({ ...prev, title: (v ?? '') as string }))} placeholder="—" searchable={false} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <Input
-                            label="First name"
-                            value={inlineContactForm.first_name}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              setInlineContactForm(prev => ({ ...prev, first_name: v }));
-                              onPrimaryContactSearchChange(v);
-                            }}
-                            placeholder="First name"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <Input
-                            label="Last name"
-                            value={inlineContactForm.last_name}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              setInlineContactForm(prev => ({ ...prev, last_name: v }));
-                              onPrimaryContactSearchChange(v);
-                            }}
-                            placeholder="Last name"
-                          />
-                        </div>
-                      </div>
-                      {primaryContactSearchQuery.trim().length >= 2 && contactSuggestions.length > 0 && (
-                        <div className="absolute left-0 right-0 top-full z-[20] mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-auto animate-in fade-in slide-in-from-top-1">
-                          <p className="text-[10px] text-slate-400 px-3 py-1.5 border-b border-slate-100 font-bold uppercase tracking-wider bg-slate-50/50">Did you mean an existing contact?</p>
-                          {contactSuggestions.map(c => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-indigo-50 flex items-center justify-between gap-2 transition-colors"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setPrimaryContactContactId(c.id);
-                                setSelectedPrimaryContact(c);
-                                setPrimaryContactSearchQuery('');
-                                setContactSuggestions([]);
-                                showToast('Contact linked', 'success');
-                              }}
-                            >
-                              <span className="font-medium text-slate-700">{contactDisplayName(c) || contactCompanyName(c)}</span>
-                              <span className="text-slate-500 text-xs truncate">{[c.contact_email, c.contact_phone].filter(Boolean).join(' · ')}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-5 mt-1 relative overflow-hidden">
+                  <div className="grid grid-cols-12 gap-x-4 gap-y-4">
+                    {/* Row 1: Name Fields */}
+                    <div className="col-span-12 lg:col-span-2">
+                       <Select 
+                         label="Title" 
+                         options={NAME_PREFIXES} 
+                         value={inlineContactForm.title} 
+                         onChange={(v) => setInlineContactForm(prev => ({ ...prev, title: (v ?? '') as string }))} 
+                         placeholder="—" 
+                         searchable={false} 
+                         inputSize="md"
+                       />
                     </div>
-                    <div className="flex gap-2 items-end">
-                      <div className="w-24 shrink-0">
-                        <Select label="Code" options={COUNTRY_CODES} value={inlineContactForm.contact_phone_code} onChange={(v) => setInlineContactForm(prev => ({ ...prev, contact_phone_code: (v ?? '') as string }))} placeholder="Code" searchable getSearchText={getCountryCodeSearchText} triggerClassName="w-24" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <Input label="Phone" type="tel" value={inlineContactForm.contact_phone} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="Number" />
-                      </div>
+                    <div className="col-span-12 md:col-span-6 lg:col-span-5">
+                      <Input
+                        label="First name"
+                        value={inlineContactForm.first_name}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setInlineContactForm(prev => ({ ...prev, first_name: v }));
+                          onPrimaryContactSearchChange(v);
+                        }}
+                        placeholder="First name"
+                        className="h-10"
+                      />
                     </div>
-                    <Input label="Email" type="email" value={inlineContactForm.contact_email} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_email: e.target.value }))} placeholder="email@example.com" />
-                    <Input label="Designation" value={inlineContactForm.contact_job_title} onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} placeholder="e.g. Director" />
+                    <div className="col-span-12 md:col-span-6 lg:col-span-5 relative">
+                      <Input
+                        label="Last name"
+                        value={inlineContactForm.last_name}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setInlineContactForm(prev => ({ ...prev, last_name: v }));
+                          onPrimaryContactSearchChange(v);
+                        }}
+                        placeholder="Last name"
+                        className="h-10"
+                      />
+                      <SearchSuggestion
+                        items={contactSuggestions}
+                        onSelect={linkLeadToContact}
+                        title="Did you mean an existing contact?"
+                        renderItem={(c) => ({
+                          id: c.id,
+                          title: contactDisplayName(c),
+                          subtitle: c.organization?.name || 'No Organization',
+                          rightText: c.contact_phone
+                        })}
+                      />
+                    </div>
+
+                    {/* Row 2: Phone Fields */}
+                    <div className="col-span-12 md:col-span-4 lg:col-span-3">
+                      <Select 
+                        label="Country Code" 
+                        options={COUNTRY_CODES} 
+                        value={inlineContactForm.contact_phone_code} 
+                        onChange={(v) => setInlineContactForm(prev => ({ ...prev, contact_phone_code: (v ?? '') as string }))} 
+                        placeholder="Code" 
+                        searchable 
+                        getSearchText={getCountryCodeSearchText} 
+                        inputSize="md"
+                        clearable={false}
+                      />
+                    </div>
+                    <div className="col-span-12 md:col-span-8 lg:col-span-9">
+                      <Input 
+                        label="Phone number" 
+                        type="tel" 
+                        value={inlineContactForm.contact_phone} 
+                        onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} 
+                        placeholder="Number" 
+                        className="h-10"
+                      />
+                    </div>
+
+                    {/* Row 3: Details */}
+                    <div className="col-span-12 md:col-span-6">
+                      <Input 
+                        label="Email address" 
+                        type="email" 
+                        value={inlineContactForm.contact_email} 
+                        onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_email: e.target.value }))} 
+                        placeholder="email@example.com" 
+                        className="h-10"
+                      />
+                    </div>
+                    <div className="col-span-12 md:col-span-6">
+                      <Input 
+                        label="Designation / Job title" 
+                        value={inlineContactForm.contact_job_title} 
+                        onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} 
+                        placeholder="e.g. Director" 
+                        className="h-10"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -1765,10 +1830,10 @@ export const LeadFormPage: React.FC = () => {
 
             {/* 2. Organization Section */}
             <div className="space-y-3 border-t border-slate-200 pt-4">
-              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight">
                 <Building2 size={18} /> Organization
               </h3>
-              <p className="text-sm text-slate-600">Link to an existing organization or fill details below to create one on save.</p>
+              <p className="text-sm text-slate-500 font-medium">Link an existing organization or enter details below to create a new one.</p>
               
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-slate-700">Company / Organization name</label>
@@ -1809,32 +1874,24 @@ export const LeadFormPage: React.FC = () => {
                     }
                   />
                   
-                  {orgSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-auto animate-in fade-in slide-in-from-top-1">
-                      <p className="text-[10px] text-slate-500 px-3 py-1.5 border-b border-slate-100 font-bold uppercase tracking-wider">Link to existing organization:</p>
-                      {orgSuggestions.map(org => (
-                        <button
-                          key={org.id}
-                          type="button"
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col gap-0.5"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setSelectedOrganization(org);
-                            setFormData(prev => ({ ...prev, organization_id: org.id, company: org.name }));
-                            setOrgSuggestions([]);
-                            setOrgSearchQuery('');
-                            marketingAPI.getOrganizationPlants(org.id).then(setPlants).catch(() => setPlants([]));
-                          }}
-                        >
-                          <span className="font-medium text-slate-700">{org.name}</span>
-                          {(org.industry || org.website || org.code) && (
-                            <span className="text-slate-500 text-xs">{[org.code, org.industry, org.website].filter(Boolean).join(' · ')}</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                    <SearchSuggestion
+                      items={orgSuggestions}
+                      onSelect={(org) => {
+                        setSelectedOrganization(org);
+                        setFormData(prev => ({ ...prev, organization_id: org.id, company: org.name }));
+                        setOrgSuggestions([]);
+                        setOrgSearchQuery('');
+                        marketingAPI.getOrganizationPlants(org.id).then(setPlants).catch(() => setPlants([]));
+                      }}
+                      title="Link to existing organization:"
+                      icon={Building2}
+                      renderItem={(org) => ({
+                        id: org.id,
+                        title: org.name,
+                        subtitle: [org.industry, org.website].filter(Boolean).join(' · '),
+                        rightText: org.code
+                      })}
+                    />
                 </div>
 
                 {selectedOrganization ? (
@@ -1848,7 +1905,7 @@ export const LeadFormPage: React.FC = () => {
                 ) : (
                   canCreateOrg && orgSearchQuery.trim() !== '' && (
                     <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-3 animate-in slide-in-from-top-2">
-                      <p className="text-sm font-medium text-slate-700 font-bold">Create new organization on save</p>
+                      <p className="text-sm font-bold text-slate-700">Create new organization on save</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <Input label="Organization code *" value={newOrgForm.code} onChange={(e) => setNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="e.g. ORG-123" required />
                         <Input label="Website" value={newOrgForm.website} onChange={(e) => setNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
@@ -1866,10 +1923,10 @@ export const LeadFormPage: React.FC = () => {
 
             {/* 3. Enquiry Details Section */}
             <div className="space-y-4 border-t border-slate-200 pt-4">
-              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight">
                 <FileText size={18} /> Enquiry Details
               </h3>
-              <p className="text-sm text-slate-600 font-medium italic">Lead classification and source attribution</p>
+              <p className="text-sm text-slate-500 font-medium">Categorize the lead and specify how they discovered us.</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Select
@@ -1900,7 +1957,7 @@ export const LeadFormPage: React.FC = () => {
                       value={referredByType}
                       onChange={(v) => setReferredByType(v as any)}
                       searchable={false}
-                      triggerClassName="uppercase font-bold tracking-wider"
+                      triggerClassName="font-bold tracking-tight"
                     />
                   </div>
                   
@@ -1946,25 +2003,17 @@ export const LeadFormPage: React.FC = () => {
                             onChange={(e) => setThroughContactSearchName(e.target.value)}
                             onBlur={() => setTimeout(() => setThroughContactSearchResults([]), 150)}
                           />
-                          {throughContactSearchResults.length > 0 && (
-                            <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto animate-in fade-in slide-in-from-top-1">
-                              {throughContactSearchResults.map(c => (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    linkThroughContact(c);
-                                  }}
-                                >
-                                  <span className="font-semibold">{contactDisplayName(c)}</span>
-                                  <span className="text-slate-500 text-xs">{[c.contact_email, c.contact_phone].filter(Boolean).join(' · ')}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                          <SearchSuggestion
+                            items={throughContactSearchResults}
+                            onSelect={linkThroughContact}
+                            title="Referrer Contacts Found"
+                            renderItem={(c) => ({
+                              id: c.id,
+                              title: contactDisplayName(c),
+                              subtitle: c.organization?.name || 'No Organization',
+                              rightText: c.contact_phone
+                            })}
+                          />
                         </div>
                       )}
                     </div>
@@ -1982,7 +2031,7 @@ export const LeadFormPage: React.FC = () => {
               >
                 <div className="flex items-center gap-2">
                   <Globe size={18} className="text-slate-400 group-hover:text-indigo-600" />
-                  <span className="text-base font-semibold text-slate-900">Domain & Region</span>
+                  <span className="text-lg font-bold text-slate-900 tracking-tight">Domain & Region</span>
                 </div>
                 <ChevronDown size={20} className={cn("text-slate-400 transition-transform", !domainRegionCollapsed && "rotate-180")} />
               </button>
@@ -2025,21 +2074,21 @@ export const LeadFormPage: React.FC = () => {
             {/* 5. Additional Context */}
             <div className="border-t border-slate-200 pt-4 space-y-4">
               <div className="flex items-center gap-2">
-                 <MessageSquare size={16} className="text-slate-400" />
-                 <span className="text-sm font-semibold text-slate-700">Additional Context</span>
+                 <FileText size={18} className="text-slate-400" />
+                 <span className="text-lg font-bold text-slate-900 tracking-tight">Additional Notes</span>
               </div>
               <textarea
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px] bg-slate-50/30 focus:bg-white transition-all"
                 value={formData.notes || ''}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Share any special instructions or additional lead details..."
+                placeholder="Enter any special instructions, meeting notes, or additional details..."
               />
             </div>
 
             {/* Form Actions */}
             <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-6">
-              <Button variant="ghost" type="button" onClick={() => navigate('/leads')} className="text-slate-500 font-bold px-6">Cancel</Button>
-              <Button type="submit" disabled={isSubmitting} className="h-11 px-8 bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-100 font-black text-sm uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95">
+              <Button variant="ghost" type="button" onClick={() => navigate('/leads')} className="text-slate-500 font-bold px-4">Cancel</Button>
+              <Button type="submit" disabled={isSubmitting} leftIcon={<Plus size={16} />} className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100">
                 {isSubmitting ? 'Creating...' : 'Create Lead'}
               </Button>
             </div>
@@ -2141,7 +2190,7 @@ export const LeadFormPage: React.FC = () => {
                       <Input label="Email" value={activityForm.contact_person_email} onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_email: e.target.value }))} placeholder="email@example.com" inputSize="sm" />
                       <div className="grid grid-cols-[auto_1fr] gap-2 items-end">
                         <div className="w-28 [&_button]:!h-9">
-                          <Select label="Code" options={COUNTRY_CODES} value={activityForm.contact_person_phone_code} onChange={(v) => setActivityForm((f) => ({ ...f, contact_person_phone_code: (v ?? '') as string }))} placeholder="+" searchable getSearchText={getCountryCodeSearchText} exactValueMatchWhenQueryMatches={/^\+?\d+$/} triggerClassName="w-28" />
+                          <Select label="Code" options={COUNTRY_CODES} value={activityForm.contact_person_phone_code} onChange={(v) => setActivityForm((f) => ({ ...f, contact_person_phone_code: (v ?? '') as string }))} placeholder="+" searchable getSearchText={getCountryCodeSearchText} exactValueMatchWhenQueryMatches={/^\+?\d+$/} triggerClassName="w-28" clearable={false} />
                         </div>
                         <Input label="Phone" value={activityForm.contact_person_phone} onChange={(e) => setActivityForm((f) => ({ ...f, contact_person_phone: e.target.value }))} placeholder="Number" inputSize="sm" />
                       </div>
@@ -2283,7 +2332,7 @@ export const LeadFormPage: React.FC = () => {
               </form>
             </>
           )}
-          <h3 className="text-sm font-semibold text-slate-800 mb-2 border-t border-slate-200 pt-3">Enquiry log</h3>
+          <h3 className="text-base font-bold text-slate-800 mb-2 border-t border-slate-200 pt-4 mt-2 tracking-tight">Enquiry log</h3>
           {activitiesLoading ? (
             <p className="text-sm text-slate-500">Loading...</p>
           ) : enquiryActivities.length === 0 ? (
@@ -2375,6 +2424,7 @@ export const LeadFormPage: React.FC = () => {
                                   exactValueMatchWhenQueryMatches={/^\+?\d+$/}
                                   getOptionKey={(o) => o.label}
                                   triggerClassName="w-36"
+                                  clearable={false}
                                 />
                               </div>
                               <div className="flex-1 min-w-0">
@@ -2736,7 +2786,7 @@ export const LeadFormPage: React.FC = () => {
 
       {isEdit && activeTab === 'status_logs' && (
         <Card>
-          <h3 className="text-sm font-semibold text-slate-800 mb-3">Lead status logs</h3>
+          <h3 className="text-base font-bold text-slate-800 mb-3 tracking-tight">Lead status logs</h3>
           {activitiesLoading ? (
             <p className="text-sm text-slate-500">Loading...</p>
           ) : statusLogsActivities.length === 0 ? (
@@ -2806,6 +2856,8 @@ export const LeadFormPage: React.FC = () => {
                     getSearchText={getCountryCodeSearchText}
                     getOptionKey={(o) => o.label}
                     inputSize="sm"
+                    triggerClassName="w-32"
+                    clearable={false}
                   />
                 </div>
                 <Input label="Phone" value={createContactForm.contact_phone} onChange={(e) => setCreateContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} placeholder="Number" containerClassName="flex-1 min-w-0" required inputSize="sm" />
@@ -3078,10 +3130,7 @@ export const LeadFormPage: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4">
                 <div className="md:col-span-6">
-                  <Input label="Email" type="email" value={formData.email || ''} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="email@example.com" required className="h-9 text-xs" />
-                </div>
-                <div className="md:col-span-6">
-                  <label className="text-[10px] font-semibold text-slate-500 tracking-tight mb-1 block">Phone Number</label>
+                  <label className="text-xs font-semibold text-slate-700 ml-0.5 mb-1.5 block">Phone Number</label>
                   <div className="flex gap-2">
                     <Select
                       options={COUNTRY_CODES}
@@ -3091,9 +3140,10 @@ export const LeadFormPage: React.FC = () => {
                       searchable
                       getSearchText={getCountryCodeSearchText}
                       getOptionKey={(o) => o.value}
-                      containerClassName="w-28 shrink-0"
+                      containerClassName="w-32 shrink-0"
                       inputSize="sm"
-                      triggerClassName="w-28"
+                      triggerClassName="w-32"
+                      clearable={false}
                     />
                     <Input type="text" value={leadPhonePart} onChange={(e) => setLeadPhonePart(e.target.value)} placeholder="Number" containerClassName="flex-1 min-w-0" inputSize="sm" />
                   </div>
@@ -3146,20 +3196,20 @@ export const LeadFormPage: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4">
                 <div className="md:col-span-4">
-                  <label className="text-[10px] font-semibold text-slate-500 tracking-tight mb-1 block">Lead Number</label>
+                  <label className="text-xs font-semibold text-slate-700 ml-0.5 mb-1.5 block">Lead Number</label>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 tabular-nums">
                     {formData.series?.trim() || '—'}
                   </div>
                 </div>
                 <div className="md:col-span-8 !space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-500 tracking-tight ml-0.5">Potential Value</label>
+                  <label className="text-xs font-semibold text-slate-700 ml-0.5 mb-1.5 block">Potential Value</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-xs z-10">₹</span>
                     <Input inputSize="sm" className="pl-7" type="number" value={formData.potential_value ?? ''} onChange={(e) => setFormData({ ...formData, potential_value: e.target.value ? Number(e.target.value) : undefined })} placeholder="0.00" />
                   </div>
                 </div>
                 <div className="md:col-span-12">
-                  <label className="text-[10px] font-semibold text-slate-500 tracking-tight mb-1 block">Additional Notes</label>
+                  <label className="text-xs font-semibold text-slate-700 ml-0.5 mb-1.5 block">Additional Notes</label>
                   <textarea
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs placeholder:text-slate-400/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all"
                     rows={3}
@@ -3175,7 +3225,7 @@ export const LeadFormPage: React.FC = () => {
               <Button type="button" variant="ghost" onClick={() => setShowEditModal(false)} className="text-slate-500 font-bold tracking-widest text-[10px]">
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting} className="px-6 shadow-lg shadow-indigo-100">
+              <Button type="submit" disabled={isSubmitting} leftIcon={<Edit2 size={16} />} className="px-6 shadow-lg shadow-indigo-100">
                 {isSubmitting ? 'Saving...' : 'Update Lead'}
               </Button>
             </div>
