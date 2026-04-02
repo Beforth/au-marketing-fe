@@ -16,6 +16,8 @@ interface DatePickerProps {
   inputSize?: 'sm' | 'md' | 'lg';
   showTime?: boolean;
   showNow?: boolean;
+  /** When `showTime` is true: place hour/minute controls beside the calendar instead of below it. */
+  timePanelPosition?: 'bottom' | 'right';
 }
 
 const MONTHS = [
@@ -37,8 +39,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   disabled,
   inputSize = 'md',
   showTime = false,
-  showNow = false
+  showNow = false,
+  timePanelPosition = 'bottom',
 }) => {
+  const timeOnRight = showTime && timePanelPosition === 'right';
   const [isOpen, setIsOpen] = useState(false);
   const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
   const [viewDate, setViewDate] = useState(value ? new Date(value) : new Date());
@@ -74,16 +78,19 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     }
     const rect = containerRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
-    const dropdownHeight = showTime ? 440 : 340; 
+    const dropdownHeight = showTime && timePanelPosition === 'bottom' ? 440 : showTime && timeOnRight ? 380 : 340;
     const openUp = spaceBelow < dropdownHeight && rect.top > spaceBelow;
-    
+    const minWidth = timeOnRight ? 380 : 300;
+    const maxWidth = timeOnRight ? 420 : 360;
+    const targetWidth = Math.min(Math.max(rect.width, minWidth), maxWidth);
+
     setDropdownRect({
       top: openUp ? rect.top - dropdownHeight - 4 : rect.bottom + 4,
       left: rect.left,
-      width: Math.max(rect.width, 300),
+      width: targetWidth,
       openUp,
     });
-  }, [isOpen, showTime]);
+  }, [isOpen, showTime, timeOnRight]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -256,50 +263,71 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           <div
             ref={dropdownRef}
             className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl p-4 shadow-indigo-100/20 animate-spring-in"
-            style={{ top: dropdownRect.top, left: dropdownRect.left, width: 300 }}
+            style={{ top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex flex-col gap-0.5 pointer-events-auto">
-                <span className="text-sm font-bold text-slate-900 leading-none">{MONTHS[month]}</span>
-                <button type="button" onClick={(e) => { e.stopPropagation(); setIsYearPickerOpen(!isYearPickerOpen); }} className={cn("text-xs flex items-center gap-1 mt-0.5 transition-colors font-medium rounded px-1 -ml-1", isYearPickerOpen ? "bg-[var(--primary)] text-white" : "text-slate-500 hover:text-[var(--primary)] hover:bg-[var(--primary-muted)]")}>
-                  {year} <ChevronDown size={12} className={cn("transition-transform", isYearPickerOpen && "rotate-180")} />
-                </button>
+            <div className={cn(timeOnRight && !isYearPickerOpen && 'flex flex-row gap-3 items-stretch')}>
+              <div className={cn(timeOnRight && !isYearPickerOpen && 'min-w-0 flex-1')}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col gap-0.5 pointer-events-auto">
+                    <span className="text-sm font-bold text-slate-900 leading-none">{MONTHS[month]}</span>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setIsYearPickerOpen(!isYearPickerOpen); }} className={cn("text-xs flex items-center gap-1 mt-0.5 transition-colors font-medium rounded px-1 -ml-1", isYearPickerOpen ? "bg-[var(--primary)] text-white" : "text-slate-500 hover:text-[var(--primary)] hover:bg-[var(--primary-muted)]")}>
+                      {year} <ChevronDown size={12} className={cn("transition-transform", isYearPickerOpen && "rotate-180")} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={handlePrevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><ChevronLeft size={18} /></button>
+                    <button type="button" onClick={handleNextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><ChevronRight size={18} /></button>
+                  </div>
+                </div>
+
+                {isYearPickerOpen ? (
+                  <div className="grid grid-cols-4 gap-2 h-[230px] overflow-y-auto pr-1 customize-scrollbar">
+                    {Array.from({ length: 41 }, (_, i) => today.getFullYear() - 20 + i).map(y => (
+                      <button key={y} type="button" onClick={() => handleYearChange(y)} className={cn("py-2 text-sm rounded-lg transition-all", y === year ? "bg-[var(--primary)] text-white font-bold shadow-md shadow-[var(--primary)]/20" : "text-slate-600 hover:bg-[var(--primary-muted)] hover:text-[var(--primary)]")}>
+                        {y}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-7 mb-1">
+                      {DAYS.map(day => <div key={day} className="text-center text-[10px] font-bold text-slate-400 uppercase py-1">{day}</div>)}
+                    </div>
+                    <div className="grid grid-cols-7 gap-px">
+                      {calendarDays.map((day, idx) => {
+                        const selected = isSelected(day.date);
+                        const current = isToday(day.date);
+                        return (
+                          <button key={idx} type="button" onClick={() => handleSelectDate(day.date)} className={cn('aspect-square flex items-center justify-center text-sm rounded-lg transition-all relative', !day.currentMonth && 'text-slate-300', day.currentMonth && !selected && 'text-slate-700 hover:bg-[var(--primary-muted)] hover:text-[var(--primary)]', selected && 'bg-[var(--primary)] text-white font-bold shadow-md shadow-[var(--primary)]/20', current && !selected && 'text-[var(--primary)] font-bold')}>
+                            {day.date.getDate()}
+                            {current && !selected && <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[var(--primary)]" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
-              <div className="flex items-center gap-1">
-                <button type="button" onClick={handlePrevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><ChevronLeft size={18} /></button>
-                <button type="button" onClick={handleNextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><ChevronRight size={18} /></button>
-              </div>
+
+              {showTime && !isYearPickerOpen && timeOnRight && (
+                <div className="shrink-0 w-[104px] border-l border-slate-100 pl-3 flex flex-col justify-center pt-0.5 pb-1">
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <Clock size={14} className="text-slate-400 shrink-0" />
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-tight">Time</span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400" value={hours} onChange={(e) => handleTimeChange(Number(e.target.value), minutes)} aria-label="Hour">
+                      {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}</option>)}
+                    </select>
+                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400" value={minutes} onChange={(e) => handleTimeChange(hours, Number(e.target.value))} aria-label="Minute">
+                      {Array.from({ length: 60 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {isYearPickerOpen ? (
-              <div className="grid grid-cols-4 gap-2 h-[230px] overflow-y-auto pr-1 customize-scrollbar">
-                {Array.from({ length: 41 }, (_, i) => today.getFullYear() - 20 + i).map(y => (
-                  <button key={y} type="button" onClick={() => handleYearChange(y)} className={cn("py-2 text-sm rounded-lg transition-all", y === year ? "bg-[var(--primary)] text-white font-bold shadow-md shadow-[var(--primary)]/20" : "text-slate-600 hover:bg-[var(--primary-muted)] hover:text-[var(--primary)]")}>
-                    {y}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-7 mb-1">
-                  {DAYS.map(day => <div key={day} className="text-center text-[10px] font-bold text-slate-400 uppercase py-1">{day}</div>)}
-                </div>
-                <div className="grid grid-cols-7 gap-px">
-                  {calendarDays.map((day, idx) => {
-                    const selected = isSelected(day.date);
-                    const current = isToday(day.date);
-                    return (
-                      <button key={idx} type="button" onClick={() => handleSelectDate(day.date)} className={cn('aspect-square flex items-center justify-center text-sm rounded-lg transition-all relative', !day.currentMonth && 'text-slate-300', day.currentMonth && !selected && 'text-slate-700 hover:bg-[var(--primary-muted)] hover:text-[var(--primary)]', selected && 'bg-[var(--primary)] text-white font-bold shadow-md shadow-[var(--primary)]/20', current && !selected && 'text-[var(--primary)] font-bold')}>
-                        {day.date.getDate()}
-                        {current && !selected && <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[var(--primary)]" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            {showTime && !isYearPickerOpen && (
+            {showTime && !isYearPickerOpen && !timeOnRight && (
               <div className="mt-4 pt-4 border-t border-slate-100">
                 <div className="flex items-center gap-2 mb-3">
                   <Clock size={14} className="text-slate-400" />

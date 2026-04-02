@@ -1576,6 +1576,22 @@ class MarketingAPIService {
     );
   }
 
+  /** Optional monthly goal for a region (0 clears explicit goal). */
+  async setRegionTarget(region_id: number, year: number, month: number, target_amount: number): Promise<{ ok: boolean }> {
+    return apiClient.put<{ ok: boolean }>(
+      `/api/dashboard/target/region?region_id=${region_id}&year=${year}&month=${month}`,
+      { target_amount }
+    );
+  }
+
+  /** Optional monthly goal for a domain (0 clears explicit goal). */
+  async setDomainTarget(domain_id: number, year: number, month: number, target_amount: number): Promise<{ ok: boolean }> {
+    return apiClient.put<{ ok: boolean }>(
+      `/api/dashboard/target/domain?domain_id=${domain_id}&year=${year}&month=${month}`,
+      { target_amount }
+    );
+  }
+
   // Today's tasks (auto from follow-up / status group rule, or manual)
   async getTodayTasks(): Promise<TaskItem[]> {
     return apiClient.get<TaskItem[]>('/api/tasks/today');
@@ -1771,6 +1787,8 @@ export interface RegionTargetSummaryItem {
   region_name: string;
   region_code?: string | null;
   total_target: number;
+  /** Explicit region goal; team sum is still `total_target`. */
+  assigned_target?: number | null;
   employees: EmployeeTargetItem[];
 }
 
@@ -1779,6 +1797,8 @@ export interface DomainTargetSummaryItem {
   domain_name: string;
   domain_code?: string | null;
   total_target: number;
+  /** Explicit domain goal; team sum is still `total_target`. */
+  assigned_target?: number | null;
   regions: RegionTargetSummaryItem[];
 }
 

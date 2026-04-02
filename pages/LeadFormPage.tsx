@@ -131,6 +131,7 @@ export const LeadFormPage: React.FC = () => {
   const [initialQuotationFile, setInitialQuotationFile] = useState<File | null>(null);
   /** Create flow: optional backdated enquiry date/time (local datetime-local value). */
   const [initialInquiryReceivedAtLocal, setInitialInquiryReceivedAtLocal] = useState('');
+  const [initialQuotationIsRevised, setInitialQuotationIsRevised] = useState(false);
   /** Quick add quotation (edit mode, enquiry tab): one file → one enquiry with auto title/description. */
   const [quickAddQuotationFile, setQuickAddQuotationFile] = useState<File | null>(null);
   const [quickAddQuotationSubmitting, setQuickAddQuotationSubmitting] = useState(false);
@@ -1288,17 +1289,17 @@ export const LeadFormPage: React.FC = () => {
               description: undefined,
               ...(initialInquiryIso ? { activity_date: initialInquiryIso } : {}),
             });
+            const qNum = (generatedQuoteNumber || customCreateQuoteNumber.trim() || '').trim() || undefined;
             await marketingAPI.uploadLeadActivityAttachments(
               lead.id,
               createdActivity.id,
               [initialQuotationFile],
               ['quotation'],
+              qNum ? [qNum] : undefined,
               undefined,
-              undefined,
-              // Use lead's quote number when set at create (generated or custom); otherwise optional series for first quotation
-              generatedQuoteNumber || customCreateQuoteNumber.trim()
-                ? undefined
-                : (formData.series_code?.trim() || undefined)
+              // When no explicit quote number, use quotation series to generate on upload
+              qNum ? undefined : (createFormQuoteSeriesCode.trim() || undefined),
+              initialQuotationIsRevised,
             );
             showToast('Lead and enquiry created successfully', 'success');
             navigate(`/leads/${lead.id}/edit`);
@@ -1345,6 +1346,33 @@ export const LeadFormPage: React.FC = () => {
       showToast(e?.message || 'Failed to generate lead number', 'error');
     } finally {
       setGeneratingQuoteNumber(false);
+    }
+  };
+
+  /** Create lead: generate quote document number from a quotation series (not the lead number). */
+  const handleGenerateQuoteNumberOnCreate = async () => {
+    const code = createFormQuoteSeriesCode.trim();
+    if (!code) {
+      showToast('Select a quotation numbering series', 'error');
+      return;
+    }
+    const company = effectiveCompanyNameForQuote || formData.company?.trim();
+    if (!company) {
+      showToast('Link an organization in the contact section first (quote patterns often use company name).', 'error');
+      return;
+    }
+    setGeneratingQuoteNumberOnCreate(true);
+    try {
+      const res = await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company } });
+      const generated = res.generated_value ?? null;
+      setGeneratedQuoteNumber(generated);
+      setGeneratedQuoteSeriesCode(code);
+      setCustomCreateQuoteNumber('');
+      showToast(generated ? 'Quote number generated' : 'No value returned from series', generated ? 'success' : 'error');
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to generate quote number', 'error');
+    } finally {
+      setGeneratingQuoteNumberOnCreate(false);
     }
   };
 
@@ -2020,6 +2048,127 @@ export const LeadFormPage: React.FC = () => {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* 3b. Quotation & enquiry log (optional, on create) */}
+            <div className="space-y-4 border-t border-slate-200 pt-4">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight">
+                <FileText size={18} /> Quotation &amp; enquiry log
+              </h3>
+              <p className="text-sm text-slate-500 font-medium">
+                Optional. Set when the enquiry was received, attach a quotation file, and/or set a quote number. On save, the lead is created and a first enquiry entry is added when you attach a file; the enquiry date is stored when set (with or without a file).
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <DatePicker
+                    label="Enquiry / inquiry received at"
+                    value={initialInquiryReceivedAtLocal.trim() ? initialInquiryReceivedAtLocal : undefined}
+                    onChange={(v) => setInitialInquiryReceivedAtLocal(v ?? '')}
+                    placeholder="Select date and time..."
+                    showTime
+                    showNow
+                    timePanelPosition="right"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Backdates the first enquiry activity when you add a quotation, or sets lead inquiry time when saved without a file (if supported).</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Quotation file (optional)</label>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,image/*"
+                    className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      setInitialQuotationFile(f);
+                      if (!f) setInitialQuotationIsRevised(false);
+                    }}
+                  />
+                  {initialQuotationFile && (
+                    <p className="text-xs text-slate-600 mt-1 truncate" title={initialQuotationFile.name}>
+                      Selected: {initialQuotationFile.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {(initialQuotationFile || initialInquiryReceivedAtLocal.trim()) && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                  <p className="text-xs font-semibold text-slate-700">Quote number for this attachment (optional)</p>
+                  <p className="text-xs text-slate-500">
+                    Use <strong>one</strong> of: generate from a quotation series, type a manual number, or leave both empty so the server can assign from the series you select below on upload.
+                  </p>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="min-w-[200px] flex-1">
+                      <Select
+                        label="Quotation series (for generate or auto)"
+                        options={[
+                          { value: '', label: '— None —' },
+                          ...seriesList
+                            .filter((s) => (s.entity_type ?? '').toLowerCase() === 'lead' || !s.entity_type || (s.code ?? '').includes('quote'))
+                            .map((s) => ({ value: s.code, label: `${s.name} (${s.code})` })),
+                        ]}
+                        value={createFormQuoteSeriesCode}
+                        onChange={(v) => setCreateFormQuoteSeriesCode(v != null ? String(v) : '')}
+                        placeholder="Series"
+                        searchable={seriesList.length > 8}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={generatingQuoteNumberOnCreate || !createFormQuoteSeriesCode.trim() || !!customCreateQuoteNumber.trim()}
+                      onClick={handleGenerateQuoteNumberOnCreate}
+                    >
+                      {generatingQuoteNumberOnCreate ? 'Generating…' : 'Generate quote number'}
+                    </Button>
+                  </div>
+                  {customCreateQuoteNumber.trim() ? (
+                    <p className="text-xs text-slate-500">Clear the manual number below to use generate again.</p>
+                  ) : null}
+                  {generatedQuoteNumber ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm text-slate-800">
+                        <span className="font-medium text-slate-500">Quote number:</span>{' '}
+                        <span className="font-mono tabular-nums">{generatedQuoteNumber}</span>
+                        {generatedQuoteSeriesCode && (
+                          <span className="text-slate-500 text-xs ml-2">({generatedQuoteSeriesCode})</span>
+                        )}
+                      </p>
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                        onClick={() => {
+                          setGeneratedQuoteNumber(null);
+                          setGeneratedQuoteSeriesCode(null);
+                        }}
+                      >
+                        Use manual number instead
+                      </button>
+                    </div>
+                  ) : (
+                    <Input
+                      label="Manual quote number (only if not using generate)"
+                      value={customCreateQuoteNumber}
+                      onChange={(e) => {
+                        setCustomCreateQuoteNumber(e.target.value);
+                        setGeneratedQuoteNumber(null);
+                        setGeneratedQuoteSeriesCode(null);
+                      }}
+                      placeholder="e.g. AP/QUOTE-N/001"
+                    />
+                  )}
+                  {initialQuotationFile && (
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={initialQuotationIsRevised}
+                        onChange={(e) => setInitialQuotationIsRevised(e.target.checked)}
+                      />
+                      Mark quotation as revised
+                    </label>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* 4. Domain & Region Section */}

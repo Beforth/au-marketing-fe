@@ -27,6 +27,11 @@ import { SegmentToggle } from '../components/ui/SegmentToggle';
 
 type ViewMode = 'list' | 'review';
 
+type TargetHierarchyModal =
+  | { kind: 'employee'; employee_id: number; employee_name: string; region_id: number; current_amount: number }
+  | { kind: 'region'; region_id: number; region_name: string; rolled_up: number; assigned: number | null | undefined }
+  | { kind: 'domain'; domain_id: number; domain_name: string; rolled_up: number; assigned: number | null | undefined };
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function getCurrentYearMonth(): { year: number; month: number } {
@@ -34,8 +39,12 @@ function getCurrentYearMonth(): { year: number; month: number } {
   return { year: d.getFullYear(), month: d.getMonth() + 1 };
 }
 
+const ONE_LAKH = 1_00_000;
+const ONE_CRORE = 1_00_00_000;
+
 function formatTargetAmount(amount: number): string {
-  if (amount >= 1_00_000) return `₹${(amount / 1_00_000).toFixed(2)} L`;
+  if (amount >= ONE_CRORE) return `₹${(amount / ONE_CRORE).toFixed(2)} Cr`;
+  if (amount >= ONE_LAKH) return `₹${(amount / ONE_LAKH).toFixed(2)} L`;
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
@@ -96,7 +105,7 @@ export const DomainsPage: React.FC = () => {
   const [targetMonth, setTargetMonth] = useState(() => getCurrentYearMonth().month);
   const [targetSummary, setTargetSummary] = useState<DomainTargetSummaryResponse | null>(null);
   const [targetSummaryLoading, setTargetSummaryLoading] = useState(false);
-  const [setTargetEmployee, setSetTargetEmployee] = useState<{ employee_id: number; employee_name: string; region_id: number; current_amount: number } | null>(null);
+  const [targetHierarchyModal, setTargetHierarchyModal] = useState<TargetHierarchyModal | null>(null);
   const [setTargetAmount, setSetTargetAmount] = useState<string>('');
   const [setTargetSubmitting, setSetTargetSubmitting] = useState(false);
 
@@ -371,19 +380,25 @@ export const DomainsPage: React.FC = () => {
   };
 
   // ——— Review: Set employee target ———
-  const handleSetEmployeeTarget = async () => {
-    const emp = setTargetEmployee;
-    if (!emp) return;
+  const handleSaveHierarchyTarget = async () => {
+    const m = targetHierarchyModal;
+    if (!m) return;
     const amount = parseFloat(setTargetAmount);
     if (Number.isNaN(amount) || amount < 0) {
-      showToast('Enter a valid target amount', 'error');
+      showToast('Enter a valid amount (0 clears an explicit domain/region goal)', 'error');
       return;
     }
     setSetTargetSubmitting(true);
     try {
-      await marketingAPI.setEmployeeTarget(emp.employee_id, targetYear, targetMonth, amount);
-      showToast('Target updated', 'success');
-      setSetTargetEmployee(null);
+      if (m.kind === 'employee') {
+        await marketingAPI.setEmployeeTarget(m.employee_id, targetYear, targetMonth, amount);
+      } else if (m.kind === 'region') {
+        await marketingAPI.setRegionTarget(m.region_id, targetYear, targetMonth, amount);
+      } else {
+        await marketingAPI.setDomainTarget(m.domain_id, targetYear, targetMonth, amount);
+      }
+      showToast(amount === 0 && m.kind !== 'employee' ? 'Goal cleared' : 'Target updated', 'success');
+      setTargetHierarchyModal(null);
       setSetTargetAmount('');
       await loadDomainTargetSummary();
     } catch (error: any) {
@@ -404,18 +419,18 @@ export const DomainsPage: React.FC = () => {
     }
     return null;
   };
-  const getRegionTotal = (regionId: number): number | null => {
+  const getRegionTargetInfo = (regionId: number): { rolledUp: number; assigned: number | null | undefined } | null => {
     if (!targetSummary) return null;
     for (const d of targetSummary.domains) {
       const region = d.regions.find((r) => r.region_id === regionId);
-      if (region) return region.total_target;
+      if (region) return { rolledUp: region.total_target, assigned: region.assigned_target };
     }
     return null;
   };
-  const getDomainTotal = (domainId: number): number | null => {
+  const getDomainTargetInfo = (domainId: number): { rolledUp: number; assigned: number | null | undefined } | null => {
     if (!targetSummary) return null;
-    const d = targetSummary.domains.find((d) => d.domain_id === domainId);
-    return d ? d.total_target : null;
+    const d = targetSummary.domains.find((x) => x.domain_id === domainId);
+    return d ? { rolledUp: d.total_target, assigned: d.assigned_target } : null;
   };
 
   const filteredDomains = domains;
@@ -470,7 +485,7 @@ export const DomainsPage: React.FC = () => {
         /* ——— Review: hierarchy (domain heads → region heads → region employees) + target amounts ——— */
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
-            View and manage the marketing hierarchy: domain heads, region heads, and region employees. Assign target amounts per employee; sums roll up to region, domain, and total.
+            View and manage the marketing hierarchy: domain heads, region heads, and region employees. Set employee targets (rolled up to region and domain), and optionally set explicit monthly goals per region or domain. Use 0 on a region/domain goal to clear it.
           </p>
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
@@ -522,6 +537,7 @@ export const DomainsPage: React.FC = () => {
                   {/* Tree: domain → region → employee */}
                   {reviewDomains.map((domain, domainIdx) => {
                     const domainRegions = reviewRegions.filter((r) => r.domain_id === domain.id);
+                    const domainTargetInfo = getDomainTargetInfo(domain.id);
                     return (
                       <div
                         key={domain.id}
@@ -536,26 +552,68 @@ export const DomainsPage: React.FC = () => {
                           <span className="text-slate-400 mx-1">·</span>
                           <span className="text-sm text-slate-600">Head:</span>
                           <span className="text-sm font-medium text-slate-800">{domain.head_username || '—'}</span>
-                          {getDomainTotal(domain.id) != null && (
+                          {domainTargetInfo != null && (
                             <>
                               <span className="text-slate-400 mx-1">·</span>
-                              <span className="text-sm text-slate-600">Target:</span>
-                              <span className="text-sm font-semibold text-indigo-700">{formatTargetAmount(getDomainTotal(domain.id)!)}</span>
+                              <span className="text-sm text-slate-600">
+                                {domainTargetInfo.assigned != null && domainTargetInfo.assigned > 0 ? (
+                                  <>
+                                    <span className="font-medium text-slate-700">Goal: </span>
+                                    <span className="font-semibold text-indigo-700">{formatTargetAmount(domainTargetInfo.assigned)}</span>
+                                    {Math.abs(domainTargetInfo.assigned - domainTargetInfo.rolledUp) > 1 && (
+                                      <span className="text-slate-500 font-normal"> (team {formatTargetAmount(domainTargetInfo.rolledUp)})</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="font-medium text-slate-700">Team target: </span>
+                                    <span className="font-semibold text-indigo-700">{formatTargetAmount(domainTargetInfo.rolledUp)}</span>
+                                  </>
+                                )}
+                              </span>
                             </>
                           )}
-                          {canEdit && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => {
-                                setSetDomainHeadDomain(domain);
-                                setDomainHeadEmployeeId(domain.head_employee_id ?? '');
-                              }}
-                            >
-                              {domain.head_username ? 'Change' : 'Set'}
-                            </Button>
-                          )}
+                          <div className="ml-auto flex items-center gap-1 shrink-0">
+                            {canEdit && domainTargetInfo != null && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Set domain goal"
+                                onClick={() => {
+                                  setTargetHierarchyModal({
+                                    kind: 'domain',
+                                    domain_id: domain.id,
+                                    domain_name: domain.name,
+                                    rolled_up: domainTargetInfo.rolledUp,
+                                    assigned: domainTargetInfo.assigned,
+                                  });
+                                  setSetTargetAmount(
+                                    String(
+                                      domainTargetInfo.assigned != null && domainTargetInfo.assigned > 0
+                                        ? domainTargetInfo.assigned
+                                        : domainTargetInfo.rolledUp
+                                    )
+                                  );
+                                }}
+                              >
+                                <Target size={14} />
+                              </Button>
+                            )}
+                            {canEdit && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => {
+                                  setSetDomainHeadDomain(domain);
+                                  setDomainHeadEmployeeId(domain.head_employee_id ?? '');
+                                }}
+                              >
+                                {domain.head_username ? 'Change' : 'Set'}
+                              </Button>
+                            )}
+                          </div>
                         </div>
                         {/* Level 1: Regions (children of domain) */}
                         <div className="tree-children border-l-2 border-slate-200 ml-2 pl-3">
@@ -568,6 +626,7 @@ export const DomainsPage: React.FC = () => {
                             domainRegions.map((region, rIdx) => {
                               const regionAssignments = reviewAssignments.filter((a) => a.region_id === region.id);
                               const isLastRegion = rIdx === domainRegions.length - 1;
+                              const regionTargetInfo = getRegionTargetInfo(region.id);
                               return (
                                 <div key={region.id} className={isLastRegion ? '' : 'mb-1'}>
                                   {/* Region row */}
@@ -579,41 +638,83 @@ export const DomainsPage: React.FC = () => {
                                     <span className="text-slate-400 mx-1">·</span>
                                     <span className="text-sm text-slate-600">Head:</span>
                                     <span className="text-sm font-medium text-slate-800">{region.head_username || '—'}</span>
-                                    {getRegionTotal(region.id) != null && (
+                                    {regionTargetInfo != null && (
                                       <>
                                         <span className="text-slate-400 mx-1">·</span>
-                                        <span className="text-sm text-slate-600">Target:</span>
-                                        <span className="text-sm font-semibold text-emerald-700">{formatTargetAmount(getRegionTotal(region.id)!)}</span>
+                                        <span className="text-sm text-slate-600">
+                                          {regionTargetInfo.assigned != null && regionTargetInfo.assigned > 0 ? (
+                                            <>
+                                              <span className="font-medium text-slate-700">Goal: </span>
+                                              <span className="font-semibold text-emerald-700">{formatTargetAmount(regionTargetInfo.assigned)}</span>
+                                              {Math.abs(regionTargetInfo.assigned - regionTargetInfo.rolledUp) > 1 && (
+                                                <span className="text-slate-500 font-normal"> (team {formatTargetAmount(regionTargetInfo.rolledUp)})</span>
+                                              )}
+                                            </>
+                                          ) : (
+                                            <>
+                                              <span className="font-medium text-slate-700">Team target: </span>
+                                              <span className="font-semibold text-emerald-700">{formatTargetAmount(regionTargetInfo.rolledUp)}</span>
+                                            </>
+                                          )}
+                                        </span>
                                       </>
                                     )}
-                                    {canEditRegion && (
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                        onClick={() => {
-                                          setSetRegionHeadRegion(region);
-                                          setRegionHeadEmployeeId(region.head_employee_id ?? '');
-                                        }}
-                                      >
-                                        {region.head_username ? 'Change' : 'Set'}
-                                      </Button>
-                                    )}
-                                    {canManageRegionEmployees && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="ml-auto text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        onClick={() => {
-                                          setAddEmployeeRegion(region);
-                                          setAddEmployeeSelected(null);
-                                          setAddEmployeeRole('employee');
-                                        }}
-                                        leftIcon={<UserPlus size={12} />}
-                                      >
-                                        Add
-                                      </Button>
-                                    )}
+                                    <div className="ml-auto flex items-center gap-1 shrink-0">
+                                      {canEditRegion && regionTargetInfo != null && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-emerald-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                          title="Set region goal"
+                                          onClick={() => {
+                                            setTargetHierarchyModal({
+                                              kind: 'region',
+                                              region_id: region.id,
+                                              region_name: region.name,
+                                              rolled_up: regionTargetInfo.rolledUp,
+                                              assigned: regionTargetInfo.assigned,
+                                            });
+                                            setSetTargetAmount(
+                                              String(
+                                                regionTargetInfo.assigned != null && regionTargetInfo.assigned > 0
+                                                  ? regionTargetInfo.assigned
+                                                  : regionTargetInfo.rolledUp
+                                              )
+                                            );
+                                          }}
+                                        >
+                                          <Target size={14} />
+                                        </Button>
+                                      )}
+                                      {canEditRegion && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                          onClick={() => {
+                                            setSetRegionHeadRegion(region);
+                                            setRegionHeadEmployeeId(region.head_employee_id ?? '');
+                                          }}
+                                        >
+                                          {region.head_username ? 'Change' : 'Set'}
+                                        </Button>
+                                      )}
+                                      {canManageRegionEmployees && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                          onClick={() => {
+                                            setAddEmployeeRegion(region);
+                                            setAddEmployeeSelected(null);
+                                            setAddEmployeeRole('employee');
+                                          }}
+                                          leftIcon={<UserPlus size={12} />}
+                                        >
+                                          Add
+                                        </Button>
+                                      )}
+                                    </div>
                                   </div>
                                   {/* Level 2: Employees (children of region) */}
                                   <div className="tree-children border-l-2 border-slate-200 ml-2 pl-3">
@@ -653,7 +754,8 @@ export const DomainsPage: React.FC = () => {
                                                 size="sm"
                                                 className="text-indigo-600"
                                                 onClick={() => {
-                                                  setSetTargetEmployee({
+                                                  setTargetHierarchyModal({
+                                                    kind: 'employee',
                                                     employee_id: a.employee_id,
                                                     employee_name: a.employee_name || a.employee_email || `Employee #${a.employee_id}`,
                                                     region_id: region.id,
@@ -1067,15 +1169,23 @@ export const DomainsPage: React.FC = () => {
       </>
       )}
 
-      {/* Set Employee Target */}
+      {/* Set employee / region / domain target */}
       <Modal
-        isOpen={setTargetEmployee != null}
-        onClose={() => { setSetTargetEmployee(null); setSetTargetAmount(''); }}
-        title={setTargetEmployee ? `Set target: ${setTargetEmployee.employee_name}` : 'Set target'}
+        isOpen={targetHierarchyModal != null}
+        onClose={() => { setTargetHierarchyModal(null); setSetTargetAmount(''); }}
+        title={
+          targetHierarchyModal?.kind === 'employee'
+            ? `Set target: ${targetHierarchyModal.employee_name}`
+            : targetHierarchyModal?.kind === 'region'
+              ? `Region goal: ${targetHierarchyModal.region_name}`
+              : targetHierarchyModal?.kind === 'domain'
+                ? `Domain goal: ${targetHierarchyModal.domain_name}`
+                : 'Set target'
+        }
         footer={
           <>
-            <Button variant="outline" onClick={() => { setSetTargetEmployee(null); setSetTargetAmount(''); }}>Cancel</Button>
-            <Button onClick={handleSetEmployeeTarget} disabled={setTargetSubmitting}>
+            <Button variant="outline" onClick={() => { setTargetHierarchyModal(null); setSetTargetAmount(''); }}>Cancel</Button>
+            <Button onClick={handleSaveHierarchyTarget} disabled={setTargetSubmitting}>
               {setTargetSubmitting ? 'Saving...' : 'Save'}
             </Button>
           </>
@@ -1083,7 +1193,23 @@ export const DomainsPage: React.FC = () => {
       >
         <div className="space-y-3">
           <p className="text-sm text-slate-600">
-            Target for {MONTHS[targetMonth - 1]} {targetYear}. Amount is in ₹ (e.g. 800000 for 8 Lacs).
+            {targetHierarchyModal?.kind === 'employee' && (
+              <>Target for {MONTHS[targetMonth - 1]} {targetYear}. Amount in ₹ (e.g. 800000 for 8 Lacs).</>
+            )}
+            {targetHierarchyModal?.kind === 'region' && (
+              <>
+                Optional goal for {MONTHS[targetMonth - 1]} {targetYear}. Team sum is{' '}
+                <span className="font-medium">{formatTargetAmount(targetHierarchyModal.rolled_up)}</span>. Enter{' '}
+                <span className="font-medium">0</span> to clear the explicit goal (dashboard still uses employee targets).
+              </>
+            )}
+            {targetHierarchyModal?.kind === 'domain' && (
+              <>
+                Optional goal for {MONTHS[targetMonth - 1]} {targetYear}. Team sum is{' '}
+                <span className="font-medium">{formatTargetAmount(targetHierarchyModal.rolled_up)}</span>. Enter{' '}
+                <span className="font-medium">0</span> to clear the explicit goal.
+              </>
+            )}
           </p>
           <Input
             label="Target amount (₹)"
