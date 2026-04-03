@@ -1917,7 +1917,7 @@ export const LeadFormPage: React.FC = () => {
                         id: org.id,
                         title: org.name,
                         subtitle: [org.industry, org.website].filter(Boolean).join(' · '),
-                        rightText: org.code
+                        rightText: isEdit ? org.code : undefined,
                       })}
                     />
                 </div>
@@ -1925,7 +1925,7 @@ export const LeadFormPage: React.FC = () => {
                 {selectedOrganization ? (
                   <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm mt-3 animate-in zoom-in-95 duration-200 shadow-sm">
                     <p className="font-bold text-slate-800">Linked organization</p>
-                    <p className="text-slate-600 mt-0.5">{selectedOrganization.name}{selectedOrganization.code ? ` · ${selectedOrganization.code}` : ''}</p>
+                    <p className="text-slate-600 mt-0.5">{selectedOrganization.name}{isEdit && selectedOrganization.code ? ` · ${selectedOrganization.code}` : ''}</p>
                     {(selectedOrganization.website || selectedOrganization.industry) && (
                       <p className="text-slate-500 text-xs mt-1 italic">{[selectedOrganization.website, selectedOrganization.industry].filter(Boolean).join(' · ')}</p>
                     )}
@@ -1935,7 +1935,6 @@ export const LeadFormPage: React.FC = () => {
                     <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-3 animate-in slide-in-from-top-2">
                       <p className="text-sm font-bold text-slate-700">Create new organization on save</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <Input label="Organization code *" value={newOrgForm.code} onChange={(e) => setNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="e.g. ORG-123" required />
                         <Input label="Website" value={newOrgForm.website} onChange={(e) => setNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
                         <div className="md:col-span-2">
                           <Input label="Description *" value={newOrgForm.description} onChange={(e) => setNewOrgForm(prev => ({ ...prev, description: e.target.value }))} placeholder="Short description of the company..." required />
@@ -1957,13 +1956,15 @@ export const LeadFormPage: React.FC = () => {
               <p className="text-sm text-slate-500 font-medium">Categorize the lead and specify how they discovered us.</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select
-                  label="Lead Type *"
-                  options={leadTypes.map(t => ({ value: String(t.id), label: t.label }))}
-                  value={formData.lead_type_id ? String(formData.lead_type_id) : ''}
-                  onChange={(v) => setFormData({ ...formData, lead_type_id: v ? Number(v) : undefined })}
-                  placeholder="Select type"
-                />
+                {isEdit && (
+                  <Select
+                    label="Lead Type *"
+                    options={leadTypes.map(t => ({ value: String(t.id), label: t.label }))}
+                    value={formData.lead_type_id ? String(formData.lead_type_id) : ''}
+                    onChange={(v) => setFormData({ ...formData, lead_type_id: v ? Number(v) : undefined })}
+                    placeholder="Select type"
+                  />
+                )}
                 <Select
                   label="Through *"
                   options={leadThroughOptions.map(t => ({ value: String(t.id), label: t.label }))}
@@ -3197,7 +3198,6 @@ export const LeadFormPage: React.FC = () => {
           >
             <div className="space-y-3">
               <Input label="Name" value={newOrgForm.name} onChange={(e) => setNewOrgForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Organization name" required />
-              <Input label="Code" value={newOrgForm.code} onChange={(e) => setNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="Optional code" />
               <Input label="Website" value={newOrgForm.website} onChange={(e) => setNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
               <Input label="Industry" value={newOrgForm.industry} onChange={(e) => setNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="e.g. IT, Manufacturing" />
               <Select
