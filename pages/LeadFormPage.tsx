@@ -16,7 +16,7 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission, selectUser, selectEmployee } from '../store/slices/authSlice';
-import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadTypeOption, LeadThroughOption, LeadActivity, LeadActivityAttachment, Domain, Region, Customer, Contact, Plant, Series, Organization, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
+import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadThroughOption, LeadActivity, LeadActivityAttachment, Domain, Region, Customer, Contact, Plant, Series, Organization, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, DEFAULT_LEAD_SERIES_STORAGE_KEY } from '../constants';
 
 const COMPANY_SIZES = [
@@ -80,7 +80,6 @@ export const LeadFormPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [plants, setPlants] = useState<Plant[]>([]);
   const [leadStatuses, setLeadStatuses] = useState<LeadStatusOption[]>([]);
-  const [leadTypes, setLeadTypes] = useState<LeadTypeOption[]>([]);
   const [leadThroughOptions, setLeadThroughOptions] = useState<LeadThroughOption[]>([]);
   const [leadSourceType, setLeadSourceType] = useState<LeadSourceType>('none');
   const [domainRegionCollapsed, setDomainRegionCollapsed] = useState(true);
@@ -299,7 +298,6 @@ export const LeadFormPage: React.FC = () => {
     loadDomains();
     if (!isEdit) loadCustomers();
     marketingAPI.getLeadStatuses().then(setLeadStatuses).catch(() => setLeadStatuses([]));
-    marketingAPI.getLeadTypes().then(setLeadTypes).catch(() => setLeadTypes([]));
     marketingAPI.getLeadThroughOptions().then(setLeadThroughOptions).catch(() => setLeadThroughOptions([]));
     marketingAPI.getSeries({ page: 1, page_size: 100, is_active: true }).then((r) => setSeriesList(r.items)).catch(() => setSeriesList([]));
     marketingAPI.getReportsScope().then(setReportScope).catch(() => setReportScope(null));
@@ -1956,15 +1954,6 @@ export const LeadFormPage: React.FC = () => {
               <p className="text-sm text-slate-500 font-medium">Categorize the lead and specify how they discovered us.</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {isEdit && (
-                  <Select
-                    label="Lead Type *"
-                    options={leadTypes.map(t => ({ value: String(t.id), label: t.label }))}
-                    value={formData.lead_type_id ? String(formData.lead_type_id) : ''}
-                    onChange={(v) => setFormData({ ...formData, lead_type_id: v ? Number(v) : undefined })}
-                    placeholder="Select type"
-                  />
-                )}
                 <Select
                   label="Through *"
                   options={leadThroughOptions.map(t => ({ value: String(t.id), label: t.label }))}
@@ -1972,7 +1961,25 @@ export const LeadFormPage: React.FC = () => {
                   onChange={(v) => setFormData({ ...formData, lead_through_id: v ? Number(v) : undefined })}
                   placeholder="Select source"
                 />
-                
+                <DatePicker
+                  label="Expected closing date"
+                  value={formData.expected_closing_date?.trim() ? formData.expected_closing_date : undefined}
+                  onChange={(v) => setFormData({ ...formData, expected_closing_date: v ?? '' })}
+                  placeholder="Select date..."
+                />
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-slate-700">Potential value (optional)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm z-10 pointer-events-none">₹</span>
+                    <Input
+                      type="number"
+                      className="pl-7"
+                      value={formData.potential_value === undefined || formData.potential_value === null ? '' : formData.potential_value}
+                      onChange={(e) => setFormData({ ...formData, potential_value: e.target.value === '' ? undefined : Number(e.target.value) })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
                 <div className="md:col-span-2 p-4 bg-slate-50/50 rounded-xl border border-slate-200">
                   <div className="max-w-xs mb-4">
                     <Select
