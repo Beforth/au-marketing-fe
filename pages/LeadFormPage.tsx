@@ -1124,7 +1124,7 @@ export const LeadFormPage: React.FC = () => {
       setIsSubmitting(true);
       try {
         let organization_id = selectedOrganization?.id || inlineContactForm.organization_id;
-        let plant_id = inlineContactForm.plant_id;
+        let plant_id = formData.plant_id ?? inlineContactForm.plant_id;
         let company_name = selectedOrganization?.name || formData.company;
 
         // 1. Create organization first if needed
@@ -1135,6 +1135,7 @@ export const LeadFormPage: React.FC = () => {
           const org = await marketingAPI.createOrganization({
             name: newOrgForm.name.trim() || companyOrOrgName,
             code: newOrgForm.code.trim() || undefined,
+            description: newOrgForm.description.trim() || undefined,
             website: newOrgForm.website.trim() || undefined,
             industry: newOrgForm.industry.trim() || undefined,
             organization_size: newOrgForm.organization_size?.trim() || undefined,
@@ -1697,7 +1698,7 @@ export const LeadFormPage: React.FC = () => {
               </h3>
               <p className="text-sm text-slate-500 font-medium">Search existing contacts or fill in details below to create a new one.</p>
               
-              {primaryContactContactId != null ? (
+            {primaryContactContactId != null ? (
                 <div className="p-4 bg-gradient-to-br from-indigo-50/50 to-white rounded-xl border border-indigo-100/80 flex items-start justify-between gap-4 animate-in zoom-in-95 duration-200">
                   <div className="flex items-start gap-3">
                     <div className="h-10 w-10 shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 border border-indigo-200 shadow-sm">
@@ -1904,10 +1905,21 @@ export const LeadFormPage: React.FC = () => {
                       items={orgSuggestions}
                       onSelect={(org) => {
                         setSelectedOrganization(org);
-                        setFormData(prev => ({ ...prev, organization_id: org.id, company: org.name }));
                         setOrgSuggestions([]);
                         setOrgSearchQuery('');
-                        marketingAPI.getOrganizationPlants(org.id).then(setPlants).catch(() => setPlants([]));
+                        marketingAPI.getOrganizationPlants(org.id).then((plantsList) => {
+                          const firstPlant = plantsList?.[0];
+                          setPlants(plantsList ?? []);
+                          setFormData(prev => ({
+                            ...prev,
+                            organization_id: org.id,
+                            company: org.name,
+                            plant_id: firstPlant?.id,
+                          }));
+                        }).catch(() => {
+                          setPlants([]);
+                          setFormData(prev => ({ ...prev, organization_id: org.id, company: org.name, plant_id: undefined }));
+                        });
                       }}
                       title="Link to existing organization:"
                       icon={Building2}
@@ -1921,24 +1933,113 @@ export const LeadFormPage: React.FC = () => {
                 </div>
 
                 {selectedOrganization ? (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm mt-3 animate-in zoom-in-95 duration-200 shadow-sm">
-                    <p className="font-bold text-slate-800">Linked organization</p>
-                    <p className="text-slate-600 mt-0.5">{selectedOrganization.name}{isEdit && selectedOrganization.code ? ` · ${selectedOrganization.code}` : ''}</p>
-                    {(selectedOrganization.website || selectedOrganization.industry) && (
-                      <p className="text-slate-500 text-xs mt-1 italic">{[selectedOrganization.website, selectedOrganization.industry].filter(Boolean).join(' · ')}</p>
+                  <>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm mt-3 animate-in zoom-in-95 duration-200 shadow-sm">
+                      <p className="font-bold text-slate-800">Linked organization</p>
+                      <p className="text-slate-600 mt-0.5">{selectedOrganization.name}{isEdit && selectedOrganization.code ? ` · ${selectedOrganization.code}` : ''}</p>
+                      {(selectedOrganization.website || selectedOrganization.industry) && (
+                        <p className="text-slate-500 text-xs mt-1 italic">{[selectedOrganization.website, selectedOrganization.industry].filter(Boolean).join(' · ')}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 items-end mt-3">
+                      <div className="flex-1 min-w-[200px]">
+                        <Select
+                          label="Plant"
+                          options={[
+                            { value: '', label: 'None' },
+                            ...plants.map(p => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` })),
+                          ]}
+                          value={formData.plant_id != null ? String(formData.plant_id) : ''}
+                          onChange={(val) => setFormData(prev => ({ ...prev, plant_id: val ? Number(val) : undefined }))}
+                          placeholder={plants.length === 0 ? 'No plants yet — add one below' : 'Select plant'}
+                          searchable
+                        />
+                      </div>
+                      {canCreatePlant && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowPlantInline(!showPlantInline);
+                            if (!showPlantInline) setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+                          }}
+                          leftIcon={<Plus size={16} />}
+                        >
+                          Add plant
+                        </Button>
+                      )}
+                    </div>
+                    {showPlantInline && formData.organization_id != null && canCreatePlant && (
+                      <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3 mt-3">
+                        <h4 className="text-sm font-medium text-slate-700">New plant</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input label="Plant name" value={plantModalData.plant_name || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, plant_name: e.target.value }))} required placeholder="e.g. Main Plant" />
+                          <Input label="Address line 1" value={plantModalData.address_line1 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                          <Input label="Address line 2" value={plantModalData.address_line2 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
+                          <Input label="City" value={plantModalData.city || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, city: e.target.value }))} />
+                          <Input label="State" value={plantModalData.state || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, state: e.target.value }))} placeholder="State" />
+                          <Input label="Country" value={plantModalData.country || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, country: e.target.value }))} />
+                          <Input label="Postal code" value={plantModalData.postal_code || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, postal_code: e.target.value }))} />
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={savingModal || !plantModalData.plant_name?.trim()}
+                          onClick={async () => {
+                            if (!formData.organization_id) return;
+                            setSavingModal(true);
+                            try {
+                              const created = await marketingAPI.createOrganizationPlant(formData.organization_id, plantModalData);
+                              showToast('Plant added', 'success');
+                              const pl = await marketingAPI.getOrganizationPlants(formData.organization_id);
+                              setPlants(pl);
+                              setFormData(prev => ({ ...prev, plant_id: created.id }));
+                              setShowPlantInline(false);
+                              setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+                            } catch (e: unknown) {
+                              const err = e as { message?: string };
+                              showToast(err?.message || 'Failed to add plant', 'error');
+                            } finally {
+                              setSavingModal(false);
+                            }
+                          }}
+                        >
+                          {savingModal ? 'Adding...' : 'Add plant'}
+                        </Button>
+                      </div>
                     )}
-                  </div>
+                  </>
                 ) : (
                   canCreateOrg && orgSearchQuery.trim() !== '' && (
                     <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-3 animate-in slide-in-from-top-2">
                       <p className="text-sm font-bold text-slate-700">Create new organization on save</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <Input label="Website" value={newOrgForm.website} onChange={(e) => setNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
-                        <div className="md:col-span-2">
-                          <Input label="Description *" value={newOrgForm.description} onChange={(e) => setNewOrgForm(prev => ({ ...prev, description: e.target.value }))} placeholder="Short description of the company..." required />
-                        </div>
                         <Input label="Industry" value={newOrgForm.industry} onChange={(e) => setNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="e.g. IT, Manufacturing" />
-                        <Select label="Size of organization" options={COMPANY_SIZES} value={newOrgForm.organization_size} onChange={(val) => setNewOrgForm(prev => ({ ...prev, organization_size: String(val ?? '') }))} placeholder="Select size" />
+                        <Select label="Size of organization" options={COMPANY_SIZES} value={newOrgForm.organization_size} onChange={(val) => setNewOrgForm(prev => ({ ...prev, organization_size: String(val ?? '') }))} placeholder="Select size" searchable />
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-slate-700 mb-1.5">Description</label>
+                          <textarea
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            rows={2}
+                            value={newOrgForm.description}
+                            onChange={(e) => setNewOrgForm(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Short description of the company..."
+                          />
+                        </div>
+                        <Input label="Website" value={newOrgForm.website} onChange={(e) => setNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
+                      </div>
+                      <div className="pt-2 border-t border-slate-200">
+                        <p className="text-sm font-medium text-slate-700 mb-2">Plant (optional — created with organization)</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input label="Plant name" value={inlineNewPlantForm.plant_name} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="e.g. Main Plant" />
+                          <Input label="Address line 1" value={inlineNewPlantForm.address_line1} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
+                          <Input label="Address line 2" value={inlineNewPlantForm.address_line2} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
+                          <Input label="City" value={inlineNewPlantForm.city} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, city: e.target.value }))} />
+                          <Input label="State" value={inlineNewPlantForm.state} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, state: e.target.value }))} placeholder="State" />
+                          <Input label="Country" value={inlineNewPlantForm.country} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, country: e.target.value }))} />
+                          <Input label="Postal code" value={inlineNewPlantForm.postal_code} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} />
+                        </div>
                       </div>
                     </div>
                   )
@@ -1954,32 +2055,6 @@ export const LeadFormPage: React.FC = () => {
               <p className="text-sm text-slate-500 font-medium">Categorize the lead and specify how they discovered us.</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select
-                  label="Through *"
-                  options={leadThroughOptions.map(t => ({ value: String(t.id), label: t.label }))}
-                  value={formData.lead_through_id ? String(formData.lead_through_id) : ''}
-                  onChange={(v) => setFormData({ ...formData, lead_through_id: v ? Number(v) : undefined })}
-                  placeholder="Select source"
-                />
-                <DatePicker
-                  label="Expected closing date"
-                  value={formData.expected_closing_date?.trim() ? formData.expected_closing_date : undefined}
-                  onChange={(v) => setFormData({ ...formData, expected_closing_date: v ?? '' })}
-                  placeholder="Select date..."
-                />
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-slate-700">Potential value (optional)</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm z-10 pointer-events-none">₹</span>
-                    <Input
-                      type="number"
-                      className="pl-7"
-                      value={formData.potential_value === undefined || formData.potential_value === null ? '' : formData.potential_value}
-                      onChange={(e) => setFormData({ ...formData, potential_value: e.target.value === '' ? undefined : Number(e.target.value) })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
                 <div className="md:col-span-2 p-4 bg-slate-50/50 rounded-xl border border-slate-200">
                   <div className="max-w-xs mb-4">
                     <Select
@@ -2054,6 +2129,32 @@ export const LeadFormPage: React.FC = () => {
                       )}
                     </div>
                   )}
+                </div>
+                <Select
+                  label="Through *"
+                  options={leadThroughOptions.map(t => ({ value: String(t.id), label: t.label }))}
+                  value={formData.lead_through_id ? String(formData.lead_through_id) : ''}
+                  onChange={(v) => setFormData({ ...formData, lead_through_id: v ? Number(v) : undefined })}
+                  placeholder="Select source"
+                />
+                <DatePicker
+                  label="Expected closing date"
+                  value={formData.expected_closing_date?.trim() ? formData.expected_closing_date : undefined}
+                  onChange={(v) => setFormData({ ...formData, expected_closing_date: v ?? '' })}
+                  placeholder="Select date..."
+                />
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-slate-700">Potential value (optional)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm z-10 pointer-events-none">₹</span>
+                    <Input
+                      type="number"
+                      className="pl-7"
+                      value={formData.potential_value === undefined || formData.potential_value === null ? '' : formData.potential_value}
+                      onChange={(e) => setFormData({ ...formData, potential_value: e.target.value === '' ? undefined : Number(e.target.value) })}
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

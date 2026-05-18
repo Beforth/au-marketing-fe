@@ -54,7 +54,7 @@ export const EmployeesPage: React.FC = () => {
   const [assignEmployee, setAssignEmployee] = useState<HRMSEmployee | null>(null);
   const [assignRegionId, setAssignRegionId] = useState<number | undefined>(undefined);
   const [assignDomainId, setAssignDomainId] = useState<number | undefined>(undefined);
-  const [assignRole, setAssignRole] = useState<'head' | 'employee' | 'domain_head'>('employee');
+  const [assignRole, setAssignRole] = useState<'head' | 'employee' | 'supervisor' | 'domain_head'>('employee');
   const [assignSubmitting, setAssignSubmitting] = useState(false);
   const [employeeAssignments, setEmployeeAssignments] = useState<RegionAssignment[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
@@ -215,14 +215,16 @@ export const EmployeesPage: React.FC = () => {
       await marketingAPI.assignEmployeeToRegion({
         employee_id: assignEmployee.id,
         region_id: assignRegionId,
-        role: assignRole as 'head' | 'employee',
+        role: assignRole as 'head' | 'employee' | 'supervisor',
         employee_name: displayName || undefined,
         employee_email: assignEmployee.email || undefined,
       });
       showToast(
         assignRole === 'head'
           ? `${displayName} set as Region Head`
-          : 'Assigned to region',
+          : assignRole === 'supervisor'
+            ? `${displayName} assigned as Supervisor`
+            : 'Assigned to region',
         'success'
       );
       setAssignRegionId(undefined);
@@ -354,6 +356,7 @@ export const EmployeesPage: React.FC = () => {
                         <MapPin size={10} className="mr-1" />
                         {a.region?.name ?? `Region #${a.region_id}`}
                         {a.role === 'head' && <span className="ml-1 font-medium">· Region Head</span>}
+                        {a.role === 'supervisor' && <span className="ml-1 font-medium text-amber-700">· Supervisor</span>}
                       </Badge>
                     ))}
                   </div>
@@ -428,7 +431,7 @@ export const EmployeesPage: React.FC = () => {
                 !assignEmployee ||
                 assignSubmitting ||
                 (assignRole === 'domain_head' && assignDomainId == null) ||
-                ((assignRole === 'head' || assignRole === 'employee') && assignRegionId == null)
+                ((assignRole === 'head' || assignRole === 'employee' || assignRole === 'supervisor') && assignRegionId == null)
               }
             >
               {assignSubmitting ? 'Saving...' : assignRole === 'domain_head' ? 'Set as Domain Head' : 'Assign to region'}
@@ -483,12 +486,13 @@ export const EmployeesPage: React.FC = () => {
                 label="Role"
                 options={[
                   { value: 'employee', label: 'Employee' },
+                  { value: 'supervisor', label: 'Supervisor (all contacts in region)' },
                   { value: 'head', label: 'Region Head' },
                   { value: 'domain_head', label: 'Domain Head' },
                 ]}
                 value={assignRole}
                 onChange={(val) => {
-                  const role = (val as 'head' | 'employee' | 'domain_head') || 'employee';
+                  const role = (val as 'head' | 'employee' | 'supervisor' | 'domain_head') || 'employee';
                   setAssignRole(role);
                   setAssignRegionId(undefined);
                   setAssignDomainId(undefined);
@@ -577,6 +581,9 @@ export const EmployeesPage: React.FC = () => {
                           {a.region?.name || `Region #${a.region_id}`}
                           {a.role === 'head' && (
                             <Badge variant="outline" className="ml-2 text-xs">Region Head</Badge>
+                          )}
+                          {a.role === 'supervisor' && (
+                            <Badge variant="outline" className="ml-2 text-xs border-amber-200 text-amber-800 bg-amber-50">Supervisor</Badge>
                           )}
                         </span>
                         <Button

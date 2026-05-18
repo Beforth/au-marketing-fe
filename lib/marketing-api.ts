@@ -1248,7 +1248,7 @@ class MarketingAPIService {
   async assignEmployeeToRegion(data: {
     employee_id: number;
     region_id: number;
-    role: 'head' | 'employee';
+    role: 'head' | 'employee' | 'supervisor';
     employee_name?: string;
     employee_email?: string;
   }): Promise<any> {
@@ -1257,7 +1257,7 @@ class MarketingAPIService {
 
   async updateEmployeeAssignment(
     assignmentId: number,
-    data: { role?: 'head' | 'employee'; is_active?: boolean }
+    data: { role?: 'head' | 'employee' | 'supervisor'; is_active?: boolean }
   ): Promise<AssignmentWithEmployee> {
     return apiClient.put<AssignmentWithEmployee>(`/api/regions/assignments/${assignmentId}`, data);
   }
