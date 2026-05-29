@@ -3,7 +3,7 @@
  * Manage marketing domains (Domestic, Export, etc.)
  * List view: table of domains/regions. Review view: hierarchy of domain heads → region heads → region employees with edit actions.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -94,6 +94,7 @@ export const DomainsPage: React.FC = () => {
   const [addEmployeeSelected, setAddEmployeeSelected] = useState<HRMSEmployee | null>(null);
   const [addEmployeeRole, setAddEmployeeRole] = useState<'head' | 'employee' | 'supervisor'>('employee');
   const [addEmployeeSubmitting, setAddEmployeeSubmitting] = useState(false);
+  const addEmployeeCacheRef = useRef<Map<number, HRMSEmployee>>(new Map());
   const [changeRoleAssignment, setChangeRoleAssignment] = useState<AssignmentWithEmployee | null>(null);
   const [removeAssignmentId, setRemoveAssignmentId] = useState<number | null>(null);
   const [headSelectSubmitting, setHeadSelectSubmitting] = useState(false);
@@ -714,6 +715,7 @@ export const DomainsPage: React.FC = () => {
                                           onClick={() => {
                                             setAddEmployeeRegion(region);
                                             setAddEmployeeSelected(null);
+                                            addEmployeeCacheRef.current.clear();
                                             setAddEmployeeRole('employee');
                                           }}
                                           leftIcon={<UserPlus size={12} />}
@@ -1322,11 +1324,11 @@ export const DomainsPage: React.FC = () => {
       {/* Add Region Employee */}
       <Modal
         isOpen={addEmployeeRegion != null}
-        onClose={() => { setAddEmployeeRegion(null); setAddEmployeeSelected(null); }}
+        onClose={() => { setAddEmployeeRegion(null); setAddEmployeeSelected(null); addEmployeeCacheRef.current.clear(); }}
         title={addEmployeeRegion ? `Add employee to ${addEmployeeRegion.name}` : 'Add employee'}
         footer={
           <>
-            <Button variant="outline" onClick={() => { setAddEmployeeRegion(null); setAddEmployeeSelected(null); }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setAddEmployeeRegion(null); setAddEmployeeSelected(null); addEmployeeCacheRef.current.clear(); }}>Cancel</Button>
             <Button onClick={handleAddRegionEmployee} disabled={!addEmployeeSelected || addEmployeeSubmitting}>
               {addEmployeeSubmitting ? 'Adding...' : 'Add'}
             </Button>
@@ -1339,6 +1341,7 @@ export const DomainsPage: React.FC = () => {
               label="Employee"
               loadOptions={async (search) => {
                 const res = await marketingAPI.getEmployees({ page: 1, page_size: 30, search: search || undefined, status: 'active' });
+                res.employees.forEach((e) => addEmployeeCacheRef.current.set(e.id, e));
                 return res.employees.map((e) => ({
                   value: e.id,
                   label: [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.email || `#${e.id}`,
@@ -1347,10 +1350,8 @@ export const DomainsPage: React.FC = () => {
               value={undefined}
               onChange={(val) => {
                 if (val == null) return;
-                marketingAPI.getEmployees({ page: 1, page_size: 500, status: 'active' }).then((res) => {
-                  const emp = res.employees.find((e) => e.id === Number(val));
-                  if (emp) setAddEmployeeSelected(emp);
-                });
+                const emp = addEmployeeCacheRef.current.get(Number(val));
+                if (emp) setAddEmployeeSelected(emp);
               }}
               placeholder="Search and select employee..."
             />
