@@ -32,7 +32,6 @@ export const SIDEBAR_LINKS: NavItem[] = [
   { title: 'Reports', icon: PieChart, href: '/reports', permission: 'marketing.view_report' },
   { title: 'Report templates', icon: FileText, href: '/report-templates', permission: 'marketing.view_lead' },
   // { title: 'Employees', icon: Users, href: '/employees', permission: 'marketing.view_domain' },
-  { title: 'Invoices', icon: FileText, href: '/invoices', permission: 'marketing.admin' },
   { title: 'Numbering Series', icon: Hash, href: '/numbering-series', permission: 'marketing.admin' },
 ];
 

@@ -30,7 +30,6 @@
 - 👥 **Database Module** — Organizations, Customers, and Contacts with unified command bar
 - 🎯 **Leads Management** — Full leads lifecycle with server-side sorting, filtering, and pagination
 - 📋 **Quotations & Orders** — Enquiry and quotation pipeline
-- 🧾 **Invoices** — Invoice tracking and management
 - 🔢 **Numbering Series** — Configurable document numbering with live preview
 - 📡 **Real-Time Notifications** — Firebase-powered push notifications
 - 🔔 **Toast System** — Centralized, global feedback for all user actions
@@ -55,7 +54,6 @@ au-marketing-fe/
 │   ├── CustomersPage.tsx
 │   ├── ContactsPage.tsx
 │   ├── NumberingSeriesPage.tsx
-│   ├── InvoicesPage.tsx
 │   └── ...
 │
 ├── lib/
