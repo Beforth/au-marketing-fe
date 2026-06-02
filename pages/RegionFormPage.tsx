@@ -13,6 +13,16 @@ import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { marketingAPI, Region } from '../lib/marketing-api';
 import { ArrowLeft } from 'lucide-react';
+import { Select } from '../components/ui/Select';
+import CountryList from 'country-list-with-dial-code-and-flag';
+
+const countryOptions = CountryList.getAll({ withSecondary: false })
+  .map((c) => ({
+    value: c.code,
+    label: `${c.flag} ${c.name} (${c.code})`,
+    name: c.name
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 export const RegionFormPage: React.FC = () => {
   const navigate = useNavigate();
@@ -26,6 +36,7 @@ export const RegionFormPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [domainName, setDomainName] = useState<string>('');
+  const [isExport, setIsExport] = useState<boolean>(false);
   const [formData, setFormData] = useState<Partial<Region>>({
     name: '',
     code: '',
@@ -63,6 +74,8 @@ export const RegionFormPage: React.FC = () => {
     try {
       const domain = await marketingAPI.getDomain(domainIdNum);
       setDomainName(domain.name);
+      const isExp = domain.code.toUpperCase() === 'EXPORT' || domain.name.toLowerCase().includes('export');
+      setIsExport(isExp);
     } catch {
       setDomainName('Domain');
     }
@@ -84,7 +97,11 @@ export const RegionFormPage: React.FC = () => {
         description: region.description || '',
         is_active: region.is_active,
       });
-      setDomainName(region.domain?.name || 'Domain');
+      const dName = region.domain?.name || 'Domain';
+      setDomainName(dName);
+      const dCode = region.domain?.code || '';
+      const isExp = dCode.toUpperCase() === 'EXPORT' || dName.toLowerCase().includes('export');
+      setIsExport(isExp);
     } catch (error: any) {
       showToast(error.message || 'Failed to load region', 'error');
       navigate('/domains');
@@ -166,13 +183,36 @@ export const RegionFormPage: React.FC = () => {
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Name <span className="text-red-500">*</span>
             </label>
-            <Input
-              type="text"
-              value={formData.name || ''}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., North America, Europe"
-              required
-            />
+            {!isEdit && isExport ? (
+              <Select
+                placeholder="Search and select country..."
+                options={countryOptions}
+                value={formData.code}
+                onChange={(val) => {
+                  if (!val) {
+                    setFormData(prev => ({ ...prev, name: '', code: '' }));
+                    return;
+                  }
+                  const selectedOpt = countryOptions.find(opt => opt.value === val);
+                  if (selectedOpt) {
+                    setFormData(prev => ({
+                      ...prev,
+                      name: selectedOpt.name,
+                      code: String(selectedOpt.value).toUpperCase()
+                    }));
+                  }
+                }}
+                searchable={true}
+              />
+            ) : (
+              <Input
+                type="text"
+                value={formData.name || ''}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g., North America, Europe"
+                required
+              />
+            )}
           </div>
 
           <div>
