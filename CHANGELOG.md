@@ -5,6 +5,23 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-06-03] — Release: Region Coordinator Support & Stable Tree Sorting (v1.0.1)
+
+### 👥 Region Coordinator Feature
+- **Database & Backend:** Added `coordinator_employee_id`, `coordinator_username`, and `coordinator_email` fields to the `Region` table in the database and updated Pydantic schemas (`RegionBase`, `RegionUpdate`, `RegionResponse`). Created and executed Alembic database migrations.
+- **Frontend API Client:** Updated `Region` type in `marketing-api.ts`.
+- **Region Form:** Integrated `AsyncSelect` for Region Coordinator inside `RegionFormPage.tsx` to search and save coordinator info.
+- **Domains Review Tree:** Rendered the region coordinator name in the tree node and added the **Set Coord** action button to regions.
+- **Pre-selection resolving fix:** Added `initialOptions` to all coordinator/head select dropdowns in the `DomainsPage.tsx` modals. This resolves the issue where the dropdown selection would show as blank or a placeholder when reopened.
+
+### 🔃 Sorting Stability (Stable Order)
+- **Stable sorting:** Added explicit `.order_by(Region.id.asc())` and `.order_by(Domain.id.asc())` to backend database queries in `regions.py` and `domains.py`. This ensures regions and domains stay in their exact creation order when updated, instead of jumping to the bottom.
+
+### 🎨 UI Polish
+- **Elegant Icon Actions:** Replaced the "Set Head/Coord" outline text buttons with elegant ghost icon buttons (**Crown** for Head, **UserCheck** for Coordinator) on both domain and region nodes for a consistent, premium, and clean UI.
+
+---
+
 ## [2026-03-20] — Release: Settings Overhaul, Support Page & Branding
 
 ### ⚙️ Settings Page — Profile Section Refactor

@@ -2,11 +2,12 @@
  * Region Form Page
  * Create or edit a region (under a domain)
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { AsyncSelect } from '../components/ui/AsyncSelect';
 import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
@@ -43,6 +44,10 @@ export const RegionFormPage: React.FC = () => {
     description: '',
     is_active: true,
   });
+
+  const headUsernameMapRef = useRef<Map<number, string>>(new Map());
+  const coordinatorUsernameMapRef = useRef<Map<number, string>>(new Map());
+  const coordinatorEmailMapRef = useRef<Map<number, string>>(new Map());
 
   const domainIdNum = domainId ? parseInt(domainId, 10) : 0;
 
@@ -91,11 +96,23 @@ export const RegionFormPage: React.FC = () => {
         navigate('/domains');
         return;
       }
+      if (region.head_employee_id) {
+        headUsernameMapRef.current.set(region.head_employee_id, region.head_username || '');
+      }
+      if (region.coordinator_employee_id) {
+        coordinatorUsernameMapRef.current.set(region.coordinator_employee_id, region.coordinator_username || '');
+        if (region.coordinator_email) coordinatorEmailMapRef.current.set(region.coordinator_employee_id, region.coordinator_email);
+      }
       setFormData({
         name: region.name,
         code: region.code,
         description: region.description || '',
         is_active: region.is_active,
+        head_employee_id: region.head_employee_id,
+        head_username: region.head_username,
+        coordinator_employee_id: region.coordinator_employee_id,
+        coordinator_username: region.coordinator_username,
+        coordinator_email: region.coordinator_email,
       });
       const dName = region.domain?.name || 'Domain';
       setDomainName(dName);
@@ -237,6 +254,78 @@ export const RegionFormPage: React.FC = () => {
               value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Region description..."
+            />
+          </div>
+
+          <div>
+            <AsyncSelect
+              label="Region Head"
+              loadOptions={async (search) => {
+                const res = await marketingAPI.getEmployees({
+                  page: 1,
+                  page_size: 20,
+                  search: search || undefined,
+                  status: 'active',
+                });
+                res.employees.forEach((e) => {
+                  headUsernameMapRef.current.set(e.id, [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.username || '');
+                });
+                return res.employees.map((e) => ({
+                  value: e.id,
+                  label: [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.username || `#${e.id}`,
+                }));
+              }}
+              value={formData.head_employee_id}
+              onChange={(val) =>
+                setFormData({
+                  ...formData,
+                  head_employee_id: val ? Number(val) : undefined,
+                  head_username: val ? headUsernameMapRef.current.get(Number(val)) ?? undefined : undefined,
+                })
+              }
+              placeholder="Select region head (optional)"
+              initialOptions={
+                formData.head_employee_id
+                  ? [{ value: formData.head_employee_id, label: formData.head_username || `Employee #${formData.head_employee_id}` }]
+                  : []
+              }
+            />
+          </div>
+
+          <div>
+            <AsyncSelect
+              label="Region Coordinator"
+              loadOptions={async (search) => {
+                const res = await marketingAPI.getEmployees({
+                  page: 1,
+                  page_size: 20,
+                  search: search || undefined,
+                  status: 'active',
+                });
+                res.employees.forEach((e) => {
+                  coordinatorUsernameMapRef.current.set(e.id, [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.username || '');
+                  coordinatorEmailMapRef.current.set(e.id, e.email || '');
+                });
+                return res.employees.map((e) => ({
+                  value: e.id,
+                  label: [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.username || `#${e.id}`,
+                }));
+              }}
+              value={formData.coordinator_employee_id}
+              onChange={(val) =>
+                setFormData({
+                  ...formData,
+                  coordinator_employee_id: val ? Number(val) : undefined,
+                  coordinator_username: val ? coordinatorUsernameMapRef.current.get(Number(val)) ?? undefined : undefined,
+                  coordinator_email: val ? coordinatorEmailMapRef.current.get(Number(val)) ?? undefined : undefined,
+                })
+              }
+              placeholder="Select region coordinator (optional)"
+              initialOptions={
+                formData.coordinator_employee_id
+                  ? [{ value: formData.coordinator_employee_id, label: formData.coordinator_username || `Employee #${formData.coordinator_employee_id}` }]
+                  : []
+              }
             />
           </div>
 

@@ -45,6 +45,9 @@ export interface Region {
   description?: string;
   head_employee_id?: number;
   head_username?: string;
+  coordinator_employee_id?: number;
+  coordinator_username?: string;
+  coordinator_email?: string;
   is_active: boolean;
   created_by_employee_id?: number;
   created_by_username?: string;
