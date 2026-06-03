@@ -100,6 +100,9 @@ export const DomainsPage: React.FC = () => {
   const [headSelectSubmitting, setHeadSelectSubmitting] = useState(false);
   const [domainHeadEmployeeId, setDomainHeadEmployeeId] = useState<number | ''>('');
   const [regionHeadEmployeeId, setRegionHeadEmployeeId] = useState<number | ''>('');
+  const [setDomainCoordinatorDomain, setSetDomainCoordinatorDomain] = useState<Domain | null>(null);
+  const [domainCoordinatorEmployeeId, setDomainCoordinatorEmployeeId] = useState<number | ''>('');
+  const [coordinatorSelectSubmitting, setCoordinatorSelectSubmitting] = useState(false);
 
   // Target summary (Review view): year/month and hierarchy with target amounts
   const [targetYear, setTargetYear] = useState(() => getCurrentYearMonth().year);
@@ -296,6 +299,37 @@ export const DomainsPage: React.FC = () => {
       showToast(error.message || 'Failed to set domain head', 'error');
     } finally {
       setHeadSelectSubmitting(false);
+    }
+  };
+
+  // ——— Review: Set domain coordinator ———
+  const handleSetDomainCoordinator = async () => {
+    const d = setDomainCoordinatorDomain;
+    if (!d || (domainCoordinatorEmployeeId !== '' && !domainCoordinatorEmployeeId)) return;
+    setCoordinatorSelectSubmitting(true);
+    try {
+      if (domainCoordinatorEmployeeId === '') {
+        await marketingAPI.updateDomain(d.id, { coordinator_employee_id: undefined, coordinator_username: undefined, coordinator_email: undefined });
+        showToast('Domain coordinator cleared', 'success');
+      } else {
+        const res = await marketingAPI.getEmployees({ page: 1, page_size: 500, status: 'active' });
+        const emp = res.employees.find((e) => e.id === Number(domainCoordinatorEmployeeId));
+        const displayName = emp ? [emp.first_name, emp.last_name].filter(Boolean).join(' ').trim() || emp.email || '' : '';
+        await marketingAPI.updateDomain(d.id, {
+          coordinator_employee_id: Number(domainCoordinatorEmployeeId),
+          coordinator_username: displayName || undefined,
+          coordinator_email: emp?.email || undefined,
+        });
+        showToast(displayName ? `${displayName} set as Domain Coordinator` : 'Domain coordinator updated', 'success');
+      }
+      setSetDomainCoordinatorDomain(null);
+      setDomainCoordinatorEmployeeId('');
+      await loadReviewData();
+      loadData();
+    } catch (error: any) {
+      showToast(error.message || 'Failed to set domain coordinator', 'error');
+    } finally {
+      setCoordinatorSelectSubmitting(false);
     }
   };
 
@@ -560,6 +594,9 @@ export const DomainsPage: React.FC = () => {
                           <span className="text-slate-400 mx-1">·</span>
                           <span className="text-sm text-slate-600">Head:</span>
                           <span className="text-sm font-medium text-slate-800">{domain.head_username || '—'}</span>
+                          <span className="text-slate-400 mx-1">·</span>
+                          <span className="text-sm text-slate-600">Coordinator:</span>
+                          <span className="text-sm font-medium text-slate-800">{domain.coordinator_username || '—'}</span>
                           {domainTargetInfo != null && (
                             <>
                               <span className="text-slate-400 mx-1">·</span>
@@ -609,17 +646,32 @@ export const DomainsPage: React.FC = () => {
                               </Button>
                             )}
                             {canEdit && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => {
-                                  setSetDomainHeadDomain(domain);
-                                  setDomainHeadEmployeeId(domain.head_employee_id ?? '');
-                                }}
-                              >
-                                {domain.head_username ? 'Change' : 'Set'}
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => {
+                                    setSetDomainHeadDomain(domain);
+                                    setDomainHeadEmployeeId(domain.head_employee_id ?? '');
+                                  }}
+                                  title="Set Domain Head"
+                                >
+                                  {domain.head_username ? 'Change Head' : 'Set Head'}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => {
+                                    setSetDomainCoordinatorDomain(domain);
+                                    setDomainCoordinatorEmployeeId(domain.coordinator_employee_id ?? '');
+                                  }}
+                                  title="Set Domain Coordinator"
+                                >
+                                  {domain.coordinator_username ? 'Change Coord' : 'Set Coord'}
+                                </Button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -945,6 +997,9 @@ export const DomainsPage: React.FC = () => {
                       <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Domain Head</span>
                     </th>
                     <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                      <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Domain Coordinator</span>
+                    </th>
+                    <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
                       <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Created By</span>
                     </th>
                     <th className="border-b border-slate-200 text-right" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
@@ -1000,6 +1055,9 @@ export const DomainsPage: React.FC = () => {
                             {domain.head_username || <span className="text-slate-400">-</span>}
                           </td>
                           <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                            {domain.coordinator_username || <span className="text-slate-400">-</span>}
+                          </td>
+                          <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
                             {domain.created_by_username || <span className="text-slate-400">-</span>}
                           </td>
                           <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium text-right" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
@@ -1037,7 +1095,7 @@ export const DomainsPage: React.FC = () => {
                         </tr>
                         {isExpanded && (
                           <tr>
-                            <td colSpan={7} className="px-4 py-4 bg-slate-50">
+                            <td colSpan={8} className="px-4 py-4 bg-slate-50">
                               <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                   <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
@@ -1286,6 +1344,38 @@ export const DomainsPage: React.FC = () => {
             placeholder="Search and select employee..."
           />
           <p className="text-xs text-slate-500">Leave empty and Save to clear the domain head.</p>
+        </div>
+      </Modal>
+
+      {/* Set Domain Coordinator */}
+      <Modal
+        isOpen={setDomainCoordinatorDomain != null}
+        onClose={() => { setSetDomainCoordinatorDomain(null); setDomainCoordinatorEmployeeId(''); }}
+        title={setDomainCoordinatorDomain ? `Domain Coordinator: ${setDomainCoordinatorDomain.name}` : 'Set Domain Coordinator'}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => { setSetDomainCoordinatorDomain(null); setDomainCoordinatorEmployeeId(''); }}>Cancel</Button>
+            <Button onClick={handleSetDomainCoordinator} disabled={coordinatorSelectSubmitting}>
+              {coordinatorSelectSubmitting ? 'Saving...' : 'Save'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <AsyncSelect
+            label="Employee"
+            loadOptions={async (search) => {
+              const res = await marketingAPI.getEmployees({ page: 1, page_size: 30, search: search || undefined, status: 'active' });
+              return res.employees.map((e) => ({
+                value: e.id,
+                label: [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.email || `#${e.id}`,
+              }));
+            }}
+            value={domainCoordinatorEmployeeId === '' ? undefined : domainCoordinatorEmployeeId}
+            onChange={(val) => setDomainCoordinatorEmployeeId(val != null && val !== '' ? Number(val) : '')}
+            placeholder="Search and select employee..."
+          />
+          <p className="text-xs text-slate-500">Leave empty and Save to clear the domain coordinator.</p>
         </div>
       </Modal>
 

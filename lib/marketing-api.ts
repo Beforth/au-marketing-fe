@@ -27,6 +27,9 @@ export interface Domain {
   head_employee_id?: number;
   head_username?: string;
   head_email?: string;
+  coordinator_employee_id?: number;
+  coordinator_username?: string;
+  coordinator_email?: string;
   created_by_employee_id?: number;
   created_by_username?: string;
   created_at: string;
