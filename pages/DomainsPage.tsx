@@ -21,11 +21,8 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { marketingAPI, Domain, Region, AssignmentWithEmployee, HRMSEmployee, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, DomainTargetSummaryResponse } from '../lib/marketing-api';
-import { Target, List, Eye } from 'lucide-react';
+import { Target } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { SegmentToggle } from '../components/ui/SegmentToggle';
-
-type ViewMode = 'list' | 'review';
 
 type TargetHierarchyModal =
   | { kind: 'employee'; employee_id: number; employee_name: string; region_id: number; current_amount: number }
@@ -62,7 +59,6 @@ export const DomainsPage: React.FC = () => {
   const canAssignEmployeeRegion = useAppSelector(selectHasPermission('marketing.assign_employee_region'));
   const canManageRegionEmployees = canAssignEmployeeRegion || canViewRegion || canView;
 
-  const [viewMode, setViewMode] = useState<ViewMode>('review');
   const [domains, setDomains] = useState<Domain[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -148,10 +144,10 @@ export const DomainsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (canView && viewMode === 'review') {
+    if (canView) {
       loadReviewData();
     }
-  }, [canView, viewMode]);
+  }, [canView]);
 
   const loadDomainTargetSummary = async () => {
     setTargetSummaryLoading(true);
@@ -167,10 +163,10 @@ export const DomainsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (canView && viewMode === 'review') {
+    if (canView) {
       loadDomainTargetSummary();
     }
-  }, [canView, viewMode, targetYear, targetMonth]);
+  }, [canView, targetYear, targetMonth]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -259,13 +255,16 @@ export const DomainsPage: React.FC = () => {
   const handleConfirmDeleteRegion = async () => {
     if (deleteRegionId == null) return;
     try {
+      const regionToDelete = regions.find(r => r.id === deleteRegionId) || reviewRegions.find(r => r.id === deleteRegionId);
+      const domainId = regionToDelete?.domain_id;
+
       await marketingAPI.deleteRegion(deleteRegionId);
       showToast('Region deleted successfully', 'success');
       setDeleteRegionId(null);
-      if (selectedDomain) {
-        await loadRegionsForDomain(selectedDomain.id);
+      if (domainId) {
+        await loadRegionsForDomain(domainId);
       }
-      if (viewMode === 'review') await loadReviewData();
+      await loadReviewData();
     } catch (error: any) {
       showToast(error.message || 'Failed to delete region', 'error');
     }
@@ -499,380 +498,20 @@ export const DomainsPage: React.FC = () => {
     { label: 'Domains' },
   ];
 
-  const actions = (
-    <div className="flex items-center gap-2">
-      <SegmentToggle
-        options={[
-          { value: 'list', label: 'List', icon: List },
-          { value: 'review', label: 'Review', icon: Eye },
-        ]}
-        value={viewMode}
-        onChange={(val) => setViewMode(val as ViewMode)}
-      />
-      {canCreate && (
-        <Button
-          size="sm"
-          onClick={() => navigate('/domains/new')}
-          leftIcon={<Plus size={14} strokeWidth={3} />}
-        >
-          Add Domain
-        </Button>
-      )}
-    </div>
+  const actions = canCreate && (
+    <Button
+      size="sm"
+      onClick={() => navigate('/domains/new')}
+      leftIcon={<Plus size={14} strokeWidth={3} />}
+    >
+      Add Domain
+    </Button>
   );
 
   return (
     <PageLayout title="Domains" actions={actions} breadcrumbs={breadcrumbs}>
-      {viewMode === 'review' ? (
-        /* ——— Review: hierarchy (domain heads → region heads → region employees) + target amounts ——— */
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            View and manage the marketing hierarchy: domain heads, region heads, and region employees. Set employee targets (rolled up to region and domain), and optionally set explicit monthly goals per region or domain. Use 0 on a region/domain goal to clear it.
-          </p>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-700">Period:</span>
-              <Select
-                options={Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: MONTHS[i] }))}
-                value={String(targetMonth)}
-                onChange={(val) => val && setTargetMonth(Number(val))}
-                searchable={false}
-                clearable={false}
-                className="min-w-[80px] w-auto"
-              />
-              <Select
-                options={Array.from({ length: 15 }, (_, i) => {
-                  const y = new Date().getFullYear() - 2 + i;
-                  return { value: String(y), label: String(y) };
-                })}
-                value={String(targetYear)}
-                onChange={(val) => val && setTargetYear(Number(val))}
-                searchable={false}
-                clearable={false}
-                className="min-w-[100px] w-auto"
-              />
-            </div>
-            {targetSummaryLoading && <span className="text-sm text-slate-500">Loading targets…</span>}
-            {targetSummary && !targetSummaryLoading && (
-              <div className="flex items-center gap-2 rounded-lg bg-indigo-50 px-4 py-2 border border-indigo-100">
-                <Target size={18} className="text-indigo-600 shrink-0" />
-                <span className="text-sm font-medium text-indigo-900">Total target:</span>
-                <span className="text-lg font-semibold text-indigo-700">{formatTargetAmount(targetSummary.total_target)}</span>
-              </div>
-            )}
-          </div>
-          {reviewLoading ? (
-            <Card>
-              <div className="flex items-center justify-center py-16">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-                <span className="ml-3 text-slate-600">Loading hierarchy...</span>
-              </div>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {reviewDomains.length === 0 ? (
-                <Card>
-                  <div className="text-center py-12 text-slate-600">No domains found. Create a domain first.</div>
-                </Card>
-              ) : (
-                <Card className="p-4">
-                  {/* Tree: domain → region → employee */}
-                  {reviewDomains.map((domain, domainIdx) => {
-                    const domainRegions = reviewRegions.filter((r) => r.domain_id === domain.id);
-                    const domainTargetInfo = getDomainTargetInfo(domain.id);
-                    return (
-                      <div
-                        key={domain.id}
-                        className={`tree-root ${domainIdx < reviewDomains.length - 1 ? 'mb-8 pb-6 border-b border-slate-100' : ''}`}
-                      >
-                        {/* Level 0: Domain (root) */}
-                        <div className="tree-node flex items-center gap-2 py-2 pr-2 rounded-md hover:bg-slate-50/80 group">
-                          <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-300" aria-hidden />
-                          <Globe size={18} className="text-indigo-600 shrink-0" />
-                          <span className="font-semibold text-slate-900">{domain.name}</span>
-                          {domain.code && <Badge variant="outline" className="text-xs">{domain.code}</Badge>}
-                          <span className="text-slate-400 mx-1">·</span>
-                          <span className="text-sm text-slate-600">Head:</span>
-                          <span className="text-sm font-medium text-slate-800">{domain.head_username || '—'}</span>
-                          <span className="text-slate-400 mx-1">·</span>
-                          <span className="text-sm text-slate-600">Coordinator:</span>
-                          <span className="text-sm font-medium text-slate-800">{domain.coordinator_username || '—'}</span>
-                          {domainTargetInfo != null && (
-                            <>
-                              <span className="text-slate-400 mx-1">·</span>
-                              <span className="text-sm text-slate-600">
-                                {domainTargetInfo.assigned != null && domainTargetInfo.assigned > 0 ? (
-                                  <>
-                                    <span className="font-medium text-slate-700">Goal: </span>
-                                    <span className="font-semibold text-indigo-700">{formatTargetAmount(domainTargetInfo.assigned)}</span>
-                                    {Math.abs(domainTargetInfo.assigned - domainTargetInfo.rolledUp) > 1 && (
-                                      <span className="text-slate-500 font-normal"> (team {formatTargetAmount(domainTargetInfo.rolledUp)})</span>
-                                    )}
-                                  </>
-                                ) : (
-                                  <>
-                                    <span className="font-medium text-slate-700">Team target: </span>
-                                    <span className="font-semibold text-indigo-700">{formatTargetAmount(domainTargetInfo.rolledUp)}</span>
-                                  </>
-                                )}
-                              </span>
-                            </>
-                          )}
-                          <div className="ml-auto flex items-center gap-1 shrink-0">
-                            {canEdit && domainTargetInfo != null && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Set domain goal"
-                                onClick={() => {
-                                  setTargetHierarchyModal({
-                                    kind: 'domain',
-                                    domain_id: domain.id,
-                                    domain_name: domain.name,
-                                    rolled_up: domainTargetInfo.rolledUp,
-                                    assigned: domainTargetInfo.assigned,
-                                  });
-                                  setSetTargetAmount(
-                                    String(
-                                      domainTargetInfo.assigned != null && domainTargetInfo.assigned > 0
-                                        ? domainTargetInfo.assigned
-                                        : domainTargetInfo.rolledUp
-                                    )
-                                  );
-                                }}
-                              >
-                                <Target size={14} />
-                              </Button>
-                            )}
-                            {canEdit && (
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={() => {
-                                    setSetDomainHeadDomain(domain);
-                                    setDomainHeadEmployeeId(domain.head_employee_id ?? '');
-                                  }}
-                                  title="Set Domain Head"
-                                >
-                                  {domain.head_username ? 'Change Head' : 'Set Head'}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={() => {
-                                    setSetDomainCoordinatorDomain(domain);
-                                    setDomainCoordinatorEmployeeId(domain.coordinator_employee_id ?? '');
-                                  }}
-                                  title="Set Domain Coordinator"
-                                >
-                                  {domain.coordinator_username ? 'Change Coord' : 'Set Coord'}
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        {/* Level 1: Regions (children of domain) */}
-                        <div className="tree-children border-l-2 border-slate-200 ml-2 pl-3">
-                          {domainRegions.length === 0 ? (
-                            <div className="tree-node flex items-center gap-2 py-1.5 text-slate-500 text-sm italic">
-                              <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-200" aria-hidden />
-                              No regions
-                            </div>
-                          ) : (
-                            domainRegions.map((region, rIdx) => {
-                              const regionAssignments = reviewAssignments.filter((a) => a.region_id === region.id);
-                              const isLastRegion = rIdx === domainRegions.length - 1;
-                              const regionTargetInfo = getRegionTargetInfo(region.id);
-                              return (
-                                <div key={region.id} className={isLastRegion ? '' : 'mb-1'}>
-                                  {/* Region row */}
-                                  <div className="tree-node flex items-center gap-2 py-2 pr-2 rounded-md hover:bg-slate-50/80 group">
-                                    <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-300" aria-hidden />
-                                    <MapPin size={16} className="text-emerald-600 shrink-0" />
-                                    <span className="font-medium text-slate-800">{region.name}</span>
-                                    {region.code && <Badge variant="outline" className="text-xs">{region.code}</Badge>}
-                                    <span className="text-slate-400 mx-1">·</span>
-                                    <span className="text-sm text-slate-600">Head:</span>
-                                    <span className="text-sm font-medium text-slate-800">{region.head_username || '—'}</span>
-                                    {regionTargetInfo != null && (
-                                      <>
-                                        <span className="text-slate-400 mx-1">·</span>
-                                        <span className="text-sm text-slate-600">
-                                          {regionTargetInfo.assigned != null && regionTargetInfo.assigned > 0 ? (
-                                            <>
-                                              <span className="font-medium text-slate-700">Goal: </span>
-                                              <span className="font-semibold text-emerald-700">{formatTargetAmount(regionTargetInfo.assigned)}</span>
-                                              {Math.abs(regionTargetInfo.assigned - regionTargetInfo.rolledUp) > 1 && (
-                                                <span className="text-slate-500 font-normal"> (team {formatTargetAmount(regionTargetInfo.rolledUp)})</span>
-                                              )}
-                                            </>
-                                          ) : (
-                                            <>
-                                              <span className="font-medium text-slate-700">Team target: </span>
-                                              <span className="font-semibold text-emerald-700">{formatTargetAmount(regionTargetInfo.rolledUp)}</span>
-                                            </>
-                                          )}
-                                        </span>
-                                      </>
-                                    )}
-                                    <div className="ml-auto flex items-center gap-1 shrink-0">
-                                      {canEditRegion && regionTargetInfo != null && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="text-emerald-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                                          title="Set region goal"
-                                          onClick={() => {
-                                            setTargetHierarchyModal({
-                                              kind: 'region',
-                                              region_id: region.id,
-                                              region_name: region.name,
-                                              rolled_up: regionTargetInfo.rolledUp,
-                                              assigned: regionTargetInfo.assigned,
-                                            });
-                                            setSetTargetAmount(
-                                              String(
-                                                regionTargetInfo.assigned != null && regionTargetInfo.assigned > 0
-                                                  ? regionTargetInfo.assigned
-                                                  : regionTargetInfo.rolledUp
-                                              )
-                                            );
-                                          }}
-                                        >
-                                          <Target size={14} />
-                                        </Button>
-                                      )}
-                                      {canEditRegion && (
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                          onClick={() => {
-                                            setSetRegionHeadRegion(region);
-                                            setRegionHeadEmployeeId(region.head_employee_id ?? '');
-                                          }}
-                                        >
-                                          {region.head_username ? 'Change' : 'Set'}
-                                        </Button>
-                                      )}
-                                      {canManageRegionEmployees && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                          onClick={() => {
-                                            setAddEmployeeRegion(region);
-                                            setAddEmployeeSelected(null);
-                                            addEmployeeCacheRef.current.clear();
-                                            setAddEmployeeRole('employee');
-                                          }}
-                                          leftIcon={<UserPlus size={12} />}
-                                        >
-                                          Add
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {/* Level 2: Employees (children of region) */}
-                                  <div className="tree-children border-l-2 border-slate-200 ml-2 pl-3">
-                                    {regionAssignments.length === 0 ? (
-                                      <div className="tree-node flex items-center gap-2 py-1.5 text-slate-500 text-sm italic">
-                                        <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-200" aria-hidden />
-                                        No employees
-                                      </div>
-                                    ) : (
-                                      regionAssignments.map((a, eIdx) => {
-                                        const empTarget = getEmployeeTarget(region.id, a.employee_id);
-                                        return (
-                                        <div
-                                          key={a.id}
-                                          className="tree-node flex items-center justify-between gap-2 py-1.5 pr-2 rounded-md hover:bg-slate-50/80 group"
-                                        >
-                                          <div className="flex items-center gap-2 min-w-0">
-                                            <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-200" aria-hidden />
-                                            <User size={14} className="text-slate-500 shrink-0" />
-                                            <span className="text-sm text-slate-800 truncate">
-                                              {a.employee_name || a.employee_email || `Employee #${a.employee_id}`}
-                                            </span>
-                                            {a.role === 'head' && (
-                                              <Badge variant="outline" className="text-xs shrink-0">Head</Badge>
-                                            )}
-                                            {a.role === 'supervisor' && (
-                                              <Badge variant="outline" className="text-xs shrink-0 border-amber-200 text-amber-800 bg-amber-50">Supervisor</Badge>
-                                            )}
-                                            {empTarget != null && (
-                                              <>
-                                                <span className="text-slate-400 mx-0.5">·</span>
-                                                <span className="text-sm font-medium text-slate-700">{formatTargetAmount(empTarget)}</span>
-                                              </>
-                                            )}
-                                          </div>
-                                          {canManageRegionEmployees && (
-                                            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-indigo-600"
-                                                onClick={() => {
-                                                  setTargetHierarchyModal({
-                                                    kind: 'employee',
-                                                    employee_id: a.employee_id,
-                                                    employee_name: a.employee_name || a.employee_email || `Employee #${a.employee_id}`,
-                                                    region_id: region.id,
-                                                    current_amount: empTarget ?? 800000,
-                                                  });
-                                                  setSetTargetAmount(String(empTarget ?? 800000));
-                                                }}
-                                                title="Set target"
-                                              >
-                                                <Target size={12} />
-                                              </Button>
-                                              <Select
-                                                options={[
-                                                  { value: 'employee', label: 'Employee' },
-                                                  { value: 'supervisor', label: 'Supervisor' },
-                                                  { value: 'head', label: 'Head' },
-                                                ]}
-                                                value={a.role}
-                                                onChange={(val) => handleChangeAssignmentRole(a.id, (val as 'head' | 'employee' | 'supervisor') || 'employee')}
-                                                searchable={false}
-                                                className="min-w-[100px]"
-                                              />
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-red-600 hover:text-red-700"
-                                                onClick={() => setRemoveAssignmentId(a.id)}
-                                              >
-                                                <Trash2 size={12} />
-                                              </Button>
-                                            </div>
-                                          )}
-                                        </div>
-                                        );
-                                      })
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </Card>
-              )}
-            </div>
-          )}
-        </div>
-      ) : (
-      <>
-      <div className="space-y-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+        {/* Left: Search & Filter */}
         <div className="flex items-center gap-3 flex-wrap">
           <Input
             variant="white"
@@ -918,38 +557,72 @@ export const DomainsPage: React.FC = () => {
           )}
         </div>
 
-        {/* Filter Popover */}
-        <FilterPopover
-          isOpen={showFilters}
-          onClose={() => setShowFilters(false)}
-          triggerRef={filterButtonRef}
-          onApply={() => {
-            setFilterActive(tempFilterActive);
-            setShowFilters(false);
-          }}
-          onClear={() => {
-            setTempFilterActive(null);
-            setFilterActive(null);
-            setShowFilters(false);
-          }}
-        >
-          <Select
-            label="Status"
-            options={[
-              { value: 'all', label: 'All Status' },
-              { value: 'active', label: 'Active' },
-              { value: 'inactive', label: 'Inactive' },
-            ]}
-            value={tempFilterActive === null ? 'all' : tempFilterActive ? 'active' : 'inactive'}
-            onChange={(val) => {
-              const value = val === 'all' ? null : val === 'active';
-              setTempFilterActive(value);
-            }}
-            placeholder="Select Status"
-            searchable={false}
-          />
-        </FilterPopover>
+        {/* Right: Period Selectors & Target Banner */}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-slate-700">Period:</span>
+            <Select
+              options={Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: MONTHS[i] }))}
+              value={String(targetMonth)}
+              onChange={(val) => val && setTargetMonth(Number(val))}
+              searchable={false}
+              clearable={false}
+              className="min-w-[80px] w-auto"
+            />
+            <Select
+              options={Array.from({ length: 15 }, (_, i) => {
+                const y = new Date().getFullYear() - 2 + i;
+                return { value: String(y), label: String(y) };
+              })}
+              value={String(targetYear)}
+              onChange={(val) => val && setTargetYear(Number(val))}
+              searchable={false}
+              clearable={false}
+              className="min-w-[100px] w-auto"
+            />
+          </div>
+          {targetSummaryLoading && <span className="text-sm text-slate-500 animate-pulse">Loading targets…</span>}
+          {targetSummary && !targetSummaryLoading && (
+            <div className="flex items-center gap-2 rounded-lg bg-indigo-50 px-4 py-2 border border-indigo-100 shadow-sm">
+              <Target size={18} className="text-indigo-600 shrink-0" />
+              <span className="text-sm font-medium text-indigo-900 font-sans">Total target:</span>
+              <span className="text-lg font-semibold text-indigo-700">{formatTargetAmount(targetSummary.total_target)}</span>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Filter Popover */}
+      <FilterPopover
+        isOpen={showFilters}
+        onClose={() => setShowFilters(false)}
+        triggerRef={filterButtonRef}
+        onApply={() => {
+          setFilterActive(tempFilterActive);
+          setShowFilters(false);
+        }}
+        onClear={() => {
+          setTempFilterActive(null);
+          setFilterActive(null);
+          setShowFilters(false);
+        }}
+      >
+        <Select
+          label="Status"
+          options={[
+            { value: 'all', label: 'All Status' },
+            { value: 'active', label: 'Active' },
+            { value: 'inactive', label: 'Inactive' },
+          ]}
+          value={tempFilterActive === null ? 'all' : tempFilterActive ? 'active' : 'inactive'}
+          onChange={(val) => {
+            const value = val === 'all' ? null : val === 'active';
+            setTempFilterActive(value);
+          }}
+          placeholder="Select Status"
+          searchable={false}
+        />
+      </FilterPopover>
 
       <div className="mt-4">
         {/* Domains List */}
@@ -961,284 +634,520 @@ export const DomainsPage: React.FC = () => {
             </div>
           ) : (
             <>
-          {filteredDomains.length === 0 ? (
-            <div className="text-center py-12">
-              <Globe className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-              <p className="text-slate-600">No domains found</p>
-              {canCreate && (
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => navigate('/domains/new')}
-                >
-                  <Plus size={16} />
-                  Create First Domain
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="overflow-x-auto relative">
-              <table className="w-full text-left border-separate border-spacing-0">
-                <thead>
-                  <tr className="bg-slate-50/50">
-                    <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                      <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Name</span>
-                    </th>
-                    <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                      <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Code</span>
-                    </th>
-                    <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                      <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Description</span>
-                    </th>
-                    <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                      <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Status</span>
-                    </th>
-                    <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                      <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Domain Head</span>
-                    </th>
-                    <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                      <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Domain Coordinator</span>
-                    </th>
-                    <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                      <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Created By</span>
-                    </th>
-                    <th className="border-b border-slate-200 text-right" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                      <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {filteredDomains.map(domain => {
-                    const isExpanded = expandedDomains.has(domain.id);
-                    const domainRegions = regions.filter(r => r.domain_id === domain.id);
-                    return (
-                      <React.Fragment key={domain.id}>
-                        <tr className="group transition-all duration-200 hover:bg-slate-50/50">
-                          <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => toggleDomainExpansion(domain.id)}
-                                className="p-1 hover:bg-slate-100 rounded transition-colors"
-                                title={isExpanded ? "Collapse regions" : "Expand regions"}
-                              >
-                                {isExpanded ? (
-                                  <ChevronDown size={16} className="text-slate-500" />
+              {filteredDomains.length === 0 ? (
+                <div className="text-center py-12">
+                  <Globe className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                  <p className="text-slate-600">No domains found</p>
+                  {canCreate && (
+                    <Button
+                      variant="outline"
+                      className="mt-4"
+                      onClick={() => navigate('/domains/new')}
+                    >
+                      <Plus size={16} />
+                      Create First Domain
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto relative">
+                  <table className="w-full text-left border-separate border-spacing-0">
+                    <thead>
+                      <tr className="bg-slate-50/50">
+                        <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                          <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Name</span>
+                        </th>
+                        <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                          <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Code</span>
+                        </th>
+                        <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                          <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Description</span>
+                        </th>
+                        <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                          <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Status</span>
+                        </th>
+                        <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                          <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Domain Head</span>
+                        </th>
+                        <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                          <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Domain Coordinator</span>
+                        </th>
+                        <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                          <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Created By</span>
+                        </th>
+                        <th className="border-b border-slate-200 text-right" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                          <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {filteredDomains.map(domain => {
+                        const isExpanded = expandedDomains.has(domain.id);
+                        const domainRegions = regions.filter(r => r.domain_id === domain.id);
+                        const domainTargetInfo = getDomainTargetInfo(domain.id);
+                        return (
+                          <React.Fragment key={domain.id}>
+                            <tr className="group transition-all duration-200 hover:bg-slate-50/50">
+                              <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => toggleDomainExpansion(domain.id)}
+                                    className="p-1 hover:bg-slate-100 rounded transition-colors"
+                                    title={isExpanded ? "Collapse regions" : "Expand regions"}
+                                  >
+                                    {isExpanded ? (
+                                      <ChevronDown size={16} className="text-slate-500" />
+                                    ) : (
+                                      <ChevronRight size={16} className="text-slate-500" />
+                                    )}
+                                  </button>
+                                  <div className="font-medium text-slate-900">{domain.name}</div>
+                                </div>
+                              </td>
+                              <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                                <Badge variant="outline">{domain.code}</Badge>
+                              </td>
+                              <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium max-w-md" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                                <div className="truncate">
+                                  {domain.description || <span className="text-slate-400">-</span>}
+                                </div>
+                              </td>
+                              <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                                {domain.is_active ? (
+                                  <Badge variant="success">
+                                    <CheckCircle size={12} className="mr-1" />
+                                    Active
+                                  </Badge>
                                 ) : (
-                                  <ChevronRight size={16} className="text-slate-500" />
+                                  <Badge variant="outline">
+                                    <XCircle size={12} className="mr-1" />
+                                    Inactive
+                                  </Badge>
                                 )}
-                              </button>
-                              <div className="font-medium text-slate-900">{domain.name}</div>
-                            </div>
-                          </td>
-                          <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                            <Badge variant="outline">{domain.code}</Badge>
-                          </td>
-                          <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium max-w-md" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                            <div className="truncate">
-                              {domain.description || <span className="text-slate-400">-</span>}
-                            </div>
-                          </td>
-                          <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                            {domain.is_active ? (
-                              <Badge variant="success">
-                                <CheckCircle size={12} className="mr-1" />
-                                Active
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline">
-                                <XCircle size={12} className="mr-1" />
-                                Inactive
-                              </Badge>
-                            )}
-                          </td>
-                          <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                            {domain.head_username || <span className="text-slate-400">-</span>}
-                          </td>
-                          <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                            {domain.coordinator_username || <span className="text-slate-400">-</span>}
-                          </td>
-                          <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                            {domain.created_by_username || <span className="text-slate-400">-</span>}
-                          </td>
-                          <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium text-right" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                            <div className="flex items-center justify-end gap-2">
-                                              {canCreateRegion && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => navigate(`/domains/${domain.id}/regions/new`)}
-                                  title="Add Region"
-                                >
-                                  <MapPin size={14} />
-                                </Button>
-                              )}
-                              {canEdit && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => navigate(`/domains/${domain.id}/edit`)}
-                                >
-                                  <Edit size={14} />
-                                </Button>
-                              )}
-                              {canDelete && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => openDeleteDomainConfirm(domain.id)}
-                                >
-                                  <Trash2 size={14} />
-                                </Button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                        {isExpanded && (
-                          <tr>
-                            <td colSpan={8} className="px-4 py-4 bg-slate-50">
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                                    <MapPin size={16} />
-                                    Regions ({domainRegions.length})
-                                  </h4>
+                              </td>
+                              <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                                <div className="flex items-center gap-2 group/cell">
+                                  <span>{domain.head_username || <span className="text-slate-400">-</span>}</span>
+                                  {canEdit && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSetDomainHeadDomain(domain);
+                                        setDomainHeadEmployeeId(domain.head_employee_id ?? '');
+                                      }}
+                                      className="opacity-0 group-hover/cell:opacity-100 p-1 hover:bg-slate-100 rounded text-indigo-600 transition-all"
+                                      title={domain.head_username ? "Change Domain Head" : "Set Domain Head"}
+                                    >
+                                      <Edit size={12} />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                                <div className="flex items-center gap-2 group/cell">
+                                  <span>{domain.coordinator_username || <span className="text-slate-400">-</span>}</span>
+                                  {canEdit && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSetDomainCoordinatorDomain(domain);
+                                        setDomainCoordinatorEmployeeId(domain.coordinator_employee_id ?? '');
+                                      }}
+                                      className="opacity-0 group-hover/cell:opacity-100 p-1 hover:bg-slate-100 rounded text-indigo-600 transition-all"
+                                      title={domain.coordinator_username ? "Change Coordinator" : "Set Coordinator"}
+                                    >
+                                      <Edit size={12} />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                                {domain.created_by_username || <span className="text-slate-400">-</span>}
+                              </td>
+                              <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium text-right" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
+                                <div className="flex items-center justify-end gap-2">
                                   {canCreateRegion && (
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={() => navigate(`/domains/${domain.id}/regions/new`)}
+                                      title="Add Region"
                                     >
-                                      <Plus size={14} />
-                                      Add Region
+                                      <MapPin size={14} />
+                                    </Button>
+                                  )}
+                                  {canEdit && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => navigate(`/domains/${domain.id}/edit`)}
+                                    >
+                                      <Edit size={14} />
+                                    </Button>
+                                  )}
+                                  {canDelete && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => openDeleteDomainConfirm(domain.id)}
+                                    >
+                                      <Trash2 size={14} />
                                     </Button>
                                   )}
                                 </div>
-                                {isLoadingRegions ? (
-                                  <div className="text-center py-4">
-                                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-                                    <p className="mt-2 text-sm text-slate-600">Loading regions...</p>
-                                  </div>
-                                ) : domainRegions.length === 0 ? (
-                                  <div className="text-center py-6 bg-white rounded-lg border border-slate-200">
-                                    <MapPin className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                                    <p className="text-sm text-slate-600">No regions found</p>
-                                    {canCreateRegion && (
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="mt-3"
-                                        onClick={() => navigate(`/domains/${domain.id}/regions/new`)}
-                                      >
-                                        <Plus size={14} />
-                                        Create First Region
-                                      </Button>
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan={8} className="px-4 py-4 bg-slate-50/50">
+                                  <div className="space-y-4">
+                                    {/* Expanded Header: Goal vs Target, and Add Region Button */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                                      <div className="flex flex-wrap items-center gap-3">
+                                        <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                          <MapPin size={16} className="text-indigo-600" />
+                                          Regions ({domainRegions.length})
+                                        </h4>
+                                        {domainTargetInfo != null && (
+                                          <div className="text-xs text-slate-600 bg-indigo-50/50 border border-indigo-100 rounded-lg px-3 py-1 flex items-center gap-1.5 shadow-sm">
+                                            <Target size={14} className="text-indigo-600" />
+                                            {domainTargetInfo.assigned != null && domainTargetInfo.assigned > 0 ? (
+                                              <>
+                                                <span className="font-medium text-slate-700">Domain Goal:</span>
+                                                <span className="font-bold text-indigo-700">{formatTargetAmount(domainTargetInfo.assigned)}</span>
+                                                {Math.abs(domainTargetInfo.assigned - domainTargetInfo.rolledUp) > 1 && (
+                                                  <span className="text-slate-500 font-normal"> (Team target: {formatTargetAmount(domainTargetInfo.rolledUp)})</span>
+                                                )}
+                                              </>
+                                            ) : (
+                                              <>
+                                                <span className="font-medium text-slate-700">Domain Team Target:</span>
+                                                <span className="font-bold text-indigo-700">{formatTargetAmount(domainTargetInfo.rolledUp)}</span>
+                                              </>
+                                            )}
+                                            {canEdit && (
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setTargetHierarchyModal({
+                                                    kind: 'domain',
+                                                    domain_id: domain.id,
+                                                    domain_name: domain.name,
+                                                    rolled_up: domainTargetInfo.rolledUp,
+                                                    assigned: domainTargetInfo.assigned,
+                                                  });
+                                                  setSetTargetAmount(
+                                                    String(
+                                                      domainTargetInfo.assigned != null && domainTargetInfo.assigned > 0
+                                                        ? domainTargetInfo.assigned
+                                                        : domainTargetInfo.rolledUp
+                                                    )
+                                                  );
+                                                }}
+                                                className="ml-1.5 text-xs text-indigo-600 hover:text-indigo-700 hover:underline font-bold"
+                                              >
+                                                Update Goal
+                                              </button>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                      {canCreateRegion && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-8 text-xs"
+                                          onClick={() => navigate(`/domains/${domain.id}/regions/new`)}
+                                          leftIcon={<Plus size={14} />}
+                                        >
+                                          Add Region
+                                        </Button>
+                                      )}
+                                    </div>
+
+                                    {/* Card Grid */}
+                                    {isLoadingRegions ? (
+                                      <div className="text-center py-8">
+                                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                                        <p className="mt-2 text-xs text-slate-600">Loading regions...</p>
+                                      </div>
+                                    ) : domainRegions.length === 0 ? (
+                                      <div className="text-center py-8 bg-white rounded-xl border border-slate-200/80 shadow-xs max-w-md mx-auto">
+                                        <MapPin className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                                        <p className="text-sm font-medium text-slate-700">No regions found</p>
+                                        <p className="text-xs text-slate-500 mt-1">Create a region to start mapping employees.</p>
+                                        {canCreateRegion && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="mt-3 text-xs"
+                                            onClick={() => navigate(`/domains/${domain.id}/regions/new`)}
+                                            leftIcon={<Plus size={14} />}
+                                          >
+                                            Create First Region
+                                          </Button>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                        {domainRegions.map(region => {
+                                          const regionAssignments = reviewAssignments.filter(a => a.region_id === region.id);
+                                          const regionTargetInfo = getRegionTargetInfo(region.id);
+                                          return (
+                                            <div key={region.id} className="bg-white border border-slate-200/80 rounded-xl shadow-xs p-4 flex flex-col justify-between hover:shadow-sm transition-all duration-200">
+                                              <div>
+                                                {/* Region Card Header */}
+                                                <div className="flex justify-between items-start border-b border-slate-100 pb-2.5 mb-3.5">
+                                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="font-bold text-slate-900 text-sm">{region.name}</span>
+                                                    {region.code && <Badge variant="outline" className="text-[10px] scale-95 origin-left">{region.code}</Badge>}
+                                                    {region.is_active ? (
+                                                      <Badge variant="success" className="text-[10px] scale-95 origin-left">
+                                                        Active
+                                                      </Badge>
+                                                    ) : (
+                                                      <Badge variant="outline" className="text-[10px] scale-95 origin-left">
+                                                        Inactive
+                                                      </Badge>
+                                                    )}
+                                                  </div>
+                                                  <div className="flex gap-1">
+                                                    {canEditRegion && (
+                                                      <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600 rounded"
+                                                        onClick={() => navigate(`/domains/${domain.id}/regions/${region.id}/edit`)}
+                                                        title="Edit Region"
+                                                      >
+                                                        <Edit size={12} />
+                                                      </Button>
+                                                    )}
+                                                    {canDeleteRegion && (
+                                                      <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 w-7 p-0 text-red-400 hover:text-red-600 rounded"
+                                                        onClick={() => openDeleteRegionConfirm(region.id)}
+                                                        title="Delete Region"
+                                                      >
+                                                        <Trash2 size={12} />
+                                                      </Button>
+                                                    )}
+                                                  </div>
+                                                </div>
+
+                                                {/* Region Card Body */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                  {/* Left: Head & Target Goals */}
+                                                  <div className="space-y-3.5">
+                                                    <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-100">
+                                                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block mb-1">Region Head</span>
+                                                      <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-xs font-semibold text-slate-800 flex items-center gap-1 truncate">
+                                                          <User size={13} className="text-slate-500 shrink-0" />
+                                                          <span className="truncate">{region.head_username || <span className="text-slate-400 font-normal italic">Not Set</span>}</span>
+                                                        </span>
+                                                        {canEditRegion && (
+                                                          <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-6 text-[10px] text-indigo-600 hover:bg-indigo-50 px-1.5 py-0.5 rounded"
+                                                            onClick={() => {
+                                                              setSetRegionHeadRegion(region);
+                                                              setRegionHeadEmployeeId(region.head_employee_id ?? '');
+                                                            }}
+                                                          >
+                                                            {region.head_username ? 'Change' : 'Set'}
+                                                          </Button>
+                                                        )}
+                                                      </div>
+                                                    </div>
+
+                                                    <div className="bg-emerald-50/40 rounded-lg p-2.5 border border-emerald-100/60">
+                                                      <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-700 block mb-1">Region Goal ({MONTHS[targetMonth - 1]} {targetYear})</span>
+                                                      {regionTargetInfo != null ? (
+                                                        <div className="flex items-center justify-between gap-2">
+                                                          <div>
+                                                            {regionTargetInfo.assigned != null && regionTargetInfo.assigned > 0 ? (
+                                                              <>
+                                                                <div className="text-sm font-bold text-emerald-800">
+                                                                  {formatTargetAmount(regionTargetInfo.assigned)}
+                                                                </div>
+                                                                <div className="text-[10px] text-slate-500">
+                                                                  Team target: {formatTargetAmount(regionTargetInfo.rolledUp)}
+                                                                </div>
+                                                              </>
+                                                            ) : (
+                                                              <>
+                                                                <div className="text-sm font-bold text-emerald-800">
+                                                                  {formatTargetAmount(regionTargetInfo.rolledUp)}
+                                                                </div>
+                                                                <div className="text-[10px] text-slate-500">
+                                                                  Using team sum
+                                                                </div>
+                                                              </>
+                                                            )}
+                                                          </div>
+                                                          {canEditRegion && (
+                                                            <Button
+                                                              variant="ghost"
+                                                              size="sm"
+                                                              className="h-6 text-[10px] text-emerald-700 hover:bg-emerald-100/50 px-1.5 py-0.5 rounded"
+                                                              onClick={() => {
+                                                                setTargetHierarchyModal({
+                                                                  kind: 'region',
+                                                                  region_id: region.id,
+                                                                  region_name: region.name,
+                                                                  rolled_up: regionTargetInfo.rolledUp,
+                                                                  assigned: regionTargetInfo.assigned,
+                                                                });
+                                                                setSetTargetAmount(
+                                                                  String(
+                                                                    regionTargetInfo.assigned != null && regionTargetInfo.assigned > 0
+                                                                      ? regionTargetInfo.assigned
+                                                                      : regionTargetInfo.rolledUp
+                                                                  )
+                                                                );
+                                                              }}
+                                                            >
+                                                              Set Goal
+                                                            </Button>
+                                                          )}
+                                                        </div>
+                                                      ) : (
+                                                        <div className="text-[11px] text-slate-500 italic">No target loaded</div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+
+                                                  {/* Right: Assigned Employees */}
+                                                  <div className="flex flex-col min-w-0">
+                                                    <div className="flex justify-between items-center mb-1.5">
+                                                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Employees ({regionAssignments.length})</span>
+                                                      {canManageRegionEmployees && (
+                                                        <Button
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          className="h-6 text-[10px] text-indigo-600 hover:bg-indigo-50 px-1.5 py-0.5 rounded flex items-center gap-0.5"
+                                                          onClick={() => {
+                                                            setAddEmployeeRegion(region);
+                                                            setAddEmployeeSelected(null);
+                                                            addEmployeeCacheRef.current.clear();
+                                                            setAddEmployeeRole('employee');
+                                                          }}
+                                                        >
+                                                          <UserPlus size={10} />
+                                                          Add
+                                                        </Button>
+                                                      )}
+                                                    </div>
+
+                                                    <div className="flex-1 min-h-[140px] max-h-[180px] overflow-y-auto space-y-1.5 border border-slate-100 rounded-lg p-1.5 bg-slate-50/50">
+                                                      {regionAssignments.length === 0 ? (
+                                                        <div className="text-center py-8 text-[11px] text-slate-400 italic">No employees assigned</div>
+                                                      ) : (
+                                                        regionAssignments.map(a => {
+                                                          const empTarget = getEmployeeTarget(region.id, a.employee_id);
+                                                          return (
+                                                            <div key={a.id} className="flex items-center justify-between gap-1.5 p-1.5 bg-white border border-slate-100 rounded-md hover:border-slate-200 transition-colors shadow-2xs group/emp">
+                                                              <div className="min-w-0 flex-1">
+                                                                <div className="flex items-center gap-1 flex-wrap">
+                                                                  <span className="text-[11px] font-bold text-slate-800 truncate block max-w-[90px]" title={a.employee_name || a.employee_email}>
+                                                                    {a.employee_name || a.employee_email || `Emp #${a.employee_id}`}
+                                                                  </span>
+                                                                  {a.role === 'head' && (
+                                                                    <Badge variant="outline" className="text-[9px] px-0.5 py-0 scale-90 origin-left">Head</Badge>
+                                                                  )}
+                                                                  {a.role === 'supervisor' && (
+                                                                    <Badge variant="outline" className="text-[9px] px-0.5 py-0 scale-90 origin-left border-amber-200 text-amber-800 bg-amber-50">Sup</Badge>
+                                                                  )}
+                                                                </div>
+                                                                {empTarget != null && (
+                                                                  <div className="text-[10px] text-slate-500 mt-0.5">
+                                                                    Target: <span className="text-indigo-700 font-semibold">{formatTargetAmount(empTarget)}</span>
+                                                                  </div>
+                                                                )}
+                                                              </div>
+                                                              {canManageRegionEmployees && (
+                                                                <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover/emp:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+                                                                  <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 w-6 p-0 text-slate-400 hover:text-indigo-600 rounded"
+                                                                    onClick={() => {
+                                                                      setTargetHierarchyModal({
+                                                                        kind: 'employee',
+                                                                        employee_id: a.employee_id,
+                                                                        employee_name: a.employee_name || a.employee_email || `Employee #${a.employee_id}`,
+                                                                        region_id: region.id,
+                                                                        current_amount: empTarget ?? 800000,
+                                                                      });
+                                                                      setSetTargetAmount(String(empTarget ?? 800000));
+                                                                    }}
+                                                                    title="Set target"
+                                                                  >
+                                                                    <Target size={11} />
+                                                                  </Button>
+                                                                  <select
+                                                                    className="h-6 text-[10px] rounded border border-slate-200 bg-white px-1 py-0.5 text-slate-700 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 max-w-[80px]"
+                                                                    value={a.role}
+                                                                    onChange={(e) => handleChangeAssignmentRole(a.id, (e.target.value as 'head' | 'employee' | 'supervisor') || 'employee')}
+                                                                  >
+                                                                    <option value="employee">Employee</option>
+                                                                    <option value="supervisor">Supervisor</option>
+                                                                    <option value="head">Head</option>
+                                                                  </select>
+                                                                  <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 w-6 p-0 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                                                    onClick={() => setRemoveAssignmentId(a.id)}
+                                                                    title="Remove Employee"
+                                                                  >
+                                                                    <Trash2 size={11} />
+                                                                  </Button>
+                                                                </div>
+                                                              )}
+                                                            </div>
+                                                          );
+                                                        })
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
                                     )}
                                   </div>
-                                ) : (
-                                  <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-                                    <table className="w-full text-left border-separate border-spacing-0">
-                                      <thead>
-                                        <tr className="bg-slate-50/50">
-                                          <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                                            <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Name</span>
-                                          </th>
-                                          <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                                            <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Code</span>
-                                          </th>
-                                          <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                                            <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Description</span>
-                                          </th>
-                                          <th className="border-b border-slate-200 text-left" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                                            <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Status</span>
-                                          </th>
-                                          <th className="border-b border-slate-200 text-right" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                                            <span className="text-[11px] uppercase font-black tracking-wider text-slate-500">Actions</span>
-                                          </th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-slate-100 bg-white">
-                                        {domainRegions.map(region => (
-                                          <tr key={region.id} className="group transition-all duration-200 hover:bg-slate-50/50">
-                                            <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                                              <div className="font-medium text-slate-900">{region.name}</div>
-                                            </td>
-                                            <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                                              <Badge variant="outline" className="text-xs">{region.code}</Badge>
-                                            </td>
-                                            <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium max-w-xs" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                                              <div className="truncate">
-                                                {region.description || <span className="text-slate-400">-</span>}
-                                              </div>
-                                            </td>
-                                            <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                                              {region.is_active ? (
-                                                <Badge variant="success" className="text-xs">
-                                                  <CheckCircle size={10} className="mr-1" />
-                                                  Active
-                                                </Badge>
-                                              ) : (
-                                                <Badge variant="outline" className="text-xs">
-                                                  <XCircle size={10} className="mr-1" />
-                                                  Inactive
-                                                </Badge>
-                                              )}
-                                            </td>
-                                            <td className="text-slate-600 group-hover:text-slate-900 transition-colors text-sm font-medium text-right" style={{ padding: 'calc(var(--ui-padding) * 0.75) var(--ui-padding)' }}>
-                                              <div className="flex items-center justify-end gap-1">
-                                                {canEditRegion && (
-                                                  <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => navigate(`/domains/${domain.id}/regions/${region.id}/edit`)}
-                                                  >
-                                                    <Edit size={12} />
-                                                  </Button>
-                                                )}
-                                                {canDeleteRegion && (
-                                                  <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => openDeleteRegionConfirm(region.id)}
-                                                  >
-                                                    <Trash2 size={12} />
-                                                  </Button>
-                                                )}
-                                              </div>
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-            <div className="border-t border-slate-200 px-4 py-3">
-              <Pagination
-                page={page}
-                pageSize={pageSize}
-                total={total}
-                totalPages={totalPages}
-                onPageChange={setPage}
-                onPageSizeChange={handlePageSizeChange}
-                pageSizeOptions={PAGE_SIZE_OPTIONS}
-              />
-            </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div className="border-t border-slate-200 px-4 py-3">
+                <Pagination
+                  page={page}
+                  pageSize={pageSize}
+                  total={total}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                  onPageSizeChange={handlePageSizeChange}
+                  pageSizeOptions={PAGE_SIZE_OPTIONS}
+                />
+              </div>
             </>
           )}
         </Card>
       </div>
-      </>
-      )}
 
       {/* Set employee / region / domain target */}
       <Modal
