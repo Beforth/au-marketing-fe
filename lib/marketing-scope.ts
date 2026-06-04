@@ -1,4 +1,4 @@
-export type MarketingScopeRole = 'super_admin' | 'domain_head' | 'region_head' | 'employee' | 'self';
+export type MarketingScopeRole = 'super_admin' | 'domain_head' | 'region_head' | 'employee' | 'supervisor' | 'self';
 
 export interface MarketingScope {
   role: MarketingScopeRole;

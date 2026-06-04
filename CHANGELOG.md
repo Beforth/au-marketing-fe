@@ -31,6 +31,11 @@ Format: `[Date] — Category: Description`
 - Upgraded custom Tooltip component to support multi-line content.
 - Replaced native browser tooltips with custom snappy tooltips across Lead Form, Outdoor Plan, Employees, Roles, Order Form, and Leads Dashboard.
 
+### Target Tracking & Progress Bar
+
+- Added dynamic target progress bar on the Domains page with color-shifting brackets.
+- Implemented role-based name visibility rules on the Domains tree nodes.
+
 ---
 
 ## [2026-03-20] — Release: Settings Overhaul, Support Page & Branding

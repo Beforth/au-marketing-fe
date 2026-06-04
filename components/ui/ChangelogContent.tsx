@@ -55,6 +55,14 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
               <li>Replaced native browser tooltips with custom snappy tooltips across Lead Form, Outdoor Plan, Employees, Roles, Order Form, and Leads Dashboard.</li>
             </ul>
           </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Target Tracking & Progress Bar</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li>Added dynamic target progress bar on the Domains page with color-shifting brackets.</li>
+              <li>Implemented role-based name visibility rules on the Domains tree nodes.</li>
+            </ul>
+          </section>
         </div>
       </div>
 
