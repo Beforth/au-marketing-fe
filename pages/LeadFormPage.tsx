@@ -31,6 +31,7 @@ import { parseNameWithPrefix, serializeNameWithPrefix, parsePhoneWithCountryCode
 import { getStoredMarketingScope } from '../lib/marketing-scope';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Modal } from '../components/ui/Modal';
+import { Tooltip } from '../UI/Tooltip';
 import { ArrowLeft, ArrowRight, Clock, ChevronDown, ChevronRight, Globe, User, Building2, FileText, History, Edit2, Trash2, Paperclip, Download, Plus, Upload, X, Package, Trophy, XCircle, Search, Network, Info, Mail, List, Factory, MessageSquare } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -1741,15 +1742,16 @@ export const LeadFormPage: React.FC = () => {
                     >
                       <X size={14} /> Change
                     </button>
-                    <a
-                      href={`/contacts/${primaryContactContactId}/edit`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:text-indigo-900 bg-white hover:bg-indigo-50 border border-indigo-200 rounded-lg transition-colors shadow-sm"
-                      title="Open contact in new tab"
-                    >
-                      <ArrowRight size={14} /> View
-                    </a>
+                    <Tooltip content="Open contact in new tab">
+                      <a
+                        href={`/contacts/${primaryContactContactId}/edit`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:text-indigo-900 bg-white hover:bg-indigo-50 border border-indigo-200 rounded-lg transition-colors shadow-sm"
+                      >
+                        <ArrowRight size={14} /> View
+                      </a>
+                    </Tooltip>
                   </div>
                 </div>
               ) : (
@@ -2539,26 +2541,28 @@ export const LeadFormPage: React.FC = () => {
                                 />
                               )}
                               <div className="ml-auto flex items-center gap-1 shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setAttachmentEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))
-                                  }
-                                  className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                                  title="Remove"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])
-                                  }
-                                  className="h-9 w-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-600 hover:text-white transition-colors"
-                                  title="Add row"
-                                >
-                                  <Plus size={14} />
-                                </button>
+                                <Tooltip content="Remove">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAttachmentEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))
+                                    }
+                                    className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </Tooltip>
+                                <Tooltip content="Add row">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])
+                                    }
+                                    className="h-9 w-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-600 hover:text-white transition-colors"
+                                  >
+                                    <Plus size={14} />
+                                  </button>
+                                </Tooltip>
                               </div>
                             </div>
                           ))}
@@ -2725,33 +2729,38 @@ export const LeadFormPage: React.FC = () => {
                             )}
                             <span className="font-medium">{activityTypeLabel(a.activity_type)}</span>
                             <span>·</span>
-                            <span
-                              className="cursor-help border-b border-dotted border-slate-400"
-                              title={tooltip}
-                            >
-                              {displayName}
-                            </span>
+                            {tooltip ? (
+                              <Tooltip content={tooltip}>
+                                <span className="cursor-help border-b border-dotted border-slate-400">
+                                  {displayName}
+                                </span>
+                              </Tooltip>
+                            ) : (
+                              <span>{displayName}</span>
+                            )}
                             <span>·</span>
                             <span>{a.activity_date ? new Date(a.activity_date).toLocaleString() : new Date(a.created_at).toLocaleString()}</span>
                           </div>
                           {canEditDelete && (
                             <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => startEditActivity(a)}
-                                className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700"
-                                title="Edit enquiry"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setDeleteActivityId(a.id)}
-                                className="p-1.5 rounded text-slate-500 hover:bg-rose-100 hover:text-rose-600"
-                                title="Delete enquiry"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <Tooltip content="Edit enquiry">
+                                <button
+                                  type="button"
+                                  onClick={() => startEditActivity(a)}
+                                  className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                              </Tooltip>
+                              <Tooltip content="Delete enquiry">
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteActivityId(a.id)}
+                                  className="p-1.5 rounded text-slate-500 hover:bg-rose-100 hover:text-rose-600"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </Tooltip>
                             </div>
                           )}
                         </div>

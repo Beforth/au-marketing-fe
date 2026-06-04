@@ -50,6 +50,8 @@ export const API_CONFIG = {
   TIMEOUT: 10000,
 };
 
+let currentSettingsVersion: string | null = null;
+
 /**
  * API Client with authentication
  */
@@ -95,6 +97,21 @@ class APIClient {
         ...options,
         headers,
       });
+
+      // Capture settings version from headers and dispatch change event only if it actually changes
+      const settingsVersion = response.headers.get('X-Marketing-Settings-Version');
+      if (settingsVersion) {
+        if (currentSettingsVersion !== null && currentSettingsVersion !== settingsVersion) {
+          currentSettingsVersion = settingsVersion;
+          window.dispatchEvent(
+            new CustomEvent('marketing:settings-version-changed', {
+              detail: { version: settingsVersion },
+            })
+          );
+        } else if (currentSettingsVersion === null) {
+          currentSettingsVersion = settingsVersion;
+        }
+      }
 
       // Handle 401 Unauthorized - token expired or invalid
       if (response.status === 401) {

@@ -7,10 +7,12 @@ import { useAppSelector } from '../../store/hooks';
 import { selectUserDisplayName, selectUserInitials, selectEmployee, selectUser, selectHasPermission } from '../../store/slices/authSlice';
 import { Modal } from './Modal';
 import { ChangelogContent } from './ChangelogContent';
+import { ChevronDown, ShieldCheck, Hash, Users } from 'lucide-react';
 
 
 export const Sidebar: React.FC = () => {
   const [showChangelog, setShowChangelog] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const userDisplayName = useAppSelector(selectUserDisplayName);
   const userInitials = useAppSelector(selectUserInitials);
   const employee = useAppSelector(selectEmployee);
@@ -123,12 +125,95 @@ export const Sidebar: React.FC = () => {
           ))}
         </nav>
 
-        <div className="mt-auto pt-6 border-t border-slate-100">
-          <nav className="space-y-0.5">
+        <div className="mt-auto pt-4 space-y-0">
+          {/* ── Admin Section ── */}
+          {hasAdmin && (
+            <div className="mb-1">
+              <div className="border-t border-slate-100 pt-3 pb-1">
+                <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Admin</p>
+              </div>
+
+              {/* Admin toggle button */}
+              <button
+                type="button"
+                onClick={() => setAdminOpen(o => !o)}
+                className={`w-full group flex items-center justify-between rounded-lg text-[13px] transition-all duration-200 font-medium px-3 py-2 ${
+                  adminOpen
+                    ? 'bg-indigo-50 text-indigo-700'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <ShieldCheck
+                    size={18}
+                    strokeWidth={adminOpen ? 2.2 : 1.8}
+                    className={adminOpen ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}
+                  />
+                  <span className={adminOpen ? 'font-semibold' : ''}>Administration</span>
+                </div>
+                <ChevronDown
+                  size={14}
+                  className={`text-slate-400 transition-transform duration-200 ${adminOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {/* Dropdown items */}
+              {adminOpen && (
+                <div className="mt-0.5 ml-3 pl-3 border-l-2 border-indigo-100 space-y-0.5">
+                  <NavLink
+                    to="/numbering-series"
+                    className={({ isActive }) =>
+                      `flex items-center gap-2.5 w-full rounded-lg text-[12.5px] transition-all duration-200 font-medium px-2.5 py-1.5 ${
+                        isActive
+                          ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <Hash
+                          size={15}
+                          strokeWidth={isActive ? 2.2 : 1.8}
+                          className={isActive ? 'text-indigo-500' : 'text-slate-400'}
+                        />
+                        Numbering Series
+                      </>
+                    )}
+                  </NavLink>
+
+                  <NavLink
+                    to="/roles"
+                    className={({ isActive }) =>
+                      `flex items-center gap-2.5 w-full rounded-lg text-[12.5px] transition-all duration-200 font-medium px-2.5 py-1.5 ${
+                        isActive
+                          ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <Users
+                          size={15}
+                          strokeWidth={isActive ? 2.2 : 1.8}
+                          className={isActive ? 'text-indigo-500' : 'text-slate-400'}
+                        />
+                        Roles
+                      </>
+                    )}
+                  </NavLink>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Secondary links (Settings / Support) */}
+          <div className={`border-t border-slate-100 pt-3 space-y-0.5 ${hasAdmin ? '' : 'mt-3'}`}>
             {filteredSecondaryLinks.map((item) => (
               <SidebarItem key={item.title} item={item} />
             ))}
-          </nav>
+          </div>
 
           <div className="mt-4 flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100/80 bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer">
             <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0 border border-indigo-200/50">

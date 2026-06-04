@@ -16,6 +16,7 @@ import { Select } from '../components/ui/Select';
 import { ArrowLeft, History, Plus, Edit2, Trash2, Paperclip, Upload, Download } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Modal } from '../components/ui/Modal';
+import { Tooltip } from '../UI/Tooltip';
 
 export const OrderFormPage: React.FC = () => {
   const navigate = useNavigate();
@@ -409,9 +410,11 @@ export const OrderFormPage: React.FC = () => {
                         </span>
                       ) : null}
                     </div>
-                    <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setDeleteActivityId(a.id)} title="Remove">
-                      <Trash2 size={14} />
-                    </Button>
+                    <Tooltip content="Remove">
+                      <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setDeleteActivityId(a.id)}>
+                        <Trash2 size={14} />
+                      </Button>
+                    </Tooltip>
                   </div>
                   {a.description && <p className="text-slate-600 mt-2">{a.description}</p>}
                   {attachments.length > 0 && (
@@ -438,9 +441,15 @@ export const OrderFormPage: React.FC = () => {
                   <p className="text-slate-400 text-xs mt-2">
                     {new Date(a.activity_date).toLocaleString()}
                     {' · '}
-                    <span className="cursor-help border-b border-dotted border-slate-400" title={tooltip}>
-                      {displayName}
-                    </span>
+                    {tooltip ? (
+                      <Tooltip content={tooltip}>
+                        <span className="cursor-help border-b border-dotted border-slate-400">
+                          {displayName}
+                        </span>
+                      </Tooltip>
+                    ) : (
+                      <span>{displayName}</span>
+                    )}
                   </p>
                 </li>
               );

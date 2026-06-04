@@ -1,46 +1,47 @@
-import React, { useState } from 'react';
+import React from 'react';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { cn } from '../lib/utils';
 
 export interface TooltipProps {
-  content: React.ReactNode;
   children: React.ReactNode;
-  position?: 'top' | 'bottom' | 'left' | 'right';
+  content: React.ReactNode;
+  side?: 'top' | 'right' | 'bottom' | 'left';
+  align?: 'start' | 'center' | 'end';
+  delayDuration?: number;
   className?: string;
 }
 
-export function Tooltip({ content, children, position = 'top', className }: TooltipProps) {
-  const [isVisible, setIsVisible] = useState(false);
+export const TooltipProvider = TooltipPrimitive.Provider;
 
-  const positions = {
-    top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
-    bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
-    left: 'right-full top-1/2 -translate-y-1/2 mr-2',
-    right: 'left-full top-1/2 -translate-y-1/2 ml-2',
-  };
-
+export function Tooltip({
+  children,
+  content,
+  side = 'top',
+  align = 'center',
+  delayDuration = 100,
+  className
+}: TooltipProps) {
   return (
-    <div 
-      className="relative inline-block"
-      onMouseEnter={() => setIsVisible(true)}
-      onMouseLeave={() => setIsVisible(false)}
-    >
-      {children}
-      {isVisible && (
-        <div className={cn(
-          'absolute z-[100] px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white bg-slate-900 rounded-lg shadow-xl whitespace-nowrap animate-in fade-in zoom-in-95 duration-200',
-          positions[position],
-          className
-        )}>
-          {content}
-          <div className={cn(
-            'absolute border-4 border-transparent',
-            position === 'top' && 'top-full left-1/2 -translate-x-1/2 border-t-slate-900',
-            position === 'bottom' && 'bottom-full left-1/2 -translate-x-1/2 border-b-slate-900',
-            position === 'left' && 'left-full top-1/2 -translate-y-1/2 border-l-slate-900',
-            position === 'right' && 'right-full top-1/2 -translate-y-1/2 border-r-slate-900'
-          )} />
-        </div>
-      )}
-    </div>
+    <TooltipPrimitive.Root delayDuration={delayDuration}>
+      <TooltipPrimitive.Trigger asChild>
+        {children}
+      </TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          side={side}
+          align={align}
+          sideOffset={6}
+          className={cn(
+            'z-[100] px-2.5 py-1.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-100/80 animate-in fade-in zoom-in-95 duration-100 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-1.5 data-[side=left]:slide-in-from-right-1.5 data-[side=right]:slide-in-from-left-1.5 data-[side=top]:slide-in-from-bottom-1.5',
+            className
+          )}
+        >
+          <span className="text-[11px] font-semibold text-slate-800 whitespace-pre-line leading-normal block">
+            {content}
+          </span>
+          <TooltipPrimitive.Arrow className="fill-white stroke-slate-200 stroke-1" width={8} height={4} />
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
   );
 }

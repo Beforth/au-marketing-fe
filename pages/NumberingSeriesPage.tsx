@@ -11,7 +11,7 @@ import { SearchInput } from '../components/ui/SearchInput';
 import { Select } from '../components/ui/Select';
 import { PageLayout } from '../components/layout/PageLayout';
 import { DataTable } from '../components/ui/DataTable';
-import { Tooltip } from '../components/ui/Tooltip';
+import { Tooltip } from '../UI/Tooltip';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { SegmentToggle } from '../components/ui/SegmentToggle';

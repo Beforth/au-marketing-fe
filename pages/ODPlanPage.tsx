@@ -23,6 +23,7 @@ import { Modal } from '../components/ui/Modal';
 import { marketingAPI } from '../lib/marketing-api';
 import type { ODPlanEntryItem, ODPlanEntryCreate, ODPlanReportItem, Contact, Plant } from '../lib/marketing-api';
 import { useApp } from '../App';
+import { Tooltip } from '../UI/Tooltip';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from '../constants';
@@ -669,23 +670,25 @@ export const ODPlanPage: React.FC = () => {
             />
             {createContactForm.organization_id != null && (
               <div className="absolute right-2 top-8 flex items-center gap-0.5">
-                <button
-                  type="button"
-                  onClick={clearContactOrganization}
-                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
-                  title="Clear organization"
-                >
-                  <X size={16} />
-                </button>
-                <a
-                  href={`/organizations/${createContactForm.organization_id}/edit`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-1.5 text-slate-500 hover:text-indigo-600 rounded-md transition-colors"
-                  title="Open organization in new tab"
-                >
-                  <ArrowRight size={16} />
-                </a>
+                <Tooltip content="Clear organization">
+                  <button
+                    type="button"
+                    onClick={clearContactOrganization}
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </Tooltip>
+                <Tooltip content="Open organization in new tab">
+                  <a
+                    href={`/organizations/${createContactForm.organization_id}/edit`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 text-slate-500 hover:text-indigo-600 rounded-md transition-colors"
+                  >
+                    <ArrowRight size={16} />
+                  </a>
+                </Tooltip>
               </div>
             )}
             {(orgSuggestions.length > 0 || (orgSearchQuery.trim().length >= 2 && canCreateOrg)) && (

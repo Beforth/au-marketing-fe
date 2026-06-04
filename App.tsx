@@ -36,7 +36,8 @@ import { SettingsPage } from './pages/SettingsPage';
 import { SupportPage } from './pages/SupportPage';
 import { SchemaPage } from './pages/SchemaPage';
 import { ReportTemplatesPage } from './pages/ReportTemplatesPage';
-import { TooltipProvider } from './components/ui/Tooltip';
+import { RolesPage } from './pages/RolesPage';
+import { TooltipProvider } from './UI/Tooltip';
 import { Toast, ToastType } from './components/ui/Toast';
 
 const NumberingSeriesPage = lazy(() => import('./pages/NumberingSeriesPage').then(m => ({ default: m.NumberingSeriesPage })));
@@ -276,6 +277,7 @@ const AppMain: React.FC = () => {
               <Route path="numbering-series" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
               <Route path="numbering-series/new" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
               <Route path="numbering-series/:id/edit" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
+              <Route path="roles" element={<RolesPage />} />
               <Route path="schema" element={<SchemaPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

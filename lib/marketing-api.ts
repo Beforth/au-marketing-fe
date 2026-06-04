@@ -1659,6 +1659,15 @@ class MarketingAPIService {
     if (params?.employee_id) queryParams.append('employee_id', String(params.employee_id));
     return apiClient.get<PaginatedResponse<AuditLog>>(`/api/audit-logs/?${queryParams.toString()}`);
   }
+
+  // Visibility Settings
+  async getMarketingSettings(): Promise<MarketingSettingsPayload> {
+    return apiClient.get<MarketingSettingsPayload>('/api/marketing/settings');
+  }
+
+  async updateMarketingSettings(payload: MarketingSettingsPayload): Promise<MarketingSettingsPayload> {
+    return apiClient.put<MarketingSettingsPayload>('/api/marketing/settings', payload);
+  }
 }
 
 export interface QuotationListItem {
@@ -2026,6 +2035,56 @@ export interface SeriesGenerateResponse {
   series_id: number;
   series_code: string;
   generated_value: string;
+}
+
+// Visibility Settings Interfaces
+export interface EmployeeRules {
+  view_own_target: boolean;
+  view_other_employee_targets: boolean;
+  view_region_head_name: boolean;
+  view_domain_head_name: boolean;
+  view_region_target: boolean;
+}
+
+export interface RegionHeadRules {
+  view_other_regions: boolean;
+  view_domain_head_name: boolean;
+  view_domain_target: boolean;
+}
+
+export interface DomainHeadRules {
+  view_other_domains: boolean;
+  view_other_regions: boolean;
+}
+
+/** Domain Coordinator: assists Domain Head, elevated visibility within a domain */
+export interface DomainCoordinatorRules {
+  view_other_domains: boolean;
+  view_other_regions: boolean;
+  view_region_targets: boolean;
+  view_employee_targets: boolean;
+}
+
+/** Region Coordinator: assists Region Head, elevated visibility within a region */
+export interface RegionCoordinatorRules {
+  view_other_regions: boolean;
+  view_domain_head_name: boolean;
+  view_domain_target: boolean;
+  view_employee_targets: boolean;
+}
+
+export interface GlobalRules {
+  domain_head: DomainHeadRules;
+  domain_coordinator: DomainCoordinatorRules;
+  region_head: RegionHeadRules;
+  region_coordinator: RegionCoordinatorRules;
+  employee: EmployeeRules;
+}
+
+export interface MarketingSettingsPayload {
+  schema_version: number;
+  global_rules: GlobalRules;
+  domain_overrides: Record<string, GlobalRules>;
 }
 
 export const marketingAPI = new MarketingAPIService();

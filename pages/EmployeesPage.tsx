@@ -18,6 +18,7 @@ import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { Tooltip } from '../UI/Tooltip';
 import { marketingAPI, HRMSEmployee, AssignmentWithEmployee, Domain, Region, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
 
 export type RegionAssignment = AssignmentWithEmployee;
@@ -369,28 +370,29 @@ export const EmployeesPage: React.FC = () => {
                     sortable: false,
                     align: 'right' as const,
                     render: (row) => (
-                      <Button
-                        variant="ghost"
-                        size="xxs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openAssignModal({
-                            id: row.employee_id,
-                            first_name: row.name.split(' ')[0] || '',
-                            last_name: row.name.split(' ').slice(1).join(' ') || '',
-                            email: row.email,
-                            user_id: null,
-                            username: null,
-                            employee_id: null,
-                            department: null,
-                            designation: null,
-                            is_active: true,
-                          } as HRMSEmployee);
-                        }}
-                        title="Manage Assignments"
-                      >
-                        <Settings2 size={12} />
-                      </Button>
+                      <Tooltip content="Manage Assignments">
+                        <Button
+                          variant="ghost"
+                          size="xxs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openAssignModal({
+                              id: row.employee_id,
+                              first_name: row.name.split(' ')[0] || '',
+                              last_name: row.name.split(' ').slice(1).join(' ') || '',
+                              email: row.email,
+                              user_id: null,
+                              username: null,
+                              employee_id: null,
+                              department: null,
+                              designation: null,
+                              is_active: true,
+                            } as HRMSEmployee);
+                          }}
+                        >
+                          <Settings2 size={12} />
+                        </Button>
+                      </Tooltip>
                     ),
                   } as Column<AssignedUserRow>]
                 : []),
