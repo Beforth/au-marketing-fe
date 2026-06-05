@@ -24,6 +24,7 @@ export interface Domain {
   code: string;
   description?: string;
   is_active: boolean;
+  is_export?: boolean;
   head_employee_id?: number;
   head_username?: string;
   head_email?: string;

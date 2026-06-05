@@ -18,6 +18,15 @@ import { useAppSelector } from '../store/hooks';
 import { selectHasPermission, selectUser, selectEmployee } from '../store/slices/authSlice';
 import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadThroughOption, LeadActivity, LeadActivityAttachment, Domain, Region, Customer, Contact, Plant, Series, Organization, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, DEFAULT_LEAD_SERIES_STORAGE_KEY } from '../constants';
+import CountryList from 'country-list-with-dial-code-and-flag';
+
+const countryOptions = CountryList.getAll({ withSecondary: false })
+  .map((c) => ({
+    value: c.code,
+    label: `${c.flag} ${c.name} (${c.code})`,
+    name: c.name
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 const COMPANY_SIZES = [
   { value: '1-10', label: '1-10 employees' },
@@ -140,6 +149,8 @@ export const LeadFormPage: React.FC = () => {
   const [leadPhonePart, setLeadPhonePart] = useState('');
   const [leadSearchEmail, setLeadSearchEmail] = useState('');
   const [leadSearchPhone, setLeadSearchPhone] = useState('');
+  const [selectedCountryCode, setSelectedCountryCode] = useState<string>('');
+
   const [contactSuggestions, setContactSuggestions] = useState<Contact[]>([]);
   const contactSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showCreateContactModal, setShowCreateContactModal] = useState(false);
@@ -220,9 +231,13 @@ export const LeadFormPage: React.FC = () => {
     series_code: undefined,
     series: undefined,
     assigned_to_employee_id: undefined,
-    referred_by_employee_id: undefined,
-    expected_closing_date: '',
   });
+
+  const isExportDomain = useMemo(() => {
+    const selectedDomainObj = domains.find(d => d.id === formData.domain_id);
+    return selectedDomainObj?.is_export || currentLead?.domain?.is_export || false;
+  }, [domains, formData.domain_id, currentLead]);
+
   // Referred by (person name): type none | employee | customer | contact (independent of Lead through)
   const [referredByType, setReferredByType] = useState<'none' | 'employee' | 'customer' | 'contact'>('none');
   const [selectedReferredByCustomerForDisplay, setSelectedReferredByCustomerForDisplay] = useState<Customer | null>(null);
@@ -1033,6 +1048,11 @@ export const LeadFormPage: React.FC = () => {
         email,
         job_title: jobTitle,
       });
+      if (lead.domain?.is_export && lead.region) {
+        setSelectedCountryCode(lead.region.code);
+      } else {
+        setSelectedCountryCode('');
+      }
       if (lead.through_contact) {
         setSelectedThroughContactForDisplay(lead.through_contact);
       } else {
@@ -1111,6 +1131,31 @@ export const LeadFormPage: React.FC = () => {
     const selectedLeadRegionId = formData.region_id ?? undefined;
     let effectiveDomainId = selectedLeadDomainId;
     let effectiveRegionId = selectedLeadRegionId;
+
+    if (isExportDomain && selectedCountryCode) {
+      const matched = regions.find(r => r.code.toUpperCase() === selectedCountryCode.toUpperCase());
+      if (matched) {
+        effectiveRegionId = matched.id;
+      } else {
+        setIsSubmitting(true);
+        try {
+          const countryOpt = countryOptions.find(o => o.value === selectedCountryCode);
+          const countryName = countryOpt ? countryOpt.name : selectedCountryCode;
+          const newRegion = await marketingAPI.createRegion({
+            domain_id: effectiveDomainId,
+            name: countryName,
+            code: selectedCountryCode.toUpperCase(),
+            is_active: true
+          });
+          setRegions(prev => [...prev, newRegion]);
+          effectiveRegionId = newRegion.id;
+        } catch (regionErr: any) {
+          showToast(regionErr.message || 'Failed to auto-create region for the selected country', 'error');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+    }
     const referredByContactSubmit = referredByType === 'contact';
 
     if (!isEdit && !effectiveContactId && !effectiveCustomerId) {
@@ -2305,18 +2350,34 @@ export const LeadFormPage: React.FC = () => {
                     onChange={(v) => {
                       const did = v ? Number(v) : undefined;
                       setFormData({ ...formData, domain_id: did, region_id: undefined });
+                      setSelectedCountryCode('');
                       if (did) loadRegions(did);
                     }}
                     placeholder="Select domain"
                   />
-                  <Select
-                    label="Region"
-                    options={[{ value: '', label: 'None' }, ...regions.map(r => ({ value: String(r.id), label: r.name }))]}
-                    value={formData.region_id ? String(formData.region_id) : ''}
-                    onChange={(v) => setFormData({ ...formData, region_id: v ? Number(v) : undefined })}
-                    placeholder="Select region"
-                    disabled={!formData.domain_id}
-                  />
+                  {isExportDomain ? (
+                    <Select
+                      label="Region (Country) *"
+                      options={countryOptions}
+                      value={selectedCountryCode}
+                      onChange={(v) => {
+                        setSelectedCountryCode(v ? String(v) : '');
+                        const matched = regions.find(r => r.code.toUpperCase() === String(v).toUpperCase());
+                        setFormData(prev => ({ ...prev, region_id: matched ? matched.id : undefined }));
+                      }}
+                      placeholder="Select country"
+                      searchable={true}
+                    />
+                  ) : (
+                    <Select
+                      label="Region"
+                      options={[{ value: '', label: 'None' }, ...regions.map(r => ({ value: String(r.id), label: r.name }))]}
+                      value={formData.region_id ? String(formData.region_id) : ''}
+                      onChange={(v) => setFormData({ ...formData, region_id: v ? Number(v) : undefined })}
+                      placeholder="Select region"
+                      disabled={!formData.domain_id}
+                    />
+                  )}
                   <AsyncSelect
                     label="Assigned To"
                     loadOptions={async (search) => {
@@ -3424,7 +3485,12 @@ export const LeadFormPage: React.FC = () => {
                       return res.items.map((d: { id: number; name: string }) => ({ value: d.id, label: d.name }));
                     }}
                     value={formData.domain_id}
-                    onChange={(val) => setFormData({ ...formData, domain_id: val ? Number(val) : undefined, region_id: undefined })}
+                    onChange={(val) => {
+                      const did = val ? Number(val) : undefined;
+                      setFormData({ ...formData, domain_id: did, region_id: undefined });
+                      setSelectedCountryCode('');
+                      if (did) loadRegions(did);
+                    }}
                     placeholder="Select Domain"
                     required
                     initialOptions={domains.slice(0, 10).map(d => ({ value: d.id, label: d.name }))}
@@ -3432,21 +3498,37 @@ export const LeadFormPage: React.FC = () => {
                   />
                 </div>
                 <div className="md:col-span-6">
-                  <AsyncSelect
-                    label="Region"
-                    loadOptions={async (search) => {
-                      if (!formData.domain_id) return [];
-                      if (!search && regions.length > 0) return regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }));
-                      const res = await marketingAPI.getRegions({ domain_id: formData.domain_id, is_active: true, page: 1, page_size: 25, search: search || undefined });
-                      return res.items.map(r => ({ value: r.id, label: r.name }));
-                    }}
-                    value={formData.region_id}
-                    onChange={(val) => setFormData({ ...formData, region_id: val ? Number(val) : undefined })}
-                    placeholder="Select Region"
-                    disabled={!formData.domain_id}
-                    initialOptions={regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }))}
-                    inputSize="sm"
-                  />
+                  {isExportDomain ? (
+                    <Select
+                      label="Region (Country) *"
+                      options={countryOptions}
+                      value={selectedCountryCode}
+                      onChange={(v) => {
+                        setSelectedCountryCode(v ? String(v) : '');
+                        const matched = regions.find(r => r.code.toUpperCase() === String(v).toUpperCase());
+                        setFormData(prev => ({ ...prev, region_id: matched ? matched.id : undefined }));
+                      }}
+                      placeholder="Select country"
+                      searchable={true}
+                      inputSize="sm"
+                    />
+                  ) : (
+                    <AsyncSelect
+                      label="Region"
+                      loadOptions={async (search) => {
+                        if (!formData.domain_id) return [];
+                        if (!search && regions.length > 0) return regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }));
+                        const res = await marketingAPI.getRegions({ domain_id: formData.domain_id, is_active: true, page: 1, page_size: 25, search: search || undefined });
+                        return res.items.map(r => ({ value: r.id, label: r.name }));
+                      }}
+                      value={formData.region_id}
+                      onChange={(val) => setFormData({ ...formData, region_id: val ? Number(val) : undefined })}
+                      placeholder="Select Region"
+                      disabled={!formData.domain_id}
+                      initialOptions={regions.slice(0, 10).map(r => ({ value: r.id, label: r.name }))}
+                      inputSize="sm"
+                    />
+                  )}
                 </div>
               </div>
             </div>

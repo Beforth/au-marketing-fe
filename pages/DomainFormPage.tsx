@@ -31,6 +31,7 @@ export const DomainFormPage: React.FC = () => {
     code: '',
     description: '',
     is_active: true,
+    is_export: false,
   });
 const headUsernameMapRef = useRef<Map<number, string>>(new Map());
 const headEmailMapRef = useRef<Map<number, string>>(new Map());
@@ -72,6 +73,7 @@ const loadDomain = async () => {
       code: domain.code,
       description: domain.description || '',
       is_active: domain.is_active,
+      is_export: domain.is_export || false,
       head_employee_id: domain.head_employee_id,
       head_username: domain.head_username,
       head_email: domain.head_email,
@@ -269,6 +271,19 @@ return (
           />
           <label htmlFor="is_active" className="text-sm font-medium text-slate-700">
             Active
+          </label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="is_export"
+            checked={formData.is_export ?? false}
+            onChange={(e) => setFormData({ ...formData, is_export: e.target.checked })}
+            className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+          />
+          <label htmlFor="is_export" className="text-sm font-medium text-slate-700">
+            Export Domain (International)
           </label>
         </div>
 

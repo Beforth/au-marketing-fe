@@ -38,6 +38,7 @@ export const RegionFormPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [domainName, setDomainName] = useState<string>('');
   const [isExport, setIsExport] = useState<boolean>(false);
+  const [existingRegions, setExistingRegions] = useState<Region[]>([]);
   const [formData, setFormData] = useState<Partial<Region>>({
     name: '',
     code: '',
@@ -79,8 +80,12 @@ export const RegionFormPage: React.FC = () => {
     try {
       const domain = await marketingAPI.getDomain(domainIdNum);
       setDomainName(domain.name);
-      const isExp = domain.code.toUpperCase() === 'EXPORT' || domain.name.toLowerCase().includes('export');
+      const isExp = Boolean(domain.is_export);
       setIsExport(isExp);
+      if (isExp) {
+        const res = await marketingAPI.getRegions({ domain_id: domainIdNum, is_active: true, page: 1, page_size: 100 });
+        setExistingRegions(res.items);
+      }
     } catch {
       setDomainName('Domain');
     }
@@ -116,9 +121,12 @@ export const RegionFormPage: React.FC = () => {
       });
       const dName = region.domain?.name || 'Domain';
       setDomainName(dName);
-      const dCode = region.domain?.code || '';
-      const isExp = dCode.toUpperCase() === 'EXPORT' || dName.toLowerCase().includes('export');
+      const isExp = region.domain ? Boolean(region.domain.is_export) : false;
       setIsExport(isExp);
+      if (isExp) {
+        const res = await marketingAPI.getRegions({ domain_id: domainIdNum, is_active: true, page: 1, page_size: 100 });
+        setExistingRegions(res.items);
+      }
     } catch (error: any) {
       showToast(error.message || 'Failed to load region', 'error');
       navigate('/domains');
@@ -133,6 +141,14 @@ export const RegionFormPage: React.FC = () => {
     if (!formData.name || !formData.code) {
       showToast('Name and code are required', 'error');
       return;
+    }
+
+    if (!isEdit && isExport) {
+      const alreadyExists = existingRegions.some(r => r.code.toUpperCase() === formData.code?.toUpperCase());
+      if (alreadyExists) {
+        showToast('Region for this country already exists in this domain', 'error');
+        return;
+      }
     }
 
     setIsSubmitting(true);
