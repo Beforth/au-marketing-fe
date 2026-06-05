@@ -1446,8 +1446,12 @@ class MarketingAPIService {
   }
 
   /** Domain target summary: hierarchy domain → region → employee with target amounts (for Domains Review page). */
-  async getDomainTargetSummary(year: number, month: number): Promise<DomainTargetSummaryResponse> {
-    return apiClient.get<DomainTargetSummaryResponse>(`/api/dashboard/domain-target-summary?year=${year}&month=${month}`);
+  async getDomainTargetSummary(year: number, month?: number | null, quarter?: number | null): Promise<DomainTargetSummaryResponse> {
+    const sp = new URLSearchParams();
+    sp.set('year', String(year));
+    if (month != null) sp.set('month', String(month));
+    if (quarter != null) sp.set('quarter', String(quarter));
+    return apiClient.get<DomainTargetSummaryResponse>(`/api/dashboard/domain-target-summary?${sp.toString()}`);
   }
 
   /** Head dashboard summary for domain_head and super_admin: region split, hot cases, conversion, won vs lost. */
@@ -1820,7 +1824,7 @@ export interface DomainTargetSummaryItem {
 
 export interface DomainTargetSummaryResponse {
   year: number;
-  month: number;
+  month?: number | null;
   total_target: number;
   domains: DomainTargetSummaryItem[];
 }

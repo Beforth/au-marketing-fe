@@ -51,7 +51,10 @@ function formatTargetAmount(amount: number): string {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
-const getProgressMessage = (pct: number): { text: string; colorClass: string; bgClass: string; borderClass: string; iconColor: string } => {
+const getProgressMessage = (
+  pct: number,
+  viewMode?: 'monthly' | 'quarterly' | 'yearly'
+): { text: string; colorClass: string; bgClass: string; borderClass: string; iconColor: string } => {
   if (pct === 0) {
     return {
       text: "Let's kickstart this period! Every lead counts! 🚀",
@@ -61,6 +64,53 @@ const getProgressMessage = (pct: number): { text: string; colorClass: string; bg
       iconColor: "text-slate-400"
     };
   }
+
+  if (viewMode === 'yearly') {
+    if (pct < 25) {
+      return {
+        text: "Off to a good start! Let's target the Q1 milestone! 📈",
+        colorClass: "text-amber-700",
+        bgClass: "bg-amber-50/50",
+        borderClass: "border-amber-100",
+        iconColor: "text-amber-500"
+      };
+    }
+    if (pct < 50) {
+      return {
+        text: "Q1 Milestone unlocked! Keep pushing to reach the halfway Q2 target! ⚡",
+        colorClass: "text-indigo-700",
+        bgClass: "bg-indigo-50/50",
+        borderClass: "border-indigo-100",
+        iconColor: "text-indigo-500"
+      };
+    }
+    if (pct < 75) {
+      return {
+        text: "Q2 Milestone unlocked! Over halfway there, keep up the momentum! ✨",
+        colorClass: "text-violet-700",
+        bgClass: "bg-violet-50/50",
+        borderClass: "border-violet-100",
+        iconColor: "text-violet-500"
+      };
+    }
+    if (pct < 100) {
+      return {
+        text: "Q3 Milestone unlocked! Just a final stretch to achieve the yearly goal! 🎯",
+        colorClass: "text-teal-700",
+        bgClass: "bg-teal-50/50",
+        borderClass: "border-teal-100",
+        iconColor: "text-teal-500"
+      };
+    }
+    return {
+      text: "Full Yearly Target achieved! Outstanding performance! 🏆🎉",
+      colorClass: "text-emerald-700",
+      bgClass: "bg-emerald-50/50",
+      borderClass: "border-emerald-100",
+      iconColor: "text-emerald-500"
+    };
+  }
+
   if (pct < 25) {
     return {
       text: "Good start! Keep pushing and follow up on active leads! 💪",
@@ -443,9 +493,20 @@ export const DomainsPage: React.FC = () => {
   const [regionCoordinatorEmployeeId, setRegionCoordinatorEmployeeId] = useState<number | ''>('');
   const [coordinatorSelectSubmitting, setCoordinatorSelectSubmitting] = useState(false);
 
-  // Target summary (Review view): year/month and hierarchy with target amounts
-  const [targetYear, setTargetYear] = useState(() => getCurrentYearMonth().year);
+  // Target summary (Review view): year/month/quarter and hierarchy with target amounts
+  const [viewMode, setViewMode] = useState<'monthly' | 'quarterly' | 'yearly'>('yearly');
+  const [targetYear, setTargetYear] = useState(() => {
+    const { year, month } = getCurrentYearMonth();
+    return month >= 4 ? year : year - 1;
+  });
   const [targetMonth, setTargetMonth] = useState(() => getCurrentYearMonth().month);
+  const [targetQuarter, setTargetQuarter] = useState<number>(() => {
+    const currentMonth = getCurrentYearMonth().month;
+    if (currentMonth >= 4 && currentMonth <= 6) return 1;
+    if (currentMonth >= 7 && currentMonth <= 9) return 2;
+    if (currentMonth >= 10 && currentMonth <= 12) return 3;
+    return 4;
+  });
   const [targetSummary, setTargetSummary] = useState<DomainTargetSummaryResponse | null>(null);
   const [targetSummaryLoading, setTargetSummaryLoading] = useState(false);
   const [targetHierarchyModal, setTargetHierarchyModal] = useState<TargetHierarchyModal | null>(null);
@@ -454,6 +515,10 @@ export const DomainsPage: React.FC = () => {
 
   const [scopeStats, setScopeStats] = useState<ScopeTargetStats | null>(null);
   const [scopeStatsLoading, setScopeStatsLoading] = useState(false);
+  const [q1Stats, setQ1Stats] = useState<ScopeTargetStats | null>(null);
+  const [q2Stats, setQ2Stats] = useState<ScopeTargetStats | null>(null);
+  const [q3Stats, setQ3Stats] = useState<ScopeTargetStats | null>(null);
+  const [q4Stats, setQ4Stats] = useState<ScopeTargetStats | null>(null);
 
   useEffect(() => {
     if (!canView) {
@@ -479,16 +544,14 @@ export const DomainsPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (canView) {
-      loadReviewData();
-    }
-  }, [canView]);
-
   const loadDomainTargetSummary = async () => {
     setTargetSummaryLoading(true);
     try {
-      const res = await marketingAPI.getDomainTargetSummary(targetYear, targetMonth);
+      const res = await marketingAPI.getDomainTargetSummary(
+        targetYear,
+        viewMode === 'monthly' ? targetMonth : null,
+        viewMode === 'quarterly' ? targetQuarter : null
+      );
       setTargetSummary(res);
     } catch (error: any) {
       showToast(error.message || 'Failed to load target summary', 'error');
@@ -501,15 +564,53 @@ export const DomainsPage: React.FC = () => {
   const loadScopeStats = async () => {
     setScopeStatsLoading(true);
     try {
-      const pad = (n: number) => String(n).padStart(2, '0');
-      const dateFrom = `${targetYear}-${pad(targetMonth)}-01`;
-      const lastDay = new Date(targetYear, targetMonth, 0).getDate();
-      const dateTo = `${targetYear}-${pad(targetMonth)}-${pad(lastDay)}`;
-      const res = await marketingAPI.getScopeTargetStats({ date_from: dateFrom, date_to: dateTo });
-      setScopeStats(res);
+      const q1From = `${targetYear}-04-01`;
+      const q1To = `${targetYear}-06-30`;
+      
+      const q2From = `${targetYear}-07-01`;
+      const q2To = `${targetYear}-09-30`;
+      
+      const q3From = `${targetYear}-10-01`;
+      const q3To = `${targetYear}-12-31`;
+      
+      const q4From = `${targetYear + 1}-01-01`;
+      const q4To = `${targetYear + 1}-03-31`;
+
+      const [resQ1, resQ2, resQ3, resQ4] = await Promise.all([
+        marketingAPI.getScopeTargetStats({ date_from: q1From, date_to: q1To }),
+        marketingAPI.getScopeTargetStats({ date_from: q2From, date_to: q2To }),
+        marketingAPI.getScopeTargetStats({ date_from: q3From, date_to: q3To }),
+        marketingAPI.getScopeTargetStats({ date_from: q4From, date_to: q4To }),
+      ]);
+
+      setQ1Stats(resQ1);
+      setQ2Stats(resQ2);
+      setQ3Stats(resQ3);
+      setQ4Stats(resQ4);
+
+      const combinedTarget = (resQ1?.monthly_target || 0) + (resQ2?.monthly_target || 0) + (resQ3?.monthly_target || 0) + (resQ4?.monthly_target || 0);
+      const combinedAchieved = (resQ1?.achieved_this_month || 0) + (resQ2?.achieved_this_month || 0) + (resQ3?.achieved_this_month || 0) + (resQ4?.achieved_this_month || 0);
+      const combinedWonLeads = (resQ1?.won_leads_count_this_month || 0) + (resQ2?.won_leads_count_this_month || 0) + (resQ3?.won_leads_count_this_month || 0) + (resQ4?.won_leads_count_this_month || 0);
+      const combinedLostLeads = (resQ1?.lost_leads_count_this_month || 0) + (resQ2?.lost_leads_count_this_month || 0) + (resQ3?.lost_leads_count_this_month || 0) + (resQ4?.lost_leads_count_this_month || 0);
+
+      setScopeStats({
+        role: resQ1?.role || 'employee',
+        scope_label: resQ1?.scope_label || 'My',
+        monthly_target: combinedTarget,
+        achieved_this_month: combinedAchieved,
+        won_leads_count_this_month: combinedWonLeads,
+        lost_leads_count_this_month: combinedLostLeads,
+        year: targetYear,
+        month: 4,
+        employee_count: resQ1?.employee_count || 1,
+      });
     } catch (error: any) {
       console.error('Failed to load scope stats:', error);
       setScopeStats(null);
+      setQ1Stats(null);
+      setQ2Stats(null);
+      setQ3Stats(null);
+      setQ4Stats(null);
     } finally {
       setScopeStatsLoading(false);
     }
@@ -538,7 +639,7 @@ export const DomainsPage: React.FC = () => {
       loadDomainTargetSummary();
       loadScopeStats();
     }
-  }, [canView, targetYear, targetMonth]);
+  }, [canView, targetYear, targetMonth, targetQuarter, viewMode]);
 
 
 
@@ -753,6 +854,25 @@ export const DomainsPage: React.FC = () => {
     }
   };
 
+  const getYearlyMultiplier = () => {
+    if (viewMode === 'monthly') return 12;
+    if (viewMode === 'quarterly') return 4;
+    return 1;
+  };
+
+  const getSaveYearMonth = () => {
+    if (viewMode === 'monthly') {
+      return { year: targetYear, month: targetMonth };
+    }
+    if (viewMode === 'quarterly') {
+      if (targetQuarter === 1) return { year: targetYear, month: 4 };
+      if (targetQuarter === 2) return { year: targetYear, month: 7 };
+      if (targetQuarter === 3) return { year: targetYear, month: 10 };
+      return { year: targetYear + 1, month: 1 };
+    }
+    return { year: targetYear, month: 4 };
+  };
+
   // ——— Review: Set employee target ———
   const handleSaveHierarchyTarget = async () => {
     const m = targetHierarchyModal;
@@ -763,13 +883,14 @@ export const DomainsPage: React.FC = () => {
       return;
     }
     setSetTargetSubmitting(true);
+    const { year: saveYear, month: saveMonth } = getSaveYearMonth();
     try {
       if (m.kind === 'employee') {
-        await marketingAPI.setEmployeeTarget(m.employee_id, targetYear, targetMonth, amount);
+        await marketingAPI.setEmployeeTarget(m.employee_id, saveYear, saveMonth, amount);
       } else if (m.kind === 'region') {
-        await marketingAPI.setRegionTarget(m.region_id, targetYear, targetMonth, amount);
+        await marketingAPI.setRegionTarget(m.region_id, saveYear, saveMonth, amount);
       } else {
-        await marketingAPI.setDomainTarget(m.domain_id, targetYear, targetMonth, amount);
+        await marketingAPI.setDomainTarget(m.domain_id, saveYear, saveMonth, amount);
       }
       showToast(amount === 0 && m.kind !== 'employee' ? 'Goal cleared' : 'Target updated', 'success');
       setTargetHierarchyModal(null);
@@ -854,36 +975,14 @@ export const DomainsPage: React.FC = () => {
                 {/* ——— Review: hierarchy (domain heads → region heads → region employees) + target amounts ——— */}
           <div className="space-y-4">
             <p className="text-sm text-slate-600">
-              View and manage the marketing hierarchy: domain heads, region heads, and region employees. Set employee targets (rolled up to region and domain), and optionally set explicit monthly goals per region or domain. Use 0 on a region/domain goal to clear it.
+              View and manage the marketing hierarchy: domain heads, region heads, and region employees. Set employee targets (rolled up to region and domain), and optionally set explicit yearly goals per region or domain. Use 0 on a region/domain goal to clear it.
             </p>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-slate-700">Period:</span>
-                <Select
-                  options={Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: MONTHS[i] }))}
-                  value={String(targetMonth)}
-                  onChange={(val) => val && setTargetMonth(Number(val))}
-                  searchable={false}
-                  clearable={false}
-                  className="min-w-[80px] w-auto"
-                />
-                <Select
-                  options={Array.from({ length: 15 }, (_, i) => {
-                    const y = new Date().getFullYear() - 2 + i;
-                    return { value: String(y), label: String(y) };
-                  })}
-                  value={String(targetYear)}
-                  onChange={(val) => val && setTargetYear(Number(val))}
-                  searchable={false}
-                  clearable={false}
-                  className="min-w-[100px] w-auto"
-                />
+            {targetSummaryLoading && (
+              <div className="flex items-center gap-2 text-xs text-slate-500 animate-pulse py-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
+                <span>Syncing target calculations…</span>
               </div>
-
-
-
-              {targetSummaryLoading && <span className="text-sm text-slate-500">Loading targets…</span>}
-            </div>
+            )}
 
             {/* Target Progress Card */}
             {scopeStatsLoading ? (
@@ -901,8 +1000,135 @@ export const DomainsPage: React.FC = () => {
               const roleLabel = scopeStats.scope_label;
 
               const pct = targetVal > 0 ? (achievedVal / targetVal) * 100 : 0;
-              const msg = getProgressMessage(pct);
-              const scopeText = roleLabel === 'All' ? 'All Domains Target' : roleLabel === 'My' ? 'My Sales Target' : `${roleLabel} Target`;
+
+              const q1Target = q1Stats?.monthly_target ?? (targetVal * 0.25);
+              const q1Achieved = q1Stats?.achieved_this_month ?? 0;
+
+              const q2Target = q2Stats?.monthly_target ?? (targetVal * 0.25);
+              const q2Achieved = q2Stats?.achieved_this_month ?? 0;
+
+              const q3Target = q3Stats?.monthly_target ?? (targetVal * 0.25);
+              const q3Achieved = q3Stats?.achieved_this_month ?? 0;
+
+              const q4Target = q4Stats?.monthly_target ?? (targetVal * 0.25);
+              const q4Achieved = q4Stats?.achieved_this_month ?? 0;
+
+              // Determine active quarter states
+              let q1State: 'past' | 'active' | 'future' = 'future';
+              let q2State: 'past' | 'active' | 'future' = 'future';
+              let q3State: 'past' | 'active' | 'future' = 'future';
+              let q4State: 'past' | 'active' | 'future' = 'future';
+
+              const currentMonth = getCurrentYearMonth().month;
+              if (currentMonth >= 4 && currentMonth <= 6) {
+                q1State = 'active';
+                q2State = 'future';
+                q3State = 'future';
+                q4State = 'future';
+              } else if (currentMonth >= 7 && currentMonth <= 9) {
+                q1State = 'past';
+                q2State = 'active';
+                q3State = 'future';
+                q4State = 'future';
+              } else if (currentMonth >= 10 && currentMonth <= 12) {
+                q1State = 'past';
+                q2State = 'past';
+                q3State = 'active';
+                q4State = 'future';
+              } else {
+                // Jan, Feb, Mar
+                q1State = 'past';
+                q2State = 'past';
+                q3State = 'past';
+                q4State = 'active';
+              }
+
+              const getQuarterStatus = (isAchieved: boolean, state: 'past' | 'active' | 'future') => {
+                if (isAchieved) {
+                  return {
+                    label: "Completed",
+                    dotClass: "bg-emerald-500 scale-125 shadow-[0_0_4px_rgba(16,185,129,0.6)]",
+                    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 font-extrabold shadow-sm"
+                  };
+                }
+                if (state === 'active') {
+                  return {
+                    label: "Active",
+                    dotClass: "bg-blue-500 scale-110 animate-pulse",
+                    badgeClass: "bg-blue-50 text-blue-700 border-blue-200 font-bold shadow-sm"
+                  };
+                }
+                if (state === 'past') {
+                  return {
+                    label: "Missed",
+                    dotClass: "bg-rose-400",
+                    badgeClass: "bg-rose-50 text-rose-600 border-rose-100 font-semibold"
+                  };
+                }
+                return {
+                  label: "Pending",
+                  dotClass: "bg-slate-300",
+                  badgeClass: "bg-slate-50 text-slate-400 border-slate-200/50 font-medium"
+                };
+              };
+
+              const q1Info = getQuarterStatus(q1Achieved >= q1Target && q1Target > 0, q1State);
+              const q2Info = getQuarterStatus(q2Achieved >= q2Target && q2Target > 0, q2State);
+              const q3Info = getQuarterStatus(q3Achieved >= q3Target && q3Target > 0, q3State);
+              const q4Info = getQuarterStatus(q4Achieved >= q4Target && q4Target > 0, q4State);
+
+              // Build dynamic status message
+              const getQuarterlyMessage = () => {
+                let completed = 0;
+                if (q1Achieved >= q1Target && q1Target > 0) completed++;
+                if (q2Achieved >= q2Target && q2Target > 0) completed++;
+                if (q3Achieved >= q3Target && q3Target > 0) completed++;
+                if (q4Achieved >= q4Target && q4Target > 0) completed++;
+
+                let currentQName = 'Q1';
+                let currentQAchieved = q1Achieved;
+                let currentQTarget = q1Target;
+
+                if (q2State === 'active') {
+                  currentQName = 'Q2';
+                  currentQAchieved = q2Achieved;
+                  currentQTarget = q2Target;
+                } else if (q3State === 'active') {
+                  currentQName = 'Q3';
+                  currentQAchieved = q3Achieved;
+                  currentQTarget = q3Target;
+                } else if (q4State === 'active') {
+                  currentQName = 'Q4';
+                  currentQAchieved = q4Achieved;
+                  currentQTarget = q4Target;
+                }
+
+                if (completed === 4) {
+                  return {
+                    text: `All quarters completed successfully! Grand Slam achieved! 🏆🎉 (Total: ${formatTargetAmount(achievedVal)})`,
+                    colorClass: "text-emerald-700",
+                    iconColor: "text-emerald-500"
+                  };
+                }
+
+                const currentQPct = currentQTarget > 0 ? (currentQAchieved / currentQTarget) * 100 : 0;
+                const statusText = currentQPct >= 100 
+                  ? `${currentQName} target achieved! Outstanding!` 
+                  : `${currentQName} in progress: ${formatTargetAmount(currentQAchieved)} / ${formatTargetAmount(currentQTarget)} (${currentQPct.toFixed(0)}%)`;
+
+                return {
+                  text: `Completed: ${completed}/4 Quarters. Active: ${statusText} ⚡`,
+                  colorClass: completed > 0 ? "text-indigo-700" : "text-slate-700",
+                  iconColor: completed > 0 ? "text-indigo-500" : "text-slate-400"
+                };
+              };
+
+              const activeMsg = getQuarterlyMessage();
+              const scopeText = roleLabel === 'All' 
+                ? `All Domains Target (FY ${targetYear})` 
+                : roleLabel === 'My' 
+                  ? `My Sales Target (FY ${targetYear})` 
+                  : `${roleLabel} Target (FY ${targetYear})`;
 
               return (
                 <Card className="p-3 border border-slate-150 bg-gradient-to-br from-white to-slate-50/40 shadow-sm transition-all duration-300 hover:shadow-md mb-4">
@@ -920,28 +1146,134 @@ export const DomainsPage: React.FC = () => {
                     </div>
 
                     {/* Progress Bar Container */}
-                    <div className="relative w-full h-4 bg-slate-100 rounded-full overflow-hidden mb-1.5 border border-slate-200 shadow-inner">
-                      <div
-                        className={cn(
-                          "h-full bg-gradient-to-r rounded-full transition-all duration-1000 ease-out shadow-md",
-                          getBarGradient(pct)
-                        )}
-                        style={{ width: `${Math.min(100, pct)}%` }}
-                      />
-                      {/* 3D Glass Reflection Highlight */}
-                      <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-white/5 to-transparent pointer-events-none rounded-full h-[40%]" />
-                      <span className="absolute inset-0 flex items-center justify-end pr-2 text-[9px] font-black text-white mix-blend-difference">
+                    <div className="relative w-full h-4 bg-slate-100 rounded-full overflow-hidden mb-1.5 border border-slate-200 shadow-inner flex">
+                      {/* Q1 Column */}
+                      <div className="relative w-1/4 h-full border-r border-slate-200/50 last:border-0 overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
+                            getBarGradient(pct)
+                          )}
+                          style={{ width: `${Math.min(100, q1Target > 0 ? (q1Achieved / q1Target) * 100 : 0)}%` }}
+                        />
+                      </div>
+
+                      {/* Q2 Column */}
+                      <div className="relative w-1/4 h-full border-r border-slate-200/50 last:border-0 overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
+                            getBarGradient(pct)
+                          )}
+                          style={{ width: `${Math.min(100, q2Target > 0 ? (q2Achieved / q2Target) * 100 : 0)}%` }}
+                        />
+                      </div>
+
+                      {/* Q3 Column */}
+                      <div className="relative w-1/4 h-full border-r border-slate-200/50 last:border-0 overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
+                            getBarGradient(pct)
+                          )}
+                          style={{ width: `${Math.min(100, q3Target > 0 ? (q3Achieved / q3Target) * 100 : 0)}%` }}
+                        />
+                      </div>
+
+                      {/* Q4 Column */}
+                      <div className="relative w-1/4 h-full overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
+                            getBarGradient(pct)
+                          )}
+                          style={{ width: `${Math.min(100, q4Target > 0 ? (q4Achieved / q4Target) * 100 : 0)}%` }}
+                        />
+                      </div>
+
+                      {/* 3D Glass Reflection Highlight overlaying the entire container */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-white/5 to-transparent pointer-events-none rounded-full h-[40%] z-20" />
+                      
+                      {/* Inner Dividers for quarters (only for Yearly view) */}
+                      {viewMode === 'yearly' && (
+                        <>
+                          <div className={cn(
+                            "absolute top-0 bottom-0 left-[25%] w-[1.5px] transition-all duration-300 z-10",
+                            q1Achieved >= q1Target && q1Target > 0 ? "bg-white/50 shadow-[0_0_2px_rgba(255,255,255,0.8)]" : "bg-slate-300/40"
+                          )} />
+                          <div className={cn(
+                            "absolute top-0 bottom-0 left-[50%] w-[1.5px] transition-all duration-300 z-10",
+                            q2Achieved >= q2Target && q2Target > 0 ? "bg-white/50 shadow-[0_0_2px_rgba(255,255,255,0.8)]" : "bg-slate-300/40"
+                          )} />
+                          <div className={cn(
+                            "absolute top-0 bottom-0 left-[75%] w-[1.5px] transition-all duration-300 z-10",
+                            q3Achieved >= q3Target && q3Target > 0 ? "bg-white/50 shadow-[0_0_2px_rgba(255,255,255,0.8)]" : "bg-slate-300/40"
+                          )} />
+                        </>
+                      )}
+
+                      <span className="absolute inset-0 flex items-center justify-end pr-2 text-[9px] font-black text-white mix-blend-difference z-20">
                         {pct.toFixed(1)}%
                       </span>
                     </div>
+
+                    {/* Quarter Dividers and Labels for Yearly View */}
+                    {viewMode === 'yearly' && (
+                      <div className="mt-2.5 mb-1 px-0.5 relative h-8">
+                        {/* The labels container */}
+                        <div className="absolute inset-0 text-[9px] font-bold text-slate-400">
+                          {/* Q1 Marker (25%) */}
+                          <div className="absolute left-[25%] -translate-x-1/2 flex flex-col items-center group cursor-help transition-all duration-300">
+                            <div className={cn(
+                              "w-1.5 h-1.5 rounded-full mb-1 transition-all duration-300",
+                              q1Info.dotClass
+                            )} />
+                            <span className={cn(
+                              "px-1.5 py-0.5 rounded transition-all duration-300 border whitespace-nowrap",
+                              q1Info.badgeClass
+                            )}>
+                              Q1: {formatTargetAmount(q1Target)} ({q1Info.label})
+                            </span>
+                          </div>
+
+                          {/* Q2 Marker (50%) */}
+                          <div className="absolute left-[50%] -translate-x-1/2 flex flex-col items-center group cursor-help transition-all duration-300">
+                            <div className={cn(
+                              "w-1.5 h-1.5 rounded-full mb-1 transition-all duration-300",
+                              q2Info.dotClass
+                            )} />
+                            <span className={cn(
+                              "px-1.5 py-0.5 rounded transition-all duration-300 border whitespace-nowrap",
+                              q2Info.badgeClass
+                            )}>
+                              Q2: {formatTargetAmount(q2Target)} ({q2Info.label})
+                            </span>
+                          </div>
+
+                          {/* Q3 Marker (75%) */}
+                          <div className="absolute left-[75%] -translate-x-1/2 flex flex-col items-center group cursor-help transition-all duration-300">
+                            <div className={cn(
+                              "w-1.5 h-1.5 rounded-full mb-1 transition-all duration-300",
+                              q3Info.dotClass
+                            )} />
+                            <span className={cn(
+                              "px-1.5 py-0.5 rounded transition-all duration-300 border whitespace-nowrap",
+                              q3Info.badgeClass
+                            )}>
+                              Q3: {formatTargetAmount(q3Target)} ({q3Info.label})
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Message caption */}
-                  <div className={cn("flex items-center gap-1.5 text-[10px] font-bold", msg.colorClass)}>
-                    <span className={msg.iconColor}>
+                  <div className={cn("flex items-center gap-1.5 text-[10px] font-bold", activeMsg.colorClass)}>
+                    <span className={activeMsg.iconColor}>
                       <Target size={12} />
                     </span>
-                    <span>{msg.text}</span>
+                    <span>{activeMsg.text}</span>
                   </div>
                 </Card>
               );
@@ -1018,6 +1350,7 @@ export const DomainsPage: React.FC = () => {
                                   size="sm"
                                   className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
                                   onClick={() => {
+                                    const mult = getYearlyMultiplier();
                                     setTargetHierarchyModal({
                                       kind: 'domain',
                                       domain_id: domain.id,
@@ -1027,9 +1360,9 @@ export const DomainsPage: React.FC = () => {
                                     });
                                     setSetTargetAmount(
                                       String(
-                                        domainTargetInfo.assigned != null && domainTargetInfo.assigned > 0
+                                        (domainTargetInfo.assigned != null && domainTargetInfo.assigned > 0
                                           ? domainTargetInfo.assigned
-                                          : domainTargetInfo.rolledUp
+                                          : domainTargetInfo.rolledUp) * mult
                                       )
                                     );
                                   }}
@@ -1167,6 +1500,7 @@ export const DomainsPage: React.FC = () => {
                                             size="sm"
                                             className="text-emerald-700 opacity-0 group-hover:opacity-100 transition-opacity"
                                             onClick={() => {
+                                              const mult = getYearlyMultiplier();
                                               setTargetHierarchyModal({
                                                 kind: 'region',
                                                 region_id: region.id,
@@ -1176,9 +1510,9 @@ export const DomainsPage: React.FC = () => {
                                               });
                                               setSetTargetAmount(
                                                 String(
-                                                  regionTargetInfo.assigned != null && regionTargetInfo.assigned > 0
+                                                  (regionTargetInfo.assigned != null && regionTargetInfo.assigned > 0
                                                     ? regionTargetInfo.assigned
-                                                    : regionTargetInfo.rolledUp
+                                                    : regionTargetInfo.rolledUp) * mult
                                                 )
                                               );
                                             }}
@@ -1301,6 +1635,7 @@ export const DomainsPage: React.FC = () => {
                                                     size="sm"
                                                     className="text-indigo-600"
                                                     onClick={() => {
+                                                      const mult = getYearlyMultiplier();
                                                       setTargetHierarchyModal({
                                                         kind: 'employee',
                                                         employee_id: a.employee_id,
@@ -1308,7 +1643,7 @@ export const DomainsPage: React.FC = () => {
                                                         region_id: region.id,
                                                         current_amount: empTarget ?? 800000,
                                                       });
-                                                      setSetTargetAmount(String(empTarget ?? 800000));
+                                                      setSetTargetAmount(String((empTarget ?? 800000) * mult));
                                                     }}
                                                   >
                                                     <Target size={12} />
@@ -1382,31 +1717,31 @@ export const DomainsPage: React.FC = () => {
         <div className="space-y-3">
           <p className="text-sm text-slate-600">
             {targetHierarchyModal?.kind === 'employee' && (
-              <>Target for {MONTHS[targetMonth - 1]} {targetYear}. Amount in ₹ (e.g. 800000 for 8 Lacs).</>
+              <>Yearly target for Fiscal Year {targetYear}. Amount in ₹ (e.g. 1200000 for 12 Lakhs).</>
             )}
             {targetHierarchyModal?.kind === 'region' && (
               <>
-                Optional goal for {MONTHS[targetMonth - 1]} {targetYear}. Team sum is{' '}
-                <span className="font-medium">{formatTargetAmount(targetHierarchyModal.rolled_up)}</span>. Enter{' '}
-                <span className="font-medium">0</span> to clear the explicit goal (dashboard still uses employee targets).
+                Optional yearly goal for Fiscal Year {targetYear}. Team sum is{' '}
+                <span className="font-medium">{formatTargetAmount(targetHierarchyModal.rolled_up * getYearlyMultiplier())}</span>. Enter{' '}
+                <span className="font-medium">0</span> to clear the explicit goal.
               </>
             )}
             {targetHierarchyModal?.kind === 'domain' && (
               <>
-                Optional goal for {MONTHS[targetMonth - 1]} {targetYear}. Team sum is{' '}
-                <span className="font-medium">{formatTargetAmount(targetHierarchyModal.rolled_up)}</span>. Enter{' '}
+                Optional yearly goal for Fiscal Year {targetYear}. Team sum is{' '}
+                <span className="font-medium">{formatTargetAmount(targetHierarchyModal.rolled_up * getYearlyMultiplier())}</span>. Enter{' '}
                 <span className="font-medium">0</span> to clear the explicit goal.
               </>
             )}
           </p>
           <Input
-            label="Target amount (₹)"
+            label="Yearly target amount (₹)"
             type="number"
             min={0}
-            step={10000}
+            step={120000}
             value={setTargetAmount}
             onChange={(e) => setSetTargetAmount(e.target.value)}
-            placeholder="e.g. 800000"
+            placeholder="e.g. 1200000"
           />
         </div>
       </Modal>

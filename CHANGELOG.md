@@ -35,6 +35,11 @@ Format: `[Date] — Category: Description`
 
 - Added dynamic target progress bar on the Domains page with color-shifting brackets.
 - Implemented role-based name visibility rules on the Domains tree nodes.
+- Locked the target tracker strictly to the Indian Fiscal Year (April-March), removing month/period selectors.
+- Implemented parallel backend queries in `loadScopeStats` to load stats for Q1, Q2, Q3, and Q4 independently.
+- Segmented the progress bar visually into four 25% blocks representing each quarter with independent, non-spillover fills.
+- Added reactive milestone status badges (`Completed`, `Active`, `Missed`, `Pending`) based on the current calendar month.
+- Completely removed the interactive progress simulator controls, keeping the target tracker strictly driven by live database statistics.
 
 ---
 
