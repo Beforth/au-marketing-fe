@@ -636,6 +636,12 @@ export const DomainsPage: React.FC = () => {
 
   useEffect(() => {
     if (canView) {
+      loadReviewData();
+    }
+  }, [canView]);
+
+  useEffect(() => {
+    if (canView) {
       loadDomainTargetSummary();
       loadScopeStats();
     }
