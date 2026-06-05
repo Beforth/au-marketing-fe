@@ -16,7 +16,7 @@ import { DataTable } from '../components/ui/DataTable';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
 import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, List, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash } from 'lucide-react';
 import { useApp } from '../App';
-import { Tooltip } from '../components/ui/Tooltip';
+import { Tooltip } from '../UI/Tooltip';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
@@ -1258,24 +1258,25 @@ export const LeadsPage: React.FC = () => {
                     {(selectedAssignedToIds.length > 0 ? selectedAssignedToIds.slice(0, 5) : []).map((eid) => {
                       const emp = reportScope.employees.find((e) => e.id === eid);
                       return (
-                        <div
-                          key={eid}
-                          className="w-8 h-8 rounded-full border-2 border-white bg-indigo-50 text-indigo-700 flex items-center justify-center text-[10px] font-bold shadow-sm ring-1 ring-slate-100"
-                          title={emp?.name ?? `Employee ${eid}`}
-                        >
-                          {emp ? getInitials(emp.name) : '?'}
-                        </div>
+                        <Tooltip key={eid} content={emp?.name ?? `Employee ${eid}`}>
+                          <div
+                            className="w-8 h-8 rounded-full border-2 border-white bg-indigo-50 text-indigo-700 flex items-center justify-center text-[10px] font-bold shadow-sm ring-1 ring-slate-100"
+                          >
+                            {emp ? getInitials(emp.name) : '?'}
+                          </div>
+                        </Tooltip>
                       );
                     })}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowEmployeeFilterPopover((v) => !v)}
-                    className="w-8 h-8 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-600 flex items-center justify-center transition-all bg-white hover:shadow-sm"
-                    title="Select employees to filter"
-                  >
-                    <Plus size={14} strokeWidth={2.5} />
-                  </button>
+                  <Tooltip content="Select employees to filter">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmployeeFilterPopover((v) => !v)}
+                      className="w-8 h-8 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-600 flex items-center justify-center transition-all bg-white hover:shadow-sm"
+                    >
+                      <Plus size={14} strokeWidth={2.5} />
+                    </button>
+                  </Tooltip>
                 </div>
 
                 <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -1520,14 +1521,15 @@ export const LeadsPage: React.FC = () => {
                                   <span className="flex items-center gap-1">
                                     <span className="text-xs opacity-80">({columnLeads.length})</span>
                                     {canCreate && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); openCreateLeadModal(status.id); }}
-                                        className="p-1 rounded hover:bg-black/10 transition-colors"
-                                        title={`Add lead to ${status.label}`}
-                                      >
-                                        <Plus size={16} strokeWidth={2.5} />
-                                      </button>
+                                      <Tooltip content={`Add lead to ${status.label}`}>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); openCreateLeadModal(status.id); }}
+                                          className="p-1 rounded hover:bg-black/10 transition-colors"
+                                        >
+                                          <Plus size={16} strokeWidth={2.5} />
+                                        </button>
+                                      </Tooltip>
                                     )}
                                   </span>
                                 </div>
@@ -1577,26 +1579,28 @@ export const LeadsPage: React.FC = () => {
                                       )}
                                       <div className="flex items-center gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                                         {canEdit && wonStatusId && lead.status_id !== wonStatusId && !lead.status_option?.is_lost && (
-                                          <Button
-                                            variant="ghost"
-                                            size="xs"
-                                            onClick={() => openMarkAsWonModal(lead.id)}
-                                            className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700"
-                                            title="Mark as Won"
-                                          >
-                                            <Trophy size={12} className="mr-0.5" /> Won
-                                          </Button>
+                                          <Tooltip content="Mark as Won">
+                                            <Button
+                                              variant="ghost"
+                                              size="xs"
+                                              onClick={() => openMarkAsWonModal(lead.id)}
+                                              className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700"
+                                            >
+                                              <Trophy size={12} className="mr-0.5" /> Won
+                                            </Button>
+                                          </Tooltip>
                                         )}
                                         {canEdit && lostStatusId && lead.status_id !== lostStatusId && !lead.status_option?.is_final && (
-                                          <Button
-                                            variant="ghost"
-                                            size="xs"
-                                            onClick={() => setLeadToMarkLost(lead.id)}
-                                            className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700"
-                                            title="Mark as Lost"
-                                          >
-                                            <XCircle size={12} className="mr-0.5" /> Lost
-                                          </Button>
+                                          <Tooltip content="Mark as Lost">
+                                            <Button
+                                              variant="ghost"
+                                              size="xs"
+                                              onClick={() => setLeadToMarkLost(lead.id)}
+                                              className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700"
+                                            >
+                                              <XCircle size={12} className="mr-0.5" /> Lost
+                                            </Button>
+                                          </Tooltip>
                                         )}
                                         {canDelete && (
                                           <Button
@@ -1871,14 +1875,15 @@ export const LeadsPage: React.FC = () => {
                         />
                       )}
                       {row.kind === 'quotation' && <span className="text-xs text-slate-500">Auto from lead</span>}
-                      <button
-                        type="button"
-                        onClick={() => setStatusChangeAttachments((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))}
-                        className="p-1.5 rounded text-slate-400 hover:bg-slate-200 hover:text-rose-600"
-                        title="Remove"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <Tooltip content="Remove">
+                        <button
+                          type="button"
+                          onClick={() => setStatusChangeAttachments((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))}
+                          className="p-1.5 rounded text-slate-400 hover:bg-slate-200 hover:text-rose-600"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </Tooltip>
                     </div>
                   ))}
                   <button
@@ -2039,14 +2044,15 @@ export const LeadsPage: React.FC = () => {
           {(createLeadContactId != null || createLeadCustomerId != null) && (
             <div className="flex items-center gap-2 text-sm p-2 bg-slate-50 rounded-lg border border-slate-200">
               <span className="text-slate-600">{createLeadContactId != null ? 'Linked to contact' : 'Linked to customer'}</span>
-              <button
-                type="button"
-                onClick={() => { setCreateLeadContactId(undefined); setCreateLeadCustomerId(undefined); }}
-                className="inline-flex items-center gap-1 text-slate-500 hover:text-rose-600 p-0.5"
-                title="Unlink"
-              >
-                <X size={14} /> Unlink
-              </button>
+              <Tooltip content="Unlink">
+                <button
+                  type="button"
+                  onClick={() => { setCreateLeadContactId(undefined); setCreateLeadCustomerId(undefined); }}
+                  className="inline-flex items-center gap-1 text-slate-500 hover:text-rose-600 p-0.5"
+                >
+                  <X size={14} /> Unlink
+                </button>
+              </Tooltip>
             </div>
           )}
           {createLeadContactId == null && createLeadCustomerId == null && (
@@ -2376,13 +2382,37 @@ export const LeadsPage: React.FC = () => {
                   <th className="pb-2 pr-2">Label</th>
                   <th className="pb-2 pr-2">Order</th>
                   <th className="pb-2 pr-2">Active</th>
-                  <th className="pb-2 pr-2">Final (Won)</th>
-                  <th className="pb-2 pr-2">Lost</th>
-                  <th className="pb-2 pr-2" title="Mark this status as a hot case">Hot</th>
+                  <th className="pb-2 pr-2 font-medium">
+                    <Tooltip content="Final (Won) Status">
+                      <span className="cursor-help border-b border-dotted border-slate-300">Final (Won)</span>
+                    </Tooltip>
+                  </th>
+                  <th className="pb-2 pr-2 font-medium">
+                    <Tooltip content="Lost Status">
+                      <span className="cursor-help border-b border-dotted border-slate-300">Lost</span>
+                    </Tooltip>
+                  </th>
+                  <th className="pb-2 pr-2 font-medium">
+                    <Tooltip content="Mark this status as a hot case">
+                      <span className="cursor-help border-b border-dotted border-slate-300">Hot</span>
+                    </Tooltip>
+                  </th>
                   <th className="pb-2 pr-2">Color</th>
-                  <th className="pb-2 pr-2" title="Auto-set lead to this status when a quotation is added to any enquiry">When quotation added</th>
-                  <th className="pb-2 pr-2" title="Auto-set when lead number is generated (Generate lead number) but no quotation file yet">When lead # only</th>
-                  <th className="pb-2 pr-2" title="Require at least one attachment when moving to this status from Kanban">Attachment compulsory</th>
+                  <th className="pb-2 pr-2 font-medium">
+                    <Tooltip content="Auto-set lead to this status when a quotation is added to any enquiry">
+                      <span className="cursor-help border-b border-dotted border-slate-300">When quotation added</span>
+                    </Tooltip>
+                  </th>
+                  <th className="pb-2 pr-2 font-medium">
+                    <Tooltip content="Auto-set when lead number is generated but no quotation file yet">
+                      <span className="cursor-help border-b border-dotted border-slate-300">When lead # only</span>
+                    </Tooltip>
+                  </th>
+                  <th className="pb-2 pr-2 font-medium">
+                    <Tooltip content="Require at least one attachment when moving to this status from Kanban">
+                      <span className="cursor-help border-b border-dotted border-slate-300">Attachment compulsory</span>
+                    </Tooltip>
+                  </th>
                   <th className="pb-2" />
                 </tr>
               </thead>
@@ -2431,19 +2461,19 @@ export const LeadsPage: React.FC = () => {
                               </label>
                             </td>
                             <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm" title="Final (Won)">
+                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
                                 <input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
                                 <span>Final</span>
                               </label>
                             </td>
                             <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm" title="Lost">
+                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
                                 <input type="checkbox" checked={statusForm.is_lost} onChange={(e) => setStatusForm((f) => ({ ...f, is_lost: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
                                 <span>Lost</span>
                               </label>
                             </td>
                             <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm" title="Mark this status as hot">
+                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
                                 <input type="checkbox" checked={statusForm.is_hot} onChange={(e) => setStatusForm((f) => ({ ...f, is_hot: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
                                 <span>Hot</span>
                               </label>
@@ -2455,19 +2485,19 @@ export const LeadsPage: React.FC = () => {
                               </div>
                             </td>
                             <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm" title="Auto-set lead to this status when a quotation is added to any enquiry">
+                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
                                 <input type="checkbox" checked={statusForm.set_when_quotation_added} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quotation_added: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
                                 <span>Yes</span>
                               </label>
                             </td>
                             <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm" title="Auto-set when lead number is generated but no quotation file yet">
+                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
                                 <input type="checkbox" checked={statusForm.set_when_quote_number_generated} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quote_number_generated: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
                                 <span>Yes</span>
                               </label>
                             </td>
                             <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm" title="Require at least one attachment when this status is selected in Kanban">
+                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
                                 <input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
                                 <span>Yes</span>
                               </label>
@@ -2507,7 +2537,7 @@ export const LeadsPage: React.FC = () => {
                                   <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_lost} onChange={(e) => setStatusForm((f) => ({ ...f, is_lost: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Lost</span></label>
                                 </td>
                                 <td className="py-2 pr-2 align-middle">
-                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm" title="Mark this status as hot">
+                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
                                     <input type="checkbox" checked={statusForm.is_hot} onChange={(e) => setStatusForm((f) => ({ ...f, is_hot: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
                                     <span>Hot</span>
                                   </label>

@@ -37,18 +37,6 @@ export const DEMO_TRANSACTIONS: Transaction[] = [
     { id: 'T-104', customer: 'Clark Kent', email: 'clark@dailyplanet.com', amount: '$250.00', status: 'Completed', date: '2023-10-28' },
     { id: 'T-105', customer: 'Barry Allen', email: 'barry@ccpd.gov', amount: '$75.00', status: 'Pending', date: '2023-10-29' },
 ];
-
-export const DEMO_INVOICES = [
-    { id: 'INV-2023-001', customer: 'TechFlow Inc.', amount: '$12,400.00', date: 'Oct 12, 2023', status: 'Paid' },
-    { id: 'INV-2023-002', customer: 'Rome Logistics', amount: '$4,200.00', date: 'Oct 15, 2023', status: 'Pending' },
-    { id: 'INV-2023-003', customer: 'Global Traders', amount: '$8,900.00', date: 'Oct 08, 2023', status: 'Overdue' },
-    { id: 'INV-2023-004', customer: 'Studio Hub', amount: '$1,200.00', date: 'Oct 18, 2023', status: 'Draft' },
-    { id: 'INV-2023-005', customer: 'Umbrella Ops', amount: '$24,000.00', date: 'Oct 20, 2023', status: 'Pending' },
-    { id: 'INV-2023-006', customer: 'Hooli Corp', amount: '$56,000.00', date: 'Oct 22, 2023', status: 'Paid' },
-    { id: 'INV-2023-007', customer: 'Pied Piper', amount: '$1,500.00', date: 'Oct 23, 2023', status: 'Paid' },
-    { id: 'INV-2023-008', customer: 'Initech', amount: '$3,400.00', date: 'Oct 24, 2023', status: 'Overdue' },
-];
-
 export const DEMO_INVENTORY = [
     { sku: 'ERP-001', name: 'Premium ERP License', stock: 120, status: 'In Stock', category: 'Software' },
     { sku: 'CLD-010', name: 'Storage Unit (Basic)', stock: 12, status: 'Low Stock', category: 'Infrastructure' },

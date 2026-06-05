@@ -23,12 +23,11 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
             'disabled:opacity-50 disabled:cursor-not-allowed',
             size === 'sm' ? 'h-4 w-8' : 'h-6 w-11',
             className
-          )}>
-            <div className={cn(
-              'absolute top-0.5 left-0.5 rounded-full bg-white transition-all duration-300',
-              size === 'sm' ? 'h-3 w-3 peer-checked:translate-x-4' : 'h-5 w-5 peer-checked:translate-x-5'
-            )} />
-          </div>
+          )} />
+          <div className={cn(
+            'absolute top-0.5 left-0.5 rounded-full bg-white transition-all duration-300 pointer-events-none',
+            size === 'sm' ? 'h-3 w-3 peer-checked:translate-x-4' : 'h-5 w-5 peer-checked:translate-x-5'
+          )} />
         </div>
         {label && <span className="text-sm font-semibold text-slate-700 select-none">{label}</span>}
       </label>

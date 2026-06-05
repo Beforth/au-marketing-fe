@@ -5,6 +5,39 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-06-04] — Release: Visibility Settings, Region Coordinator Support, Sorting Stability & Custom Tooltips (v1.0.1)
+
+### Dynamic Visibility & Data Isolation
+
+- Added Visibility Settings control card on the Domains page with live override presets.
+- Introduced "Preview As" mode to inspect the domains tree from different roles' perspectives.
+- Created database tables for visibility rules and audit logging with thread-safe caching.
+- Enforced strict scoping rules to isolate regular users to their assigned domains and regions.
+
+### Region Coordinator Support
+
+- Added coordinator fields to the Region database model and API schemas.
+- Integrated Coordinator select dropdown in the Region Form.
+- Fixed dropdown display issue where reopened selects would show as blank.
+- Displayed region coordinator name and actions in the Domains Review Tree.
+
+### Tree View Sorting & UX Polish
+
+- Added stable database sorting for regions and domains to prevent position shifting on update.
+- Replaced text action buttons with elegant Crown (Head) and UserCheck (Coordinator) icon buttons.
+
+### Premium Tooltips Integration
+
+- Upgraded custom Tooltip component to support multi-line content.
+- Replaced native browser tooltips with custom snappy tooltips across Lead Form, Outdoor Plan, Employees, Roles, Order Form, and Leads Dashboard.
+
+### Target Tracking & Progress Bar
+
+- Added dynamic target progress bar on the Domains page with color-shifting brackets.
+- Implemented role-based name visibility rules on the Domains tree nodes.
+
+---
+
 ## [2026-03-20] — Release: Settings Overhaul, Support Page & Branding
 
 ### ⚙️ Settings Page — Profile Section Refactor

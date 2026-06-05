@@ -32,6 +32,17 @@ export interface HRMSRole {
   is_primary: boolean;
 }
 
+export interface MarketingRole {
+  id: number;
+  name: string;
+  role_type: string;
+  level: number;
+  description: string;
+  is_system_role: boolean;
+  permission_count: number;
+  permissions?: string[];
+}
+
 export interface HRMSPermission {
   id: number;
   name: string;
@@ -244,6 +255,38 @@ class HRMSRBACClient {
     } catch (error) {
       console.error('Get user info error:', error);
       return null;
+    }
+  }
+
+  /**
+   * Get all available roles in the system (public endpoint, no auth required).
+   * GET /api/rbac/roles/
+   * Optionally filters to marketing-only roles (roles with any marketing.* permissions).
+   */
+  async getMarketingRoles(): Promise<MarketingRole[]> {
+    try {
+      const response = await fetch(`${this.baseURL}/roles/`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) return [];
+      const roles: MarketingRole[] = Array.isArray(data.roles) ? data.roles : [];
+      // Filter to roles that have at least one marketing.* permission, or
+      // whose name/type hints they are marketing-related (fallback if permissions array not returned).
+      const marketingRoles = roles.filter(role => {
+        if (Array.isArray(role.permissions)) {
+          return role.permissions.some(p => p.startsWith('marketing.'));
+        }
+        // Fallback: include roles whose name or role_type contains 'marketing'
+        const lc = (role.name + ' ' + role.role_type).toLowerCase();
+        return lc.includes('marketing') || lc.includes('sales') || lc.includes('crm');
+      });
+      // If no marketing-specific roles found via filter, return all (avoids empty state in demo)
+      return marketingRoles.length > 0 ? marketingRoles : roles;
+    } catch (error) {
+      console.error('Get marketing roles error:', error);
+      return [];
     }
   }
 

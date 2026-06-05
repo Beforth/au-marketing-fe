@@ -32,12 +32,12 @@ import { FinancialsPage } from './pages/FinancialsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { ExpectedOrderNewPage } from './pages/ExpectedOrderNewPage';
 import { ODPlanPage } from './pages/ODPlanPage';
-import { InvoicesPage } from './pages/InvoicesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SupportPage } from './pages/SupportPage';
 import { SchemaPage } from './pages/SchemaPage';
 import { ReportTemplatesPage } from './pages/ReportTemplatesPage';
-import { TooltipProvider } from './components/ui/Tooltip';
+import { RolesPage } from './pages/RolesPage';
+import { TooltipProvider } from './UI/Tooltip';
 import { Toast, ToastType } from './components/ui/Toast';
 
 const NumberingSeriesPage = lazy(() => import('./pages/NumberingSeriesPage').then(m => ({ default: m.NumberingSeriesPage })));
@@ -93,7 +93,7 @@ const INITIAL_NOTIFICATIONS: AppNotification[] = [
   { id: '1', title: 'New Order Received', message: 'Order #ORD-7237 processed for Sarah Jenkins.', time: '2m ago', type: 'order', read: false },
   { id: '2', title: 'System Security Alert', message: 'New login detected from Austin, TX.', time: '15m ago', type: 'system', read: false },
   { id: '3', title: 'Inventory Warning', message: 'Premium ERP License stock is below 15%.', time: '1h ago', type: 'inventory', read: false },
-  { id: '4', title: 'Payment Confirmed', message: 'Invoice #INV-2023-088 paid by Studio Hub.', time: '3h ago', type: 'system', read: false },
+  { id: '4', title: 'Payment Confirmed', message: 'Payment of $1,200.00 confirmed from Studio Hub.', time: '3h ago', type: 'system', read: false },
   { id: '5', title: 'Customer Feedback', message: 'Alice Thompson rated the support experience 5/5.', time: '5h ago', type: 'customer', read: true },
 ];
 
@@ -272,12 +272,12 @@ const AppMain: React.FC = () => {
               <Route path="report-templates" element={<ReportTemplatesPage />} />
               <Route path="reports/expected-order/new" element={<ExpectedOrderNewPage />} />
               <Route path="reports/od-plan" element={<ODPlanPage />} />
-              <Route path="invoices" element={<InvoicesPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="support" element={<SupportPage />} />
               <Route path="numbering-series" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
               <Route path="numbering-series/new" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
               <Route path="numbering-series/:id/edit" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
+              <Route path="roles" element={<RolesPage />} />
               <Route path="schema" element={<SchemaPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

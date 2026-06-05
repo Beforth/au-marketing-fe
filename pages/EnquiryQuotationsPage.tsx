@@ -11,7 +11,7 @@ import { marketingAPI, QuotationListItem, QuotationLeadOption } from '../lib/mar
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { Download, ExternalLink, Loader2, Search, X } from 'lucide-react';
-import { Tooltip } from '../components/ui/Tooltip';
+import { Tooltip } from '../UI/Tooltip';
 import { SearchInput } from '../components/ui/SearchInput';
 
 type SortField = 'quotation_number' | 'file_name' | 'lead_name' | 'inquiry_number' | 'activity_date';
