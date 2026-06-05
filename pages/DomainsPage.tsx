@@ -419,7 +419,7 @@ export const DomainsPage: React.FC = () => {
     return assignment.employee_id === realEmployeeId;
   };
 
-  const showActionButtons = activeScope.is_super;
+  const showActionButtons = activeScope.is_super || activeScope.scope_type === 'domain_head' || activeScope.scope_type === 'region_head';
 
   const [deleteDomainId, setDeleteDomainId] = useState<number | null>(null);
   const [deleteRegionId, setDeleteRegionId] = useState<number | null>(null);
