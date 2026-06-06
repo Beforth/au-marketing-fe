@@ -1489,7 +1489,7 @@ class MarketingAPIService {
   async getSavedDashboardAssignments(dashboardId: number): Promise<SavedDashboardAssignmentResponse[]> {
     return apiClient.get<SavedDashboardAssignmentResponse[]>(`/api/saved-dashboards/${dashboardId}/assignments`);
   }
-  async assignSavedDashboard(dashboardId: number, data: { assignee_employee_id: number; can_edit?: boolean }): Promise<SavedDashboardAssignmentResponse> {
+  async assignSavedDashboard(dashboardId: number, data: { assignee_employee_id?: number | null; role?: string | null; can_edit?: boolean }): Promise<SavedDashboardAssignmentResponse> {
     return apiClient.post<SavedDashboardAssignmentResponse>(`/api/saved-dashboards/${dashboardId}/assignments`, data);
   }
   async deleteSavedDashboardAssignment(dashboardId: number, assignmentId: number): Promise<void> {
@@ -1544,19 +1544,19 @@ class MarketingAPIService {
     return apiClient.delete<void>(`/api/report-templates/${templateId}/assignments/${assignmentId}`);
   }
 
-  async generateWidgetWithAI(data: {
-    prompt: string;
-    schema: { name: string; columns: { name: string; type: string }[] }[];
-    scope_mode?: 'auto' | 'employee' | 'region' | 'domain';
-    preferred_chart?: 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card';
-    date_from?: string;
-    date_to?: string;
-  }): Promise<{ title: string; chart_type: 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card'; sql: string }> {
-    return apiClient.post<{ title: string; chart_type: 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card'; sql: string }>(
-      '/api/saved-dashboards/ai-generate-widget',
-      data
-    );
-  }
+  // async generateWidgetWithAI(data: {
+  //   prompt: string;
+  //   schema: { name: string; columns: { name: string; type: string }[] }[];
+  //   scope_mode?: 'auto' | 'employee' | 'region' | 'domain';
+  //   preferred_chart?: 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card';
+  //   date_from?: string;
+  //   date_to?: string;
+  // }): Promise<{ title: string; chart_type: 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card'; sql: string }> {
+  //   return apiClient.post<{ title: string; chart_type: 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card'; sql: string }>(
+  //     '/api/saved-dashboards/ai-generate-widget',
+  //     data
+  //   );
+  // }
   async previewSqlTemplate(data: {
     sql: string;
     chart_type?: 'table' | 'bar' | 'line' | 'pie' | 'heatmap' | 'number-card';
@@ -1880,7 +1880,8 @@ export interface SavedDashboardResponse {
 export interface SavedDashboardAssignmentResponse {
   id: number;
   dashboard_id: number;
-  assignee_employee_id: number;
+  assignee_employee_id?: number | null;
+  role?: string | null;
   can_edit: boolean;
   created_at: string;
 }

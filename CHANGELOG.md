@@ -5,6 +5,42 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-06-06] — Release: Sales Rep Dashboard Seeding, Gradient KPI Cards, SVG Chart Gradients & Role-Based Dashboard Assignments (v1.0.2)
+
+### 📊 Dashboard & KPI Card Upgrades
+- **Sales Rep Dashboard Seeding**: Updated seeding scripts to fully populate data for Sales Reps, splitting single KPI summaries into separate number cards.
+- **Redesigned KPI Number Cards**: Redesigned to match the target-card mini-card pattern. Replaced the old vertical border-l-4 and icon wrappers with a clean linear gradient background (`from-{color}-50/40 to-{color}-100/10`), rounded-xl corners, direct flex icons at size `18`, `text-[9px]` uppercase labels, and bold `text-xl font-black text-{color}-800` values.
+- **Top Representatives Leaderboard**: Rewrote the top performing sales representatives leaderboard widget to support rank-specific styles and high-density typography.
+- **Chart Fills Upgrade**: Upgraded all chart elements (`TargetAchievedBarChart`, `WonLostPieChart`, `LeadStatusPieChart`, etc.) from solid fills to premium SVG linear gradients (added `<defs>` with 10+ custom gradients).
+- **Y-Axis Value Formatting**: Added `formatYAxisValue` helper for compact currency formatting (₹ Cr / L / K).
+- **Multi-Record Hints**: Added a visual feedback hint showing "First of N records" when table rows exceed 1.
+- **Layout and Typography Tweaks**: Changed standard Card titles to `text-[11px] font-black uppercase tracking-widest` and refined global transition durations to focus specifically on `box-shadow`, `border-color`, and `background-color` over a snappy 200ms window.
+
+### 🛡️ Role-Based Access Control (RBAC) & Dashboard Configuration
+- **Saved Dashboard Model Changes**: Added a nullable `role` column to the dashboard assignments schema (`SavedDashboardAssignment`) along with a database constraint to ensure assignments target either a specific `assignee_employee_id` or a generic role.
+- **Refactored Backend Routing Permissions**: Refactored visibility & permissions checking helpers (`_can_edit`, `_can_view`, `_list_visible_dashboard_ids`) to accept user dict objects directly instead of querying via raw `user_id`.
+- **Role-Based Assignments**: Enabled dashboard configurations to be assigned programmatically to roles (e.g., `super_admin`, `domain_head`, `region_head`, `supervisor`, `employee`) instead of just individual users.
+- **Frontend Integration**: Updated `assignSavedDashboard` calls and response interfaces to make employee IDs optional/nullable and support role assignment.
+
+### 🧹 Deprecated Features & Code Cleanup
+- **Disabled AI Widget Generation**: Commented out the backend `/ai-generate-widget` routing endpoints, frontend helper methods, and report-generation UI states across `DashboardPage` and `ReportTemplatesPage`.
+- **Restoration Documentation**: Created a detailed `ai_dashboard_restoration.md` checklist detailing the exact code blocks and files required to restore natural language generation in the future.
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `pages/DashboardPage.tsx` | Upgraded KPI grid, custom colors/gradients, row hints, leaderboard refactor |
+| `components/ui/Card.tsx` | Title typography & transition refinements |
+| `components/ui/ChartsSection.tsx` | SVG linear gradient defs, axis formatting, layout margins |
+| `pages/ReportTemplatesPage.tsx` | Commented out AI widget generation modal & handlers |
+| `lib/marketing-api.ts` | Updated dashboard assignment parameters, commented out AI helper |
+| `app/models.py` | Added role column, nullable assignment constraints to SavedDashboardAssignment |
+| `app/routers/saved_dashboards.py` | Refactored permission checks, added role-based visibility, disabled AI routes |
+| `design.md` | Documented gradient patterns, typography rules, toolbar layouts, and top rep designs |
+| `ai_dashboard_restoration.md` | Created restoration checklist for disabled AI components |
+
+---
+
 ## [2026-06-04] — Release: Visibility Settings, Region Coordinator Support, Sorting Stability & Custom Tooltips (v1.0.1)
 
 ### Dynamic Visibility & Data Isolation

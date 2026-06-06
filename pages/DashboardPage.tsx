@@ -11,7 +11,7 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { marketingAPI } from '../lib/marketing-api';
 import { ApiError } from '../lib/api';
 import { StatItem } from '../types';
-import { Lead, DashboardTargetStats, ScopeTargetStats, ReportScopeResponse, HeadDashboardSummaryResponse, leadDisplayName, leadDisplayCompany, SavedDashboardResponse, AssignableUser } from '../lib/marketing-api';
+import { Lead, DashboardTargetStats, ScopeTargetStats, ReportScopeResponse, HeadDashboardSummaryResponse, leadDisplayName, leadDisplayCompany, SavedDashboardResponse, AssignableUser, SavedDashboardAssignmentResponse } from '../lib/marketing-api';
 import { Modal } from '../components/ui/Modal';
 import { Download, Layout as LayoutIcon, Check, RefreshCw, Users, UserCircle, Quote, FileText, ShieldAlert, Target, Trophy, XCircle, ListTodo, CheckSquare, Square, Plus, MessageSquare, Upload, Trash2, UserPlus, Wand2, Edit3, X, Search, Calendar } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -48,6 +48,15 @@ import {
 } from '../components/ui/ChartsSection';
 
 const CHART_COLORS = ['#4f46e5', '#6366f1', '#818cf8', '#059669', '#e11d48', '#f59e0b', '#94a3b8'];
+
+const CHART_COLOR_PALETTES = [
+  { stroke: '#6366f1', start: '#6366f1', end: '#4f46e5' }, // indigo
+  { stroke: '#10b981', start: '#10b981', end: '#059669' }, // emerald
+  { stroke: '#3b82f6', start: '#3b82f6', end: '#1d4ed8' }, // blue
+  { stroke: '#8b5cf6', start: '#8b5cf6', end: '#7c3aed' }, // violet
+  { stroke: '#f43f5e', start: '#f43f5e', end: '#e11d48' }, // rose
+  { stroke: '#f59e0b', start: '#f59e0b', end: '#d97706' }, // amber
+];
 
 /** Migrate saved layout: ensure each widget has type (from id for legacy). */
 function migrateLayout(saved: WidgetConfig[]): WidgetConfig[] {
@@ -118,13 +127,19 @@ function CustomSqlWidgetContent({
   chartType,
   data,
   error,
+  span = 1,
+  title = '',
 }: {
   code?: string;
   chartType?: string;
   data?: unknown[];
   error?: string | null;
+  span?: number;
+  title?: string;
 }) {
   const gradientId = useId();
+  const navigate = useNavigate();
+  const [hoveredSlice, setHoveredSlice] = useState<{ name: string; value: number } | null>(null);
   const rowsData = Array.isArray(data) ? data : [];
 
   if (!code?.trim()) {
@@ -152,61 +167,282 @@ function CustomSqlWidgetContent({
     return String(v);
   };
 
+  const getCardIcon = (titleStr: string) => {
+    const t = titleStr.toLowerCase();
+    if (t.includes('revenue') || t.includes('achieved') || t.includes('sales') || t.includes('value')) {
+      return <Trophy size={18} className="text-emerald-600 shrink-0" />;
+    }
+    if (t.includes('conversion') || t.includes('rate') || t.includes('pct') || t.includes('ratio')) {
+      return <RefreshCw size={18} className="text-indigo-600 shrink-0" />;
+    }
+    if (t.includes('hot') || t.includes('alert') || t.includes('cases') || t.includes('urgent')) {
+      return <ShieldAlert size={18} className="text-rose-600 shrink-0" />;
+    }
+    if (t.includes('won') || t.includes('deals')) {
+      return <Check size={18} className="text-indigo-600 shrink-0" />;
+    }
+    if (t.includes('leads') || t.includes('count') || t.includes('team') || t.includes('size')) {
+      return <Users size={18} className="text-blue-600 shrink-0" />;
+    }
+    return <FileText size={18} className="text-slate-600 shrink-0" />;
+  };
+
+  const idKey = keys.find((k) => k.toLowerCase() === 'id' || k.toLowerCase() === 'lead_id');
+  const labelCandidates = ['label', 'name', 'category', 'x', 'month', 'week_of', 'day', 'rep', 'metric', 'region', 'source', 'date', 'stage', 'week', 'status'];
+  const labelKey = keys.find((k) => labelCandidates.includes(k.toLowerCase())) ?? keys.filter(k => k !== idKey)[0] ?? keys[0];
+
+  // Identify numeric series columns
+  const valueKeys = keys.filter((k) => {
+    if (k === labelKey || k === idKey) return false;
+    return rows.some((row) => {
+      const v = row[k];
+      if (v === null || v === undefined) return false;
+      if (typeof v === 'number') return true;
+      if (typeof v === 'string') {
+        const cleaned = v.replace(/[%$,]/g, '').trim();
+        return !isNaN(Number(cleaned)) && cleaned !== '';
+      }
+      return false;
+    });
+  });
+  const finalValueKeys = valueKeys.length > 0 ? valueKeys : keys.filter((k) => k !== labelKey && k !== idKey);
+
   const isNumberCard = chartType === 'number-card';
-  const isChart = chartType && chartType !== 'table' && !isNumberCard && ['bar', 'line', 'pie'].includes(chartType);
+  const isChart = chartType && chartType !== 'table' && !isNumberCard && ['bar', 'line', 'pie', 'area'].includes(chartType);
 
   if (isNumberCard) {
     const primary = rows[0];
-    const labelCandidates = ['label', 'metric', 'name', 'category', 'title'];
     const valueCandidates = ['value', 'count', 'total', 'amount', 'sum', 'y'];
-    const labelKey = keys.find((k) => labelCandidates.includes(k.toLowerCase())) ?? keys[0];
     const valueKey = keys.find((k) => valueCandidates.includes(k.toLowerCase())) ?? keys.find((k) => typeof primary[k] === 'number') ?? keys[0];
     const rawLabel = labelKey && labelKey !== valueKey ? cellValue(primary, labelKey) : undefined;
     const labelText = rawLabel && rawLabel !== '—' ? rawLabel : (labelKey !== valueKey ? labelKey : undefined);
     const valueText = cellValue(primary, valueKey);
+
+    let cardColorClasses = "bg-gradient-to-br from-indigo-50/40 to-indigo-100/10 border border-indigo-100/60";
+    let valueColorClass = "text-indigo-800";
+    const tText = labelText ? labelText.toLowerCase() : '';
+    if (tText.includes('revenue') || tText.includes('achieved') || tText.includes('sales') || tText.includes('value')) {
+      cardColorClasses = "bg-gradient-to-br from-emerald-50/40 to-emerald-100/10 border border-emerald-100/60 hover:from-emerald-50/60 hover:to-emerald-100/20";
+      valueColorClass = "text-emerald-800";
+    } else if (tText.includes('conversion') || tText.includes('rate') || tText.includes('pct') || tText.includes('ratio')) {
+      cardColorClasses = "bg-gradient-to-br from-blue-50/40 to-blue-100/10 border border-blue-100/60 hover:from-blue-50/60 hover:to-blue-100/20";
+      valueColorClass = "text-blue-800";
+    } else if (tText.includes('hot') || tText.includes('alert') || tText.includes('cases') || tText.includes('urgent')) {
+      cardColorClasses = "bg-gradient-to-br from-rose-50/40 to-rose-100/10 border border-rose-100/60 hover:from-rose-50/60 hover:to-rose-100/20";
+      valueColorClass = "text-rose-800";
+    } else if (tText.includes('won') || tText.includes('deals')) {
+      cardColorClasses = "bg-gradient-to-br from-violet-50/40 to-violet-100/10 border border-violet-100/60 hover:from-violet-50/60 hover:to-violet-100/20";
+      valueColorClass = "text-violet-800";
+    } else if (tText.includes('leads') || tText.includes('count') || tText.includes('team') || tText.includes('size')) {
+      cardColorClasses = "bg-gradient-to-br from-blue-50/40 to-blue-100/10 border border-blue-100/60 hover:from-blue-50/60 hover:to-blue-100/20";
+      valueColorClass = "text-blue-800";
+    } else {
+      cardColorClasses = "bg-gradient-to-br from-slate-50/40 to-slate-100/10 border border-slate-200/60 hover:from-slate-50/60 hover:to-slate-100/20";
+      valueColorClass = "text-slate-800";
+    }
+
     return (
-      <div className="flex w-full flex-col gap-1 rounded-[1rem] border border-slate-100/80 bg-white/80 px-4 py-3 shadow-sm">
-        {labelText && <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{labelText}</p>}
-        <p className="text-3xl font-bold uppercase text-slate-900 leading-tight">{valueText}</p>
-        {rows.length > 1 && (
-          <p className="text-[10px] text-slate-500">{`Showing first row of ${rows.length} rows`}</p>
-        )}
+      <div className={cn(
+        "flex items-center gap-2.5 w-full p-3 rounded-xl shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5",
+        cardColorClasses
+      )}>
+        {getCardIcon(labelText || '')}
+        <div className="min-w-0">
+          {labelText && <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">{labelText}</p>}
+          <p className={cn("text-xl font-black mt-0.5", valueColorClass)}>{valueText}</p>
+          {rows.length > 1 && (
+            <p className="text-[9px] text-slate-400">{`First of ${rows.length} records`}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Check if this is the Top Performing Sales Representatives leaderboard
+  const isTopRepsList = title.toLowerCase().includes('top performing sales representatives') || title.toLowerCase().includes('top reps');
+
+  if (isTopRepsList) {
+    return (
+      <div className="flex flex-col gap-3 p-1">
+        {rows.map((row, index) => {
+          const rank = index + 1;
+          const rep = String(row.representative || row.Representative || 'Unknown');
+          const region = String(row.region || row.Region || 'All');
+          const revenue = String(row.revenue || row.Revenue || '0');
+          const won = String(row.won || row.Won || '0');
+
+          // Initials for avatar
+          const initials = rep
+            .split(' ')
+            .map((n) => n[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase();
+
+          return (
+            <div
+              key={index}
+              className={cn(
+                "flex items-center justify-between p-3 rounded-xl border transition-all duration-200 hover:shadow-md hover:-translate-y-0.5",
+                rank === 1
+                  ? "border-amber-200 bg-gradient-to-r from-amber-50/20 to-white border-l-4 border-l-amber-500"
+                  : rank === 2
+                  ? "border-slate-200 bg-gradient-to-r from-slate-50/20 to-white border-l-4 border-l-slate-400"
+                  : rank === 3
+                  ? "border-orange-200 bg-gradient-to-r from-orange-50/20 to-white border-l-4 border-l-orange-500"
+                  : "border-slate-100 bg-slate-50/30 hover:bg-slate-50/80 border-l border-l-slate-200"
+              )}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                {/* Rank badge */}
+                <div
+                  className={cn(
+                    "w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-inner",
+                    rank === 1
+                      ? "bg-amber-100 text-amber-800 ring-2 ring-amber-300"
+                      : rank === 2
+                      ? "bg-slate-200 text-slate-800 ring-2 ring-slate-300"
+                      : rank === 3
+                      ? "bg-orange-100 text-orange-800 ring-2 ring-orange-300"
+                      : "bg-slate-100 text-slate-500"
+                  )}
+                >
+                  {rank === 1 ? <Trophy className="w-3.5 h-3.5 text-amber-700" /> : rank}
+                </div>
+
+                {/* Avatar */}
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shrink-0 border shadow-inner",
+                  rank === 1 ? "bg-amber-50 text-amber-700 border-amber-200" :
+                  rank === 2 ? "bg-slate-100 text-slate-700 border-slate-200" :
+                  rank === 3 ? "bg-orange-50 text-orange-700 border-orange-200" :
+                  "bg-indigo-50 text-indigo-600 border-indigo-100"
+                )}>
+                  {initials}
+                </div>
+
+                {/* Name & Region */}
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-slate-800 truncate">{rep}</p>
+                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">
+                    {region}
+                  </p>
+                </div>
+              </div>
+
+              {/* Metrics */}
+              <div className="text-right shrink-0">
+                <p className="text-xs font-black text-slate-900">₹{revenue}</p>
+                <p className="text-[10px] text-emerald-600 font-black uppercase tracking-widest mt-0.5 flex items-center justify-end gap-1">
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  {won} won
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </div>
     );
   }
 
   if (isChart) {
-    const labelCandidates = ['label', 'name', 'category', 'x'];
-    const valueCandidates = ['value', 'count', 'total', 'y'];
-    const labelKey = keys.find((k) => labelCandidates.includes(k.toLowerCase())) ?? keys[0];
-    const valueKey = keys.find((k) => valueCandidates.includes(k.toLowerCase())) ?? keys.find((k) => k !== labelKey && (typeof rows[0]?.[k] === 'number' || typeof rows[0]?.[k] === 'string')) ?? keys[1] ?? keys[0];
-    const chartData = rows.map((row) => ({
-      name: String(row[labelKey] ?? '—').slice(0, 30),
-      value: Number(row[valueKey]) || 0,
-    })).filter((d) => d.value !== 0 || chartType === 'bar' || chartType === 'line');
-
+    const chartData = rows.map((row) => {
+      const item: Record<string, unknown> = {
+        name: String(row[labelKey] ?? '—').slice(0, span === 1 ? 24 : 50)
+      };
+      finalValueKeys.forEach((vk) => {
+        const rawVal = row[vk];
+        let val = 0;
+        if (typeof rawVal === 'number') {
+          val = rawVal;
+        } else if (typeof rawVal === 'string') {
+          const cleaned = rawVal.replace(/[%$,]/g, '').trim();
+          val = Number(cleaned) || 0;
+        }
+        item[vk] = val;
+      });
+      return item;
+    }).filter((d) => {
+      if (chartType === 'bar' || chartType === 'line' || chartType === 'area') return true;
+      return finalValueKeys.some((vk) => Number(d[vk]) !== 0);
+    });
 
     if (chartData.length === 0) {
       return <p className="text-sm text-slate-500 p-4">No data to chart (need label + value columns).</p>;
     }
 
-    const commonChartProps = { margin: { top: 5, right: 10, left: -10, bottom: 5 } as const };
+    const isCurrency = finalValueKeys.some((k) => {
+      const l = k.toLowerCase();
+      return l.includes('revenue') || l.includes('achieved') || l.includes('potential') || l.includes('sales') || l.includes('value') || l.includes('cost') || l.includes('target') || l.includes('price') || l.includes('amount');
+    });
+
+    const formatYAxis = (v: number) => {
+      if (v >= 1_00_00_000) {
+        const crVal = v / 1_00_00_000;
+        return `${isCurrency ? '₹' : ''}${crVal % 1 === 0 ? crVal.toFixed(0) : crVal.toFixed(1)} Cr`;
+      }
+      if (v >= 1_00_000) {
+        const lVal = (v / 1_00_00_000) * 100;
+        return `${isCurrency ? '₹' : ''}${lVal % 1 === 0 ? lVal.toFixed(0) : lVal.toFixed(1)} L`;
+      }
+      if (v >= 1_000) {
+        const kVal = v / 1_000;
+        return `${isCurrency ? '₹' : ''}${kVal % 1 === 0 ? kVal.toFixed(0) : kVal.toFixed(1)} K`;
+      }
+      return String(v);
+    };
+
+    const commonChartProps = { margin: { top: 10, right: 10, left: 15, bottom: 5 } as const };
 
     if (chartType === 'pie') {
-      const withColors = chartData.map((d, i) => ({ ...d, fill: CHART_COLORS[i % CHART_COLORS.length] }));
+      const valueKey = finalValueKeys[0] || 'value';
+      const pieData = chartData.map((d, i) => ({
+        name: String(d.name),
+        value: Number(d[valueKey]) || 0,
+        fill: CHART_COLORS[i % CHART_COLORS.length]
+      }));
+
+      const totalValue = pieData.reduce((sum, d) => sum + d.value, 0);
+
       return (
-        <div className="h-[260px] w-full pt-2">
+        <div className="h-[260px] w-full pt-2 relative">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={withColors} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={2} label={({ name, value }) => `${name}: ${value}`}>
-                {withColors.map((_, i) => (
-                  <Cell key={i} fill={withColors[i].fill} />
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="42%"
+                innerRadius={span === 1 ? 50 : 65}
+                outerRadius={span === 1 ? 70 : 90}
+                paddingAngle={3}
+                stroke="none"
+                onMouseEnter={(_, index) => setHoveredSlice(pieData[index])}
+                onMouseLeave={() => setHoveredSlice(null)}
+              >
+                {pieData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} className="hover:opacity-80 transition-opacity duration-200 cursor-pointer pointer-events-auto" />
                 ))}
               </Pie>
-              <Tooltip formatter={(v: number) => [v, '']} />
-              <Legend />
+              <Tooltip formatter={(v: number) => [v.toLocaleString(), '']} />
+              <Legend 
+                verticalAlign="bottom" 
+                align="center" 
+                iconType="circle"
+                iconSize={8}
+                wrapperStyle={{ fontSize: '11px', fontWeight: 600, color: '#64748b', paddingTop: '10px' }}
+              />
             </PieChart>
           </ResponsiveContainer>
+          <div className="absolute top-[37%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none w-[45%] overflow-hidden">
+            <p className="text-xl font-black text-slate-900 leading-none transition-all duration-200">
+              {hoveredSlice ? hoveredSlice.value.toLocaleString() : totalValue.toLocaleString()}
+            </p>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5 transition-all duration-200 truncate px-1">
+              {hoveredSlice ? hoveredSlice.name : 'Total'}
+            </p>
+          </div>
         </div>
       );
     }
@@ -216,33 +452,74 @@ function CustomSqlWidgetContent({
         <div className="h-[260px] w-full pt-2">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} {...commonChartProps}>
+              <defs>
+                {finalValueKeys.map((vk, i) => {
+                  const palette = CHART_COLOR_PALETTES[i % CHART_COLOR_PALETTES.length];
+                  return (
+                    <linearGradient key={vk} id={`barGrad-${vk}-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={palette.start} stopOpacity={1} />
+                      <stop offset="100%" stopColor={palette.end} stopOpacity={0.65} />
+                    </linearGradient>
+                  );
+                })}
+              </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(v: number) => [v, valueKey]} />
-              <Bar dataKey="value" name={valueKey} fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={28} />
+              <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: span === 1 ? 8 : 10 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#64748b', fontSize: span === 1 ? 8 : 10 }} axisLine={false} tickLine={false} tickFormatter={formatYAxis} />
+              <Tooltip cursor={{ fill: 'rgba(241, 245, 249, 0.4)' }} formatter={(v: number) => [v.toLocaleString(), '']} />
+              <Legend verticalAlign="bottom" height={36} iconType="circle" />
+              {finalValueKeys.map((vk, i) => (
+                <Bar
+                  key={vk}
+                  dataKey={vk}
+                  name={vk.replace(/_/g, ' ')}
+                  fill={`url(#barGrad-${vk}-${gradientId})`}
+                  radius={[4, 4, 0, 0]}
+                  barSize={span === 1 ? 16 : 24}
+                />
+              ))}
             </BarChart>
           </ResponsiveContainer>
         </div>
       );
     }
 
-    if (chartType === 'line') {
+    if (chartType === 'line' || chartType === 'area') {
       return (
         <div className="h-[260px] w-full pt-2">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} {...commonChartProps}>
               <defs>
-                <linearGradient id={`customSqlArea-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                </linearGradient>
+                {finalValueKeys.map((vk, i) => {
+                  const palette = CHART_COLOR_PALETTES[i % CHART_COLOR_PALETTES.length];
+                  return (
+                    <linearGradient key={vk} id={`areaGrad-${vk}-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={palette.start} stopOpacity={0.25} />
+                      <stop offset="100%" stopColor={palette.end} stopOpacity={0.02} />
+                    </linearGradient>
+                  );
+                })}
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(v: number) => [v, valueKey]} />
-              <Area type="monotone" dataKey="value" name={valueKey} stroke="#4f46e5" fill={`url(#customSqlArea-${gradientId})`} strokeWidth={2} />
+              <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: span === 1 ? 8 : 10 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#64748b', fontSize: span === 1 ? 8 : 10 }} axisLine={false} tickLine={false} tickFormatter={formatYAxis} />
+              <Tooltip formatter={(v: number) => [v.toLocaleString(), '']} />
+              <Legend verticalAlign="bottom" height={36} iconType="circle" />
+              {finalValueKeys.map((vk, i) => {
+                const palette = CHART_COLOR_PALETTES[i % CHART_COLOR_PALETTES.length];
+                return (
+                  <Area
+                    key={vk}
+                    type="monotone"
+                    dataKey={vk}
+                    name={vk.replace(/_/g, ' ')}
+                    stroke={palette.stroke}
+                    fill={`url(#areaGrad-${vk}-${gradientId})`}
+                    strokeWidth={2}
+                    activeDot={{ r: 6 }}
+                  />
+                );
+              })}
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -250,27 +527,153 @@ function CustomSqlWidgetContent({
     }
   }
 
+  // Render Table. Check if it's a short 2-column key-value list (e.g. Metric Summary) and render as KPI grid instead
+  const hasMetricValueKeys = keys.length === 2 &&
+    keys.some(k => k.toLowerCase() === 'metric' || k.toLowerCase() === 'label') &&
+    keys.some(k => k.toLowerCase() === 'value');
+  const isShortKeyValue = hasMetricValueKeys && rows.length <= 6;
+
+  if (isShortKeyValue) {
+    const mKey = keys.find(k => k.toLowerCase() === 'metric' || k.toLowerCase() === 'label')!;
+    const vKey = keys.find(k => k.toLowerCase() === 'value')!;
+
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-1">
+        {rows.map((row, i) => {
+          const label = String(row[mKey] ?? '');
+          const val = String(row[vKey] ?? '');
+
+          let accentClass = "border-l-indigo-500 bg-gradient-to-br from-indigo-50/40 to-indigo-100/10 hover:from-indigo-50/60 hover:to-indigo-100/20 border-indigo-100/60";
+          let iconBg = "bg-indigo-50 text-indigo-600 border border-indigo-100/85";
+          const lLower = label.toLowerCase();
+          if (lLower.includes('achieved') || lLower.includes('won') || lLower.includes('revenue') || lLower.includes('sales') || lLower.includes('value')) {
+            accentClass = "border-l-emerald-500 bg-gradient-to-br from-emerald-50/40 to-emerald-100/10 hover:from-emerald-50/60 hover:to-emerald-100/20 border-emerald-100/60";
+            iconBg = "bg-emerald-50 text-emerald-600 border border-emerald-100/85";
+          } else if (lLower.includes('open') || lLower.includes('leads') || lLower.includes('count') || lLower.includes('size') || lLower.includes('team')) {
+            accentClass = "border-l-blue-500 bg-gradient-to-br from-blue-50/40 to-blue-100/10 hover:from-blue-50/60 hover:to-blue-100/20 border-blue-100/60";
+            iconBg = "bg-blue-50 text-blue-600 border border-blue-100/85";
+          } else if (lLower.includes('age') || lLower.includes('hot') || lLower.includes('urgent') || lLower.includes('days') || lLower.includes('left')) {
+            accentClass = "border-l-amber-500 bg-gradient-to-br from-amber-50/40 to-amber-100/10 hover:from-amber-50/60 hover:to-amber-100/20 border-amber-100/60";
+            iconBg = "bg-amber-50 text-amber-600 border border-amber-100/85";
+          } else if (lLower.includes('lost')) {
+            accentClass = "border-l-rose-500 bg-gradient-to-br from-rose-50/40 to-rose-100/10 hover:from-rose-50/60 hover:to-rose-100/20 border-rose-100/60";
+            iconBg = "bg-rose-50 text-rose-600 border border-rose-100/85";
+          } else {
+            accentClass = "border-l-slate-400 bg-gradient-to-br from-slate-50/40 to-slate-100/10 hover:from-slate-50/60 hover:to-slate-100/20 border-slate-200/60";
+            iconBg = "bg-slate-100 text-slate-600 border border-slate-200/85";
+          }
+
+          return (
+            <div
+              key={i}
+              className={cn(
+                "flex items-center justify-between rounded-2xl border border-slate-100 border-l-4 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5",
+                accentClass
+              )}
+            >
+              <div className="flex flex-col gap-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{label}</p>
+                <p className="text-2xl font-black text-slate-900 leading-tight">{val}</p>
+              </div>
+        <div className={cn("p-2.5 rounded-xl shrink-0", iconBg)}>
+                {getCardIcon(label)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const renderCell = (val: unknown) => {
+    if (val === null || val === undefined) return <span className="text-slate-400">—</span>;
+    const str = String(val).trim();
+    if (str === '') return <span className="text-slate-400">—</span>;
+
+    const upper = str.toUpperCase();
+    if (['URGENT', 'CRITICAL', 'HOT'].includes(upper)) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200 shadow-sm">
+          <span className="w-1.5 h-1.5 mr-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+          {str}
+        </span>
+      );
+    }
+    if (['TODAY', 'PENDING', 'FOLLOWUP', 'WARNING'].includes(upper)) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 shadow-sm">
+          {str}
+        </span>
+      );
+    }
+    if (['SUCCESS', 'WON', 'COMPLETED', 'ACTIVE', 'DOMESTIC'].includes(upper)) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
+          {str}
+        </span>
+      );
+    }
+    if (['LOST', 'CANCELLED', 'INACTIVE', 'EXPORT'].includes(upper)) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200 shadow-sm">
+          {str}
+        </span>
+      );
+    }
+
+    if (typeof val === 'number') {
+      return <span className="font-bold text-slate-800">{val.toLocaleString()}</span>;
+    }
+    if (!isNaN(Number(str)) && str !== '') {
+      return <span className="font-bold text-slate-800">{Number(str).toLocaleString()}</span>;
+    }
+
+    return <span className="text-slate-700 font-medium">{str}</span>;
+  };
+
+  const handleRowClick = (row: Record<string, unknown>) => {
+    const id = row[idKey!];
+    if (id) {
+      navigate(`/leads/${id}/edit`);
+    }
+  };
+
   return (
-    <div className="overflow-x-auto p-2">
-      <table className="w-full text-left text-xs border border-slate-200">
+    <div className="overflow-x-auto rounded-xl border border-slate-100 bg-white shadow-sm">
+      <table className="w-full text-left text-xs border-collapse">
         <thead>
-          <tr className="bg-slate-50 border-b border-slate-200">
-            {keys.map((k) => (
-              <th key={k} className="px-2 py-1.5 font-semibold text-slate-600">{k}</th>
+          <tr className="bg-slate-50 border-b border-slate-200/80">
+            {keys.filter(k => k !== idKey).map((k) => (
+              <th key={k} className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">
+                {k.replace(/_/g, ' ')}
+              </th>
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-slate-100">
           {rows.slice(0, 100).map((row, i) => (
-            <tr key={i} className="border-b border-slate-100">
-              {keys.map((k) => (
-                <td key={k} className="px-2 py-1.5 text-slate-800">{cellValue(row || {}, k)}</td>
+            <tr
+              key={i}
+              className={cn(
+                "hover:bg-slate-50/80 transition-colors duration-150",
+                idKey ? "cursor-pointer" : ""
+              )}
+              onClick={() => idKey && handleRowClick(row)}
+            >
+              {keys.filter(k => k !== idKey).map((k) => (
+                <td key={k} className="px-4 py-2.5 text-slate-600">
+                  {renderCell(row[k])}
+                </td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
-      {rowsData.length > 100 && <p className="text-xs text-slate-500 mt-1">Showing first 100 of {rowsData.length} rows.</p>}
+      {rowsData.length > 100 && (
+        <p className="text-[10px] text-slate-400 p-2 text-center border-t border-slate-100 bg-slate-50/30">
+          Showing first 100 of {rowsData.length} rows.
+        </p>
+      )}
     </div>
   );
 }
@@ -344,13 +747,15 @@ export const DashboardPage: React.FC = () => {
   const [createDashboardName, setCreateDashboardName] = useState('');
   const [createDashboardSubmitting, setCreateDashboardSubmitting] = useState(false);
   const [showAssignDashboardModal, setShowAssignDashboardModal] = useState(false);
-  const [savedDashboardAssignments, setSavedDashboardAssignments] = useState<{ id: number; dashboard_id: number; assignee_employee_id: number; can_edit: boolean; created_at: string }[]>([]);
+  const [savedDashboardAssignments, setSavedDashboardAssignments] = useState<SavedDashboardAssignmentResponse[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
   const [assigningDashboard, setAssigningDashboard] = useState(false);
   const [assignEmployeeId, setAssignEmployeeId] = useState('');
   const [assignCanEdit, setAssignCanEdit] = useState(false);
   const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
   const [assignableUsersLoading, setAssignableUsersLoading] = useState(false);
+  const [assignType, setAssignType] = useState<'person' | 'role'>('person');
+  const [assignRole, setAssignRole] = useState('employee');
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [showAddWidgetModal, setShowAddWidgetModal] = useState(false);
@@ -358,9 +763,12 @@ export const DashboardPage: React.FC = () => {
   const [addWidgetTitle, setAddWidgetTitle] = useState('');
   const [addWidgetCode, setAddWidgetCode] = useState('');
   const [addWidgetChartType, setAddWidgetChartType] = useState<string>('table');
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [aiScopeMode, setAiScopeMode] = useState<'auto' | 'employee' | 'region' | 'domain'>('auto');
-  const [aiGenerating, setAiGenerating] = useState(false);
+  // const [aiPrompt, setAiPrompt] = useState('');
+  // const [aiScopeMode, setAiScopeMode] = useState<'auto' | 'employee' | 'region' | 'domain'>('auto');
+  // const [aiGenerating, setAiGenerating] = useState(false);
+  const aiPrompt = '';
+  const aiScopeMode = 'auto';
+  const aiGenerating = false;
   const [sqlPreviewData, setSqlPreviewData] = useState<unknown[]>([]);
   const [sqlPreviewChartType, setSqlPreviewChartType] = useState<string>('table');
   const [sqlPreviewError, setSqlPreviewError] = useState<string | null>(null);
@@ -580,8 +988,8 @@ export const DashboardPage: React.FC = () => {
     setAddWidgetCode('');
     setAddWidgetChartType('table');
     setAddWidgetType('target-card');
-    setAiPrompt('');
-    setAiScopeMode('auto');
+    // setAiPrompt('');
+    // setAiScopeMode('auto');
     setSqlPreviewData([]);
     setSqlPreviewError(null);
     setSqlPreviewLoading(false);
@@ -652,37 +1060,37 @@ export const DashboardPage: React.FC = () => {
     }
   }, [addWidgetCode, addWidgetChartType, dashboardDateFrom, dashboardDateTo, showToast]);
 
-  const handleGenerateWidgetWithAI = async () => {
-    if (!aiPrompt.trim()) {
-      showToast('Enter report context for AI generation', 'error');
-      return;
-    }
-    setAiGenerating(true);
-    try {
-      const schema = await marketingAPI.getSchema();
-      const ai = await marketingAPI.generateWidgetWithAI({
-        prompt: aiPrompt.trim(),
-        date_from: dashboardDateFrom || undefined,
-        date_to: dashboardDateTo || undefined,
-        schema: (schema.tables || []).map((t) => ({
-          name: t.name,
-          columns: (t.columns || []).map((c) => ({ name: c.name, type: c.type })),
-        })),
-        scope_mode: aiScopeMode,
-        preferred_chart: addWidgetType === 'custom_sql' ? (addWidgetChartType as 'table' | 'bar' | 'line' | 'pie' | 'number-card') : undefined,
-      });
-      setAddWidgetType('custom_sql');
-      setAddWidgetTitle(ai.title || addWidgetTitle);
-      setAddWidgetCode(ai.sql || '');
-      setAddWidgetChartType(ai.chart_type || 'table');
-      await runSqlPreview(ai.sql || '', ai.chart_type || 'table');
-      showToast('AI generated widget SQL. Review and add.');
-    } catch (e: unknown) {
-      showToast(e instanceof Error ? e.message : 'Failed to generate widget with AI', 'error');
-    } finally {
-      setAiGenerating(false);
-    }
-  };
+  // const handleGenerateWidgetWithAI = async () => {
+  //   if (!aiPrompt.trim()) {
+  //     showToast('Enter report context for AI generation', 'error');
+  //     return;
+  //   }
+  //   setAiGenerating(true);
+  //   try {
+  //     const schema = await marketingAPI.getSchema();
+  //     const ai = await marketingAPI.generateWidgetWithAI({
+  //       prompt: aiPrompt.trim(),
+  //       date_from: dashboardDateFrom || undefined,
+  //       date_to: dashboardDateTo || undefined,
+  //       schema: (schema.tables || []).map((t) => ({
+  //         name: t.name,
+  //         columns: (t.columns || []).map((c) => ({ name: c.name, type: c.type })),
+  //       })),
+  //       scope_mode: aiScopeMode,
+  //       preferred_chart: addWidgetType === 'custom_sql' ? (addWidgetChartType as 'table' | 'bar' | 'line' | 'pie' | 'number-card') : undefined,
+  //     });
+  //     setAddWidgetType('custom_sql');
+  //     setAddWidgetTitle(ai.title || addWidgetTitle);
+  //     setAddWidgetCode(ai.sql || '');
+  //     setAddWidgetChartType(ai.chart_type || 'table');
+  //     await runSqlPreview(ai.sql || '', ai.chart_type || 'table');
+  //     showToast('AI generated widget SQL. Review and add.');
+  //   } catch (e: unknown) {
+  //     showToast(e instanceof Error ? e.message : 'Failed to generate widget with AI', 'error');
+  //   } finally {
+  //     setAiGenerating(false);
+  //   }
+  // };
 
   const handleDragStart = (index: number) => {
     if (!isEditMode) return;
@@ -701,6 +1109,40 @@ export const DashboardPage: React.FC = () => {
     setDraggedIndex(null);
   };
 
+  const getGroupedLayout = (rawLayout: WidgetConfig[]): any[] => {
+    const grouped: any[] = [];
+    let currentGroup: WidgetConfig[] = [];
+
+    rawLayout.forEach((w) => {
+      const isNumCard = w.chart_type === 'number-card';
+      if (isNumCard) {
+        currentGroup.push(w);
+      } else {
+        if (currentGroup.length > 0) {
+          grouped.push({
+            id: `num-card-group-${currentGroup[0].id}`,
+            type: 'number-card-group',
+            widgets: [...currentGroup],
+            span: 4,
+          });
+          currentGroup = [];
+        }
+        grouped.push(w);
+      }
+    });
+
+    if (currentGroup.length > 0) {
+      grouped.push({
+        id: `num-card-group-${currentGroup[0].id}`,
+        type: 'number-card-group',
+        widgets: [...currentGroup],
+        span: 4,
+      });
+    }
+
+    return grouped;
+  };
+
   const renderWidget = (config: WidgetConfig) => {
     const widgetType = (config.type ?? config.id) as string;
     const commonProps = {
@@ -711,7 +1153,7 @@ export const DashboardPage: React.FC = () => {
       onDragOver: handleDragOver,
       onDrop: () => handleDrop(layout.indexOf(config)),
       onResize: () => toggleResize(config.id),
-      className: `${config.span === 1 ? 'col-span-1' : config.span === 2 ? 'col-span-2' : 'col-span-3'} ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''}`,
+      className: `${config.span === 1 ? 'col-span-1' : config.span === 2 ? 'col-span-2' : config.span === 3 ? 'col-span-3' : 'col-span-4'} min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''}`,
       headerAction: isEditMode ? (
         <div className="flex items-center gap-0.5">
           <button
@@ -735,6 +1177,56 @@ export const DashboardPage: React.FC = () => {
     };
 
     switch (widgetType) {
+      case 'number-card-group': {
+        const group = config as any;
+        return (
+          <Card
+            key={group.id}
+            title="Key Performance Indicators"
+            className="col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4 min-w-0"
+            isDraggable={isEditMode}
+            showHandle={isEditMode}
+            noPadding
+            contentClassName="p-5"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {group.widgets.map((w: WidgetConfig) => {
+                const widgetRuntime = sqlWidgetData[w.id];
+                return (
+                  <div key={w.id} className="relative group/sub">
+                    <CustomSqlWidgetContent
+                      code={w.code}
+                      chartType="number-card"
+                      data={widgetRuntime?.data}
+                      error={widgetRuntime?.error || null}
+                      span={1}
+                      title={w.title}
+                    />
+                    {isEditMode && (
+                      <div className="absolute top-1 right-1 opacity-0 group-hover/sub:opacity-100 transition-opacity flex items-center bg-white/80 rounded-md border border-slate-100 shadow-sm p-0.5 z-10">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openEditWidget(w); }}
+                          className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                        >
+                          <Edit3 size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeWidget(w.id); }}
+                          className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        );
+      }
       case 'leads-by-region':
         if (!isHeadRole || !headSummary?.region_breakdown.length) {
           return (
@@ -753,7 +1245,7 @@ export const DashboardPage: React.FC = () => {
         if (s == null) {
           return (
             <Card {...commonProps} title={`${scopeLabel} target this month`} description="Target and achieved in scope.">
-              <p className="text-sm text-slate-500 p-4">No target data available.</p>
+              <p className="text-sm text-slate-500 p-4 italic">No target data available.</p>
             </Card>
           );
         }
@@ -767,33 +1259,36 @@ export const DashboardPage: React.FC = () => {
           >
             <div className="p-4 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-indigo-50">
-                  <Target size={20} className="text-indigo-600" />
+                <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-100 shadow-sm shrink-0">
+                  <Target size={20} className="text-indigo-600 animate-pulse" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-slate-600">Achieved this month</span>
-                    <span className="font-semibold text-slate-900">₹{(s.achieved_this_month / 1_00_000).toFixed(2)} lacs</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-sm mb-1.5">
+                    <span className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Achieved this month</span>
+                    <span className="font-black text-slate-900 text-sm whitespace-nowrap">₹{(s.achieved_this_month / 1_00_000).toFixed(2)} Lacs</span>
                   </div>
-                  <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo-600 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (s.monthly_target ? (s.achieved_this_month / s.monthly_target) * 100 : 0)).toFixed(1)}%` }} />
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
+                    <div 
+                      className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(99,102,241,0.3)]" 
+                      style={{ width: `${Math.min(100, (s.monthly_target ? (s.achieved_this_month / s.monthly_target) * 100 : 0)).toFixed(1)}%` }} 
+                    />
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">Target: ₹{(s.monthly_target / 1_00_000).toFixed(2)} lacs for {new Date(s.year, s.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+                  <p className="text-[10px] font-semibold text-slate-400 mt-1.5">Target: ₹{(s.monthly_target / 1_00_000).toFixed(2)} Lacs for {new Date(s.year, s.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-gradient-to-br from-emerald-50/40 to-emerald-100/10 border border-emerald-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
                   <Trophy size={18} className="text-emerald-600 shrink-0" />
                   <div>
-                    <p className="text-xs font-medium text-slate-500">Won leads (this month)</p>
-                    <p className="text-lg font-bold text-emerald-800">{s.won_leads_count_this_month}</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Won leads (this month)</p>
+                    <p className="text-xl font-black text-emerald-800 mt-0.5">{s.won_leads_count_this_month}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-50">
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-gradient-to-br from-rose-50/40 to-rose-100/10 border border-rose-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
                   <XCircle size={18} className="text-rose-600 shrink-0" />
                   <div>
-                    <p className="text-xs font-medium text-slate-500">Lost leads (this month)</p>
-                    <p className="text-lg font-bold text-rose-800">{s.lost_leads_count_this_month}</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Lost leads (this month)</p>
+                    <p className="text-xl font-black text-rose-800 mt-0.5">{s.lost_leads_count_this_month}</p>
                   </div>
                 </div>
               </div>
@@ -816,55 +1311,56 @@ export const DashboardPage: React.FC = () => {
             ) : headSummary ? (
               <div className="p-4 space-y-4">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="px-3.5 py-2.5 rounded-lg bg-slate-50 border border-slate-100">
-                    <p className="text-xs font-medium text-slate-500">Total leads</p>
-                    <p className="text-xl font-bold text-slate-900">{headSummary.total_leads}</p>
+                  <div className="px-3.5 py-2.5 rounded-xl bg-gradient-to-br from-slate-50/40 to-slate-100/10 border border-slate-200/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Total leads</p>
+                    <p className="text-xl font-black text-slate-900 mt-1">{headSummary.total_leads}</p>
                   </div>
-                  <div className="px-3.5 py-2.5 rounded-lg bg-amber-50 border border-amber-100">
-                    <p className="text-xs font-medium text-slate-500">Hot cases</p>
-                    <p className="text-xl font-bold text-amber-800">{headSummary.hot_cases_count}</p>
+                  <div className="px-3.5 py-2.5 rounded-xl bg-gradient-to-br from-amber-50/40 to-amber-100/10 border border-amber-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Hot cases</p>
+                    <p className="text-xl font-black text-amber-800 mt-1">{headSummary.hot_cases_count}</p>
                   </div>
-                  <div className="px-3.5 py-2.5 rounded-lg bg-slate-50 border border-slate-100">
-                    <p className="text-xs font-medium text-slate-500">Conversion ratio</p>
-                    <p className="text-xl font-bold text-slate-900">{headSummary.conversion_ratio_pct != null ? `${headSummary.conversion_ratio_pct}%` : '—'}</p>
+                  <div className="px-3.5 py-2.5 rounded-xl bg-gradient-to-br from-blue-50/40 to-blue-100/10 border border-blue-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Conversion ratio</p>
+                    <p className="text-xl font-black text-slate-900 mt-1">{headSummary.conversion_ratio_pct != null ? `${headSummary.conversion_ratio_pct}%` : '—'}</p>
                   </div>
                   <div className="flex gap-2">
-                    <div className="flex-1 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100">
-                      <p className="text-[10px] font-medium text-emerald-600">Won</p>
-                      <p className="text-lg font-bold text-emerald-800">{headSummary.won_count}</p>
+                    <div className="flex-1 px-3 py-2 rounded-xl bg-gradient-to-br from-emerald-50/40 to-emerald-100/10 border border-emerald-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Won</p>
+                      <p className="text-lg font-black text-emerald-800 mt-0.5">{headSummary.won_count}</p>
                     </div>
-                    <div className="flex-1 px-3 py-2 rounded-lg bg-rose-50 border border-rose-100">
-                      <p className="text-[10px] font-medium text-rose-600">Lost</p>
-                      <p className="text-lg font-bold text-rose-800">{headSummary.lost_count}</p>
+                    <div className="flex-1 px-3 py-2 rounded-xl bg-gradient-to-br from-rose-50/40 to-rose-100/10 border border-rose-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-rose-600">Lost</p>
+                      <p className="text-lg font-black text-rose-800 mt-0.5">{headSummary.lost_count}</p>
                     </div>
                   </div>
                 </div>
+
                 {headSummary.region_breakdown.length > 0 && (
-                  <div className="border border-slate-200 rounded-lg overflow-hidden">
-                    <p className="text-xs font-medium text-slate-600 px-3 py-2 bg-slate-50 border-b border-slate-200">Region-wise split</p>
+                  <div className="border border-slate-200/60 rounded-xl overflow-hidden shadow-xs bg-white">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 py-3 bg-slate-50/50 border-b border-slate-100">Region-wise split</p>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                      <table className="w-full text-left text-xs border-collapse">
                         <thead>
-                          <tr className="bg-slate-50 text-left text-xs font-medium text-slate-600">
-                            <th className="px-3 py-2">Region</th>
-                            <th className="px-3 py-2">Domain</th>
-                            <th className="px-3 py-2 text-right">Total</th>
-                            <th className="px-3 py-2 text-right">Won</th>
-                            <th className="px-3 py-2 text-right">Lost</th>
-                            <th className="px-3 py-2 text-right">Hot</th>
-                            <th className="px-3 py-2 text-right">Conv.%</th>
+                          <tr className="bg-slate-50 border-b border-slate-200/80">
+                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Region</th>
+                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Domain</th>
+                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Total</th>
+                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Won</th>
+                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Lost</th>
+                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Hot</th>
+                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Conv.%</th>
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-slate-100">
                           {headSummary.region_breakdown.map((r) => (
-                            <tr key={r.region_id} className="border-t border-slate-100 hover:bg-slate-50/50">
-                              <td className="px-3 py-2 font-medium text-slate-900">{r.region_name}</td>
-                              <td className="px-3 py-2 text-slate-600">{r.domain_name}</td>
-                              <td className="px-3 py-2 text-right">{r.total_leads}</td>
-                              <td className="px-3 py-2 text-right text-emerald-700">{r.won_count}</td>
-                              <td className="px-3 py-2 text-right text-rose-700">{r.lost_count}</td>
-                              <td className="px-3 py-2 text-right text-amber-700">{r.hot_cases_count}</td>
-                              <td className="px-3 py-2 text-right">{r.conversion_ratio_pct != null ? `${r.conversion_ratio_pct}%` : '—'}</td>
+                            <tr key={r.region_id} className="hover:bg-slate-50/80 transition-colors duration-150">
+                              <td className="px-4 py-2.5 font-bold text-slate-800">{r.region_name}</td>
+                              <td className="px-4 py-2.5 text-slate-600">{r.domain_name}</td>
+                              <td className="px-4 py-2.5 text-right font-semibold text-slate-700">{r.total_leads}</td>
+                              <td className="px-4 py-2.5 text-right text-emerald-600 font-bold">{r.won_count}</td>
+                              <td className="px-4 py-2.5 text-right text-rose-600 font-bold">{r.lost_count}</td>
+                              <td className="px-4 py-2.5 text-right text-amber-600 font-bold">{r.hot_cases_count}</td>
+                              <td className="px-4 py-2.5 text-right font-semibold text-slate-700">{r.conversion_ratio_pct != null ? `${r.conversion_ratio_pct}%` : '—'}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -883,7 +1379,7 @@ export const DashboardPage: React.FC = () => {
         if (s == null) {
           return (
             <Card {...commonProps} title="Target vs achieved" description="Target and achieved this month.">
-              <p className="text-sm text-slate-500 p-4">No target data available.</p>
+              <p className="text-sm text-slate-500 p-4 italic">No target data available.</p>
             </Card>
           );
         }
@@ -940,23 +1436,23 @@ export const DashboardPage: React.FC = () => {
             <div className="p-4 space-y-4">
               {reportSummary != null && (
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="bg-slate-50 rounded-lg p-3">
-                    <p className="text-slate-500 text-xs font-medium uppercase">{scopeLabel} leads (assigned)</p>
-                    <p className="text-xl font-bold text-slate-900">{reportSummary.leads_total}</p>
+                  <div className="bg-gradient-to-br from-slate-50/40 to-slate-100/10 border border-slate-200/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 p-3.5 rounded-xl">
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{scopeLabel} leads (assigned)</p>
+                    <p className="text-2xl font-black text-slate-900 mt-1">{reportSummary.leads_total}</p>
                   </div>
-                  <div className="bg-slate-50 rounded-lg p-3">
-                    <p className="text-slate-500 text-xs font-medium uppercase">{scopeLabel} inquiries</p>
-                    <p className="text-xl font-bold text-slate-900">{reportSummary.inquiries_count}</p>
+                  <div className="bg-gradient-to-br from-indigo-50/40 to-indigo-100/10 border border-indigo-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 p-3.5 rounded-xl">
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{scopeLabel} inquiries</p>
+                    <p className="text-2xl font-black text-slate-900 mt-1">{reportSummary.inquiries_count}</p>
                   </div>
                 </div>
               )}
               {leadStatusCounts.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-500 uppercase">Recent leads by status (this page)</p>
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Recent leads by status</p>
                   {leadStatusCounts.map(({ label, count }) => (
-                    <div key={label} className="flex justify-between text-sm">
-                      <span className="text-slate-700">{label}</span>
-                      <span className="font-medium text-slate-900">{count}</span>
+                    <div key={label} className="flex justify-between items-center text-xs py-1.5 border-b border-slate-100/60 hover:bg-slate-50/50 px-1 rounded transition-colors duration-150">
+                      <span className="text-slate-600 font-semibold">{label}</span>
+                      <span className="font-black text-slate-900 bg-slate-100 px-2 py-0.5 rounded-full text-[10px]">{count}</span>
                     </div>
                   ))}
                 </div>
@@ -970,20 +1466,32 @@ export const DashboardPage: React.FC = () => {
             <div className="p-4 space-y-4">
               {reportSummary != null ? (
                 <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600 text-sm">Inquiries logged</span>
-                    <span className="font-bold text-slate-900">{reportSummary.inquiries_count}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600 text-sm">Quotations sent</span>
-                    <span className="font-bold text-slate-900">{reportSummary.quotations_sent_count}</span>
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-br from-slate-50/40 to-slate-100/10 border border-slate-200/60 shadow-sm transition-all duration-300 hover:shadow-md">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600">
+                          <FileText size={14} />
+                        </div>
+                        <span className="text-slate-600 text-xs font-semibold">Inquiries logged</span>
+                      </div>
+                      <span className="font-black text-slate-900 text-sm">{reportSummary.inquiries_count}</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-br from-indigo-50/40 to-indigo-100/10 border border-indigo-100/60 shadow-sm transition-all duration-300 hover:shadow-md">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+                          <Quote size={14} />
+                        </div>
+                        <span className="text-slate-600 text-xs font-semibold">Quotations sent</span>
+                      </div>
+                      <span className="font-black text-indigo-900 text-sm">{reportSummary.quotations_sent_count}</span>
+                    </div>
                   </div>
                   <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => navigate('/reports')}>
                     View reports
                   </Button>
                 </>
               ) : (
-                <p className="text-slate-500 text-sm">No report data. Go to Reports for details.</p>
+                <p className="text-slate-500 text-sm p-4 italic">No report data. Go to Reports for details.</p>
               )}
             </div>
           </Card>
@@ -993,28 +1501,30 @@ export const DashboardPage: React.FC = () => {
           <Card {...commonProps} title={scopeLabel === 'My' ? 'Recent leads' : `Recent leads (${scopeLabel})`} description="Latest leads in scope (click to edit)." noPadding maxHeight="none">
             <div className="overflow-x-auto">
               {recentLeads.length === 0 ? (
-                <div className="p-8 text-center text-slate-500 text-sm">No leads yet.</div>
+                <div className="p-8 text-center text-slate-500 text-sm italic">No leads yet.</div>
               ) : (
-                <table className="w-full text-left text-sm">
+                <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/50">
-                      <th className="px-4 py-2 font-semibold text-slate-600">Name</th>
-                      <th className="px-4 py-2 font-semibold text-slate-600">Company</th>
-                      <th className="px-4 py-2 font-semibold text-slate-600">Status</th>
-                      <th className="px-4 py-2 font-semibold text-slate-600">Next follow-up</th>
+                    <tr className="border-b border-slate-200/80 bg-slate-50">
+                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Name</th>
+                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Company</th>
+                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Status</th>
+                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Next follow-up</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100">
                     {recentLeads.map((lead) => (
                       <tr
                         key={lead.id}
                         onClick={() => navigate(`/leads/${lead.id}/edit`)}
-                        className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
+                        className="hover:bg-slate-50/80 transition-colors duration-150 cursor-pointer"
                       >
-                        <td className="px-4 py-2 font-medium text-slate-900">{leadDisplayName(lead)}</td>
-                        <td className="px-4 py-2 text-slate-600">{leadDisplayCompany(lead) || '—'}</td>
-                        <td className="px-4 py-2 text-slate-600">{lead.status_option?.label ?? '—'}</td>
-                        <td className="px-4 py-2 text-slate-600">
+                        <td className="px-4 py-2.5 font-bold text-slate-800">{leadDisplayName(lead)}</td>
+                        <td className="px-4 py-2.5 text-slate-600 font-medium">{leadDisplayCompany(lead) || '—'}</td>
+                        <td className="px-4 py-2.5">
+                          <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[10px]">{lead.status_option?.label ?? '—'}</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-500 font-semibold">
                           {lead.next_follow_up_at ? new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' }) : '—'}
                         </td>
                       </tr>
@@ -1022,8 +1532,8 @@ export const DashboardPage: React.FC = () => {
                   </tbody>
                 </table>
               )}
-              <div className="p-2 border-t border-slate-100">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/leads')} className="text-xs">
+              <div className="p-2 border-t border-slate-100 bg-slate-50/30">
+                <Button variant="ghost" size="sm" onClick={() => navigate('/leads')} className="text-xs font-black uppercase tracking-wider text-indigo-600 hover:text-indigo-700">
                   View all leads →
                 </Button>
               </div>
@@ -1035,20 +1545,20 @@ export const DashboardPage: React.FC = () => {
         return (
           <Card {...commonProps} title={config.title || 'Quick links'} description="Marketing module.">
             <div className="p-4 space-y-2">
-              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => navigate('/leads')} leftIcon={<Users size={14} />}>
+              <Button variant="ghost" size="sm" className="w-full justify-start font-black text-xs uppercase tracking-wider hover:bg-slate-50" onClick={() => navigate('/leads')} leftIcon={<Users size={14} />}>
                 Leads
               </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => navigate('/contacts')} leftIcon={<UserCircle size={14} />}>
+              <Button variant="ghost" size="sm" className="w-full justify-start font-black text-xs uppercase tracking-wider hover:bg-slate-50" onClick={() => navigate('/contacts')} leftIcon={<UserCircle size={14} />}>
                 Contacts
               </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => navigate('/customers')} leftIcon={<Users size={14} />}>
+              <Button variant="ghost" size="sm" className="w-full justify-start font-black text-xs uppercase tracking-wider hover:bg-slate-50" onClick={() => navigate('/customers')} leftIcon={<Users size={14} />}>
                 Customers
               </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => navigate('/quotations')} leftIcon={<Quote size={14} />}>
+              <Button variant="ghost" size="sm" className="w-full justify-start font-black text-xs uppercase tracking-wider hover:bg-slate-50" onClick={() => navigate('/quotations')} leftIcon={<Quote size={14} />}>
                 Quotations
               </Button>
               {canViewReport && (
-                <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => navigate('/reports')} leftIcon={<FileText size={14} />}>
+                <Button variant="ghost" size="sm" className="w-full justify-start font-black text-xs uppercase tracking-wider hover:bg-slate-50" onClick={() => navigate('/reports')} leftIcon={<FileText size={14} />}>
                   Reports
                 </Button>
               )}
@@ -1065,12 +1575,12 @@ export const DashboardPage: React.FC = () => {
         return (
           <Card {...commonProps} title={config.title || 'Stat'} description="Summary metric">
             <div className="p-4 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-indigo-50">
+              <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-100 shadow-sm shrink-0">
                 <Target size={20} className="text-indigo-600" />
               </div>
               <div>
-                <p className="text-xs text-slate-500 font-medium">Metric</p>
-                <p className="text-2xl font-bold text-slate-900">{reportSummary?.leads_total ?? '—'}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Metric</p>
+                <p className="text-2xl font-black text-slate-900 mt-0.5">{reportSummary?.leads_total ?? '—'}</p>
               </div>
             </div>
           </Card>
@@ -1098,7 +1608,7 @@ export const DashboardPage: React.FC = () => {
       case 'area_chart':
         return (
           <Card {...commonProps} title={config.title || 'Area chart'} description="Trend">
-            <div className="h-[220px] flex items-center justify-center text-slate-500 text-sm p-4">Area chart placeholder. Connect data source to customize.</div>
+            <div className="h-[220px] flex items-center justify-center text-slate-400 text-xs italic p-4">Area chart placeholder. Connect data source to customize.</div>
           </Card>
         );
       case 'table':
@@ -1106,22 +1616,24 @@ export const DashboardPage: React.FC = () => {
           <Card {...commonProps} title={config.title || 'Table'} description="Data table" noPadding>
             <div className="overflow-x-auto">
               {recentLeads.length === 0 ? (
-                <div className="p-8 text-center text-slate-500 text-sm">No leads yet.</div>
+                <div className="p-8 text-center text-slate-500 text-sm italic">No leads yet.</div>
               ) : (
-                <table className="w-full text-left text-sm">
+                <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/50">
-                      <th className="px-4 py-2 font-semibold text-slate-600">Name</th>
-                      <th className="px-4 py-2 font-semibold text-slate-600">Company</th>
-                      <th className="px-4 py-2 font-semibold text-slate-600">Status</th>
+                    <tr className="border-b border-slate-200/80 bg-slate-50">
+                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Name</th>
+                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Company</th>
+                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Status</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100">
                     {recentLeads.slice(0, 5).map((lead) => (
-                      <tr key={lead.id} className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/leads/${lead.id}/edit`)}>
-                        <td className="px-4 py-2 font-medium text-slate-900">{leadDisplayName(lead)}</td>
-                        <td className="px-4 py-2 text-slate-600">{leadDisplayCompany(lead) || '—'}</td>
-                        <td className="px-4 py-2 text-slate-600">{lead.status_option?.label ?? '—'}</td>
+                      <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/leads/${lead.id}/edit`)}>
+                        <td className="px-4 py-2.5 font-bold text-slate-800">{leadDisplayName(lead)}</td>
+                        <td className="px-4 py-2.5 text-slate-600 font-medium">{leadDisplayCompany(lead) || '—'}</td>
+                        <td className="px-4 py-2.5">
+                          <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[10px]">{lead.status_option?.label ?? '—'}</span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1139,6 +1651,8 @@ export const DashboardPage: React.FC = () => {
               chartType={widgetRuntime?.chart_type || config.chart_type || 'table'}
               data={widgetRuntime?.data}
               error={widgetRuntime?.error || null}
+              span={config.span || 1}
+              title={config.title || 'Custom SQL'}
             />
           </Card>
         );
@@ -1402,10 +1916,10 @@ export const DashboardPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 transition-all duration-300" style={{ gap: 'var(--ui-gap)' }}>
-                {layout.map((config) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" style={{ gap: 'var(--ui-gap)' }}>
+                {getGroupedLayout(layout).map((config) => (
                   <div key={config.id} className="contents">
-                    {renderWidget(config)}
+                    {renderWidget(config as any)}
                   </div>
                 ))}
               </div>
@@ -1940,51 +2454,112 @@ export const DashboardPage: React.FC = () => {
                 setShowAssignDashboardModal(false);
                 setAssignEmployeeId('');
                 setAssignCanEdit(false);
+                setAssignType('person');
               }}
               title="Assign dashboard"
             >
               <div className="space-y-4">
-                <p className="text-sm text-slate-600">Assign <span className="font-semibold text-slate-800">{selectedSavedDashboard?.name ?? 'dashboard'}</span> to a user in marketing (domain head, region head, or employee).</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Select
-                    label="User"
-                    placeholder={assignableUsersLoading ? 'Loading users...' : 'Select user'}
-                    value={assignEmployeeId}
-                    onChange={(v) => setAssignEmployeeId(v != null ? String(v) : '')}
-                    options={[
-                      { value: '', label: 'Select user' },
-                      ...assignableUsers.map((u) => ({ value: String(u.id), label: u.name })),
-                    ]}
-                    searchable
-                    disabled={assignableUsersLoading}
-                  />
-                  <label className="flex items-center gap-2 text-sm text-slate-700 mt-6 sm:mt-0">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      checked={assignCanEdit}
-                      onChange={(e) => setAssignCanEdit(e.target.checked)}
-                    />
-                    Allow editing
-                  </label>
+                <p className="text-sm text-slate-600">Assign <span className="font-semibold text-slate-800">{selectedSavedDashboard?.name ?? 'dashboard'}</span> to a user or role in marketing.</p>
+                
+                <div className="flex gap-2 p-1 bg-slate-100 rounded-lg w-fit">
+                  <button
+                    type="button"
+                    className={cn(
+                      "px-3 py-1.5 text-xs font-semibold rounded-md transition-all",
+                      assignType === 'person' ? "bg-white text-slate-800 shadow-sm" : "text-slate-600 hover:text-slate-800"
+                    )}
+                    onClick={() => setAssignType('person')}
+                  >
+                    Person
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "px-3 py-1.5 text-xs font-semibold rounded-md transition-all",
+                      assignType === 'role' ? "bg-white text-slate-800 shadow-sm" : "text-slate-600 hover:text-slate-800"
+                    )}
+                    onClick={() => setAssignType('role')}
+                  >
+                    Role
+                  </button>
                 </div>
+
+                {assignType === 'person' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Select
+                      label="User"
+                      placeholder={assignableUsersLoading ? 'Loading users...' : 'Select user'}
+                      value={assignEmployeeId}
+                      onChange={(v) => setAssignEmployeeId(v != null ? String(v) : '')}
+                      options={[
+                        { value: '', label: 'Select user' },
+                        ...assignableUsers.map((u) => ({ value: String(u.id), label: u.name })),
+                      ]}
+                      searchable
+                      disabled={assignableUsersLoading}
+                    />
+                    <label className="flex items-center gap-2 text-sm text-slate-700 mt-6 sm:mt-0">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        checked={assignCanEdit}
+                        onChange={(e) => setAssignCanEdit(e.target.checked)}
+                      />
+                      Allow editing
+                    </label>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Select
+                      label="Role"
+                      placeholder="Select role"
+                      value={assignRole}
+                      onChange={(v) => setAssignRole(v != null ? String(v) : 'employee')}
+                      options={[
+                        { value: 'super_admin', label: 'Super Admin' },
+                        { value: 'domain_head', label: 'Domain Head' },
+                        { value: 'region_head', label: 'Region Head' },
+                        { value: 'supervisor', label: 'Supervisor' },
+                        { value: 'employee', label: 'Employee' },
+                      ]}
+                    />
+                    <label className="flex items-center gap-2 text-sm text-slate-700 mt-6 sm:mt-0">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        checked={assignCanEdit}
+                        onChange={(e) => setAssignCanEdit(e.target.checked)}
+                      />
+                      Allow editing
+                    </label>
+                  </div>
+                )}
+
                 <div className="flex justify-end">
                   <Button
                     size="sm"
-                    disabled={assigningDashboard || !assignEmployeeId.trim() || assignableUsersLoading}
+                    disabled={assigningDashboard || (assignType === 'person' ? (!assignEmployeeId.trim() || assignableUsersLoading) : !assignRole)}
                     onClick={async () => {
                       if (!selectedDashboardId) return;
-                      const employeeId = parseInt(assignEmployeeId, 10);
-                      if (!Number.isFinite(employeeId) || employeeId <= 0) {
-                        showToast('Select a user', 'error');
-                        return;
-                      }
                       setAssigningDashboard(true);
                       try {
-                        await marketingAPI.assignSavedDashboard(selectedDashboardId, {
-                          assignee_employee_id: employeeId,
-                          can_edit: assignCanEdit,
-                        });
+                        if (assignType === 'person') {
+                          const employeeId = parseInt(assignEmployeeId, 10);
+                          if (!Number.isFinite(employeeId) || employeeId <= 0) {
+                            showToast('Select a user', 'error');
+                            setAssigningDashboard(false);
+                            return;
+                          }
+                          await marketingAPI.assignSavedDashboard(selectedDashboardId, {
+                            assignee_employee_id: employeeId,
+                            can_edit: assignCanEdit,
+                          });
+                        } else {
+                          await marketingAPI.assignSavedDashboard(selectedDashboardId, {
+                            role: assignRole,
+                            can_edit: assignCanEdit,
+                          });
+                        }
                         showToast('Dashboard assignment updated', 'success');
                         setAssignEmployeeId('');
                         setAssignCanEdit(false);
@@ -2011,7 +2586,11 @@ export const DashboardPage: React.FC = () => {
                       {savedDashboardAssignments.map((assignment) => (
                         <div key={assignment.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-2.5">
                           <div>
-                            <p className="text-sm text-slate-800">{assignableUsers.find((u) => u.id === assignment.assignee_employee_id)?.name ?? `Employee #${assignment.assignee_employee_id}`}</p>
+                            <p className="text-sm text-slate-800">
+                              {assignment.role
+                                ? `Role: ${assignment.role.replace('_', ' ').toUpperCase()}`
+                                : assignableUsers.find((u) => u.id === assignment.assignee_employee_id)?.name ?? `Employee #${assignment.assignee_employee_id}`}
+                            </p>
                             <p className="text-xs text-slate-500">{assignment.can_edit ? 'Can edit' : 'View only'}</p>
                           </div>
                           <Button
@@ -2047,6 +2626,7 @@ export const DashboardPage: React.FC = () => {
               title={editingWidgetId ? 'Edit widget' : 'Add widget'}
             >
               <div className="space-y-4">
+                {/* 
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
                   <div className="flex items-center gap-2 text-emerald-800">
                     <Wand2 size={14} />
@@ -2080,6 +2660,7 @@ export const DashboardPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Widget type</label>
                   <Select

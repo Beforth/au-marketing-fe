@@ -155,7 +155,7 @@ font-family: 'Outfit', sans-serif;
 | `text-base`        | 16px          | Large button (lg size)                             |
 | `text-lg`          | 18px          | Card title, modal title, sidebar brand name        |
 | `text-xl`          | 20px          | Login subtitles                                    |
-| `text-2xl`         | 24px          | StatCard value                                     |
+| `text-2xl`         | 24px          | StatCard value, KPI number card value              |
 | `text-4xl`         | 36px          | `PageLayout` page title (h1)                       |
 
 ### Font Weights
@@ -165,7 +165,7 @@ font-family: 'Outfit', sans-serif;
 500   — font-medium — body text, segment toggle labels, search result items
 600   — font-semibold — Switch label, Checkbox label, Radio label, Toast msg, card desc
 700   — font-bold — sidebar brand, login headings, card values, general bold
-800   — font-black — Button (all sizes), TableHead, Label, Breadcrumb, tab trigger
+800   — font-black — Button (all sizes), TableHead, Label, Breadcrumb, tab trigger, KPI number card value
 900   — (imported, not explicitly referenced by class name)
 ```
 > Note: `font-black` = 900 weight. Used aggressively for buttons, table headers, labels, badges.
@@ -280,7 +280,266 @@ Search dropdown:  max-h-[380px]
 
 ---
 
+### Accent Gradients (Dashboard KPI Number Cards)
+
+Used on the KPI number cards. Each keyword-matched category gets a subtle gradient background, matching border, and colored value text — identical to the mini metric cards inside `target-card`.
+
+| Category                    | Gradient bg                                              | Border            | Value text    | Hover intensifies |
+|-----------------------------|----------------------------------------------------------|-------------------|---------------|-------------------|
+| Revenue / Achieved / Sales  | `bg-gradient-to-br from-emerald-50/40 to-emerald-100/10` | `border-emerald-100/60` | `text-emerald-800` | `hover:from-emerald-50/60 hover:to-emerald-100/20` |
+| Conversion / Rate / Pct     | `bg-gradient-to-br from-blue-50/40 to-blue-100/10`       | `border-blue-100/60`    | `text-blue-800`    | `hover:from-blue-50/60 hover:to-blue-100/20` |
+| Hot / Alert / Cases / Urgent| `bg-gradient-to-br from-rose-50/40 to-rose-100/10`       | `border-rose-100/60`   | `text-rose-800`    | `hover:from-rose-50/60 hover:to-rose-100/20` |
+| Won / Deals                 | `bg-gradient-to-br from-violet-50/40 to-violet-100/10`   | `border-violet-100/60` | `text-violet-800`  | `hover:from-violet-50/60 hover:to-violet-100/20` |
+| Leads / Count / Team / Size | `bg-gradient-to-br from-blue-50/40 to-blue-100/10`       | `border-blue-100/60`   | `text-blue-800`    | `hover:from-blue-50/60 hover:to-blue-100/20` |
+| Default / Fallback          | `bg-gradient-to-br from-slate-50/40 to-slate-100/10`     | `border-slate-200/60`  | `text-slate-800`   | `hover:from-slate-50/60 hover:to-slate-100/20` |
+
+---
+
 ## 5. Component Inventory
+
+### `DashboardPage.tsx` — Dashboard Widget Components (custom)
+
+#### `CustomSqlWidgetContent` (KPI Number Card)
+- **File**: `pages/DashboardPage.tsx` (line 125, function `CustomSqlWidgetContent`)
+- **chart_type**: `"number-card"`
+- **Card container**: `flex items-center gap-2.5 w-full p-3 rounded-xl shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5`
+- **Background**: `bg-gradient-to-br from-{color}-50/40 to-{color}-100/10` with matching `border border-{color}-100/60` — same pattern as `target-card` mini metric cards
+- **Label**: `text-[9px] font-black uppercase tracking-widest text-slate-500`
+- **Value**: `text-xl font-black text-{color}-800 mt-0.5` — colored to match accent
+- **Icon**: `size={18}` Lucide icons, directly in flex (no wrapper div), color matches accent
+- **Card accent color mapping by title keyword** (applied as gradient bg + colored value text):
+  - Revenue/Achieved/Sales/Value → emerald (`from-emerald-50/40 to-emerald-100/10`, `text-emerald-800`)
+  - Conversion/Rate/Pct/Ratio → blue (`from-blue-50/40 to-blue-100/10`, `text-blue-800`)
+  - Hot/Alert/Cases/Urgent → rose (`from-rose-50/40 to-rose-100/10`, `text-rose-800`)
+  - Won/Deals → violet (`from-violet-50/40 to-violet-100/10`, `text-violet-800`)
+  - Leads/Count/Team/Size → blue (`from-blue-50/40 to-blue-100/10`, `text-blue-800`)
+  - Fallback → slate (`from-slate-50/40 to-slate-100/10`, `text-slate-800`)
+- **Hover state**: `hover:shadow-md hover:-translate-y-0.5 hover:from-{color}-50/60 hover:to-{color}-100/20`
+- **Multiple rows**: when `rows.length > 1`, shows `text-[9px] text-slate-400` hint: `"First of {rows.length} records"`
+- **Currency formatting**: ₹ Cr / L / K suffixes for large values
+- **Inconsistency**: `getCardIcon()` icon colors (determined by separate keyword matching) don't always match card accent colors — e.g. Conversion/Rate cards use blue bg but `RefreshCw` icon is `text-indigo-600`; Won/Deals cards use violet bg but `Check` icon is `text-indigo-600`
+
+#### `CustomSqlWidgetContent` (Charts)
+- **chart_type**: `"bar"` | `"line"` | `"area"` | `"pie"` | `"table"`
+- **Auto-detects label column** (prefers: label, name, category, x, month, week_of, day, rep, metric, region, source, date, stage, week, status)
+- **Auto-detects numeric series** columns (all non-label, non-id columns with numbers)
+- **Bar chart** height: `h-[260px]`, uses `Recharts` `BarChart` with grouped bars, gradient fills from `CHART_COLOR_PALETTES`, `barSize={16}` for span=1, `barSize={24}` for larger spans
+- **Line/Area chart** height: `h-[260px]`, uses `Recharts` `AreaChart`, gradient area fills
+- **Pie chart** height: `h-[260px]`, donut style (`innerRadius={50}`, `outerRadius={70}` for span=1), center shows total, hover shows slice value
+
+#### `number-card-group` Widget
+- **Type**: `"number-card-group"`
+- **Renders**: 4 KPI number-card widgets inside a single `Card` titled "Key Performance Indicators"
+- **Grid**: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`
+- **Container Card**: `noPadding` + `contentClassName="p-5"`, `className="col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4"`
+
+### Dashboard Layout & Grid System
+
+#### Widget Layout Config Structure
+Each dashboard stores a `config.layout` JSON array of widget objects:
+```json
+{
+  "id": "unique-widget-id",
+  "type": "custom_sql | target-card | leads-by-region | number-card-group",
+  "span": 1 | 2 | 3 | 4,
+  "title": "Widget Title",
+  "chart_type": "number-card | bar | line | pie | area | table",
+  "code": "SELECT ... FROM leads ..."
+}
+```
+
+#### Grid Mapping
+The dashboard widget grid container:
+```
+grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4
+gap: var(--ui-gap)
+```
+Widget `span` maps to Tailwind column spans:
+| span | class |
+|------|-------|
+| 1    | `col-span-1` |
+| 2    | `col-span-2` |
+| 3    | `col-span-3` |
+| 4    | `col-span-4` |
+
+### Custom SQL Scope Placeholder System
+
+Custom SQL widgets use Jinja-style `{{placeholder}}` syntax for role-based data scoping. Placeholders are replaced server-side at query time.
+
+#### Available Placeholders
+| Placeholder       | Type       | Description |
+|-------------------|------------|-------------|
+| `{{domain_id}}`   | int/null   | User's domain ID (null for super_admin) |
+| `{{region_id}}`   | int/null   | User's region ID (null for super_admin / domain_head) |
+| `{{employee_id}}` | int/null   | User's employee ID |
+| `{{date_from}}`   | date str   | Dashboard date range start (default: 1970-01-01) |
+| `{{date_to}}`     | date str   | Dashboard date range end (default: 2099-12-31) |
+
+#### Scope WHERE Pattern (from `seed_demo_data.py`)
+All custom SQL widgets should include scope filtering:
+```sql
+WHERE ( {{domain_id}} IS NULL OR l.domain_id = {{domain_id}} )
+  AND ( {{region_id}} IS NULL OR l.region_id = {{region_id}} )
+```
+Employee-scoped widgets add:
+```sql
+  AND ( {{employee_id}} IS NULL OR l.assigned_to_employee_id = {{employee_id}} OR l.created_by_employee_id = {{employee_id}} )
+```
+Date-scoped widgets add:
+```sql
+  AND ( {{date_from}} IS NULL OR DATE(l.created_at) >= {{date_from}} )
+  AND ( {{date_to}} IS NULL OR DATE(l.created_at) <= {{date_to}} )
+```
+
+### Role-based Dashboard Assignment
+Dashboards are assigned to roles via `SavedDashboardAssignment`:
+| Role            | Scope filter      | Shows data for |
+|-----------------|-------------------|----------------|
+| `super_admin`   | No employee filter| All domains/regions |
+| `domain_head`   | domain_id         | Their domain only |
+| `region_head`   | domain_id + region_id | Their region only |
+| `supervisor`    | domain_id + region_id | Same as region_head |
+| `employee`      | domain_id + region_id + employee_id | Their own leads only |
+
+### Dashboard Page Layout & Navigation
+
+#### Dashboard Role-based Page Title
+- **File**: `pages/DashboardPage.tsx` (line 1853)
+- The page title is role-dependent:
+  - `super_admin` → `'Marketing overview'`
+  - `domain_head` → `'Domain dashboard'`
+  - `region_head` → `'Region dashboard'`
+  - else → `'Dashboard'`
+- Description: always `'Track campaigns & performance'`
+- Breadcrumbs: `[{ label: dashboardTitle }]`
+
+#### Dashboard Header Actions
+- **File**: `pages/DashboardPage.tsx` (line 1724, variable `headerActions`)
+- **Refresh button**: `p-1.5 text-slate-300 hover:text-indigo-500 transition-all active:rotate-180 duration-500`, wraps `RefreshCw size={15}`
+- **Edit Layout button**: toggles edit mode
+  - Normal: `variant="outline"`, `bg-white border-slate-100 shadow-sm`, shows "Edit Layout"
+  - Edit mode: `variant="primary"`, `bg-indigo-600 shadow-lg shadow-indigo-500/20`, shows "Save Layout"
+  - `leftIcon`: `<LayoutIcon>` (normal) / `<Check>` (edit mode)
+- **Export button**: `variant="outline"`, `h-8 bg-white border-slate-100`, `leftIcon={<Download size={14}>}`, `isLoading` prop
+- All buttons: `text-[11px] h-8 font-medium px-4 rounded-xl`
+
+#### Dashboard Command Toolbar
+- **File**: `pages/DashboardPage.tsx` (line 1790, variable `commandToolbar`)
+- Container: `flex flex-wrap items-center gap-4 p-1 bg-white border border-slate-200 rounded-2xl shadow-sm mb-4 w-full`
+- **Dashboard Selection** (combobox):
+  - Leading: `<Search size={14} className="text-slate-400 group-focus-within:text-indigo-500">`
+  - `Select` with `isCombobox={true}`, trigger: `!border-none !shadow-none !bg-transparent text-[11px] h-9 font-medium`
+  - Placeholder: `"Search dashboards..."`
+  - Options: `savedDashboards` (name+id)
+  - Container: `flex flex-1 min-w-[200px] items-center pl-4 pr-1 border-r border-slate-100`
+- **Date Range Picker**:
+  - Two `DatePicker` components: `w-[140px]`, placeholder `"From"` / `"To"`
+  - Separator: `<span className="text-slate-300">—</span>`
+  - Values stored as `dashboardDateFrom` / `dashboardDateTo` (date strings)
+- **Visual Separator**: `<span className="text-slate-200 font-light text-xl">|</span>`, hidden on small screens (`hidden sm:block`)
+- **Action buttons**: "New Dashboard" (primary) + "Assign" (outline), aligned right (`ml-auto`)
+
+#### Scope Label Mapping
+- **File**: `au-marketing-api/app/routers/dashboard.py` (line 905)
+- Maps user role to display label used in `target-card` and `DomainsPage` titles:
+  - `self` → `'My'`
+  - `region_head` → `'Region'`
+  - `domain_head` → `'Domain'`
+  - `super_admin` → `'All'`
+- Used in `target-card` title: `scopeLabel === 'My' ? "This month's target" : \`${scopeLabel} target this month\``
+- Used in `DomainsPage.tsx` line 1178: `roleLabel === 'All' ? "All Domains Target (FY ...)" : roleLabel === 'My' ? "My Sales Target (FY ...)" : \`${roleLabel} Target (FY ...)\``
+
+#### Dashboard Widget Types
+
+##### `target-card` Widget
+- **Type**: `"target-card"` (line 1243)
+- **Data source**: `scopeTargetStats` or `targetStats` from API endpoint `/api/dashboard/scope-target-stats`
+- **Metadata**: `role`, `scope_label`, `monthly_target`, `achieved_this_month`, `won_leads_count_this_month`, `lost_leads_count_this_month`, `year`, `month`, `employee_count`
+- **Title**: dynamically uses `scopeLabel`
+- **Layout**:
+  - **Target icon**: `<Target size={20}>` in `p-2.5 rounded-xl bg-indigo-50 border border-indigo-100 shadow-sm`, icon has `animate-pulse`
+  - **Progress bar**: `h-2 bg-slate-100 rounded-full shadow-inner border border-slate-200/50` with inner fill `bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.3)]`
+  - **Won/Lost mini cards** (bottom row, `grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-100`):
+    - Won: `rounded-xl bg-gradient-to-br from-emerald-50/40 to-emerald-100/10 border border-emerald-100/60 shadow-sm hover:shadow-md hover:-translate-y-0.5`, `<Trophy size={18} text-emerald-600>`, `text-xl font-black text-emerald-800`
+    - Lost: Same structure with `from-rose-50/40 to-rose-100/10`, `border-rose-100/60`, `<XCircle size={18} text-rose-600>`, `text-rose-800`
+    - This is the **same pattern** that `number-card` KPI cards follow
+
+##### `head-summary` Widget
+- **Type**: `"head-summary"` (line 1299)
+- **Data source**: `headSummary` from API (`/api/dashboard/head-summary`), contains `HeadDashboardSummaryResponse`
+- **Visibility**: `!isHeadRole` → shows placeholder "Available for domain head and admin."
+- **Loading**: spinner `<RefreshCw size={24} className="animate-spin">`
+- **Empty**: `"No summary data available."`
+- **Mini metric cards** (top row, `grid grid-cols-2 sm:grid-cols-4 gap-3`):
+  - Each uses same gradient card pattern as KPI cards: `rounded-xl bg-gradient-to-br from-{color}-50/40 to-{color}-100/10 border border-{color}-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5`
+  - Total Leads: `px-3.5 py-2.5`, `text-[10px] font-black uppercase tracking-widest text-slate-500` label, `text-xl font-black text-slate-900` value (slate, no icon)
+  - Hot Cases: amber bg, `text-xl font-black text-amber-800` value
+  - Conversion Ratio: blue bg, `text-xl font-black text-slate-900` value, shows `%` suffix
+  - Won/Lost (`flex gap-2`, two `flex-1` cards): emerald/rose bg, `text-[9px]` label colored (emerald-600/rose-600), `text-lg font-black` values
+- **Region breakdown table** (when `region_breakdown.length > 0`):
+  - Container: `border border-slate-200/60 rounded-xl overflow-hidden shadow-xs bg-white`
+  - Header row: `bg-slate-50 border-b border-slate-200/80`
+  - Columns: Region (`text-slate-800`), Domain (`text-slate-600`), Total (`font-semibold text-slate-700`), Won (`text-emerald-600 font-bold`), Lost (`text-rose-600 font-bold`), Hot (`text-amber-600 font-bold`), Conv.% (`font-semibold text-slate-700`)
+  - Row: `hover:bg-slate-50/80 transition-colors duration-150`
+  - Data sources: `region_name`, `domain_name`, `total_leads`, `won_count`, `lost_count`, `hot_cases_count`, `conversion_ratio_pct`
+
+##### `leads-by-region` Widget
+- **Type**: `"leads-by-region"` (line 1230)
+- Renders `RegionBreakdownBarChart` component
+- Visibility: `!isHeadRole || !headSummary?.region_breakdown.length` — shows placeholder "Available for domain head and admin." when hidden
+- When visible: `contentClassName="px-2 pb-2 pt-0"`
+
+##### Top Performing Sales Representatives Leaderboard
+- **Special type**: detected by title containing `'top performing sales representatives'` (line 261)
+- Renders a list of rep cards: `rounded-xl border p-3 hover:shadow-md hover:-translate-y-0.5`
+- Rank 1: `border-amber-200 bg-gradient-to-r from-amber-50/20 to-white border-l-4 border-l-amber-500`
+- Rank 2-3: indigo accent; others: slate
+- Each card shows: rank number, initials avatar, name, region, revenue, won count
+
+##### `number-card-group` Edit Mode
+- When `isEditMode` is `true`, each inner KPI card shows a floating action bar:
+  - Container: `absolute top-1 right-1 opacity-0 group-hover/sub:opacity-100 bg-white/80 rounded-md border border-slate-100 shadow-sm p-0.5 z-10`
+  - Edit button: `<Edit3 size={12}>`, `text-slate-400 hover:text-slate-600`
+  - Delete button: `<Trash2 size={12}>`, `text-slate-400 hover:text-rose-600`
+
+##### Dashboard Empty State
+- When `layout.length === 0` (line 1904):
+  - Container: `rounded-[2rem] border border-slate-200/60 bg-white/40 backdrop-blur-sm p-16 text-center shadow-sm`
+  - Gradient overlay: `bg-gradient-to-b from-indigo-50/20 to-transparent opacity-0 group-hover/empty:opacity-100`
+  - Icon: `<LayoutIcon> in `w-20 h-20 bg-indigo-50 rounded-3xl shadow-inner`
+  - Title: `"Your Workspace is Empty"`
+  - Description: "Customize your command center..."
+  - CTA Button: `"Initialize Dashboard"` with `shadow-xl shadow-indigo-500/20 rounded-2xl h-11`
+
+#### SQL Widget Fallback / Error State
+- When no `code` is provided (line 145): shows placeholder text with hint about scope placeholders
+- When data has `error`: shows error message in slate-500 italic
+
+#### `cellValue` Function (number-card value formatting)
+- **File**: `DashboardPage.tsx` line 160
+- `null`/`undefined` → `'—'` (em dash)
+- Empty string → `'—'`
+- Numbers → `val.toLocaleString()` with `font-bold text-slate-800`
+- Numeric strings → `Number(str).toLocaleString()` with `font-bold text-slate-800`
+- Other → `String(val)` with `text-slate-700 font-medium`
+- Also used for table cell rendering (line 647-655)
+
+#### `getCardIcon` Function (KPI number-card icon selection)
+- **File**: `DashboardPage.tsx` line 170
+- Returns a Lucide icon element with `size={18}` and `className="... shrink-0"`
+- Keyword matching is case-insensitive, matches substrings in the `titleStr` parameter:
+  - `revenue | achieved | sales | value` → `<Trophy size={18} className="text-emerald-600 shrink-0">`
+  - `conversion | rate | pct | ratio` → `<RefreshCw size={18} className="text-indigo-600 shrink-0">`
+  - `hot | alert | cases | urgent` → `<ShieldAlert size={18} className="text-rose-600 shrink-0">`
+  - `won | deals` → `<Check size={18} className="text-indigo-600 shrink-0">`
+  - `leads | count | team | size` → `<Users size={18} className="text-blue-600 shrink-0">`
+  - fallback → `<FileText size={18} className="text-slate-600 shrink-0">`
+
+#### Chart Color Palettes (`CHART_COLOR_PALETTES`)
+- 8 palettes defined, each with 6 gradient colors (from→to)
+- Example palette 0: `#6366f1→#4f46e5`, `#10b981→#059669`, `#f59e0b→#d97706`, `#f43f5e→#e11d48`, `#3b82f6→#2563eb`, `#8b5cf6→#7c3aed`
+- Each color defined as an SVG `<linearGradient>` element with `gradientId`
+- Used for `BarChart` fill: `<svg><defs><linearGradient>...</linearGradient></defs></svg>` pattern
 
 ### `UI/` — Core Primitive Components
 
@@ -645,6 +904,10 @@ CardFooter:      flex items-center p-6 pt-0
 
 ## 6. Border & Shape System
 
+### KPI Number Card Borders
+- `border-{color}-100/60` — matches the metric category (emerald/blue/rose/violet/slate), same as `target-card` mini cards
+- No left-accent bar — icon + colored value text provide the visual cue instead
+
 ### Border Radius
 
 | Class          | Value     | Used on                                      |
@@ -675,6 +938,10 @@ border-2 border-slate-200    — Checkbox/Radio default
 border-2 border-indigo-600   — Checkbox/Radio checked
 border-t-2 border-indigo-500/50 — Breadcrumb active item underline
 ```
+
+### KPI Number Card Shadows
+- `shadow-sm` — default state
+- `hover:shadow-md hover:-translate-y-0.5` — hover lift
 
 ### Shadow Styles
 
@@ -945,6 +1212,19 @@ root.classList.remove('dark');
 
 ---
 
+### Dashboard KPI Card Icon + Accent Mapping
+
+| Icon              | Title keywords                                 | Icon color     | Gradient bg from→to                           | Border            | Value text    |
+|-------------------|------------------------------------------------|----------------|-----------------------------------------------|-------------------|---------------|
+| `Trophy`          | revenue, achieved, sales, value                | `text-emerald-600` | `from-emerald-50/40 to-emerald-100/10`       | `border-emerald-100/60` | `text-emerald-800` |
+| `RefreshCw`       | conversion, rate, pct, ratio                   | `text-indigo-600`  | `from-blue-50/40 to-blue-100/10`             | `border-blue-100/60`    | `text-blue-800` |
+| `ShieldAlert`     | hot, alert, cases, urgent                      | `text-rose-600`    | `from-rose-50/40 to-rose-100/10`             | `border-rose-100/60`   | `text-rose-800` |
+| `Check`           | won, deals                                     | `text-indigo-600`  | `from-violet-50/40 to-violet-100/10`         | `border-violet-100/60` | `text-violet-800` |
+| `Users`           | leads, count, team, size                       | `text-blue-600`    | `from-blue-50/40 to-blue-100/10`             | `border-blue-100/60`   | `text-blue-800` |
+| `FileText`        | (fallback)                                     | `text-slate-600`   | `from-slate-50/40 to-slate-100/10`           | `border-slate-200/60`  | `text-slate-800` |
+
+---
+
 ## Inconsistencies to Resolve
 
 1. **StatCard border-radius**: Uses `style={{ borderRadius: '1rem' }}` (inline) while all other cards use `rounded-2xl` (Tailwind). These produce the same value (16px) but the approach is inconsistent — recommend replacing with `rounded-2xl`.
@@ -963,3 +1243,5 @@ root.classList.remove('dark');
 6. **Tooltip dependency**: `UI/Tooltip.tsx` imports from `@radix-ui/react-tooltip`, but this package is not listed in `package.json` and not in the `importmap` in `index.html`. This component may currently be non-functional.
 
 7. **`SegmentToggle` uses `framer-motion`**: `UI/SegmentToggle.tsx` imports `motion` from `framer-motion`. This library is also not in the `importmap`. The version in `components/ui/SegmentToggle.tsx` is the safe fallback.
+
+8. **KPI Number Card vs target-card inconsistency**: KPI number cards now match the `target-card` mini metric card pattern (`rounded-xl p-3`, gradient bg, colored border, colored value text). However, if the `target-card` mini cards ever change, the KPI number cards should be updated to match. Both should always use identical styling — they serve the same visual purpose.

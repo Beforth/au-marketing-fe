@@ -45,7 +45,7 @@ export const Card: React.FC<CardProps> = ({
       onDragOver={onDragOver}
       onDrop={onDrop}
       className={cn(
-        'bg-white border border-slate-200/50 transition-all duration-500 relative group/card flex flex-col min-h-[140px] shadow-[0_1px_3px_rgba(0,0,0,0.05),0_10px_40px_-15px_rgba(0,0,0,0.02)]',
+        'bg-white border border-slate-200/50 transition-[box-shadow,border-color,background-color] duration-200 relative group/card flex flex-col min-h-[140px] shadow-[0_1px_3px_rgba(0,0,0,0.05),0_10px_40px_-15px_rgba(0,0,0,0.02)]',
         onClick && 'cursor-pointer hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.08)] hover:border-indigo-200/50 hover:-translate-y-1',
         isDraggable && 'cursor-move active:scale-[0.98] active:rotate-[0.5deg]',
         className
@@ -58,7 +58,7 @@ export const Card: React.FC<CardProps> = ({
       {(title || description || headerAction || showHandle) && (
         <div className="px-6 py-5 flex justify-between items-center border-b border-slate-50 min-h-[72px]">
           <div className="min-w-0 pr-6">
-            {title && <h3 className="text-[13px] font-bold text-slate-900 tracking-tight">{title}</h3>}
+            {title && <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-none">{title}</h3>}
             {description && <p className="text-[11px] text-slate-400 font-medium mt-0.5">{description}</p>}
           </div>
           <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover/card:opacity-100 transition-opacity">

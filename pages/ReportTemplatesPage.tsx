@@ -75,9 +75,12 @@ export const ReportTemplatesPage: React.FC = () => {
   const [sectionSql, setSectionSql] = useState('SELECT id, name FROM leads LIMIT 100');
   const [editSectionId, setEditSectionId] = useState<string | null>(null);
   const [saveSectionsSubmitting, setSaveSectionsSubmitting] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiScopeMode, setAiScopeMode] = useState<'auto' | 'employee' | 'region' | 'domain'>('auto');
+  // const [aiPrompt, setAiPrompt] = useState('');
+  // const [aiGenerating, setAiGenerating] = useState(false);
+  // const [aiScopeMode, setAiScopeMode] = useState<'auto' | 'employee' | 'region' | 'domain'>('auto');
+  const aiPrompt = '';
+  const aiGenerating = false;
+  const aiScopeMode = 'auto';
 
   // Per-section: search text, sort (column + dir), and optional column filter (column key + value)
   const [sectionSearch, setSectionSearch] = useState<Record<string, string>>({});
@@ -352,34 +355,34 @@ export const ReportTemplatesPage: React.FC = () => {
       .finally(() => setSaveSectionsSubmitting(false));
   };
 
-  const handleGenerateSectionWithAI = async () => {
-    if (!aiPrompt.trim()) {
-      showToast('Describe the report section for AI generation', 'error');
-      return;
-    }
-    setAiGenerating(true);
-    try {
-      const schema = await marketingAPI.getSchema();
-      const ai = await marketingAPI.generateWidgetWithAI({
-        prompt: aiPrompt.trim(),
-        date_from: dateFrom || undefined,
-        date_to: dateTo || undefined,
-        schema: (schema.tables || []).map((t) => ({
-          name: t.name,
-          columns: (t.columns || []).map((c) => ({ name: c.name, type: c.type })),
-        })),
-        scope_mode: aiScopeMode,
-        preferred_chart: 'table',
-      });
-      setSectionTitle(ai.title || sectionTitle);
-      setSectionSql(ai.sql || sectionSql);
-      showToast('AI generated SQL. Review and add section.');
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Failed to generate with AI', 'error');
-    } finally {
-      setAiGenerating(false);
-    }
-  };
+  // const handleGenerateSectionWithAI = async () => {
+  //   if (!aiPrompt.trim()) {
+  //     showToast('Describe the report section for AI generation', 'error');
+  //     return;
+  //   }
+  //   setAiGenerating(true);
+  //   try {
+  //     const schema = await marketingAPI.getSchema();
+  //     const ai = await marketingAPI.generateWidgetWithAI({
+  //       prompt: aiPrompt.trim(),
+  //       date_from: dateFrom || undefined,
+  //       date_to: dateTo || undefined,
+  //       schema: (schema.tables || []).map((t) => ({
+  //         name: t.name,
+  //         columns: (t.columns || []).map((c) => ({ name: c.name, type: c.type })),
+  //       })),
+  //       scope_mode: aiScopeMode,
+  //       preferred_chart: 'table',
+  //     });
+  //     setSectionTitle(ai.title || sectionTitle);
+  //     setSectionSql(ai.sql || sectionSql);
+  //     showToast('AI generated SQL. Review and add section.');
+  //   } catch (e) {
+  //     showToast(e instanceof Error ? e.message : 'Failed to generate with AI', 'error');
+  //   } finally {
+  //     setAiGenerating(false);
+  //   }
+  // };
 
   const handleAssign = async () => {
     if (selectedId == null || !assignEmployeeId.trim()) return;
@@ -698,10 +701,11 @@ export const ReportTemplatesPage: React.FC = () => {
       {showAddSectionModal && (
         <Modal
           isOpen
-          onClose={() => { setShowAddSectionModal(false); setEditSectionId(null); setSectionTitle(''); setSectionSql('SELECT id, name FROM leads LIMIT 100'); setAiPrompt(''); setAiScopeMode('auto'); }}
+          onClose={() => { setShowAddSectionModal(false); setEditSectionId(null); setSectionTitle(''); setSectionSql('SELECT id, name FROM leads LIMIT 100'); }}
           title={editSectionId ? 'Edit section' : 'Add section'}
         >
           <div className="space-y-4">
+            {/* 
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
               <div className="flex items-center gap-2 text-emerald-800">
                 <Wand2 size={14} />
@@ -735,6 +739,7 @@ export const ReportTemplatesPage: React.FC = () => {
                 </div>
               </div>
             </div>
+            */}
             <Input
               label="Title"
               value={sectionTitle}
@@ -754,7 +759,7 @@ export const ReportTemplatesPage: React.FC = () => {
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setShowAddSectionModal(false); setEditSectionId(null); setAiPrompt(''); }}>Cancel</Button>
+              <Button variant="outline" size="sm" onClick={() => { setShowAddSectionModal(false); setEditSectionId(null); }}>Cancel</Button>
               <Button size="sm" onClick={handleAddOrEditSection} disabled={!sectionSql.trim() || saveSectionsSubmitting}>
                 {saveSectionsSubmitting ? 'Saving...' : editSectionId ? 'Save' : 'Add section'}
               </Button>

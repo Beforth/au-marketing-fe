@@ -28,6 +28,19 @@ const chartColors = {
   default: ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6', '#ec4899'],
 };
 
+const formatYAxisValue = (value: number) => {
+  if (value >= 1_00_00_000) {
+    return `₹${(value / 1_00_00_000).toFixed(1)} Cr`;
+  }
+  if (value >= 1_00_000) {
+    return `₹${(value / 1_00_000).toFixed(0)} L`;
+  }
+  if (value >= 1_000) {
+    return `₹${(value / 1_000).toFixed(0)} K`;
+  }
+  return String(value);
+};
+
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -60,13 +73,23 @@ export const TargetAchievedBarChart: React.FC<{
 }> = ({ target, achieved, year, month }) => {
   const monthLabel = new Date(year, month - 1).toLocaleString('default', { month: 'short', year: '2-digit' });
   const data = [
-    { name: 'Target', value: target / 1_00_000, fill: chartColors.target },
-    { name: 'Achieved', value: achieved / 1_00_000, fill: chartColors.achieved },
+    { name: 'Target', value: target / 1_00_000, fill: 'url(#targetBarGrad)' },
+    { name: 'Achieved', value: achieved / 1_00_000, fill: 'url(#achievedBarGrad)' },
   ];
   return (
     <div className="h-[220px] w-full pt-4">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={{ top: 0, right: 40, left: 10, bottom: 0 }}>
+          <defs>
+            <linearGradient id="targetBarGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#f1f5f9" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#cbd5e1" stopOpacity={0.5} />
+            </linearGradient>
+            <linearGradient id="achievedBarGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.6} />
+            </linearGradient>
+          </defs>
           <XAxis type="number" hide />
           <YAxis 
             type="category" 
@@ -92,8 +115,8 @@ export const TargetAchievedBarChart: React.FC<{
 export const WonLostPieChart: React.FC<{ won: number; lost: number }> = ({ won, lost }) => {
   const [hoveredData, setHoveredData] = React.useState<{ name: string; value: number } | null>(null);
   const data = [
-    { name: 'Won', value: won, fill: chartColors.won },
-    { name: 'Lost', value: lost, fill: chartColors.lost },
+    { name: 'Won', value: won, fill: 'url(#wonPieGrad)' },
+    { name: 'Lost', value: lost, fill: 'url(#lostPieGrad)' },
   ].filter((d) => d.value > 0);
 
   if (data.length === 0) {
@@ -108,6 +131,16 @@ export const WonLostPieChart: React.FC<{ won: number; lost: number }> = ({ won, 
     <div className="h-[220px] w-full relative group">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
+          <defs>
+            <linearGradient id="wonPieGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#059669" stopOpacity={0.6} />
+            </linearGradient>
+            <linearGradient id="lostPieGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#e11d48" stopOpacity={0.6} />
+            </linearGradient>
+          </defs>
           <Pie
             data={data}
             dataKey="value"
@@ -155,7 +188,7 @@ export const LeadStatusPieChart: React.FC<{ data: { label: string; count: number
     .map((d, i) => ({ 
       name: d.label, 
       value: d.count, 
-      fill: chartColors.default[i % chartColors.default.length] 
+      fill: `url(#statusGrad${i % 6})` 
     }));
 
   if (data.length === 0) {
@@ -170,6 +203,32 @@ export const LeadStatusPieChart: React.FC<{ data: { label: string; count: number
     <div className="h-[220px] w-full relative">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
+          <defs>
+            <linearGradient id="statusGrad0" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.6} />
+            </linearGradient>
+            <linearGradient id="statusGrad1" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#059669" stopOpacity={0.6} />
+            </linearGradient>
+            <linearGradient id="statusGrad2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#e11d48" stopOpacity={0.6} />
+            </linearGradient>
+            <linearGradient id="statusGrad3" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#d97706" stopOpacity={0.6} />
+            </linearGradient>
+            <linearGradient id="statusGrad4" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#7c3aed" stopOpacity={0.6} />
+            </linearGradient>
+            <linearGradient id="statusGrad5" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ec4899" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#db2777" stopOpacity={0.6} />
+            </linearGradient>
+          </defs>
           <Pie
             data={data}
             dataKey="value"
@@ -229,7 +288,21 @@ export const RegionBreakdownBarChart: React.FC<{
   return (
     <div className="h-[240px] w-full pt-4">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }} barGap={8}>
+        <BarChart data={chartData} margin={{ top: 5, right: 20, left: 15, bottom: 5 }} barGap={8}>
+          <defs>
+            <linearGradient id="totalGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#cbd5e1" stopOpacity={0.4} />
+            </linearGradient>
+            <linearGradient id="wonGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#34d399" stopOpacity={0.4} />
+            </linearGradient>
+            <linearGradient id="lostGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#fb7185" stopOpacity={0.4} />
+            </linearGradient>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
           <XAxis 
             dataKey="name" 
@@ -251,9 +324,9 @@ export const RegionBreakdownBarChart: React.FC<{
             iconSize={6}
             wrapperStyle={{ fontSize: '10px', fontWeight: 600, color: '#64748b', paddingBottom: '15px' }}
           />
-          <Bar dataKey="total" name="Total" fill={chartColors.total} radius={[4, 4, 0, 0]} barSize={22} />
-          <Bar dataKey="won" name="Won" fill={chartColors.won} radius={[4, 4, 0, 0]} barSize={22} />
-          <Bar dataKey="lost" name="Lost" fill={chartColors.lost} radius={[4, 4, 0, 0]} barSize={22} />
+          <Bar dataKey="total" name="Total" fill="url(#totalGrad)" radius={[4, 4, 0, 0]} barSize={22} />
+          <Bar dataKey="won" name="Won" fill="url(#wonGrad)" radius={[4, 4, 0, 0]} barSize={22} />
+          <Bar dataKey="lost" name="Lost" fill="url(#lostGrad)" radius={[4, 4, 0, 0]} barSize={22} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -263,13 +336,23 @@ export const RegionBreakdownBarChart: React.FC<{
 /** Inquiries vs Quotations (Clean Horizontal Bar) */
 export const InquiriesQuotationsBarChart: React.FC<{ inquiries: number; quotations: number }> = ({ inquiries, quotations }) => {
   const data = [
-    { name: 'Inquiries', count: inquiries, fill: chartColors.total },
-    { name: 'Quotations', count: quotations, fill: chartColors.achieved },
+    { name: 'Inquiries', count: inquiries, fill: 'url(#inquiriesGrad)' },
+    { name: 'Quotations', count: quotations, fill: 'url(#quotationsGrad)' },
   ];
   return (
     <div className="h-[220px] w-full pt-6">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 5, right: 20, left: 20, bottom: 5 }} barSize={36} barGap={12}>
+          <defs>
+            <linearGradient id="inquiriesGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#cbd5e1" stopOpacity={0.4} />
+            </linearGradient>
+            <linearGradient id="quotationsGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.5} />
+            </linearGradient>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
           <XAxis 
             dataKey="name" 
@@ -291,7 +374,7 @@ export const RevenueChart: React.FC = () => {
   return (
     <div className="h-[300px] w-full pt-6">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={CHART_DATA} margin={{ top: 10, right: 20, left: -15, bottom: 0 }}>
+        <AreaChart data={CHART_DATA} margin={{ top: 10, right: 20, left: 15, bottom: 0 }}>
           <defs>
             <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
@@ -310,6 +393,7 @@ export const RevenueChart: React.FC = () => {
             axisLine={false}
             tickLine={false}
             tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 600 }}
+            tickFormatter={formatYAxisValue}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }} />
           <Area
@@ -331,7 +415,17 @@ export const SalesTargetChart: React.FC = () => {
   return (
     <div className="h-[300px] w-full pt-6">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={CHART_DATA} margin={{ top: 10, right: 20, left: -15, bottom: 0 }} barGap={8}>
+        <BarChart data={CHART_DATA} margin={{ top: 10, right: 20, left: 15, bottom: 0 }} barGap={8}>
+          <defs>
+            <linearGradient id="targetChartGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#e2e8f0" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#cbd5e1" stopOpacity={0.4} />
+            </linearGradient>
+            <linearGradient id="achievedChartGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.5} />
+            </linearGradient>
+          </defs>
           <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
           <XAxis
             dataKey="name"
@@ -344,6 +438,7 @@ export const SalesTargetChart: React.FC = () => {
             axisLine={false}
             tickLine={false}
             tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 600 }}
+            tickFormatter={formatYAxisValue}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
           <Legend 
@@ -353,8 +448,8 @@ export const SalesTargetChart: React.FC = () => {
             iconSize={6}
             wrapperStyle={{ fontSize: '10px', fontWeight: 600, color: '#64748b', paddingBottom: '20px' }}
           />
-          <Bar dataKey="target" name="Target" fill="#f1f5f9" radius={[4, 4, 0, 0]} barSize={18} />
-          <Bar dataKey="revenue" name="Achieved" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={18} animationDuration={2000} />
+          <Bar dataKey="target" name="Target" fill="url(#targetChartGrad)" radius={[4, 4, 0, 0]} barSize={18} />
+          <Bar dataKey="revenue" name="Achieved" fill="url(#achievedChartGrad)" radius={[4, 4, 0, 0]} barSize={18} animationDuration={2000} />
         </BarChart>
       </ResponsiveContainer>
     </div>
