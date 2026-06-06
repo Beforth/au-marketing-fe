@@ -13,7 +13,7 @@ import { Select } from '../components/ui/Select';
 import { AsyncSelect } from '../components/ui/AsyncSelect';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { Modal } from '../components/ui/Modal';
-import { Search, Plus, Edit, Trash2, Globe, CheckCircle, XCircle, MapPin, ChevronDown, ChevronRight, Filter, X, Users, UserPlus, User, Crown, UserCheck } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Globe, CheckCircle, XCircle, MapPin, ChevronDown, ChevronRight, Filter, X, Users, UserPlus, User } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission, selectUser, selectEmployee } from '../store/slices/authSlice';
@@ -1413,36 +1413,7 @@ export const DomainsPage: React.FC = () => {
                                 </Button>
                               </Tooltip>
                             )}
-                            {showActionButtons && canEdit && (
-                              <Tooltip content={domain.head_username ? 'Change Domain Head' : 'Set Domain Head'}>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={() => {
-                                    setSetDomainHeadDomain(domain);
-                                    setDomainHeadEmployeeId(domain.head_employee_id ?? '');
-                                  }}
-                                >
-                                  <Crown size={14} />
-                                </Button>
-                              </Tooltip>
-                            )}
-                            {showActionButtons && canEdit && (
-                              <Tooltip content={domain.coordinator_username ? 'Change Domain Coordinator' : 'Set Domain Coordinator'}>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={() => {
-                                    setSetDomainCoordinatorDomain(domain);
-                                    setDomainCoordinatorEmployeeId(domain.coordinator_employee_id ?? '');
-                                  }}
-                                >
-                                  <UserCheck size={14} />
-                                </Button>
-                              </Tooltip>
-                            )}
+
                           </div>
                         </div>
                         {/* Level 1: Regions (children of domain) */}
@@ -1551,36 +1522,7 @@ export const DomainsPage: React.FC = () => {
                                           </Button>
                                         </Tooltip>
                                       )}
-                                      {showActionButtons && canEditRegion && (
-                                        <>
-                                          <Tooltip content={region.head_username ? 'Change Region Head' : 'Set Region Head'}>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                              onClick={() => {
-                                                setSetRegionHeadRegion(region);
-                                                setRegionHeadEmployeeId(region.head_employee_id ?? '');
-                                              }}
-                                            >
-                                              <Crown size={14} />
-                                            </Button>
-                                          </Tooltip>
-                                          <Tooltip content={region.coordinator_username ? 'Change Region Coordinator' : 'Set Region Coordinator'}>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                              onClick={() => {
-                                                setSetRegionCoordinatorRegion(region);
-                                                setRegionCoordinatorEmployeeId(region.coordinator_employee_id ?? '');
-                                              }}
-                                            >
-                                              <UserCheck size={14} />
-                                            </Button>
-                                          </Tooltip>
-                                        </>
-                                      )}
+
                                       {showActionButtons && canManageRegionEmployees && (
                                         <Button
                                           variant="ghost"

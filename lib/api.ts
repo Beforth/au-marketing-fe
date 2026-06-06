@@ -144,6 +144,16 @@ class APIClient {
       return JSON.parse(text) as T;
     } catch (error) {
       if (error instanceof Error) {
+        const msg = error.message || '';
+        if (
+          msg.includes('fetch') || 
+          msg.includes('NetworkError') || 
+          error.name === 'TypeError'
+        ) {
+          throw new Error(
+            `API connection failed (CORS block or server offline). The request to ${url} failed.`
+          );
+        }
         throw error;
       }
       throw new Error('Network error');
