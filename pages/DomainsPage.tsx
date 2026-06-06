@@ -513,6 +513,51 @@ export const DomainsPage: React.FC = () => {
   const [setTargetAmount, setSetTargetAmount] = useState<string>('');
   const [setTargetSubmitting, setSetTargetSubmitting] = useState(false);
 
+  const formatInputNumber = (val: string): string => {
+    const [intPart] = val.split('.');
+    const clean = intPart.replace(/\D/g, '');
+    if (!clean) return '';
+    return parseInt(clean, 10).toLocaleString('en-IN');
+  };
+
+  const handleTargetAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const rawValue = input.value;
+    const cleanValue = rawValue.replace(/\D/g, '');
+    
+    if (cleanValue === '') {
+      setSetTargetAmount('');
+      return;
+    }
+    
+    // Format with commas to calculate cursor position
+    const num = parseInt(cleanValue, 10);
+    const formatted = num.toLocaleString('en-IN');
+    
+    const selectionStart = input.selectionStart || 0;
+    const rawBeforeCursor = rawValue.slice(0, selectionStart);
+    const digitsBeforeCursor = rawBeforeCursor.replace(/\D/g, '').length;
+    
+    setSetTargetAmount(cleanValue);
+    
+    setTimeout(() => {
+      let cursorPosition = 0;
+      if (digitsBeforeCursor > 0) {
+        let digitCount = 0;
+        for (let i = 0; i < formatted.length; i++) {
+          if (formatted[i] !== ',') {
+            digitCount++;
+          }
+          cursorPosition = i + 1;
+          if (digitCount === digitsBeforeCursor) {
+            break;
+          }
+        }
+      }
+      input.setSelectionRange(cursorPosition, cursorPosition);
+    }, 0);
+  };
+
   const [scopeStats, setScopeStats] = useState<ScopeTargetStats | null>(null);
   const [scopeStatsLoading, setScopeStatsLoading] = useState(false);
   const [q1Stats, setQ1Stats] = useState<ScopeTargetStats | null>(null);
@@ -1131,10 +1176,10 @@ export const DomainsPage: React.FC = () => {
 
               const activeMsg = getQuarterlyMessage();
               const scopeText = roleLabel === 'All' 
-                ? `All Domains Target (FY ${targetYear})` 
+                ? `All Domains Target (FY ${targetYear}-${targetYear + 1})` 
                 : roleLabel === 'My' 
-                  ? `My Sales Target (FY ${targetYear})` 
-                  : `${roleLabel} Target (FY ${targetYear})`;
+                  ? `My Sales Target (FY ${targetYear}-${targetYear + 1})` 
+                  : `${roleLabel} Target (FY ${targetYear}-${targetYear + 1})`;
 
               return (
                 <Card className="p-3 border border-slate-150 bg-gradient-to-br from-white to-slate-50/40 shadow-sm transition-all duration-300 hover:shadow-md mb-4">
@@ -1145,9 +1190,9 @@ export const DomainsPage: React.FC = () => {
                           {scopeText}
                         </h3>
                       </div>
-                      <div className="flex items-baseline gap-1">
+                      <div className="flex items-baseline gap-1.5">
                         <span className="text-lg font-black text-slate-900">{formatTargetAmount(achievedVal)}</span>
-                        <span className="text-[10px] font-bold text-slate-400">/ {formatTargetAmount(targetVal)}</span>
+                        <span className="text-sm font-bold text-slate-600">/ {formatTargetAmount(targetVal)}</span>
                       </div>
                     </div>
 
@@ -1366,9 +1411,11 @@ export const DomainsPage: React.FC = () => {
                                     });
                                     setSetTargetAmount(
                                       String(
-                                        (domainTargetInfo.assigned != null && domainTargetInfo.assigned > 0
-                                          ? domainTargetInfo.assigned
-                                          : domainTargetInfo.rolledUp) * mult
+                                        Math.round(
+                                          (domainTargetInfo.assigned != null && domainTargetInfo.assigned > 0
+                                            ? domainTargetInfo.assigned
+                                            : domainTargetInfo.rolledUp) * mult
+                                        )
                                       )
                                     );
                                   }}
@@ -1487,9 +1534,11 @@ export const DomainsPage: React.FC = () => {
                                               });
                                               setSetTargetAmount(
                                                 String(
-                                                  (regionTargetInfo.assigned != null && regionTargetInfo.assigned > 0
-                                                    ? regionTargetInfo.assigned
-                                                    : regionTargetInfo.rolledUp) * mult
+                                                  Math.round(
+                                                    (regionTargetInfo.assigned != null && regionTargetInfo.assigned > 0
+                                                      ? regionTargetInfo.assigned
+                                                      : regionTargetInfo.rolledUp) * mult
+                                                  )
                                                 )
                                               );
                                             }}
@@ -1589,9 +1638,9 @@ export const DomainsPage: React.FC = () => {
                                                         employee_id: a.employee_id,
                                                         employee_name: a.employee_name || a.employee_email || `Employee #${a.employee_id}`,
                                                         region_id: region.id,
-                                                        current_amount: empTarget ?? 800000,
+                                                        current_amount: empTarget ?? 0,
                                                       });
-                                                      setSetTargetAmount(String((empTarget ?? 800000) * mult));
+                                                      setSetTargetAmount(String(Math.round((empTarget ?? 0) * mult)));
                                                     }}
                                                   >
                                                     <Target size={12} />
@@ -1684,12 +1733,10 @@ export const DomainsPage: React.FC = () => {
           </p>
           <Input
             label="Yearly target amount (₹)"
-            type="number"
-            min={0}
-            step={120000}
-            value={setTargetAmount}
-            onChange={(e) => setSetTargetAmount(e.target.value)}
-            placeholder="e.g. 1200000"
+            type="text"
+            value={formatInputNumber(setTargetAmount)}
+            onChange={handleTargetAmountChange}
+            placeholder="e.g. 12,00,000"
           />
         </div>
       </Modal>
