@@ -8,18 +8,63 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
   return (
     <div className="space-y-10 text-sm text-slate-700 max-h-[70vh] overflow-y-auto pr-3 scrollbar-thin">
       
-      {/* ==================== VERSION 1.0.1 (June 4, 2026) ==================== */}
+      {/* ==================== VERSION 1.0.2 (June 6, 2026) ==================== */}
       <div className="space-y-4">
         <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
           <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg">
             Version {appVersion}
           </span>
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-            June 4, 2026 (Latest)
+            June 6, 2026 (Latest)
           </span>
         </div>
 
         <div className="space-y-6 pl-4 border-l-2 border-indigo-100">
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Dashboard & KPI Card Upgrades</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Sales Rep Dashboard Seeding</strong>: Updated seeding scripts to fully populate data for Sales Reps, splitting single KPI summaries into separate number cards.</li>
+              <li><strong>Redesigned KPI Number Cards</strong>: Redesigned to match target-card pattern with linear gradient backgrounds, rounded-xl corners, text-xl bold values, and direct flex icons.</li>
+              <li><strong>Top Representatives Leaderboard</strong>: Rewrote leaderboard widget to support rank-specific styles and high-density typography.</li>
+              <li><strong>Chart Fills Upgrade</strong>: Upgraded all chart elements from solid fills to premium SVG linear gradients.</li>
+              <li><strong>Y-Axis Value Formatting</strong>: Added compact currency formatting (₹ Cr / L / K) to charts.</li>
+              <li><strong>Multi-Record Hints</strong>: Added a hint showing "First of N records" when table rows exceed 1.</li>
+              <li><strong>Layout and Typography Tweaks</strong>: Changed standard Card titles to uppercase tracking-widest and refined global transition durations to a snappy 200ms window.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Role-Based Access Control (RBAC) & Dashboard Configuration</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Saved Dashboard Model Changes</strong>: Added a nullable role column to dashboard assignments along with database constraints.</li>
+              <li><strong>Refactored Backend Routing Permissions</strong>: Refactored visibility & permissions checking helpers to accept user dict objects directly.</li>
+              <li><strong>Role-Based Assignments</strong>: Enabled dashboard configurations to be assigned programmatically to roles (e.g. super_admin, domain_head, etc.).</li>
+              <li><strong>Frontend Integration</strong>: Updated assignment requests to make employee IDs optional and support role assignment.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Deprecated Features & Code Cleanup</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Disabled AI Widget Generation</strong>: Commented out the backend and frontend endpoints and UI states for AI widget generation.</li>
+              <li><strong>Restoration Documentation</strong>: Created a detailed restoration checklist (`ai_dashboard_restoration.md`) for potential future use.</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+
+      {/* ==================== VERSION 1.0.1 (June 4, 2026) ==================== */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+          <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-slate-700 bg-slate-50 border border-slate-200 rounded-lg">
+            Version v1.0.1
+          </span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            June 4, 2026
+          </span>
+        </div>
+
+        <div className="space-y-6 pl-4 border-l-2 border-slate-100">
           <section className="space-y-2">
             <h4 className="text-sm font-bold text-slate-900">Dynamic Visibility & Data Isolation</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
