@@ -394,8 +394,14 @@ function CustomSqlWidgetContent({
 
     const commonChartProps = { margin: { top: 10, right: 10, left: 15, bottom: 5 } as const };
 
+    // Filter out value keys where all values are 0 (e.g. total_amount when no data)
+    const activeValueKeys = finalValueKeys.filter((vk) =>
+      chartData.some((d) => Number(d[vk]) !== 0)
+    );
+    const displayValueKeys = activeValueKeys.length > 0 ? activeValueKeys : finalValueKeys;
+
     if (chartType === 'pie') {
-      const valueKey = finalValueKeys[0] || 'value';
+      const valueKey = displayValueKeys[0] || 'value';
       const pieData = chartData.map((d, i) => ({
         name: String(d.name),
         value: Number(d[valueKey]) || 0,
@@ -453,7 +459,7 @@ function CustomSqlWidgetContent({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} {...commonChartProps}>
               <defs>
-                {finalValueKeys.map((vk, i) => {
+                {displayValueKeys.map((vk, i) => {
                   const palette = CHART_COLOR_PALETTES[i % CHART_COLOR_PALETTES.length];
                   return (
                     <linearGradient key={vk} id={`barGrad-${vk}-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
@@ -468,7 +474,7 @@ function CustomSqlWidgetContent({
               <YAxis tick={{ fill: '#64748b', fontSize: span === 1 ? 8 : 10 }} axisLine={false} tickLine={false} tickFormatter={formatYAxis} />
               <Tooltip cursor={{ fill: 'rgba(241, 245, 249, 0.4)' }} formatter={(v: number) => [v.toLocaleString(), '']} />
               <Legend verticalAlign="bottom" height={36} iconType="circle" />
-              {finalValueKeys.map((vk, i) => (
+              {displayValueKeys.map((vk, i) => (
                 <Bar
                   key={vk}
                   dataKey={vk}
@@ -490,7 +496,7 @@ function CustomSqlWidgetContent({
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} {...commonChartProps}>
               <defs>
-                {finalValueKeys.map((vk, i) => {
+                {displayValueKeys.map((vk, i) => {
                   const palette = CHART_COLOR_PALETTES[i % CHART_COLOR_PALETTES.length];
                   return (
                     <linearGradient key={vk} id={`areaGrad-${vk}-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
@@ -505,7 +511,7 @@ function CustomSqlWidgetContent({
               <YAxis tick={{ fill: '#64748b', fontSize: span === 1 ? 8 : 10 }} axisLine={false} tickLine={false} tickFormatter={formatYAxis} />
               <Tooltip formatter={(v: number) => [v.toLocaleString(), '']} />
               <Legend verticalAlign="bottom" height={36} iconType="circle" />
-              {finalValueKeys.map((vk, i) => {
+              {displayValueKeys.map((vk, i) => {
                 const palette = CHART_COLOR_PALETTES[i % CHART_COLOR_PALETTES.length];
                 return (
                   <Area
@@ -763,6 +769,7 @@ export const DashboardPage: React.FC = () => {
   const [addWidgetTitle, setAddWidgetTitle] = useState('');
   const [addWidgetCode, setAddWidgetCode] = useState('');
   const [addWidgetChartType, setAddWidgetChartType] = useState<string>('table');
+  const [addWidgetTimeGroup, setAddWidgetTimeGroup] = useState<string>('month');
   // const [aiPrompt, setAiPrompt] = useState('');
   // const [aiScopeMode, setAiScopeMode] = useState<'auto' | 'employee' | 'region' | 'domain'>('auto');
   // const [aiGenerating, setAiGenerating] = useState(false);
@@ -867,7 +874,7 @@ export const DashboardPage: React.FC = () => {
     loadDashboard();
   }, [loadDashboard]);
 
-  const isHeadRole = reportScope?.role === 'domain_head' || reportScope?.role === 'super_admin';
+  const isHeadRole = reportScope?.role === 'domain_head' || reportScope?.role === 'super_admin' || reportScope?.is_domain_coordinator === true;
 
   useEffect(() => {
     if (permissionDenied || loading || !reportScope) return;
@@ -975,6 +982,7 @@ export const DashboardPage: React.FC = () => {
     setAddWidgetTitle(config.title ?? '');
     setAddWidgetCode(config.code ?? '');
     setAddWidgetChartType(config.chart_type ?? 'table');
+    setAddWidgetTimeGroup((config as any).time_group ?? 'month');
     setSqlPreviewData([]);
     setSqlPreviewError(null);
     setSqlPreviewCompiledSql('');
@@ -987,6 +995,7 @@ export const DashboardPage: React.FC = () => {
     setAddWidgetTitle('');
     setAddWidgetCode('');
     setAddWidgetChartType('table');
+    setAddWidgetTimeGroup('month');
     setAddWidgetType('target-card');
     // setAiPrompt('');
     // setAiScopeMode('auto');
@@ -1007,19 +1016,21 @@ export const DashboardPage: React.FC = () => {
           title: addWidgetTitle.trim() || undefined,
           code: addWidgetType === 'custom_code' || addWidgetType === 'custom_sql' ? addWidgetCode.trim() || undefined : undefined,
           chart_type: addWidgetType === 'custom_sql' ? (addWidgetChartType || 'table') : undefined,
+          time_group: addWidgetType === 'custom_sql' && (addWidgetCode.includes('{{time_group}}')) ? (addWidgetTimeGroup || 'month') : undefined,
         };
       }));
       closeWidgetModal();
       return;
     }
     const id = `widget-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    const widget: WidgetConfig = {
+    const widget: WidgetConfig & { time_group?: string } = {
       id,
       type: addWidgetType,
       span: 1,
       title: addWidgetTitle.trim() || undefined,
       code: addWidgetType === 'custom_code' || addWidgetType === 'custom_sql' ? addWidgetCode.trim() || undefined : undefined,
       chart_type: addWidgetType === 'custom_sql' ? (addWidgetChartType || 'table') : undefined,
+      time_group: addWidgetType === 'custom_sql' && (addWidgetCode.includes('{{time_group}}')) ? (addWidgetTimeGroup || 'month') : undefined,
     };
     setLayout(prev => [...prev, widget]);
     closeWidgetModal();
@@ -2734,6 +2745,19 @@ export const DashboardPage: React.FC = () => {
                         { value: 'number-card', label: 'Number card' },
                       ]}
                     />
+                    <div className="mt-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Time grouping (for DATE_TRUNC)</label>
+                      <Select
+                        value={addWidgetTimeGroup}
+                        onChange={(v) => setAddWidgetTimeGroup(String(v ?? 'month'))}
+                        options={[
+                          { value: 'day', label: 'Day' },
+                          { value: 'week', label: 'Week' },
+                          { value: 'month', label: 'Month' },
+                        ]}
+                      />
+                      <p className="text-xs text-slate-400 mt-1">Used when SQL contains {'{{time_group}}'} — replaces the interval in DATE_TRUNC.</p>
+                    </div>
                     <div className="mt-2 flex justify-end">
                       <Button
                         type="button"

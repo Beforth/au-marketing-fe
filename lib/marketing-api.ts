@@ -1704,6 +1704,7 @@ export interface ReportScopeResponse {
   can_select_employee: boolean;
   employees: ReportableEmployee[];
   role: 'self' | 'region_head' | 'domain_head' | 'super_admin';
+  is_domain_coordinator?: boolean;
 }
 export interface InquiriesByTypeItem {
   activity_type: string;

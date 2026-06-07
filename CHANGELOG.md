@@ -5,6 +5,36 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-06-07] — Release: Quotation Trend Widget, Domain Coordinator Dashboard & Kanban Chart Fix (v1.0.2)
+
+### 📊 New Dashboard Widgets
+- **Created Quotation by Month**: Added a new line-chart widget showing quotation creation over time. Supports toggling between Day/Week/Month grouping via a dropdown in the widget edit modal, powered by a `{{time_group}}` SQL placeholder.
+- **Avg Quotation Revisions**: Added a number-card widget that calculates the average number of revisions per base quotation number across the scope.
+
+### 🧑‍💼 Domain Coordinator Dashboard
+- Created a dedicated **Domain Coordinator Dashboard** — identical to the Domain Head Dashboard but without the "Leads by Kanban Stage" and "Recent Domain Leads Requiring Action" widgets.
+- Added `domain_coordinator` as a valid assignment role in the backend.
+- Coordinators now automatically see the coordinator dashboard in place of the domain head dashboard.
+
+### 🐛 Bug Fixes
+- **Kanban bar chart — invisible zero-value series**: Fixed bar, line, and pie charts to filter out value series where all data points are 0. Previously, the "Leads by Kanban Stage" widget showed a purple legend circle for `total_amount` with no visible bars when all `potential_value` values were zero.
+
+### 🔧 Backend
+- Added `time_group` to template SQL keys; per-widget `time_group` config is merged into the SQL compilation context so `DATE_TRUNC('{{time_group}}', ...)` works at runtime.
+- `ReportScopeResponse` now returns `is_domain_coordinator` flag.
+- Dashboard visibility logic checks coordinator status to show the correct dashboard.
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `pages/DashboardPage.tsx` | Added time-group toggle in widget edit modal, coordinator role detection, zero-series filter for charts |
+| `lib/marketing-api.ts` | Added `is_domain_coordinator` to `ReportScopeResponse` |
+| `app/routers/saved_dashboards.py` | Valid roles extended; `time_group` template support; coordinator dashboard visibility |
+| `app/routers/reports.py` | `is_domain_coordinator` in response model and endpoint |
+| `scripts/seed_demo_data.py` | Quotation trend + avg revision widgets; domain coordinator layout + dashboard entry |
+
+---
+
 ## [2026-06-06] — Release: Sales Rep Dashboard Seeding, Gradient KPI Cards, SVG Chart Gradients & Role-Based Dashboard Assignments (v1.0.2)
 
 ### 📊 Dashboard & KPI Card Upgrades
