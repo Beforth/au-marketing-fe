@@ -35,12 +35,14 @@ const fetchAndStoreMarketingScope = async (): Promise<void> => {
   try {
     const scope = await apiClient.get<{
       success?: boolean;
-      role?: 'super_admin' | 'domain_head' | 'region_head' | 'employee' | 'self';
+      role?: 'super_admin' | 'domain_head' | 'region_head' | 'employee' | 'self' | 'supervisor';
       domain_id?: number | null;
       region_id?: number | null;
       region_ids?: number[];
       employee_id?: number | null;
       user_id?: number | null;
+      is_domain_coordinator?: boolean;
+      is_region_coordinator?: boolean;
     }>('/api/auth/scope');
     setStoredMarketingScope({
       role: scope?.role ?? 'self',
@@ -49,6 +51,8 @@ const fetchAndStoreMarketingScope = async (): Promise<void> => {
       region_ids: Array.isArray(scope?.region_ids) ? scope.region_ids : undefined,
       employee_id: scope?.employee_id ?? undefined,
       user_id: scope?.user_id ?? undefined,
+      is_domain_coordinator: scope?.is_domain_coordinator ?? false,
+      is_region_coordinator: scope?.is_region_coordinator ?? false,
     });
   } catch {
     // Scope cache is optional; keep auth flow resilient.

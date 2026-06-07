@@ -71,6 +71,15 @@ export const LeadFormPage: React.FC = () => {
   const canCreateOrg = useAppSelector(selectHasPermission('marketing.create_organization'));
   const canCreatePlant = useAppSelector(selectHasPermission('marketing.create_plant'));
 
+  const cachedScope = useMemo(() => getStoredMarketingScope(), []);
+  const isCoordinator = useMemo(() => {
+    return Boolean(
+      cachedScope?.is_domain_coordinator ||
+      cachedScope?.is_region_coordinator ||
+      cachedScope?.role === 'super_admin'
+    );
+  }, [cachedScope]);
+
   type LeadSourceType = 'contact' | 'customer' | 'none';
   const tabParam = searchParams.get('tab');
   const viewParam = searchParams.get('view');
@@ -231,6 +240,7 @@ export const LeadFormPage: React.FC = () => {
     series_code: undefined,
     series: undefined,
     assigned_to_employee_id: undefined,
+    created_by_employee_id: undefined,
   });
 
   const isExportDomain = useMemo(() => {
@@ -1290,6 +1300,7 @@ export const LeadFormPage: React.FC = () => {
       plant_id: formData.plant_id ?? undefined,
       domain_id: effectiveDomainId,
       region_id: effectiveRegionId,
+      created_by_employee_id: !isEdit ? formData.created_by_employee_id : undefined,
     };
     if (!(payload as any).expected_closing_date) {
       (payload as any).expected_closing_date = undefined;
@@ -2342,7 +2353,10 @@ export const LeadFormPage: React.FC = () => {
               </button>
 
               {!domainRegionCollapsed && (
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2">
+                <div className={cn(
+                  "mt-4 grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-top-2",
+                  (!isEdit && isCoordinator) ? "md:grid-cols-4" : "md:grid-cols-3"
+                )}>
                   <Select
                     label="Domain *"
                     options={domains.map(d => ({ value: String(d.id), label: d.name }))}
@@ -2388,6 +2402,18 @@ export const LeadFormPage: React.FC = () => {
                     onChange={(val) => setFormData(prev => ({ ...prev, assigned_to_employee_id: val ? Number(val) : undefined }))}
                     placeholder="Search employee..."
                   />
+                  {!isEdit && isCoordinator && (
+                    <AsyncSelect
+                      label="Created On Behalf Of"
+                      loadOptions={async (search) => {
+                        const res = await marketingAPI.getEmployees({ page: 1, page_size: 30, search: search || undefined, status: 'active' });
+                        return res.employees.map((e) => ({ value: e.id, label: [e.first_name, e.last_name].filter(Boolean).join(' ') || e.email }));
+                      }}
+                      value={formData.created_by_employee_id ?? undefined}
+                      onChange={(val) => setFormData(prev => ({ ...prev, created_by_employee_id: val ? Number(val) : undefined }))}
+                      placeholder="Search employee..."
+                    />
+                  )}
                 </div>
               )}
             </div>

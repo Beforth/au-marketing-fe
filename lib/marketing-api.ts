@@ -353,6 +353,7 @@ export interface CreateLeadRequest {
   quote_number?: string;
   assigned_to_employee_id?: number;
   referred_by_employee_id?: number | null;  // Person who referred: employee
+  created_by_employee_id?: number;
   expected_closing_date?: string;
   series?: string;
   /** ISO datetime — optional backdated first enquiry when creating a lead (omit when adding only an initial quotation with activity_date). */

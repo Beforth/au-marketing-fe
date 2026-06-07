@@ -7,6 +7,8 @@ export interface MarketingScope {
   region_ids?: number[];
   employee_id?: number;
   user_id?: number;
+  is_domain_coordinator?: boolean;
+  is_region_coordinator?: boolean;
 }
 
 const MARKETING_SCOPE_KEY = 'marketing_scope';
