@@ -9,7 +9,7 @@ Format: `[Date] — Category: Description`
 
 ### 📊 New Dashboard Widgets
 - **Created Quotation by Month**: Added a new line-chart widget showing quotation creation over time. Supports toggling between Day/Week/Month grouping via a dropdown in the widget edit modal, powered by a `{{time_group}}` SQL placeholder.
-- **Avg Quotation Revisions**: Added a number-card widget that calculates the average number of revisions per base quotation number across the scope.
+- **Avg Quotation Revisions**: Added a bar-chart widget showing revision count distribution across quotations (replaced initial number-card).
 
 ### 🧑‍💼 Domain Coordinator Dashboard
 - Created a dedicated **Domain Coordinator Dashboard** — identical to the Domain Head Dashboard but without the "Leads by Kanban Stage" and "Recent Domain Leads Requiring Action" widgets.
@@ -18,6 +18,7 @@ Format: `[Date] — Category: Description`
 
 ### 🐛 Bug Fixes
 - **Kanban bar chart — invisible zero-value series**: Fixed bar, line, and pie charts to filter out value series where all data points are 0. Previously, the "Leads by Kanban Stage" widget showed a purple legend circle for `total_amount` with no visible bars when all `potential_value` values were zero.
+- **Single number-card widgets missing resize/delete/move**: Fixed `getGroupedLayout()` to not wrap single `number-card` widgets into a group — they now render as standalone `custom_sql` widgets with full edit-mode capabilities.
 
 ### 🔧 Backend
 - Added `time_group` to template SQL keys; per-widget `time_group` config is merged into the SQL compilation context so `DATE_TRUNC('{{time_group}}', ...)` works at runtime.
@@ -27,7 +28,7 @@ Format: `[Date] — Category: Description`
 ### 📁 Files Changed
 | File | Change |
 |------|--------|
-| `pages/DashboardPage.tsx` | Added time-group toggle in widget edit modal, coordinator role detection, zero-series filter for charts |
+| `pages/DashboardPage.tsx` | Added time-group toggle in widget edit modal, coordinator role detection, zero-series filter for charts, single number-card grouping fix |
 | `lib/marketing-api.ts` | Added `is_domain_coordinator` to `ReportScopeResponse` |
 | `app/routers/saved_dashboards.py` | Valid roles extended; `time_group` template support; coordinator dashboard visibility |
 | `app/routers/reports.py` | `is_domain_coordinator` in response model and endpoint |

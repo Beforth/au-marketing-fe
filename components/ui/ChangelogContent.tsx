@@ -24,7 +24,7 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
             <h4 className="text-sm font-bold text-slate-900">New Dashboard Widgets</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
               <li><strong>Created Quotation by Month:</strong> New line-chart widget showing quotation creation over time with a toggle for Day/Week/Month grouping.</li>
-              <li><strong>Avg Quotation Revisions:</strong> New number-card widget showing the average number of revisions per quotation.</li>
+              <li><strong>Avg Quotation Revisions:</strong> New bar-chart widget showing revision count distribution across quotations.</li>
             </ul>
           </section>
 
@@ -40,6 +40,7 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
             <h4 className="text-sm font-bold text-slate-900">Bug Fixes</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
               <li><strong>Kanban chart — invisible zero bars:</strong> Bar, line, and pie charts now filter out value series where all data points are 0. The "Leads by Kanban Stage" widget no longer shows a empty legend circle for <code>total_amount</code> when no data exists.</li>
+              <li><strong>Single number-card widgets missing resize/delete/move:</strong> Fixed grouping logic so standalone number-card widgets render with full edit-mode capabilities.</li>
             </ul>
           </section>
         </div>

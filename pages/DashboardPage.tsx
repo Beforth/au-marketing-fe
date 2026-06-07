@@ -1130,12 +1130,16 @@ export const DashboardPage: React.FC = () => {
         currentGroup.push(w);
       } else {
         if (currentGroup.length > 0) {
-          grouped.push({
-            id: `num-card-group-${currentGroup[0].id}`,
-            type: 'number-card-group',
-            widgets: [...currentGroup],
-            span: 4,
-          });
+          if (currentGroup.length === 1) {
+            grouped.push(currentGroup[0]);
+          } else {
+            grouped.push({
+              id: `num-card-group-${currentGroup[0].id}`,
+              type: 'number-card-group',
+              widgets: [...currentGroup],
+              span: 4,
+            });
+          }
           currentGroup = [];
         }
         grouped.push(w);
@@ -1143,12 +1147,16 @@ export const DashboardPage: React.FC = () => {
     });
 
     if (currentGroup.length > 0) {
-      grouped.push({
-        id: `num-card-group-${currentGroup[0].id}`,
-        type: 'number-card-group',
-        widgets: [...currentGroup],
-        span: 4,
-      });
+      if (currentGroup.length === 1) {
+        grouped.push(currentGroup[0]);
+      } else {
+        grouped.push({
+          id: `num-card-group-${currentGroup[0].id}`,
+          type: 'number-card-group',
+          widgets: [...currentGroup],
+          span: 4,
+        });
+      }
     }
 
     return grouped;
