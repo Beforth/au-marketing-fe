@@ -69,6 +69,7 @@ export type DashboardWidgetType =
   | 'won-lost-chart'
   | 'leads-by-status-chart'
   | 'inquiries-quotations-chart'
+  | 'quotation-submitted-chart'
   | 'revenue-chart'
   | 'goal-chart'
   | 'activity-table'

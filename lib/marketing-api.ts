@@ -1464,6 +1464,11 @@ class MarketingAPIService {
     return apiClient.get<HeadDashboardSummaryResponse>(`/api/dashboard/head-summary${qs ? `?${qs}` : ''}`);
   }
 
+  /** Quotation submitted stats for domain_head and super_admin: region-wise counts by period. */
+  async getQuotationStats(period: 'monthly' | 'quarterly' | 'till_date' = 'monthly'): Promise<QuotationStatsResponse> {
+    return apiClient.get<QuotationStatsResponse>(`/api/dashboard/quotation-stats?period=${period}`);
+  }
+
   // Saved dashboards (user-created; assignable; widgets with SQL or preset)
   async getSavedDashboards(): Promise<SavedDashboardResponse[]> {
     return apiClient.get<SavedDashboardResponse[]>('/api/saved-dashboards');
@@ -1854,6 +1859,12 @@ export interface HeadDashboardSummaryResponse {
   lost_count: number;
   year: number;
   month: number;
+}
+
+/** Quotation stats: region-wise counts per period label (month/quarter/all-time). */
+export interface QuotationStatsResponse {
+  labels: string[];
+  regions: { region_name: string; data: number[] }[];
 }
 
 /** User who can be assigned a dashboard (domain head, region head, or employee in marketing). */

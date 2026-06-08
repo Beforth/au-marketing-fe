@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   AreaChart,
   Area,
@@ -15,8 +15,11 @@ import {
   Cell,
   Legend,
 } from 'recharts';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { CHART_DATA } from '../../constants';
+import { marketingAPI } from '../../lib/marketing-api';
+import { cn } from '../../lib/utils';
+import type { QuotationStatsResponse } from '../../lib/marketing-api';
 
 const chartColors = {
   target: '#f1f5f9', // slate-100
@@ -41,23 +44,30 @@ const formatYAxisValue = (value: number) => {
   return String(value);
 };
 
-const CustomTooltip = ({ active, payload }: any) => {
+export const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white/40 backdrop-blur-md border border-white/20 p-2 rounded-xl shadow-sm min-w-0 pointer-events-none">
-        {payload.map((entry: any, index: number) => (
-          <div key={index} className="flex items-center gap-3 last:mb-0">
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color || entry.fill }} />
-              <span className="text-[10px] text-slate-500 font-bold capitalize">{entry.name || entry.dataKey}</span>
+      <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-lg">
+        {label && (
+          <p className="text-[11px] font-bold text-slate-600 mb-2 pb-2 border-b border-slate-100">
+            {label}
+          </p>
+        )}
+        <div className="space-y-1.5">
+          {payload.map((entry: any, index: number) => (
+            <div key={index} className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color || entry.fill }} />
+                <span className="text-[11px] text-slate-500 font-semibold whitespace-nowrap">{entry.name || entry.dataKey}</span>
+              </div>
+              <span className="text-[11px] font-bold text-slate-800">
+                {typeof entry.value === 'number' && entry.value < 1000 && entry.value % 1 !== 0 
+                  ? entry.value.toFixed(2) 
+                  : typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
+              </span>
             </div>
-            <span className="text-[10px] font-black text-slate-800">
-              {typeof entry.value === 'number' && entry.value < 1000 && entry.value % 1 !== 0 
-                ? entry.value.toFixed(2) 
-                : entry.value.toLocaleString()}
-            </span>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     );
   }
@@ -452,6 +462,134 @@ export const SalesTargetChart: React.FC = () => {
           <Bar dataKey="revenue" name="Achieved" fill="url(#achievedChartGrad)" radius={[4, 4, 0, 0]} barSize={18} animationDuration={2000} />
         </BarChart>
       </ResponsiveContainer>
+    </div>
+  );
+};
+
+
+/** Quotations Submitted widget: grouped bar chart by region, with Monthly/Quarterly/Till Date filter. */
+export const QuotationSubmittedWidget: React.FC = () => {
+  const [period, setPeriod] = useState<'monthly' | 'quarterly' | 'till_date'>('monthly');
+  const [data, setData] = useState<QuotationStatsResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await marketingAPI.getQuotationStats(period);
+      setData(result);
+    } catch (e) {
+      console.error('Failed to load quotation stats', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [period]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  if (loading && !data) {
+    return (
+      <div className="h-[220px] flex items-center justify-center text-slate-400">
+        <RefreshCw size={20} className="animate-spin" />
+      </div>
+    );
+  }
+
+  if (!data || data.regions.length === 0) {
+    return (
+      <div className="h-[260px] flex items-center justify-center text-slate-400 text-xs font-medium italic">
+        No quotation data available
+      </div>
+    );
+  }
+
+  const filterButtons = (
+    <div className="flex gap-1 px-2 pt-2 pb-1">
+      {(['monthly', 'quarterly', 'till_date'] as const).map((p) => (
+        <button
+          key={p}
+          onClick={() => setPeriod(p)}
+          className={cn(
+            'text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg transition-colors',
+            period === p
+              ? 'bg-indigo-100 text-indigo-700'
+              : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+          )}
+        >
+          {p === 'monthly' ? 'Monthly' : p === 'quarterly' ? 'Quarterly' : 'Till Date'}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (data.labels.length === 1) {
+    const simple = data.regions.map((r) => ({
+      name: r.region_name.length > 14 ? r.region_name.slice(0, 13) + '…' : r.region_name,
+      count: r.data[0],
+    }));
+    return (
+      <div>
+        {filterButtons}
+        <div className="h-[150px] w-full pt-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={simple} margin={{ top: 5, right: 20, left: 5, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
+              <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 500 }} axisLine={false} tickLine={false} dy={8} />
+              <YAxis tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 500 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
+              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                {simple.map((_, i) => (
+                  <Cell key={i} fill={chartColors.default[i % chartColors.default.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    );
+  }
+
+  const chartData = data.labels.map((label, i) => ({
+    name: label,
+    ...Object.fromEntries(data.regions.map((r) => [r.region_name, r.data[i]])),
+  }));
+
+  return (
+    <div>
+      {filterButtons}
+      <div className="h-[260px] w-full pt-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 5, right: 20, left: 5, bottom: 5 }} barGap={4}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
+            <XAxis 
+              dataKey="name" 
+              tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 500 }} 
+              axisLine={false} 
+              tickLine={false} 
+              dy={8}
+            />
+            <YAxis 
+              tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 500 }} 
+              axisLine={false} 
+              tickLine={false} 
+              allowDecimals={false}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
+            <Legend 
+              verticalAlign="top" 
+              align="right" 
+              iconType="circle"
+              iconSize={6}
+              wrapperStyle={{ fontSize: '10px', fontWeight: 600, color: '#64748b', paddingBottom: '10px' }}
+            />
+            {data.regions.map((r, i) => (
+              <Bar key={r.region_name} dataKey={r.region_name} fill={chartColors.default[i % chartColors.default.length]} radius={[3, 3, 0, 0]} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };

@@ -45,6 +45,8 @@ import {
   RegionBreakdownBarChart,
   InquiriesQuotationsBarChart,
   CustomCodeWidget,
+  QuotationSubmittedWidget,
+  CustomTooltip,
 } from '../components/ui/ChartsSection';
 
 const CHART_COLORS = ['#4f46e5', '#6366f1', '#818cf8', '#059669', '#e11d48', '#f59e0b', '#94a3b8'];
@@ -73,6 +75,7 @@ const WIDGET_TYPE_OPTIONS: { value: DashboardWidgetType; label: string }[] = [
   { value: 'target-card', label: 'Target (this month)' },
   { value: 'leads-by-region', label: 'Leads by region' },
   { value: 'head-summary', label: 'Head summary' },
+  { value: 'quotation-submitted-chart', label: 'Quotations submitted (by region)' },
   { value: 'target-achieved-chart', label: 'Chart: Target vs achieved' },
   { value: 'won-lost-chart', label: 'Chart: Won vs lost' },
   { value: 'leads-by-status-chart', label: 'Chart: Leads by status' },
@@ -431,7 +434,7 @@ function CustomSqlWidgetContent({
                   <Cell key={`cell-${index}`} fill={entry.fill} className="hover:opacity-80 transition-opacity duration-200 cursor-pointer pointer-events-auto" />
                 ))}
               </Pie>
-              <Tooltip formatter={(v: number) => [v.toLocaleString(), '']} />
+              <Tooltip content={<CustomTooltip />} />
               <Legend 
                 verticalAlign="bottom" 
                 align="center" 
@@ -472,7 +475,7 @@ function CustomSqlWidgetContent({
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: span === 1 ? 8 : 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#64748b', fontSize: span === 1 ? 8 : 10 }} axisLine={false} tickLine={false} tickFormatter={formatYAxis} />
-              <Tooltip cursor={{ fill: 'rgba(241, 245, 249, 0.4)' }} formatter={(v: number) => [v.toLocaleString(), '']} />
+              <Tooltip content={<CustomTooltip />} />
               <Legend verticalAlign="bottom" height={36} iconType="circle" />
               {displayValueKeys.map((vk, i) => (
                 <Bar
@@ -509,7 +512,7 @@ function CustomSqlWidgetContent({
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: span === 1 ? 8 : 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#64748b', fontSize: span === 1 ? 8 : 10 }} axisLine={false} tickLine={false} tickFormatter={formatYAxis} />
-              <Tooltip formatter={(v: number) => [v.toLocaleString(), '']} />
+              <Tooltip content={<CustomTooltip />} />
               <Legend verticalAlign="bottom" height={36} iconType="circle" />
               {displayValueKeys.map((vk, i) => {
                 const palette = CHART_COLOR_PALETTES[i % CHART_COLOR_PALETTES.length];
@@ -1165,7 +1168,6 @@ export const DashboardPage: React.FC = () => {
   const renderWidget = (config: WidgetConfig) => {
     const widgetType = (config.type ?? config.id) as string;
     const commonProps = {
-      key: config.id,
       isDraggable: isEditMode,
       showHandle: isEditMode,
       onDragStart: () => handleDragStart(layout.indexOf(config)),
@@ -1249,13 +1251,13 @@ export const DashboardPage: React.FC = () => {
       case 'leads-by-region':
         if (!isHeadRole || !headSummary?.region_breakdown.length) {
           return (
-            <Card {...commonProps} title="Leads by region" description="Total, won, lost per region">
+            <Card key={config.id} {...commonProps} title="Leads by region" description="Total, won, lost per region">
               <p className="text-sm text-slate-500 p-4 italic">Available for domain head and admin.</p>
             </Card>
           );
         }
         return (
-          <Card {...commonProps} title="Leads by region" description="Total, won, lost per region" contentClassName="px-2 pb-2 pt-0">
+          <Card key={config.id} {...commonProps} title="Leads by region" description="Total, won, lost per region" contentClassName="px-2 pb-2 pt-0">
             <RegionBreakdownBarChart data={headSummary.region_breakdown} />
           </Card>
         );
@@ -1263,13 +1265,13 @@ export const DashboardPage: React.FC = () => {
         const s = scopeTargetStats ?? targetStats;
         if (s == null) {
           return (
-            <Card {...commonProps} title={`${scopeLabel} target this month`} description="Target and achieved in scope.">
+            <Card key={config.id} {...commonProps} title={`${scopeLabel} target this month`} description="Target and achieved in scope.">
               <p className="text-sm text-slate-500 p-4 italic">No target data available.</p>
             </Card>
           );
         }
         return (
-          <Card
+          <Card key={config.id}
             {...commonProps}
             title={scopeLabel === 'My' ? "This month's target" : `${scopeLabel} target this month`}
             description={scopeLabel === 'My'
@@ -1318,13 +1320,13 @@ export const DashboardPage: React.FC = () => {
       case 'head-summary':
         if (!isHeadRole) {
           return (
-            <Card {...commonProps} title="Head summary" description="Region-wise split and key metrics.">
+            <Card key={config.id} {...commonProps} title="Head summary" description="Region-wise split and key metrics.">
               <p className="text-sm text-slate-500 p-4">Available for domain head and admin.</p>
             </Card>
           );
         }
         return (
-          <Card {...commonProps} title="Head summary" description={headSummary ? `Region-wise split and key metrics for ${new Date(headSummary.year, headSummary.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.` : 'Region-wise split and key metrics.'}>
+          <Card key={config.id} {...commonProps} title="Head summary" description={headSummary ? `Region-wise split and key metrics for ${new Date(headSummary.year, headSummary.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.` : 'Region-wise split and key metrics.'}>
             {headSummaryLoading ? (
               <div className="p-6 flex items-center justify-center text-slate-500"><RefreshCw size={24} className="animate-spin" /></div>
             ) : headSummary ? (
@@ -1393,17 +1395,30 @@ export const DashboardPage: React.FC = () => {
             )}
           </Card>
         );
+      case 'quotation-submitted-chart':
+        if (!isHeadRole) {
+          return (
+            <Card key={config.id} {...commonProps} title="Quotations submitted" description="By region">
+              <p className="text-sm text-slate-500 p-4 italic">Available for domain head and admin.</p>
+            </Card>
+          );
+        }
+        return (
+          <Card key={config.id} {...commonProps} title="Quotations submitted" description="By region" contentClassName="px-2 pb-2 pt-0">
+            <QuotationSubmittedWidget />
+          </Card>
+        );
       case 'target-achieved-chart': {
         const s = scopeTargetStats ?? targetStats;
         if (s == null) {
           return (
-            <Card {...commonProps} title="Target vs achieved" description="Target and achieved this month.">
+            <Card key={config.id} {...commonProps} title="Target vs achieved" description="Target and achieved this month.">
               <p className="text-sm text-slate-500 p-4 italic">No target data available.</p>
             </Card>
           );
         }
         return (
-          <Card {...commonProps} title="Target vs achieved" description={`${scopeLabel} scope — ${new Date(s.year, s.month - 1).toLocaleString('default', { month: 'short', year: 'numeric' })}`} contentClassName="px-2 pb-4 pt-0">
+          <Card key={config.id} {...commonProps} title="Target vs achieved" description={`${scopeLabel} scope — ${new Date(s.year, s.month - 1).toLocaleString('default', { month: 'short', year: 'numeric' })}`} contentClassName="px-2 pb-4 pt-0">
             <TargetAchievedBarChart target={s.monthly_target} achieved={s.achieved_this_month} year={s.year} month={s.month} />
           </Card>
         );
@@ -1412,13 +1427,13 @@ export const DashboardPage: React.FC = () => {
         const s = scopeTargetStats ?? targetStats;
         if (s == null) {
           return (
-            <Card {...commonProps} title="Won vs lost (this month)" description="Closed leads in scope.">
+            <Card key={config.id} {...commonProps} title="Won vs lost (this month)" description="Closed leads in scope.">
               <p className="text-sm text-slate-500 p-4">No data this month.</p>
             </Card>
           );
         }
         return (
-          <Card {...commonProps} title="Won vs lost" description="This month performance" contentClassName="p-1">
+          <Card key={config.id} {...commonProps} title="Won vs lost" description="This month performance" contentClassName="p-1">
             <WonLostPieChart won={s.won_leads_count_this_month} lost={s.lost_leads_count_this_month} />
           </Card>
         );
@@ -1426,32 +1441,32 @@ export const DashboardPage: React.FC = () => {
       case 'leads-by-status-chart':
         if (leadStatusCounts.length === 0) {
           return (
-            <Card {...commonProps} title="Leads by status" description="From recent leads in scope.">
+            <Card key={config.id} {...commonProps} title="Leads by status" description="From recent leads in scope.">
               <p className="text-sm text-slate-500 p-4">No lead status data yet.</p>
             </Card>
           );
         }
         return (
-          <Card {...commonProps} title="Leads by status" description="Current pipeline" contentClassName="p-1">
+          <Card key={config.id} {...commonProps} title="Leads by status" description="Current pipeline" contentClassName="p-1">
             <LeadStatusPieChart data={leadStatusCounts} />
           </Card>
         );
       case 'inquiries-quotations-chart':
         if (reportSummary == null || !canViewReport) {
           return (
-            <Card {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`}>
+            <Card key={config.id} {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`}>
               <p className="text-sm text-slate-500 p-4">No report data or permission.</p>
             </Card>
           );
         }
         return (
-          <Card {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`} contentClassName="px-2 pb-4 pt-0">
+          <Card key={config.id} {...commonProps} title="Inquiries & quotations" description={`${scopeLabel} scope`} contentClassName="px-2 pb-4 pt-0">
             <InquiriesQuotationsBarChart inquiries={reportSummary.inquiries_count} quotations={reportSummary.quotations_sent_count} />
           </Card>
         );
       case 'revenue-chart':
         return (
-          <Card {...commonProps} title={`${scopeLabel} leads overview`} description={`Total leads and activity in scope.`}>
+          <Card key={config.id} {...commonProps} title={`${scopeLabel} leads overview`} description={`Total leads and activity in scope.`}>
             <div className="p-4 space-y-4">
               {reportSummary != null && (
                 <div className="grid grid-cols-2 gap-3 text-sm">
@@ -1481,7 +1496,7 @@ export const DashboardPage: React.FC = () => {
         );
       case 'goal-chart':
         return (
-          <Card {...commonProps} title={`${scopeLabel} activity`} description={`Inquiries and quotations in scope.`}>
+          <Card key={config.id} {...commonProps} title={`${scopeLabel} activity`} description={`Inquiries and quotations in scope.`}>
             <div className="p-4 space-y-4">
               {reportSummary != null ? (
                 <>
@@ -1517,7 +1532,7 @@ export const DashboardPage: React.FC = () => {
         );
       case 'activity-table':
         return (
-          <Card {...commonProps} title={scopeLabel === 'My' ? 'Recent leads' : `Recent leads (${scopeLabel})`} description="Latest leads in scope (click to edit)." noPadding maxHeight="none">
+          <Card key={config.id} {...commonProps} title={scopeLabel === 'My' ? 'Recent leads' : `Recent leads (${scopeLabel})`} description="Latest leads in scope (click to edit)." noPadding maxHeight="none">
             <div className="overflow-x-auto">
               {recentLeads.length === 0 ? (
                 <div className="p-8 text-center text-slate-500 text-sm italic">No leads yet.</div>
@@ -1562,7 +1577,7 @@ export const DashboardPage: React.FC = () => {
       case 'global-reach':
       case 'quick_links':
         return (
-          <Card {...commonProps} title={config.title || 'Quick links'} description="Marketing module.">
+          <Card key={config.id} {...commonProps} title={config.title || 'Quick links'} description="Marketing module.">
             <div className="p-4 space-y-2">
               <Button variant="ghost" size="sm" className="w-full justify-start font-black text-xs uppercase tracking-wider hover:bg-slate-50" onClick={() => navigate('/leads')} leftIcon={<Users size={14} />}>
                 Leads
@@ -1586,13 +1601,13 @@ export const DashboardPage: React.FC = () => {
         );
       case 'custom_code':
         return (
-          <Card {...commonProps} title={config.title || 'Custom / code'} description="Your code or notes">
+          <Card key={config.id} {...commonProps} title={config.title || 'Custom / code'} description="Your code or notes">
             <CustomCodeWidget code={config.code} title={config.title} />
           </Card>
         );
       case 'stat':
         return (
-          <Card {...commonProps} title={config.title || 'Stat'} description="Summary metric">
+          <Card key={config.id} {...commonProps} title={config.title || 'Stat'} description="Summary metric">
             <div className="p-4 flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-100 shadow-sm shrink-0">
                 <Target size={20} className="text-indigo-600" />
@@ -1606,7 +1621,7 @@ export const DashboardPage: React.FC = () => {
         );
       case 'bar_chart':
         return (
-          <Card {...commonProps} title={config.title || 'Bar chart'} description="Report data" contentClassName="px-2 pb-4 pt-0">
+          <Card key={config.id} {...commonProps} title={config.title || 'Bar chart'} description="Report data" contentClassName="px-2 pb-4 pt-0">
             {reportSummary != null ? (
               <InquiriesQuotationsBarChart inquiries={reportSummary.inquiries_count} quotations={reportSummary.quotations_sent_count} />
             ) : (
@@ -1616,7 +1631,7 @@ export const DashboardPage: React.FC = () => {
         );
       case 'pie_chart':
         return (
-          <Card {...commonProps} title={config.title || 'Pie chart'} description="Distribution" contentClassName="p-1">
+          <Card key={config.id} {...commonProps} title={config.title || 'Pie chart'} description="Distribution" contentClassName="p-1">
             {leadStatusCounts.length > 0 ? (
               <LeadStatusPieChart data={leadStatusCounts} />
             ) : (
@@ -1626,13 +1641,13 @@ export const DashboardPage: React.FC = () => {
         );
       case 'area_chart':
         return (
-          <Card {...commonProps} title={config.title || 'Area chart'} description="Trend">
+          <Card key={config.id} {...commonProps} title={config.title || 'Area chart'} description="Trend">
             <div className="h-[220px] flex items-center justify-center text-slate-400 text-xs italic p-4">Area chart placeholder. Connect data source to customize.</div>
           </Card>
         );
       case 'table':
         return (
-          <Card {...commonProps} title={config.title || 'Table'} description="Data table" noPadding>
+          <Card key={config.id} {...commonProps} title={config.title || 'Table'} description="Data table" noPadding>
             <div className="overflow-x-auto">
               {recentLeads.length === 0 ? (
                 <div className="p-8 text-center text-slate-500 text-sm italic">No leads yet.</div>
@@ -1664,7 +1679,7 @@ export const DashboardPage: React.FC = () => {
       case 'custom_sql':
         const widgetRuntime = sqlWidgetData[config.id];
         return (
-      <Card {...commonProps} title={config.title || 'Custom SQL'}>
+      <Card key={config.id} {...commonProps} title={config.title || 'Custom SQL'}>
             <CustomSqlWidgetContent
               code={config.code}
               chartType={widgetRuntime?.chart_type || config.chart_type || 'table'}

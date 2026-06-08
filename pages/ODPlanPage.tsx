@@ -440,14 +440,16 @@ export const ODPlanPage: React.FC = () => {
   }, [month, year, setCalMonth, setCalYear]);
 
   // Handle calendar navigation by updating URL
+  // Uses getState() to read fresh Zustand store (not stale render-closure) to
+  // avoid an infinite loop when Effect 1 (URL→store) and this Effect (store→URL)
+  // race on initial mount after SPA navigation.
   useEffect(() => {
-    // Only navigate if we have valid internal state and it actually differs from URL
-    if (isNaN(calMonth) || isNaN(calYear)) return;
-    
-    const targetMonth = calMonth + 1;
-    if (targetMonth !== month || calYear !== year) {
-      if (!isNaN(targetMonth) && !isNaN(calYear)) {
-        navigate(`/reports/od-plan?year=${calYear}&month=${targetMonth}`, { replace: true });
+    const { month: freshMonth, year: freshYear } = useCalendar.getState();
+    if (isNaN(freshMonth) || isNaN(freshYear)) return;
+    const targetMonth = freshMonth + 1;
+    if (targetMonth !== month || freshYear !== year) {
+      if (!isNaN(targetMonth) && !isNaN(freshYear)) {
+        navigate(`/reports/od-plan?year=${freshYear}&month=${targetMonth}`, { replace: true });
       }
     }
   }, [calMonth, calYear, month, year, navigate]);

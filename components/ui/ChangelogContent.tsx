@@ -28,6 +28,21 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
               <li><strong>Backend Enforcement:</strong> All organization, plant, customer, and contact endpoints now enforce role-based scope filters at the API level — users cannot access records outside their domain/region even with direct URLs or API calls.</li>
             </ul>
           </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Stability &amp; Bug Fixes</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>OD Plan Page Crash:</strong> Fixed "Maximum update depth exceeded" on SPA navigation — the calendar navigation effect used a stale Zustand closure instead of the fresh store value, causing an infinite loop between URL↔store sync. Now reads state via <code>getState()</code>.</li>
+              <li><strong>Head Summary 500 Error:</strong> The <code>/api/dashboard/head-summary</code> endpoint returned a 500 for head roles because the query logic was accidentally placed after a <code>return</code> inside <code>get_quotation_stats</code>. Moved it into the correct endpoint.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">UI Polish</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>React Key Prop Warning:</strong> Removed <code>key</code> from the <code>commonProps</code> spread object — React requires <code>key</code> directly on JSX elements, not via spread. Added <code>key=&#123;config.id&#125;</code> directly on all 28 dashboard Card widgets.</li>
+            </ul>
+          </section>
         </div>
       </div>
 
