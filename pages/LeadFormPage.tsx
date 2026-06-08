@@ -3120,7 +3120,7 @@ export const LeadFormPage: React.FC = () => {
                                             </label>
                                             <Select
                                               value={addAttachmentQuotationSeriesCode}
-                                              onChange={(val) => setAddAttachmentQuotationSeriesCode(val)}
+                                              onChange={(val) => setAddAttachmentQuotationSeriesCode((val ?? '') as string)}
                                               options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
                                               placeholder="Choose series"
                                               className="!h-8"
