@@ -70,18 +70,23 @@ graph TD
 
 Scoping rules applied in [contacts.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/contacts.py) and [customers.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/customers.py) to manage CRM directory data.
 
-### 🏢 Organizations & Plants
-> [!IMPORTANT]
-> **No Row-Level Scoping Filters.**
-> Organizations and Plants represent shared infrastructure directory data. Any user possessing the basic permission (`marketing.view_organization` or `marketing.view_contact`) can browse, view, and search the entire catalog. This prevents the creation of duplicate customer companies.
-
-### 📞 Contacts & Customers
-Unlike organizations, Contacts (cold directory records) and Customers (active business accounts) are strictly row-level isolated:
+### 📞 Contacts & Customers (Strict Isolation)
+Contacts (cold directory records) and Customers (active business accounts) are strictly row-level isolated:
 
 * **Super Admin**: Sees **all** contacts and customers.
-* **Domain Head**: Sees **all** contacts and customers belonging to their assigned domain(s).
-* **Region Head / Supervisor**: Sees **all** contacts and customers belonging to their assigned region(s).
-* **Employee**: **Isolated.** Can ONLY see contacts and customers they personally created (`created_by_employee_id == user_id`).
+* **Domain Head / Domain Coordinator**: Sees **only** contacts and customers belonging to their assigned domain(s). Strictly blocked from other domains.
+* **Region Head / Region Coordinator**: Sees **only** contacts and customers belonging to their assigned region(s). Strictly blocked from other regions, even within the same domain.
+* **Employee**: **Isolated.** Can ONLY see contacts and customers they personally created (`created_by_employee_id == user_id`) or are explicitly assigned to.
+
+### 🏢 Organizations & Plants (New Scoping Rules)
+> [!IMPORTANT]
+> **Strict Scoping Applied.**
+> Organizations and Plants are no longer globally shared. They are now filtered based on the user's scope to prevent unauthorized browsing of the corporate directory.
+
+* **Super Admin**: Full access to all organizations and plants.
+* **Domain Head / Domain Coordinator**: Sees organizations/plants that are either linked to a contact/customer in their domain or were created by a user in their domain.
+* **Region Head / Region Coordinator**: Sees organizations/plants linked to contacts/customers within their specific region(s).
+* **Employee**: Sees organizations/plants they personally created or those linked to their own contacts/customers.
 
 ### 🔄 Contact-to-Customer Promotion
 * Promote contact requires `marketing.create_customer` permission.
