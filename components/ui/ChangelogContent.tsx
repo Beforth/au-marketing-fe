@@ -21,6 +21,15 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
 
         <div className="space-y-6 pl-4 border-l-2 border-indigo-100">
           <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Quotation Revision System</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Smart Numbering:</strong> Fixed revision suffix to start at <code>(rev1)</code> instead of <code>(rev2)</code>. The base quotation remains suffix-less.</li>
+              <li><strong>Auto-Detection:</strong> System now automatically detects existing quotations and marks new ones as "Revised" without manual input.</li>
+              <li><strong>UI Cleanup:</strong> Hidden the numbering series and revised checkbox in the Enquiry Log when a quotation already exists to simplify the workflow.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
             <h4 className="text-sm font-bold text-slate-900">Domain Target Visibility Fix</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
               <li><strong>Target Tracking Fix:</strong> Fixed an issue where leads assigned to a domain but lacking a region were not counted in the "All Domains Target" progress bar.</li>
@@ -33,6 +42,7 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
               <li><strong>Descriptive Toasts:</strong> Replaced generic "An error occurred" messages with specific descriptions for common database failures.</li>
               <li><strong>Numeric Overflows:</strong> Clear feedback is now provided when values are too large for currency fields (e.g., potential value exceeding 8 digits).</li>
+              <li><strong>Lead Creation Cleanup:</strong> Removed the "Mark as revised" checkbox during lead creation to simplify the flow.</li>
             </ul>
           </section>
 

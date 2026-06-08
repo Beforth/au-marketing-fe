@@ -103,6 +103,9 @@ export const LeadFormPage: React.FC = () => {
   const [leadSourceType, setLeadSourceType] = useState<LeadSourceType>('none');
   const [domainRegionCollapsed, setDomainRegionCollapsed] = useState(true);
   const [activities, setActivities] = useState<LeadActivity[]>([]);
+  const hasExistingQuotation = useMemo(() => {
+    return activities.some(a => a.attachments?.some(att => att.is_quotation));
+  }, [activities]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activityForm, setActivityForm] = useState({
     activity_type: 'note',
@@ -149,7 +152,6 @@ export const LeadFormPage: React.FC = () => {
   const [initialQuotationFile, setInitialQuotationFile] = useState<File | null>(null);
   /** Create flow: optional backdated enquiry date/time (local datetime-local value). */
   const [initialInquiryReceivedAtLocal, setInitialInquiryReceivedAtLocal] = useState('');
-  const [initialQuotationIsRevised, setInitialQuotationIsRevised] = useState(false);
   /** Quick add quotation (edit mode, enquiry tab): one file → one enquiry with auto title/description. */
   const [quickAddQuotationFile, setQuickAddQuotationFile] = useState<File | null>(null);
   const [quickAddQuotationSubmitting, setQuickAddQuotationSubmitting] = useState(false);
@@ -710,6 +712,16 @@ export const LeadFormPage: React.FC = () => {
   useEffect(() => {
     if (isEdit && id) loadActivities();
   }, [isEdit, id]);
+
+  useEffect(() => {
+    if (hasExistingQuotation) {
+      setQuotationIsRevised(true);
+      setAddAttachmentIsRevised(true);
+    } else {
+      setQuotationIsRevised(false);
+      setAddAttachmentIsRevised(false);
+    }
+  }, [hasExistingQuotation]);
 
   useEffect(() => {
     if (quotationSeriesCode) return;
@@ -1355,7 +1367,7 @@ export const LeadFormPage: React.FC = () => {
               undefined,
               // When no explicit quote number, use quotation series to generate on upload
               qNum ? undefined : (createFormQuoteSeriesCode.trim() || undefined),
-              initialQuotationIsRevised,
+              false
             );
             showToast('Lead and enquiry created successfully', 'success');
             navigate(`/leads/${lead.id}/edit`);
@@ -2247,7 +2259,6 @@ export const LeadFormPage: React.FC = () => {
                     onChange={(e) => {
                       const f = e.target.files?.[0] ?? null;
                       setInitialQuotationFile(f);
-                      if (!f) setInitialQuotationIsRevised(false);
                     }}
                   />
                   {initialQuotationFile && (
@@ -2323,16 +2334,6 @@ export const LeadFormPage: React.FC = () => {
                       }}
                       placeholder="e.g. AP/QUOTE-N/001"
                     />
-                  )}
-                  {initialQuotationFile && (
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={initialQuotationIsRevised}
-                        onChange={(e) => setInitialQuotationIsRevised(e.target.checked)}
-                      />
-                      Mark quotation as revised
-                    </label>
                   )}
                 </div>
               )}
@@ -2655,23 +2656,34 @@ export const LeadFormPage: React.FC = () => {
                           ))}
                         </div>
                         {attachmentEntries.some((e) => e.kind === 'quotation') && (
-                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg border border-indigo-100 bg-indigo-50/50">
-                            <Select
-                              label="Quotation series"
-                              value={quotationSeriesCode}
-                              onChange={(v) => setQuotationSeriesCode((v ?? '') as string)}
-                              options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
-                              placeholder="Choose series"
-                            />
-                            <label className="inline-flex items-center gap-2 text-xs text-slate-700 mt-2 md:mt-7">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                checked={quotationIsRevised}
-                                onChange={(e) => setQuotationIsRevised(e.target.checked)}
-                              />
-                              Mark quotation as revised
-                            </label>
+                          <div className="mt-3 p-3 rounded-lg border border-indigo-100 bg-indigo-50/50">
+                            {hasExistingQuotation ? (
+                              <div className="flex items-center">
+                                <span className="text-[11px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                                  Revised quotation auto-marked
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <Select
+                                  label="Quotation series"
+                                  value={quotationSeriesCode}
+                                  onChange={(v) => setQuotationSeriesCode((v ?? '') as string)}
+                                  options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
+                                  placeholder="Choose series"
+                                />
+                                <label className="inline-flex items-center gap-2 text-xs text-slate-700 mt-2 md:mt-7 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                    checked={quotationIsRevised}
+                                    onChange={(e) => setQuotationIsRevised(e.target.checked)}
+                                  />
+                                  Mark as revised
+                                </label>
+                              </div>
+                            )}
                           </div>
                         )}
                       </>
@@ -3091,6 +3103,42 @@ export const LeadFormPage: React.FC = () => {
                                   </div>
                                 ))}
                                 <div className="flex flex-wrap items-center gap-2 pt-1">
+                                  {addAttachmentRows.some((r) => r.kind === 'quotation') && (
+                                    <div className="w-full mb-2">
+                                      {hasExistingQuotation ? (
+                                        <div className="flex items-center">
+                                          <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100 flex items-center gap-1.5">
+                                            <div className="w-1 h-1 rounded-full bg-indigo-500 animate-pulse" />
+                                            Revised quotation auto-marked
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-end gap-3 p-2 rounded border border-indigo-100 bg-indigo-50/30">
+                                          <div className="flex-1">
+                                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                              Series
+                                            </label>
+                                            <Select
+                                              value={addAttachmentQuotationSeriesCode}
+                                              onChange={(val) => setAddAttachmentQuotationSeriesCode(val)}
+                                              options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
+                                              placeholder="Choose series"
+                                              className="!h-8"
+                                            />
+                                          </div>
+                                          <label className="inline-flex items-center gap-1.5 text-[11px] text-slate-700 mb-2 cursor-pointer">
+                                            <input
+                                              type="checkbox"
+                                              className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                              checked={addAttachmentIsRevised}
+                                              onChange={(e) => setAddAttachmentIsRevised(e.target.checked)}
+                                            />
+                                            Mark revised
+                                          </label>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                   <Button
                                     size="sm"
                                     disabled={
@@ -3108,11 +3156,14 @@ export const LeadFormPage: React.FC = () => {
                                           toUpload.map((r) => r.file!),
                                           toUpload.map((r) => r.kind),
                                           undefined,
-                                          toUpload.map((r) => (r.kind === 'attachment' ? (r.title.trim() || undefined) : undefined))
+                                          toUpload.map((r) => (r.kind === 'attachment' ? (r.title.trim() || undefined) : undefined)),
+                                          toUpload.some((r) => r.kind === 'quotation') ? (addAttachmentQuotationSeriesCode.trim() || undefined) : undefined,
+                                          toUpload.some((r) => r.kind === 'quotation') ? addAttachmentIsRevised : undefined
                                         );
                                         showToast('Added', 'success');
                                         setAddAttachmentActivityId(null);
                                         setAddAttachmentRows([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
+                                        setAddAttachmentQuotationSeriesCode('');
                                         loadActivities();
                                       } catch (err: any) {
                                         showToast(err.message || 'Upload failed', 'error');

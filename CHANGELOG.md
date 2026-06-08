@@ -8,12 +8,17 @@ Format: `[Date] — Category: Description`
 ## [2026-06-08] — Release: Domain Target Visibility Fix & Descriptive Error Messaging (v1.0.3)
 
 ### 📊 Dashboard & Target Tracking
+- **Quotation Revision System**: 
+    - **Smart Numbering**: Fixed revision suffix to start at `(rev1)` instead of `(rev2)`. The base quotation remains suffix-less.
+    - **Auto-Detection**: System now automatically detects existing quotations and marks new ones as "Revised" without manual input.
+    - **UI Cleanup**: Hidden the numbering series and revised checkbox in the Enquiry Log when a quotation already exists to simplify the workflow.
 - **Domain Target Visibility Fix**: Fixed an issue where the "All Domains Target" progress bar on the Dashboard and Domains page was not correctly counting leads that were assigned to a domain but lacked a specific region assignment.
 - **Role-Based Lead Scoping**: Refined lead visibility logic for Domain Heads and Super Admins to ensure all leads within their respective domains (including those with `region_id = null`) are aggregated into target statistics.
 
 ### 🛡️ Error Handling & UI Feedback
 - **Descriptive Error Messaging**: Improved backend error handling for common technical failures (e.g., numeric field overflows, unique constraint violations).
 - **Numeric Overflow Clarity**: When a value is too large for the potential or closed value fields (exceeding 8 digits before the decimal), the system now provides a specific descriptive error instead of a generic "An error occurred" toast.
+- **Lead Creation Cleanup**: Removed the "Mark as revised" checkbox during lead creation, as the first quotation is always the base quotation.
 
 ### 🔧 Backend
 - **Enhanced `get_scope_target_stats`**: Updated the dashboard statistics endpoint to use `get_user_scope` for more accurate and comprehensive lead filtering.
