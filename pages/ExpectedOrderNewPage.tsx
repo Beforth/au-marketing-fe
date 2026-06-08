@@ -29,6 +29,8 @@ export const ExpectedOrderNewPage: React.FC = () => {
       const res = await marketingAPI.getLeads({
         page: 1,
         page_size: 100,
+        no_limit: true,
+        is_hot: true,
         search: search.trim() || undefined,
       });
       setLeads(res.items);
@@ -87,7 +89,7 @@ export const ExpectedOrderNewPage: React.FC = () => {
   return (
     <PageLayout
       title="Create expected order (next month)"
-      description="Select leads as potential clients for next month. They will appear in your expected order report."
+      description="Select hot leads as potential clients for next month. Only leads with a hot status are shown."
       breadcrumbs={breadcrumbs}
       actions={
         <Button variant="outline" size="sm" leftIcon={<ArrowLeft size={14} />} onClick={() => navigate('/reports')}>

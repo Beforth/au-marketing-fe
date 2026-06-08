@@ -18,6 +18,9 @@ interface DatePickerProps {
   showNow?: boolean;
   /** When `showTime` is true: place hour/minute controls beside the calendar instead of below it. */
   timePanelPosition?: 'bottom' | 'right';
+  /** Enable multi-select mode — calendar stays open, clicking dates toggles them */
+  selectedDates?: Set<string>;
+  onSelectedDatesChange?: (dates: Set<string>) => void;
 }
 
 const MONTHS = [
@@ -26,6 +29,10 @@ const MONTHS = [
 ];
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function dateToKey(d: Date): string {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 
 export const DatePicker: React.FC<DatePickerProps> = ({
   value,
@@ -41,7 +48,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   showTime = false,
   showNow = false,
   timePanelPosition = 'bottom',
+  selectedDates,
+  onSelectedDatesChange,
 }) => {
+  const isMulti = !!selectedDates && !!onSelectedDatesChange;
   const timeOnRight = showTime && timePanelPosition === 'right';
   const [isOpen, setIsOpen] = useState(false);
   const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
@@ -139,6 +149,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   };
 
   const handleSelectDate = (date: Date) => {
+    if (isMulti && onSelectedDatesChange) {
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const next = new Set(selectedDates);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      onSelectedDatesChange(next);
+      return;
+    }
     const d = new Date(date);
     if (showTime) {
       d.setHours(hours);
@@ -202,6 +220,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   }
 
   const isSelected = (date: Date) => {
+    if (isMulti) {
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      return selectedDates!.has(key);
+    }
     if (!selectedDate) return false;
     return date.getFullYear() === selectedDate.getFullYear() &&
            date.getMonth() === selectedDate.getMonth() &&
@@ -249,7 +271,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               )
             )}
             <span className={cn('truncate', !value && 'text-slate-400')}>
-              {value ? new Date(value).toLocaleString(undefined, showTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' }) : placeholder}
+              {isMulti
+                ? selectedDates!.size === 0
+                  ? placeholder
+                  : `${selectedDates!.size} date${selectedDates!.size > 1 ? 's' : ''} selected`
+                : value ? new Date(value).toLocaleString(undefined, showTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' }) : placeholder}
             </span>
           </div>
           {value && !disabled && (
@@ -351,11 +377,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => handleSelectDate(today)} className="text-xs font-semibold text-[var(--primary)] hover:underline">Today</button>
+                <button type="button" onClick={() => { if (isMulti && onSelectedDatesChange) { const key = dateToKey(today); const next = new Set(selectedDates); if (next.has(key)) next.delete(key); else next.add(key); onSelectedDatesChange(next); } else { handleSelectDate(today); } }} className="text-xs font-semibold text-[var(--primary)] hover:underline">Today</button>
                 {showTime && showNow && <button type="button" onClick={() => updateValue(new Date())} className="text-xs font-semibold text-emerald-600 hover:underline">Now</button>}
               </div>
               <div className="flex items-center gap-2">
-                <button type="button" onClick={handleClear} className="text-xs font-semibold text-slate-400 hover:text-rose-500 transition-colors">Clear</button>
+                <button type="button" onClick={(ee) => { if (isMulti && onSelectedDatesChange) { onSelectedDatesChange(new Set()); } else { handleClear(ee); } }} className="text-xs font-semibold text-slate-400 hover:text-rose-500 transition-colors">Clear</button>
                 {showTime && <button type="button" onClick={() => setIsOpen(false)} className="text-xs font-black uppercase tracking-widest bg-slate-900 text-white px-3 py-1.5 rounded-lg hover:bg-black transition-colors">Done</button>}
               </div>
             </div>

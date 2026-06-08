@@ -563,6 +563,8 @@ class MarketingAPIService {
     include_won_lost?: boolean;
     /** Only return leads in Lost status (for Orders Lost tab) */
     lost_only?: boolean;
+    /** Only return leads with hot status */
+    is_hot?: boolean;
     domain_id?: number;
     region_id?: number;
     search?: string;
@@ -580,6 +582,7 @@ class MarketingAPIService {
     if (params?.created_by_me === true) queryParams.append('created_by_me', 'true');
     if (params?.include_won_lost === true) queryParams.append('include_won_lost', 'true');
     if (params?.lost_only === true) queryParams.append('lost_only', 'true');
+    if (params?.is_hot === true) queryParams.append('is_hot', 'true');
     if (params?.domain_id != null) queryParams.append('domain_id', params.domain_id.toString());
     if (params?.region_id != null) queryParams.append('region_id', params.region_id.toString());
     if (params?.date_from) queryParams.append('date_from', params.date_from);
@@ -1739,6 +1742,9 @@ export interface ExpectedOrderReportLeadItem {
   lead_series: string | null;
   lead_name: string | null;
   company: string | null;
+  lead_status_label: string | null;
+  lead_is_final: boolean;
+  lead_is_lost: boolean;
 }
 export interface ExpectedOrderReportItem {
   id: number;

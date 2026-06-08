@@ -1,17 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-  useCalendar, 
-  CalendarProvider, 
-  CalendarDate, 
-  CalendarDatePicker, 
-  CalendarMonthPicker, 
-  CalendarYearPicker, 
-  CalendarDatePagination, 
-  CalendarHeader, 
-  CalendarBody, 
-  CalendarItem 
-} from '../components/ui/calendar';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -31,12 +19,10 @@ import { serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import {
   ArrowLeft,
   ArrowRight,
-  Calendar,
+  Edit3,
   Loader2,
-  MapPin,
   Plus,
   Save,
-  Search,
   Trash2,
   UserPlus,
   X,
@@ -57,16 +43,6 @@ const ENTRY_TYPES = [
   { value: 'return_home', label: 'Return home' },
 ];
 
-function getDaysInMonth(year: number, month: number): Date[] {
-  const first = new Date(year, month - 1, 1);
-  const last = new Date(year, month, 0);
-  const days: Date[] = [];
-  for (let d = 1; d <= last.getDate(); d++) {
-    days.push(new Date(year, month - 1, d));
-  }
-  return days;
-}
-
 function dateToKey(d: Date): string {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
@@ -74,7 +50,7 @@ function dateToKey(d: Date): string {
 export const ODPlanPage: React.FC = () => {
   const { showToast } = useApp();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const canCreateContact = useAppSelector(selectHasPermission('marketing.create_contact'));
   const canCreatePlant = useAppSelector(selectHasPermission('marketing.create_plant'));
   const canCreateOrg = useAppSelector(selectHasPermission('marketing.create_organization'));
@@ -93,6 +69,17 @@ export const ODPlanPage: React.FC = () => {
   const [entries, setEntries] = useState<ODPlanEntryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const todaysKey = useMemo(() => dateToKey(new Date()), []);
+  const [selectedDates, setSelectedDates] = useState<Set<string>>(() => {
+    const datesParam = searchParams.get('dates');
+    if (datesParam) {
+      const parsed = datesParam.split(',').filter(Boolean);
+      if (parsed.length > 0) return new Set(parsed);
+    }
+    return new Set([todaysKey]);
+  });
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [deleteConfirmEntryId, setDeleteConfirmEntryId] = useState<number | null>(null);
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [entryFormDate, setEntryFormDate] = useState<string>(dateToKey(new Date(year, month - 1, 1)));
   const [entryForm, setEntryForm] = useState<ODPlanEntryCreate>({
@@ -295,7 +282,17 @@ export const ODPlanPage: React.FC = () => {
     };
   }, [contactSearch]);
 
-  const daysInMonth = useMemo(() => getDaysInMonth(year, month), [year, month]);
+  // Sync selected dates to URL for refresh persistence
+  useEffect(() => {
+    const dates = Array.from(selectedDates).sort().join(',');
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (selectedDates.size > 0) next.set('dates', dates);
+      else next.delete('dates');
+      return next;
+    }, { replace: true });
+  }, [selectedDates, setSearchParams]);
+
   const entriesByDate = useMemo(() => {
     const map: Record<string, ODPlanEntryItem[]> = {};
     entries.forEach((e) => {
@@ -305,6 +302,14 @@ export const ODPlanPage: React.FC = () => {
     });
     return map;
   }, [entries]);
+  const prevMonthNav = useMemo(() => {
+    if (month === 1) return { year: year - 1, month: 12 };
+    return { year, month: month - 1 };
+  }, [year, month]);
+  const nextMonthNav = useMemo(() => {
+    if (month === 12) return { year: year + 1, month: 1 };
+    return { year, month: month + 1 };
+  }, [year, month]);
 
   const openAddEntry = (dateStr: string) => {
     setEntryFormDate(dateStr);
@@ -340,6 +345,29 @@ export const ODPlanPage: React.FC = () => {
     setEntryModalOpen(true);
   };
 
+  const persistEntries = useCallback(async (updatedEntries: ODPlanEntryItem[]) => {
+    setSaving(true);
+    try {
+      const payload: ODPlanEntryCreate[] = updatedEntries.map((e) => ({
+        plan_date: e.plan_date.slice(0, 10),
+        entry_type: e.entry_type,
+        where_place: e.where_place ?? undefined,
+        travel_time: e.travel_time ?? undefined,
+        travel_type: e.travel_type ?? undefined,
+        contact_id: e.contact_id ?? undefined,
+        notes: e.notes ?? undefined,
+      }));
+      const updated = await marketingAPI.saveODPlanReport(year, month, { entries: payload });
+      setReport(updated);
+      setEntries(updated.entries || []);
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : 'Failed to save plan', 'error');
+      setEntries(updatedEntries);
+    } finally {
+      setSaving(false);
+    }
+  }, [year, month, showToast]);
+
   const saveEntryToLocal = () => {
     if (!entryForm.plan_date.trim()) return;
     const newEntry: ODPlanEntryItem = {
@@ -354,39 +382,19 @@ export const ODPlanPage: React.FC = () => {
       contact_email: (selectedContact?.contact_email ?? null) as string | null,
       notes: entryForm.notes || null,
     };
-    if (editingEntryId != null) {
-      setEntries((prev) => prev.map((e) => (e.id === editingEntryId ? newEntry : e)));
-    } else {
-      setEntries((prev) => [...prev, newEntry]);
-    }
     setEntryModalOpen(false);
+    const updated = editingEntryId != null
+      ? entries.map((e) => (e.id === editingEntryId ? newEntry : e))
+      : [...entries, newEntry];
+    setEntries(updated);
+    persistEntries(updated);
   };
 
   const removeEntry = (id: number) => {
-    setEntries((prev) => prev.filter((e) => e.id !== id));
-  };
-
-  const handleSaveReport = async () => {
-    setSaving(true);
-    try {
-      const payload: ODPlanEntryCreate[] = entries.map((e) => ({
-        plan_date: e.plan_date.slice(0, 10),
-        entry_type: e.entry_type,
-        where_place: e.where_place ?? undefined,
-        travel_time: e.travel_time ?? undefined,
-        travel_type: e.travel_type ?? undefined,
-        contact_id: e.contact_id ?? undefined,
-        notes: e.notes ?? undefined,
-      }));
-      const updated = await marketingAPI.saveODPlanReport(year, month, { entries: payload });
-      setReport(updated);
-      setEntries(updated.entries || []);
-      showToast('OD plan saved', 'success');
-    } catch (e: unknown) {
-      showToast(e instanceof Error ? e.message : 'Failed to save plan', 'error');
-    } finally {
-      setSaving(false);
-    }
+    setDeleteConfirmEntryId(null);
+    const updated = entries.filter((e) => e.id !== id);
+    setEntries(updated);
+    persistEntries(updated);
   };
 
   const handleCreateContact = async () => {
@@ -430,45 +438,6 @@ export const ODPlanPage: React.FC = () => {
     }
   };
 
-  // Sync Calendar Zustand store with route params
-  const { setMonth: setCalMonth, setYear: setCalYear, month: calMonth, year: calYear } = useCalendar();
-  useEffect(() => {
-    if (!isNaN(month) && !isNaN(year)) {
-      setCalMonth((month - 1) as any);
-      setCalYear(year);
-    }
-  }, [month, year, setCalMonth, setCalYear]);
-
-  // Handle calendar navigation by updating URL
-  // Uses getState() to read fresh Zustand store (not stale render-closure) to
-  // avoid an infinite loop when Effect 1 (URL→store) and this Effect (store→URL)
-  // race on initial mount after SPA navigation.
-  useEffect(() => {
-    const { month: freshMonth, year: freshYear } = useCalendar.getState();
-    if (isNaN(freshMonth) || isNaN(freshYear)) return;
-    const targetMonth = freshMonth + 1;
-    if (targetMonth !== month || freshYear !== year) {
-      if (!isNaN(targetMonth) && !isNaN(freshYear)) {
-        navigate(`/reports/od-plan?year=${freshYear}&month=${targetMonth}`, { replace: true });
-      }
-    }
-  }, [calMonth, calYear, month, year, navigate]);
-
-  const features = useMemo(() => {
-    return entries.map(e => ({
-      id: e.id,
-      name: e.entry_type === 'visit' ? (e.where_place || e.contact_name || 'Visit') : `${e.entry_type}: ${e.where_place || '—'}`,
-      startAt: new Date(e.plan_date),
-      endAt: new Date(e.plan_date),
-      status: {
-        id: e.entry_type,
-        name: e.entry_type,
-        color: e.entry_type === 'visit' ? '#4f46e5' : e.entry_type === 'travel' ? '#f59e0b' : '#64748b'
-      },
-      original: e
-    }));
-  }, [entries]);
-
   const breadcrumbs = [
     { label: 'Reports', href: '/reports' },
     { label: 'OD Plan', href: '/reports/od-plan' },
@@ -481,11 +450,6 @@ export const ODPlanPage: React.FC = () => {
       breadcrumbs={breadcrumbs}
       actions={
         <div className="flex items-center gap-2">
-          {entries.length > 0 && (
-            <Button size="sm" leftIcon={saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} disabled={saving} onClick={handleSaveReport}>
-              {saving ? 'Saving…' : 'Save all changes'}
-            </Button>
-          )}
           <Button variant="outline" size="sm" leftIcon={<ArrowLeft size={14} />} onClick={() => navigate('/reports')}>
             Back
           </Button>
@@ -500,44 +464,283 @@ export const ODPlanPage: React.FC = () => {
             </div>
           </Card>
         ) : (
-          <CalendarProvider>
-            <CalendarDate>
-              <CalendarDatePicker>
-                <CalendarMonthPicker />
-                <CalendarYearPicker start={2020} end={2030} />
-              </CalendarDatePicker>
-              <div className="flex items-center gap-2">
-                <CalendarDatePagination />
+          <div className="space-y-4">
+            {/* Month navigation + daving indicator */}
+            <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-3">
+              <button
+                type="button"
+                onClick={() => navigate(`/reports/od-plan?year=${prevMonthNav.year}&month=${prevMonthNav.month}`)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-slate-800">
+                  {new Date(year, month - 1).toLocaleString('default', { month: 'long' })} {year}
+                </span>
+                {saving && (
+                  <Loader2 size={14} className="animate-spin text-slate-400" />
+                )}
               </div>
-            </CalendarDate>
-            <CalendarHeader />
-            <CalendarBody 
-              features={features}
-              onDateClick={(date) => openAddEntry(dateToKey(date))}
-            >
-              {({ feature }) => (
-                <CalendarItem 
-                  key={feature.id} 
-                  feature={feature} 
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation(); // Prevent triggering onDateClick
-                    openEditEntry((feature as any).original);
-                  }}
-                />
-              )}
-            </CalendarBody>
-          </CalendarProvider>
-        )}
+              <button
+                type="button"
+                onClick={() => navigate(`/reports/od-plan?year=${nextMonthNav.year}&month=${nextMonthNav.month}`)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <ArrowRight size={18} />
+              </button>
+            </div>
 
-        {report && (
-          <div className="flex items-center gap-3 justify-end">
-            <Button variant="outline" size="sm" onClick={() => navigate('/reports')}>Cancel</Button>
-            <Button size="sm" leftIcon={saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} disabled={saving} onClick={handleSaveReport}>
-              {saving ? 'Saving…' : 'Save report for this month'}
-            </Button>
+            {/* Summary stats */}
+            {(() => {
+              const totalVisits = entries.filter(e => e.entry_type === 'visit').length;
+              const totalTravels = entries.filter(e => e.entry_type === 'travel').length;
+              const totalReturnHome = entries.filter(e => e.entry_type === 'return_home').length;
+              const daysWithEntries = new Set(entries.map(e => e.plan_date.slice(0, 10))).size;
+              return (
+                <div className="flex items-center gap-4 px-1">
+                  <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+                    <span className="text-indigo-600 font-bold">{totalVisits}</span> visits
+                  </span>
+                  <span className="text-xs text-slate-300">·</span>
+                  <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+                    <span className="text-amber-600 font-bold">{totalTravels}</span> travels
+                  </span>
+                  <span className="text-xs text-slate-300">·</span>
+                  <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+                    <span className="text-slate-600 font-bold">{totalReturnHome}</span> return
+                  </span>
+                  <span className="text-xs text-slate-300">·</span>
+                  <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+                    <span className="text-slate-800 font-bold">{daysWithEntries}</span> days
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* Date picker — multi-select mode */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <DatePicker
+                  selectedDates={selectedDates}
+                  onSelectedDatesChange={(dates) => setSelectedDates(dates)}
+                  placeholder="Select dates..."
+                  onChange={() => {}}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedDates(new Set([todaysKey]))}
+                className={`px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors shrink-0 ${
+                  selectedDates.has(todaysKey) && selectedDates.size === 1
+                    ? 'bg-indigo-100 text-indigo-700'
+                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                }`}
+              >
+                Today
+              </button>
+            </div>
+
+            {/* Selected date chips */}
+            {selectedDates.size > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {Array.from(selectedDates).sort().map((key) => {
+                  const dt = new Date(key + 'T00:00:00');
+                  const label = dt.toLocaleString('default', { weekday: 'short', day: 'numeric', month: 'short' });
+                  return (
+                    <span key={key} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium">
+                      {label}
+                      <button type="button" onClick={() => setSelectedDates((prev) => { const n = new Set(prev); n.delete(key); return n; })} className="hover:text-indigo-900">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  );
+                })}
+                {selectedDates.size > 0 && (
+                  <button type="button" onClick={() => setSelectedDates(new Set())} className="text-xs text-slate-400 hover:text-slate-600 ml-1">
+                    Clear all
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Accordion for selected dates */}
+            <div className="space-y-2">
+              {Array.from(selectedDates).sort().map((key) => {
+                const dayEntries = entriesByDate[key] || [];
+                const dt = new Date(key + 'T00:00:00');
+                const dayName = dt.toLocaleString('default', { weekday: 'short' });
+                const dayNum = dt.getDate();
+                const isToday = key === todaysKey;
+                const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+                const isExpanded = expandedDays.has(key);
+
+                const toggleDay = () => {
+                  setExpandedDays((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(key)) next.delete(key);
+                    else next.add(key);
+                    return next;
+                  });
+                };
+
+                const chipColor = (type: string) =>
+                  type === 'visit' ? 'bg-indigo-100 text-indigo-700' :
+                  type === 'travel' ? 'bg-amber-100 text-amber-700' :
+                  'bg-slate-100 text-slate-600';
+
+                return (
+                  <div key={key} className={`border border-slate-200 rounded-lg overflow-hidden ${isWeekend ? 'bg-slate-50/40' : 'bg-white'}`}>
+                    {/* Collapsed row — clickable */}
+                    <button
+                      type="button"
+                      onClick={toggleDay}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${isToday ? 'bg-indigo-50/50' : ''} hover:bg-slate-50/80`}
+                    >
+                      <span className={`text-base font-bold w-7 ${isToday ? 'text-indigo-600' : 'text-slate-700'}`}>
+                        {dayNum}
+                      </span>
+                      <span className={`text-xs font-semibold w-10 ${isToday ? 'text-indigo-700' : 'text-slate-600'}`}>
+                        {dayName}
+                      </span>
+                      {isToday && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 bg-indigo-100 px-1.5 py-0.5 rounded shrink-0">
+                          Today
+                        </span>
+                      )}
+                      <div className="flex-1 flex items-center gap-1.5 min-w-0">
+                        {dayEntries.length === 0 && (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
+                        {dayEntries.map((entry) => {
+                          const label = entry.where_place || entry.contact_name || entry.entry_type;
+                          const words = label.split(/\s+/).slice(0, 2).join(' ');
+                          return (
+                            <span
+                              key={entry.id}
+                              className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider truncate max-w-[120px] ${chipColor(entry.entry_type)}`}
+                            >
+                              {words}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      <span className="text-xs text-slate-400 shrink-0 mr-1">
+                        {dayEntries.length}
+                      </span>
+                      <svg
+                        className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Expanded content */}
+                    {isExpanded && (
+                      <div className="border-t border-slate-100">
+                        {dayEntries.length === 0 && (
+                          <div className="px-4 py-6 text-center">
+                            <button
+                              type="button"
+                              onClick={() => { setEntryFormDate(key); setEditingEntryId(null); setEntryForm({ plan_date: key, entry_type: 'visit', where_place: '', travel_time: '', travel_type: '', contact_id: undefined, notes: '' }); setContactSearch(''); setSelectedContact(null); setEntryModalOpen(true); }}
+                              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+                            >
+                              <Plus size={12} /> Add entry
+                            </button>
+                          </div>
+                        )}
+                        {dayEntries.length > 0 && (
+                          <>
+                            <div className="divide-y divide-slate-100">
+                              {dayEntries.map((entry) => {
+                                const typeLabel = ENTRY_TYPES.find(t => t.value === entry.entry_type)?.label || entry.entry_type;
+                                return (
+                                  <div key={entry.id} className="px-4 py-3 hover:bg-slate-50/50 transition-colors">
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${chipColor(entry.entry_type)}`}>
+                                            {typeLabel}
+                                          </span>
+                                          <span className="text-sm font-medium text-slate-800 truncate">
+                                            {entry.where_place || entry.contact_name || '—'}
+                                          </span>
+                                        </div>
+                                        {entry.contact_name && (
+                                          <div className="text-xs text-slate-500 ml-1">
+                                            {entry.contact_name}{entry.contact_email ? ` · ${entry.contact_email}` : ''}
+                                          </div>
+                                        )}
+                                        {entry.travel_time && (
+                                          <div className="text-xs text-slate-500 ml-1">
+                                            {entry.travel_time}{entry.travel_type ? ` · ${entry.travel_type}` : ''}
+                                          </div>
+                                        )}
+                                        {entry.notes && (
+                                          <div className="text-xs text-slate-400 ml-1 mt-0.5 italic line-clamp-1">{entry.notes}</div>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-1 ml-3 shrink-0">
+                                        <Tooltip content="Edit entry">
+                                          <button
+                                            type="button"
+                                            onClick={() => openEditEntry(entry)}
+                                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                                          >
+                                            <Edit3 size={14} />
+                                          </button>
+                                        </Tooltip>
+                                        <Tooltip content="Remove entry">
+                                          <button
+                                            type="button"
+                                            onClick={() => setDeleteConfirmEntryId(entry.id)}
+                                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                          >
+                                            <X size={14} />
+                                          </button>
+                                        </Tooltip>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => { setEntryFormDate(key); setEditingEntryId(null); setEntryForm({ plan_date: key, entry_type: 'visit', where_place: '', travel_time: '', travel_type: '', contact_id: undefined, notes: '' }); setContactSearch(''); setSelectedContact(null); setEntryModalOpen(true); }}
+                              className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-colors border-t border-slate-100"
+                            >
+                              <Plus size={12} /> Add entry
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
+
+      {/* Delete confirmation modal */}
+      <Modal
+        isOpen={deleteConfirmEntryId != null}
+        onClose={() => setDeleteConfirmEntryId(null)}
+        title="Remove entry"
+        footer={
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setDeleteConfirmEntryId(null)}>Keep it</Button>
+            <Button size="sm" className="bg-rose-600 hover:bg-rose-700 text-white" onClick={() => deleteConfirmEntryId != null && removeEntry(deleteConfirmEntryId)}>
+              Delete
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-600">Are you sure you want to remove this entry? This action cannot be undone.</p>
+      </Modal>
 
       {/* Add/Edit entry modal */}
       <Modal

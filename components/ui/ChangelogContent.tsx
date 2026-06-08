@@ -34,6 +34,42 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
               <li><strong>OD Plan Page Crash:</strong> Fixed "Maximum update depth exceeded" on SPA navigation — the calendar navigation effect used a stale Zustand closure instead of the fresh store value, causing an infinite loop between URL↔store sync. Now reads state via <code>getState()</code>.</li>
               <li><strong>Head Summary 500 Error:</strong> The <code>/api/dashboard/head-summary</code> endpoint returned a 500 for head roles because the query logic was accidentally placed after a <code>return</code> inside <code>get_quotation_stats</code>. Moved it into the correct endpoint.</li>
+              <li><strong>Expected Order — Hot Leads Filter:</strong> Added <code>is_hot</code> query param to <code>GET /api/leads/</code> to filter hot-status leads. The frontend was missing the <code>queryParams.append('is_hot', 'true')</code> call — fixed so the "Create Expected Order" page now correctly shows only hot leads.</li>
+              <li><strong>Expected Order — Carry-Forward Logic:</strong> Was using <code>isCurrentMonth</code> so future months wrongly showed gray (carried forward). Changed to <code>isPast</code> — future/current months show yellow (Expected), past months show gray (Carried forward).</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">OD Plan — Accordion Redesign</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Calendar → Accordion:</strong> Replaced the calendar matrix with a collapsible accordion daily itinerary list.</li>
+              <li><strong>Auto-Save:</strong> Every add/edit/delete immediately persists to the server — no manual save button.</li>
+              <li><strong>Multi-Select DatePicker:</strong> Replaced the 31-day accordion with a DatePicker dropdown supporting multi-select. Selected dates persist via URL query param <code>dates</code> across refresh.</li>
+              <li><strong>Delete Confirmation:</strong> Delete triggers a confirmation modal ("Keep it" / "Delete") instead of immediate removal.</li>
+              <li><strong>Summary Stats Bar:</strong> Shows visit count, travel count, return count, and days with entries at the top.</li>
+              <li><strong>Tooltip on Edit/Delete:</strong> Replaced native <code>title</code> attributes with the app's Tooltip component.</li>
+              <li><strong>Removed Zustand Calendar Store:</strong> Eliminated entirely to prevent the infinite loop.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Expected Order — Color-Coded Status</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Status Fields:</strong> Added <code>lead_status_label</code>, <code>lead_is_final</code>, <code>lead_is_lost</code> to the expected order report lead items, populated live from <code>Lead.status_option</code>.</li>
+              <li><strong>Color-Coded Modal:</strong> View modal now shows colored left borders and status badges per lead — green (Won), red (Lost), yellow (Expected), gray (Carried forward). Summary bar shows counts per status.</li>
+              <li><strong>Auto-Select Employee Fix:</strong> Removed the block that auto-selected <code>data.employees[0]</code> — now starts with placeholder.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Reports Page UI Cleanup</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Card-Style Expected Orders:</strong> Replaced the table rows with clickable cards matching the OD plan style, showing month name, lead count, and colored dot summary (won/lost/expected/carried).</li>
+              <li><strong>Side-by-Side Grid:</strong> Expected orders and OD plans now sit in a 2-column grid on wider screens.</li>
+              <li><strong>Icon Empty States:</strong> Replaced bare text empty messages with Calendar/MapPin icons.</li>
+              <li><strong>Month Name Display:</strong> All dates now show "Jul 2026" format instead of "2026 / 7".</li>
+              <li><strong>Filter Card Loading Skeleton:</strong> Shows a pulsing skeleton while scope loads — no more empty white card flash.</li>
+              <li><strong>Removed Coming-Soon Button:</strong> Removed the "Create report" button that only toasted "coming soon".</li>
             </ul>
           </section>
 
@@ -41,6 +77,7 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
             <h4 className="text-sm font-bold text-slate-900">UI Polish</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
               <li><strong>React Key Prop Warning:</strong> Removed <code>key</code> from the <code>commonProps</code> spread object — React requires <code>key</code> directly on JSX elements, not via spread. Added <code>key=&#123;config.id&#125;</code> directly on all 28 dashboard Card widgets.</li>
+              <li><strong>Sidebar Cleanup:</strong> Commented out the "Report templates" sidebar link — the feature was never fully implemented.</li>
             </ul>
           </section>
         </div>
