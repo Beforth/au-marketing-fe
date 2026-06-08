@@ -8,18 +8,56 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
   return (
     <div className="space-y-10 text-sm text-slate-700 max-h-[70vh] overflow-y-auto pr-3 scrollbar-thin">
       
-      {/* ==================== VERSION 1.0.2 (June 7, 2026) ==================== */}
+      {/* ==================== VERSION 1.0.3 (June 8, 2026) ==================== */}
       <div className="space-y-4">
         <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
           <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg">
             Version {appVersion}
           </span>
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-            June 7, 2026 (Latest)
+            June 8, 2026 (Latest)
           </span>
         </div>
 
         <div className="space-y-6 pl-4 border-l-2 border-indigo-100">
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Domain Target Visibility Fix</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Target Tracking Fix:</strong> Fixed an issue where leads assigned to a domain but lacking a region were not counted in the "All Domains Target" progress bar.</li>
+              <li><strong>Role-Based Scoping:</strong> Domain Heads and Super Admins now correctly see aggregated stats including region-less leads.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Improved Error Messaging</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Descriptive Toasts:</strong> Replaced generic "An error occurred" messages with specific descriptions for common database failures.</li>
+              <li><strong>Numeric Overflows:</strong> Clear feedback is now provided when values are too large for currency fields (e.g., potential value exceeding 8 digits).</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Backend Improvements</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Enhanced Filtering:</strong> Statistics endpoints now use refined scoping logic for higher data accuracy.</li>
+              <li><strong>Coordinator Alignment:</strong> Domain Coordinators now have identical target visibility to Domain Heads.</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+
+      {/* ==================== VERSION 1.0.2 (June 7, 2026) ==================== */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+          <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-slate-700 bg-slate-50 border border-slate-200 rounded-lg">
+            Version v1.0.2
+          </span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            June 7, 2026
+          </span>
+        </div>
+
+        <div className="space-y-6 pl-4 border-l-2 border-slate-200">
           <section className="space-y-2">
             <h4 className="text-sm font-bold text-slate-900">New Dashboard Widgets</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">

@@ -5,6 +5,30 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-06-08] — Release: Domain Target Visibility Fix & Descriptive Error Messaging (v1.0.3)
+
+### 📊 Dashboard & Target Tracking
+- **Domain Target Visibility Fix**: Fixed an issue where the "All Domains Target" progress bar on the Dashboard and Domains page was not correctly counting leads that were assigned to a domain but lacked a specific region assignment.
+- **Role-Based Lead Scoping**: Refined lead visibility logic for Domain Heads and Super Admins to ensure all leads within their respective domains (including those with `region_id = null`) are aggregated into target statistics.
+
+### 🛡️ Error Handling & UI Feedback
+- **Descriptive Error Messaging**: Improved backend error handling for common technical failures (e.g., numeric field overflows, unique constraint violations).
+- **Numeric Overflow Clarity**: When a value is too large for the potential or closed value fields (exceeding 8 digits before the decimal), the system now provides a specific descriptive error instead of a generic "An error occurred" toast.
+
+### 🔧 Backend
+- **Enhanced `get_scope_target_stats`**: Updated the dashboard statistics endpoint to use `get_user_scope` for more accurate and comprehensive lead filtering.
+- **Global Exception Handler**: Updated the main app exception handler to map low-level database errors (SQLAlchemy/Postgres) into user-friendly messages for the frontend.
+- **Coordinator Logic Consistency**: Ensured Domain Coordinators are treated identically to Domain Heads when identifying visible domains for target calculations.
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `au-marketing-api/app/main.py` | Added descriptive mapping for common database errors in global exception handler |
+| `au-marketing-api/app/routers/dashboard.py` | Updated target stats to include region-less leads for domain heads; included coordinators in hierarchical targets |
+| `au-marketing-api/app/routers/leads.py` | Added specific SQLAlchemy DataError handling for lead creation |
+
+---
+
 ## [2026-06-07] — Release: Quotation Trend Widget, Domain Coordinator Dashboard & Kanban Chart Fix (v1.0.2)
 
 ### 📊 New Dashboard Widgets
