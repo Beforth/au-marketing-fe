@@ -730,12 +730,13 @@ export const DashboardPage: React.FC = () => {
   const [manualTaskSubmitting, setManualTaskSubmitting] = useState(false);
   const [taskModalLeadStatuses, setTaskModalLeadStatuses] = useState<{ id: number; label: string }[]>([]);
   const [taskModalSeriesList, setTaskModalSeriesList] = useState<{ code: string; name: string }[]>([]);
-  type AttachmentEntry = { id: string; kind: 'quotation' | 'attachment'; file: File | null; quotationNumber: string; title: string };
-  const [taskModalAttachments, setTaskModalAttachments] = useState<AttachmentEntry[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
+  type AttachmentEntry = { id: string; kind: 'quotation' | 'attachment'; file: File | null; quotationNumber: string; title: string; quoteValue: string };
+  const [taskModalAttachments, setTaskModalAttachments] = useState<AttachmentEntry[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
   const [taskModalQuotationSeriesCode, setTaskModalQuotationSeriesCode] = useState('');
   const [taskModalQuotationIsRevised, setTaskModalQuotationIsRevised] = useState(false);
   const [quickQuotationFile, setQuickQuotationFile] = useState<File | null>(null);
   const [quickQuotationSubmitting, setQuickQuotationSubmitting] = useState(false);
+  const [quickQuotationValue, setQuickQuotationValue] = useState('');
 
   const [layout, setLayout] = useState<WidgetConfig[]>(() => {
     try {
@@ -2088,7 +2089,7 @@ export const DashboardPage: React.FC = () => {
             onClose={() => {
               setSelectedTaskId(null);
               setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' });
-              setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
+              setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
               setTaskModalQuotationSeriesCode('');
               setTaskModalQuotationIsRevised(false);
               setQuickQuotationFile(null);
@@ -2111,7 +2112,7 @@ export const DashboardPage: React.FC = () => {
                       <p className="text-sm font-semibold text-slate-800">Add quotation</p>
                       <p className="text-xs text-slate-600">Upload a file to add an enquiry with title "Added quotation". No need to fill title or description.</p>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <div>
                         <label className="block text-xs font-medium text-slate-700 mb-1">Choose file</label>
                         <label className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
@@ -2124,6 +2125,16 @@ export const DashboardPage: React.FC = () => {
                             onChange={(e) => setQuickQuotationFile(e.target.files?.[0] ?? null)}
                           />
                         </label>
+                      </div>
+                      <div>
+                        <Input
+                          label="Quote Value (₹) *"
+                          type="text"
+                          value={quickQuotationValue}
+                          onChange={(e) => setQuickQuotationValue(e.target.value.replace(/\D/g, ''))}
+                          placeholder="e.g. 500000"
+                          inputSize="sm"
+                        />
                       </div>
                       {taskModalSeriesList.length > 0 && (
                         <Select
@@ -2166,14 +2177,16 @@ export const DashboardPage: React.FC = () => {
                               undefined,
                               undefined,
                               taskModalQuotationSeriesCode || undefined,
-                              taskModalQuotationIsRevised
+                              taskModalQuotationIsRevised,
+                              [quickQuotationValue ? Number(quickQuotationValue) : undefined]
                             );
                             await dispatch(completeTaskById(selectedTask.id)).unwrap();
                             setSelectedTaskId(null);
                             setQuickQuotationFile(null);
                             setTaskModalQuotationIsRevised(false);
+                            setQuickQuotationValue('');
                             setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' });
-                            setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
+                            setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
                             showToast('Quotation added and task completed');
                           } catch (err: unknown) {
                             showToast(err instanceof Error ? err.message : 'Failed to add quotation', 'error');
@@ -2253,11 +2266,11 @@ export const DashboardPage: React.FC = () => {
                           {row.kind === 'attachment' ? (
                             <input className="w-full rounded border border-slate-200 px-2 py-1 text-xs" placeholder="Title (e.g. Diagram, Documentation)" value={row.title} onChange={(e) => setTaskModalAttachments(prev => prev.map(r => r.id === row.id ? { ...r, title: e.target.value } : r))} />
                           ) : (
-                            <p className="text-[11px] text-slate-500">Quote numbers use selected series and revision rules.</p>
+                            <input className="w-full rounded border border-slate-200 px-2 py-1 text-xs" placeholder="Quote Value (₹) *" value={row.quoteValue} onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setTaskModalAttachments(prev => prev.map(r => r.id === row.id ? { ...r, quoteValue: val } : r)); }} />
                           )}
                         </div>
                       ))}
-                      <button type="button" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1" onClick={() => setTaskModalAttachments(prev => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])}><Plus size={12} /> Add another file</button>
+                      <button type="button" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1" onClick={() => setTaskModalAttachments(prev => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }])}><Plus size={12} /> Add another file</button>
                     </div>
                     {taskModalAttachments.some(e => e.kind === 'quotation') && (
                       <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2330,14 +2343,15 @@ export const DashboardPage: React.FC = () => {
                             undefined,
                             toUpload.map(e => e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined),
                             toUpload.some(e => e.kind === 'quotation') ? (taskModalQuotationSeriesCode || undefined) : undefined,
-                            toUpload.some(e => e.kind === 'quotation') ? taskModalQuotationIsRevised : undefined
+                            toUpload.some(e => e.kind === 'quotation') ? taskModalQuotationIsRevised : undefined,
+                            toUpload.map(e => e.kind === 'quotation' && e.quoteValue ? Number(e.quoteValue) : undefined)
                           );
                         }
                         await dispatch(completeTaskById(selectedTask.id)).unwrap();
                         setSelectedTaskId(null);
                         setQuickQuotationFile(null);
                         setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' });
-                        setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
+                        setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
                         showToast('Enquiry added and task completed');
                       } catch (err: unknown) {
                         showToast(err instanceof Error ? err.message : 'Failed to add enquiry', 'error');
@@ -2354,7 +2368,7 @@ export const DashboardPage: React.FC = () => {
                 <p className="text-xs text-slate-500">Lead: {selectedTask.lead_series || selectedTask.lead_name || `#${selectedTask.lead_id}`}</p>
               )}
               <div className="flex justify-between pt-2">
-                <Button variant="outline" size="sm" type="button" onClick={() => { setSelectedTaskId(null); setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' }); setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]); }}>Close</Button>
+                <Button variant="outline" size="sm" type="button" onClick={() => { setSelectedTaskId(null); setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' }); setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]); }}>Close</Button>
                 {!selectedTask.completed_at && (
                   <Button
                     type="button"

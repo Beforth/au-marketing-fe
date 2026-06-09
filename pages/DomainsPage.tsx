@@ -637,6 +637,7 @@ export const DomainsPage: React.FC = () => {
       const combinedAchieved = (resQ1?.achieved_this_month || 0) + (resQ2?.achieved_this_month || 0) + (resQ3?.achieved_this_month || 0) + (resQ4?.achieved_this_month || 0);
       const combinedWonLeads = (resQ1?.won_leads_count_this_month || 0) + (resQ2?.won_leads_count_this_month || 0) + (resQ3?.won_leads_count_this_month || 0) + (resQ4?.won_leads_count_this_month || 0);
       const combinedLostLeads = (resQ1?.lost_leads_count_this_month || 0) + (resQ2?.lost_leads_count_this_month || 0) + (resQ3?.lost_leads_count_this_month || 0) + (resQ4?.lost_leads_count_this_month || 0);
+      const combinedQuoteVal = (resQ1?.quotation_submitted_value || 0) + (resQ2?.quotation_submitted_value || 0) + (resQ3?.quotation_submitted_value || 0) + (resQ4?.quotation_submitted_value || 0);
 
       setScopeStats({
         role: resQ1?.role || 'employee',
@@ -645,6 +646,7 @@ export const DomainsPage: React.FC = () => {
         achieved_this_month: combinedAchieved,
         won_leads_count_this_month: combinedWonLeads,
         lost_leads_count_this_month: combinedLostLeads,
+        quotation_submitted_value: combinedQuoteVal,
         year: targetYear,
         month: 4,
         employee_count: resQ1?.employee_count || 1,
@@ -1325,6 +1327,168 @@ export const DomainsPage: React.FC = () => {
                       <Target size={12} />
                     </span>
                     <span>{activeMsg.text}</span>
+                  </div>
+                </Card>
+              );
+            })() : null}
+
+            {/* Quotation Submitted Progress Card (4x stretch target) */}
+            {scopeStatsLoading ? (
+              <Card className="p-3 animate-pulse border border-slate-100 bg-white shadow-sm mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="h-4 bg-slate-200 rounded w-1/4" />
+                  <div className="h-4 bg-slate-200 rounded w-1/6" />
+                </div>
+                <div className="h-3 bg-slate-100 rounded-full w-full mb-2" />
+                <div className="h-3 bg-slate-50 rounded w-full" />
+              </Card>
+            ) : scopeStats ? (() => {
+              const qTarget = scopeStats.monthly_target;
+              const qRoleLabel = scopeStats.scope_label;
+              const q1QuoteVal = q1Stats?.quotation_submitted_value ?? 0;
+              const q2QuoteVal = q2Stats?.quotation_submitted_value ?? 0;
+              const q3QuoteVal = q3Stats?.quotation_submitted_value ?? 0;
+              const q4QuoteVal = q4Stats?.quotation_submitted_value ?? 0;
+              const totalQuoteVal = q1QuoteVal + q2QuoteVal + q3QuoteVal + q4QuoteVal;
+
+              const qQ1Target = q1Stats?.monthly_target ?? (qTarget * 0.25);
+              const qQ2Target = q2Stats?.monthly_target ?? (qTarget * 0.25);
+              const qQ3Target = q3Stats?.monthly_target ?? (qTarget * 0.25);
+              const qQ4Target = q4Stats?.monthly_target ?? (qTarget * 0.25);
+
+              const quoteTarget = qTarget * 4;
+              const quotePct = quoteTarget > 0 ? (totalQuoteVal / quoteTarget) * 100 : 0;
+
+              const qScopeText = qRoleLabel === 'All'
+                ? `All Domains Quotation (FY ${targetYear}-${targetYear + 1})`
+                : qRoleLabel === 'My'
+                  ? `My Quotation Target (FY ${targetYear}-${targetYear + 1})`
+                  : `${qRoleLabel} Quotation Target (FY ${targetYear}-${targetYear + 1})`;
+
+              return (
+                <Card className="p-3 border border-sky-150 bg-gradient-to-br from-sky-50/40 to-white shadow-sm transition-all duration-300 hover:shadow-md mb-4">
+                  <div>
+                    <div className="flex flex-row items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-sky-600">
+                          {qScopeText}
+                        </h3>
+                      </div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-lg font-black text-slate-900">{formatTargetAmount(totalQuoteVal)}</span>
+                        <span className="text-sm font-bold text-slate-600">/ {formatTargetAmount(quoteTarget)}</span>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar Container */}
+                    <div className="relative w-full h-4 bg-slate-100 rounded-full overflow-hidden mb-1.5 border border-slate-200 shadow-inner flex">
+                      {/* Q1 Column */}
+                      <div className="relative w-1/4 h-full border-r border-slate-200/50 last:border-0 overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
+                            getBarGradient(quotePct)
+                          )}
+                          style={{ width: `${Math.min(100, qQ1Target > 0 ? (q1QuoteVal / (qQ1Target * 4)) * 100 : 0)}%` }}
+                        />
+                      </div>
+
+                      {/* Q2 Column */}
+                      <div className="relative w-1/4 h-full border-r border-slate-200/50 last:border-0 overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
+                            getBarGradient(quotePct)
+                          )}
+                          style={{ width: `${Math.min(100, qQ2Target > 0 ? (q2QuoteVal / (qQ2Target * 4)) * 100 : 0)}%` }}
+                        />
+                      </div>
+
+                      {/* Q3 Column */}
+                      <div className="relative w-1/4 h-full border-r border-slate-200/50 last:border-0 overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
+                            getBarGradient(quotePct)
+                          )}
+                          style={{ width: `${Math.min(100, qQ3Target > 0 ? (q3QuoteVal / (qQ3Target * 4)) * 100 : 0)}%` }}
+                        />
+                      </div>
+
+                      {/* Q4 Column */}
+                      <div className="relative w-1/4 h-full overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
+                            getBarGradient(quotePct)
+                          )}
+                          style={{ width: `${Math.min(100, qQ4Target > 0 ? (q4QuoteVal / (qQ4Target * 4)) * 100 : 0)}%` }}
+                        />
+                      </div>
+
+                      {/* Glass reflection */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-white/5 to-transparent pointer-events-none rounded-full h-[40%] z-20" />
+
+                      {/* Inner Dividers */}
+                      {viewMode === 'yearly' && (
+                        <>
+                          <div className={cn(
+                            "absolute top-0 bottom-0 left-[25%] w-[1.5px] transition-all duration-300 z-10",
+                            "bg-sky-300/40"
+                          )} />
+                          <div className={cn(
+                            "absolute top-0 bottom-0 left-[50%] w-[1.5px] transition-all duration-300 z-10",
+                            "bg-sky-300/40"
+                          )} />
+                          <div className={cn(
+                            "absolute top-0 bottom-0 left-[75%] w-[1.5px] transition-all duration-300 z-10",
+                            "bg-sky-300/40"
+                          )} />
+                        </>
+                      )}
+
+                      <span className="absolute inset-0 flex items-center justify-end pr-2 text-[9px] font-black text-white mix-blend-difference z-20">
+                        {quotePct.toFixed(1)}%
+                      </span>
+                    </div>
+
+                    {/* Quarter Labels */}
+                    {viewMode === 'yearly' && (
+                      <div className="mt-2.5 mb-1 px-0.5 relative h-8">
+                        <div className="absolute inset-0 text-[9px] font-bold text-sky-400">
+                          <div className="absolute left-[25%] -translate-x-1/2 flex flex-col items-center">
+                            <div className="w-1.5 h-1.5 rounded-full mb-1 bg-sky-400" />
+                            <span className="px-1.5 py-0.5 rounded border border-sky-200 bg-sky-50 text-sky-700 whitespace-nowrap">
+                              Q1: {formatTargetAmount(q1QuoteVal)} / {formatTargetAmount(qQ1Target * 4)}
+                            </span>
+                          </div>
+                          <div className="absolute left-[50%] -translate-x-1/2 flex flex-col items-center">
+                            <div className="w-1.5 h-1.5 rounded-full mb-1 bg-sky-400" />
+                            <span className="px-1.5 py-0.5 rounded border border-sky-200 bg-sky-50 text-sky-700 whitespace-nowrap">
+                              Q2: {formatTargetAmount(q2QuoteVal)} / {formatTargetAmount(qQ2Target * 4)}
+                            </span>
+                          </div>
+                          <div className="absolute left-[75%] -translate-x-1/2 flex flex-col items-center">
+                            <div className="w-1.5 h-1.5 rounded-full mb-1 bg-sky-400" />
+                            <span className="px-1.5 py-0.5 rounded border border-sky-200 bg-sky-50 text-sky-700 whitespace-nowrap">
+                              Q3: {formatTargetAmount(q3QuoteVal)} / {formatTargetAmount(qQ3Target * 4)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Status message */}
+                    <div className={cn("flex items-center gap-1.5 text-[10px] font-bold", quotePct > 0 ? "text-sky-700" : "text-slate-700")}>
+                      <span className={quotePct > 0 ? "text-sky-500" : "text-slate-400"}>
+                        <Target size={12} />
+                      </span>
+                      <span>
+                        {totalQuoteVal === 0
+                          ? "No quotations submitted yet. Start quoting to track progress!"
+                          : `Quotation value: ${formatTargetAmount(totalQuoteVal)} / ${formatTargetAmount(quoteTarget)} (${quotePct.toFixed(0)}% of 4x target)`}
+                      </span>
+                    </div>
                   </div>
                 </Card>
               );

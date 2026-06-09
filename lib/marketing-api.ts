@@ -288,6 +288,7 @@ export interface LeadActivityAttachment {
   is_quotation?: boolean;
   quotation_number?: string | null;
   title?: string | null;
+  quote_value?: number | null;
   file_size?: number;
   content_type?: string;
   created_at: string;
@@ -697,7 +698,8 @@ class MarketingAPIService {
     quotationNumbers?: (string | undefined)[],
     titles?: (string | undefined)[],
     seriesCode?: string,
-    isRevised?: boolean
+    isRevised?: boolean,
+    quoteValues?: (number | undefined)[],
   ): Promise<LeadActivityAttachment[]> {
     const formData = new FormData();
     files.forEach((f) => formData.append('files', f));
@@ -713,6 +715,9 @@ class MarketingAPIService {
     }
     if (isRevised) {
       formData.append('is_revised', 'true');
+    }
+    if (quoteValues && quoteValues.length > 0) {
+      formData.append('quote_values', JSON.stringify(quoteValues));
     }
     return apiClient.postFormData<LeadActivityAttachment[]>(
       `/api/leads/${leadId}/activities/${activityId}/attachments`,
@@ -1803,6 +1808,7 @@ export interface ScopeTargetStats {
   achieved_this_month: number;
   won_leads_count_this_month: number;
   lost_leads_count_this_month: number;
+  quotation_submitted_value: number;
   year: number;
   month: number;
   employee_count: number;

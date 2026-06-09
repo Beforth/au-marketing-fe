@@ -119,12 +119,12 @@ export const LeadFormPage: React.FC = () => {
     from_status_id: undefined as number | undefined,
     to_status_id: undefined as number | undefined,
   });
-  type AttachmentEntry = { id: string; kind: 'quotation' | 'attachment'; file: File | null; quotationNumber: string; title: string };
-  const [attachmentEntries, setAttachmentEntries] = useState<AttachmentEntry[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
+  type AttachmentEntry = { id: string; kind: 'quotation' | 'attachment'; file: File | null; quotationNumber: string; title: string; quoteValue: string };
+  const [attachmentEntries, setAttachmentEntries] = useState<AttachmentEntry[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
   const [showAttachments, setShowAttachments] = useState(false);
   const [activitySubmitting, setActivitySubmitting] = useState(false);
   const [addAttachmentActivityId, setAddAttachmentActivityId] = useState<number | null>(null);
-  const [addAttachmentRows, setAddAttachmentRows] = useState<{ id: string; kind: 'quotation' | 'attachment'; file: File | null; quotationNumber: string; title: string }[]>([]);
+  const [addAttachmentRows, setAddAttachmentRows] = useState<{ id: string; kind: 'quotation' | 'attachment'; file: File | null; quotationNumber: string; title: string; quoteValue: string }[]>([]);
   const [quotationSeriesCode, setQuotationSeriesCode] = useState('');
   const [addAttachmentQuotationSeriesCode, setAddAttachmentQuotationSeriesCode] = useState('');
   const [quotationIsRevised, setQuotationIsRevised] = useState(false);
@@ -150,11 +150,13 @@ export const LeadFormPage: React.FC = () => {
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<number | null>(null);
   /** When creating lead: optional quotation file; adds one enquiry with title "Added quotation" and no description. */
   const [initialQuotationFile, setInitialQuotationFile] = useState<File | null>(null);
+  const [initialQuotationValue, setInitialQuotationValue] = useState('');
   /** Create flow: optional backdated enquiry date/time (local datetime-local value). */
   const [initialInquiryReceivedAtLocal, setInitialInquiryReceivedAtLocal] = useState('');
   /** Quick add quotation (edit mode, enquiry tab): one file → one enquiry with auto title/description. */
   const [quickAddQuotationFile, setQuickAddQuotationFile] = useState<File | null>(null);
   const [quickAddQuotationSubmitting, setQuickAddQuotationSubmitting] = useState(false);
+  const [quickAddQuotationValue, setQuickAddQuotationValue] = useState('');
   const [leadNamePrefix, setLeadNamePrefix] = useState('');
   const [leadPhoneCountryCode, setLeadPhoneCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [leadPhonePart, setLeadPhonePart] = useState('');
@@ -777,7 +779,8 @@ export const LeadFormPage: React.FC = () => {
           undefined,
           toUpload.map((e) => (e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined)),
           toUpload.some((e) => e.kind === 'quotation') ? (quotationSeriesCode.trim() || undefined) : undefined,
-          toUpload.some((e) => e.kind === 'quotation') ? quotationIsRevised : undefined
+          toUpload.some((e) => e.kind === 'quotation') ? quotationIsRevised : undefined,
+          toUpload.map((e) => (e.kind === 'quotation' && e.quoteValue ? Number(e.quoteValue) : undefined))
         );
       }
       showToast('Log added', 'success');
@@ -793,7 +796,7 @@ export const LeadFormPage: React.FC = () => {
         from_status_id: undefined,
         to_status_id: undefined,
       });
-      setAttachmentEntries([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
+      setAttachmentEntries([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
       setQuotationIsRevised(false);
       loadActivities();
     } catch (err: any) {
@@ -820,11 +823,13 @@ export const LeadFormPage: React.FC = () => {
         undefined,
         undefined,
         quotationSeriesCode.trim() || undefined,
-        quotationIsRevised
+        quotationIsRevised,
+        [quickAddQuotationValue ? Number(quickAddQuotationValue) : undefined]
       );
       showToast('Quotation added', 'success');
       setQuickAddQuotationFile(null);
       setQuotationIsRevised(false);
+      setQuickAddQuotationValue('');
       loadActivities();
     } catch (err: any) {
       showToast(err?.message || 'Failed to add quotation', 'error');
@@ -1367,7 +1372,8 @@ export const LeadFormPage: React.FC = () => {
               undefined,
               // When no explicit quote number, use quotation series to generate on upload
               qNum ? undefined : (createFormQuoteSeriesCode.trim() || undefined),
-              false
+              false,
+              [initialQuotationValue ? Number(initialQuotationValue) : undefined]
             );
             showToast('Lead and enquiry created successfully', 'success');
             navigate(`/leads/${lead.id}/edit`);
@@ -2262,9 +2268,19 @@ export const LeadFormPage: React.FC = () => {
                     }}
                   />
                   {initialQuotationFile && (
-                    <p className="text-xs text-slate-600 mt-1 truncate" title={initialQuotationFile.name}>
-                      Selected: {initialQuotationFile.name}
-                    </p>
+                    <div className="mt-2 space-y-2">
+                      <p className="text-xs text-slate-600 truncate" title={initialQuotationFile.name}>
+                        Selected: {initialQuotationFile.name}
+                      </p>
+                      <Input
+                        label="Quote Value (₹) *"
+                        type="text"
+                        value={initialQuotationValue}
+                        onChange={(e) => setInitialQuotationValue(e.target.value.replace(/\D/g, ''))}
+                        placeholder="e.g. 500000"
+                        inputSize="sm"
+                      />
+                    </div>
                   )}
                 </div>
               </div>
@@ -2581,14 +2597,15 @@ export const LeadFormPage: React.FC = () => {
                                       );
                                     } else {
                                       const newRows = files.map((file) => ({
-                                        id: crypto.randomUUID(),
-                                        kind: 'attachment' as const,
-                                        file: file as File,
-                                        quotationNumber: '',
-                                        title: '',
-                                      }));
-                                      setAttachmentEntries((prev) =>
-                                        prev.map((r) => (r.id === row.id ? { ...r, file: files[0] } : r)).concat(newRows.slice(1))
+                                            id: crypto.randomUUID(),
+                                            kind: 'attachment' as const,
+                                            file: file as File,
+                                            quotationNumber: '',
+                                            title: '',
+                                            quoteValue: '',
+                                          }));
+                                          setAttachmentEntries((prev) =>
+                                            prev.map((r) => (r.id === row.id ? { ...r, file: files[0] } : r)).concat(newRows.slice(1))
                                       );
                                     }
                                     e.target.value = '';
@@ -2611,23 +2628,33 @@ export const LeadFormPage: React.FC = () => {
                                   searchable={false}
                                 />
                               </div>
-                              {row.kind === 'quotation' ? (
-                                <div className="h-10 flex-1 flex items-center px-3 bg-slate-50 border border-slate-100 rounded-lg">
-                                  <span className="text-[11px] font-medium text-slate-500 italic">Auto from Lead</span>
-                                </div>
-                              ) : (
-                                <Input
-                                  placeholder="File title"
-                                  value={row.title}
-                                  onChange={(e) =>
-                                    setAttachmentEntries((prev) =>
-                                      prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r))
-                                    )
-                                  }
-                                  inputSize="md"
-                                  containerClassName="min-w-[160px] flex-1 !space-y-0"
-                                />
-                              )}
+      {row.kind === 'quotation' ? (
+        <Input
+          placeholder="Quote Value (₹) *"
+          type="text"
+          value={row.quoteValue}
+          onChange={(e) => {
+            const val = e.target.value.replace(/\D/g, '');
+            setAttachmentEntries((prev) =>
+              prev.map((r) => (r.id === row.id ? { ...r, quoteValue: val } : r))
+            );
+          }}
+          inputSize="md"
+          containerClassName="min-w-[160px] flex-1 !space-y-0"
+        />
+      ) : (
+        <Input
+          placeholder="File title"
+          value={row.title}
+          onChange={(e) =>
+            setAttachmentEntries((prev) =>
+              prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r))
+            )
+          }
+          inputSize="md"
+          containerClassName="min-w-[160px] flex-1 !space-y-0"
+        />
+      )}
                               <div className="ml-auto flex items-center gap-1 shrink-0">
                                 <Tooltip content="Remove">
                                   <button
@@ -2644,7 +2671,7 @@ export const LeadFormPage: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      setAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }])
+                                      setAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }])
                                     }
                                     className="h-9 w-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-600 hover:text-white transition-colors"
                                   >
@@ -2981,7 +3008,7 @@ export const LeadFormPage: React.FC = () => {
                                 type="button"
                                 onClick={() => {
                                   setAddAttachmentActivityId(a.id);
-                                  setAddAttachmentRows([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
+                                        setAddAttachmentRows([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
                                 }}
                                 className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-indigo-600"
                               >
@@ -3008,6 +3035,7 @@ export const LeadFormPage: React.FC = () => {
                                             file: file as File,
                                             quotationNumber: '',
                                             title: '',
+                                            quoteValue: '',
                                           }));
                                           setAddAttachmentRows((prev) => [...prev, ...newRows]);
                                           e.target.value = '';
@@ -3019,7 +3047,7 @@ export const LeadFormPage: React.FC = () => {
                                       onClick={() =>
                                         setAddAttachmentRows((prev) => [
                                           ...prev,
-                                          { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' },
+                                          { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' },
                                         ])
                                       }
                                       className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700"
@@ -3075,7 +3103,19 @@ export const LeadFormPage: React.FC = () => {
                                       />
                                     </div>
                                     {row.kind === 'quotation' ? (
-                                      <span className="text-xs text-slate-500 shrink-0">Number auto from lead</span>
+                                      <Input
+                                        placeholder="Quote Value (₹) *"
+                                        type="text"
+                                        value={row.quoteValue}
+                                        onChange={(e) => {
+                                          const val = e.target.value.replace(/\D/g, '');
+                                          setAddAttachmentRows((prev) =>
+                                            prev.map((r) => (r.id === row.id ? { ...r, quoteValue: val } : r))
+                                          );
+                                        }}
+                                        inputSize="sm"
+                                        containerClassName="min-w-[120px] max-w-[180px] flex-1 !space-y-0"
+                                      />
                                     ) : (
                                       <Input
                                         placeholder="Title"
@@ -3158,11 +3198,12 @@ export const LeadFormPage: React.FC = () => {
                                           undefined,
                                           toUpload.map((r) => (r.kind === 'attachment' ? (r.title.trim() || undefined) : undefined)),
                                           toUpload.some((r) => r.kind === 'quotation') ? (addAttachmentQuotationSeriesCode.trim() || undefined) : undefined,
-                                          toUpload.some((r) => r.kind === 'quotation') ? addAttachmentIsRevised : undefined
+                                          toUpload.some((r) => r.kind === 'quotation') ? addAttachmentIsRevised : undefined,
+                                          toUpload.map((r) => (r.kind === 'quotation' && r.quoteValue ? Number(r.quoteValue) : undefined))
                                         );
                                         showToast('Added', 'success');
                                         setAddAttachmentActivityId(null);
-                                        setAddAttachmentRows([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '' }]);
+                                  setAddAttachmentRows([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
                                         setAddAttachmentQuotationSeriesCode('');
                                         loadActivities();
                                       } catch (err: any) {
