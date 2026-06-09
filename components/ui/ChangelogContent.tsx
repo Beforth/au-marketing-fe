@@ -21,6 +21,24 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
 
         <div className="space-y-6 pl-4 border-l-2 border-indigo-100">
           <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Quotation Submitted (4x) Progress Bar</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>New Quotation Target Bar:</strong> Added a second progress bar below the existing target bar on the Domains page. Target = yearly target &times; 4 (stretch goal). Achieved = sum of <code>quote_value</code> for <code>quotation_submitted</code> leads.</li>
+              <li><strong>Quarterly Breakdown:</strong> Bar is segmented into four 25% quarter blocks with independent gradient fills and milestone markers, matching the existing target bar pattern.</li>
+              <li><strong>Same Scope Rules:</strong> Visible to super_admin, domain_head, region_head, employee, domain_coordinator, and region_coordinator — identical to the existing target bar.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Quote Value Field &amp; Backend</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong><code>quote_value</code> Column:</strong> Added <code>numeric(12,2)</code> column to the <code>ActivityAttachment</code> model. Mandatory when uploading quotation attachments.</li>
+              <li><strong>Scope Stats:</strong> <code>get_scope_target_stats</code> now returns <code>quotation_submitted_value</code> — the sum of quote values for leads with status <code>quotation_submitted</code>, scoped by the same visibility rules.</li>
+              <li><strong>Frontend Inputs:</strong> Mandatory quote value fields added in LeadFormPage (add-log, quick add, inline attachment, initial quotation create) and DashboardPage (task modal).</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
             <h4 className="text-sm font-bold text-slate-900">Database Scoping by Domain &amp; Region</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
               <li><strong>Organizations — Domain-Level Scoping:</strong> Organizations are now filtered by domain. Domain heads see only orgs linked to their domain via contacts/customers; region heads see orgs in their region's parent domain; employees see orgs they created or in their domain.</li>

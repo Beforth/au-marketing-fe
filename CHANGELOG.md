@@ -5,6 +5,38 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-06-09] — Release: Quotation Submitted Progress Bar & Quote Value Field (v1.0.4)
+
+### 📊 Dashboard & Target Tracking
+- **Quotation Submitted (4x) Progress Bar**: Added a new "Quotation Target" progress bar below the existing target bar on the Domains page. Target = yearly target × 4 (stretch goal). Achieved = sum of `quote_value` for `quotation_submitted` leads. Includes quarterly breakdown with gradient fills and quarter milestone markers.
+- **Role-Based Visibility**: The quotation bar respects the same scope rules as the target bar — visible to super_admin, domain_head, region_head, employee, domain_coordinator, and region_coordinator.
+
+### 🗃️ Database & Backend
+- **`quote_value` Column**: Added `quote_value numeric(12,2)` to `ActivityAttachment` model to store the monetary value of each quotation attachment.
+- **Alembic Migration**: Generated and applied migration for the new column.
+- **Scope Stats Enhancement**: Added `quotation_submitted_value` to `ScopeTargetStatsResponse`, queried by joining ActivityAttachment → Activity → Lead with `quotation_submitted` status filter.
+- **Upload Validation**: `quote_value` is now mandatory when uploading quotation attachments.
+
+### 🖥️ Frontend
+- **Quote Value Inputs**: Added mandatory quote value fields in LeadFormPage (add-log, quick add, inline attachment, initial quotation create) and DashboardPage (task modal).
+- **Quotation Bar UI**: New card in DomainsPage with 4× yearly target, quarterly segments, gradient bar, and quarter position markers.
+- **TypeScript Interfaces**: Updated `LeadActivityAttachment` and `ScopeTargetStats` with `quote_value` / `quotation_submitted_value` fields.
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `au-marketing-api/app/models.py` | Added `quote_value` column to `ActivityAttachment` |
+| `au-marketing-api/app/schemas.py` | Added `quote_value` to `ActivityAttachmentResponse` |
+| `au-marketing-api/app/routers/leads.py` | `quote_values` param, validation, storage in upload endpoint |
+| `au-marketing-api/app/routers/dashboard.py` | `quotation_submitted_value` query in scope stats |
+| `pages/DomainsPage.tsx` | New quotation progress bar, combined quote value in scopeStats |
+| `pages/LeadFormPage.tsx` | Quote value UI inputs and upload calls |
+| `pages/DashboardPage.tsx` | Quote value UI inputs and upload calls |
+| `lib/marketing-api.ts` | Updated types and upload method |
+| `au-marketing-api/migrations/` | Alembic migration for `quote_value` column |
+
+---
+
 ## [2026-06-08] — Release: Domain Target Visibility Fix & Descriptive Error Messaging (v1.0.3)
 
 ### 📊 Dashboard & Target Tracking
