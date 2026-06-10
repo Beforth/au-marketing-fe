@@ -108,7 +108,7 @@ export const LeadFormPage: React.FC = () => {
   }, [activities]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activityForm, setActivityForm] = useState({
-    activity_type: 'note',
+    activity_type: 'call',
     title: '',
     description: '',
     contact_person_name_prefix: '',
@@ -132,7 +132,7 @@ export const LeadFormPage: React.FC = () => {
   const [editingActivityId, setEditingActivityId] = useState<number | null>(null);
   const [followUpSaving, setFollowUpSaving] = useState(false);
   const [editActivityForm, setEditActivityForm] = useState({
-    activity_type: 'note',
+    activity_type: 'call',
     title: '',
     description: '',
     contact_person_name_prefix: '',
@@ -784,7 +784,7 @@ export const LeadFormPage: React.FC = () => {
       }
       showToast('Log added', 'success');
       setActivityForm({
-        activity_type: 'note',
+        activity_type: 'call',
         title: '',
         description: '',
         contact_person_name_prefix: '',
@@ -922,7 +922,6 @@ export const LeadFormPage: React.FC = () => {
   };
 
   const ACTIVITY_TYPE_OPTIONS: { value: string; label: string }[] = [
-    { value: 'note', label: 'Note' },
     { value: 'contacted', label: 'Contacted' },
     { value: 'call', label: 'Call' },
     { value: 'email', label: 'Email' },
@@ -1334,7 +1333,7 @@ export const LeadFormPage: React.FC = () => {
         if (initialQuotationFile) {
           try {
             const createdActivity = await marketingAPI.createLeadActivity(lead.id, {
-              activity_type: 'note',
+              activity_type: 'call',
               title: 'Added quotation',
               description: undefined,
               ...(initialInquiryIso ? { activity_date: initialInquiryIso } : {}),
@@ -1637,7 +1636,7 @@ export const LeadFormPage: React.FC = () => {
           </div>
           {id && !viewMode && (
             <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
-              <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Follow-up</span>
+              <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Custom follow-up</span>
               <DatePicker
                 value={formData.next_follow_up_at ? new Date(formData.next_follow_up_at).toISOString().slice(0, 16) : undefined}
                 onChange={(v) => {
@@ -2471,7 +2470,7 @@ export const LeadFormPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowAttachments((v) => !v)}
-                      className="text-xs text-slate-500 hover:text-indigo-600 flex items-center gap-1"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 border border-dashed border-indigo-300 rounded-lg px-3 py-1.5 hover:bg-indigo-50"
                     >
                       <Paperclip size={12} />
                       {showAttachments ? 'Hide files' : 'Attach files'}
@@ -2915,7 +2914,7 @@ export const LeadFormPage: React.FC = () => {
                                   setAddAttachmentActivityId(a.id);
                                         setAddAttachmentRows([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
                                 }}
-                                className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-indigo-600"
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 border border-dashed border-indigo-300 rounded-lg px-3 py-1.5 hover:bg-indigo-50"
                               >
                                 <Plus size={12} /> Add attachments
                               </button>

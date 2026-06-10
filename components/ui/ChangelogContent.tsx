@@ -48,6 +48,7 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
           <section className="space-y-2">
             <h4 className="text-sm font-bold text-slate-900">Other Changes</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Attach Files Highlighted:</strong> Made "Attach files" and "Add attachments" buttons more prominent with dashed indigo border pill styling in the lead edit page.</li>
               <li><strong>Favicon:</strong> Switched from <code>/mkt_logo.png</code> to <code>/favicon.ico</code> for proper rendering at all sizes.</li>
               <li><strong>Version Bump:</strong> Updated from v1.0.4 to v1.0.5.</li>
             </ul>
