@@ -107,21 +107,6 @@ const ACTIVITY_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'call', label: 'Call' },
   { value: 'email', label: 'Email' },
   { value: 'meeting', label: 'Meeting' },
-  { value: 'lead_status_change', label: 'Status change' },
-  { value: 'contacted_different_person', label: 'Contacted different person' },
-  { value: 'qtn_submitted', label: 'QTN Submitted' },
-  { value: 'qtn_followup', label: 'QTN Followup' },
-  { value: 'technical_discussions', label: 'Technical Discussions' },
-  { value: 'at_customer_desk', label: 'At Customer Desk' },
-  { value: 'order_finalization_ap', label: 'Order Finalization (AP)' },
-  { value: 'po_release_ap', label: 'PO Release (AP)' },
-  { value: 'po_acknowledge_ap', label: 'PO Acknowledge (AP)' },
-  { value: 'wo_prepared', label: 'WO Prepared' },
-  { value: 'on_hold_customer_end', label: 'On-Hold (Customer end)' },
-  { value: 'requirement_cancelled_customer_end', label: 'Requirement Cancelled (Customer end)' },
-  { value: 'order_loss_1', label: '1 - Order Loss' },
-  { value: 'order_loss_2', label: '2 - Order Loss' },
-  { value: 'order_loss_3', label: '3 - Order Loss' },
 ];
 
 /** Displays backend-rendered SQL widget data (frontend does not execute SQL). */

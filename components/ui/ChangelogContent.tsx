@@ -8,18 +8,65 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
   return (
     <div className="space-y-10 text-sm text-slate-700 max-h-[70vh] overflow-y-auto pr-3 scrollbar-thin">
       
-      {/* ==================== VERSION 1.0.4 (June 8, 2026) ==================== */}
+      {/* ==================== VERSION 1.0.5 (June 10, 2026) ==================== */}
       <div className="space-y-4">
         <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
           <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg">
             Version {appVersion}
           </span>
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-            June 8, 2026 (Latest)
+            June 10, 2026 (Latest)
           </span>
         </div>
 
         <div className="space-y-6 pl-4 border-l-2 border-indigo-100">
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Enquiry Log Type Cleanup</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Type Options Trimmed:</strong> Reduced the activity type dropdown from 20 options to 5: <code>Note</code>, <code>Contacted</code>, <code>Call</code>, <code>Email</code>, <code>Meeting</code>. Removed unused enquiry follow-up statuses (QTN submitted, order loss, etc.).</li>
+              <li>Updated both <code>LeadFormPage.tsx</code> (lead edit page) and <code>DashboardPage.tsx</code> (task modal).</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Lead Edit Page Layout Reorder</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Lead Details at Top:</strong> Moved the "Lead details" card above the tabs and follow-up bar.</li>
+              <li><strong>Side-by-Side Tabs:</strong> Enquiry log / Lead status log pills and the Follow-up bar now sit on the same row, vertically centered with a reduced gap.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Follow-up Pill Simplified</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Stripped to Essentials:</strong> Removed quick-date buttons (Tomorrow 10:00 / Next week), repeat type dropdown (No reminder / Daily / Weekly / Monthly), and scheduled date text.</li>
+              <li><strong>Custom DatePicker:</strong> Replaced the native <code>&lt;input type="datetime-local"&gt;</code> with the app's <code>DatePicker</code> component — clicking the calendar icon opens the date-time picker popup.</li>
+              <li><strong>Scheduled Date Shown:</strong> Selected date/time displays beside the Save button for easy reference.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Other Changes</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Favicon:</strong> Switched from <code>/mkt_logo.png</code> to <code>/favicon.ico</code> for proper rendering at all sizes.</li>
+              <li><strong>Version Bump:</strong> Updated from v1.0.4 to v1.0.5.</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+
+      {/* ==================== VERSION 1.0.4 (June 8, 2026) ==================== */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+          <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-slate-700 bg-slate-50 border border-slate-200 rounded-lg">
+            Version v1.0.4
+          </span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            June 8, 2026
+          </span>
+        </div>
+
+        <div className="space-y-6 pl-4 border-l-2 border-slate-200">
           <section className="space-y-2">
             <h4 className="text-sm font-bold text-slate-900">Quotation Submitted (4x) Progress Bar</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">

@@ -131,7 +131,6 @@ export const LeadFormPage: React.FC = () => {
   const [addAttachmentIsRevised, setAddAttachmentIsRevised] = useState(false);
   const [editingActivityId, setEditingActivityId] = useState<number | null>(null);
   const [followUpSaving, setFollowUpSaving] = useState(false);
-  const [followUpTime, setFollowUpTime] = useState('');
   const [editActivityForm, setEditActivityForm] = useState({
     activity_type: 'note',
     title: '',
@@ -928,22 +927,6 @@ export const LeadFormPage: React.FC = () => {
     { value: 'call', label: 'Call' },
     { value: 'email', label: 'Email' },
     { value: 'meeting', label: 'Meeting' },
-    { value: 'lead_status_change', label: 'Status change' },
-    { value: 'contacted_different_person', label: 'Contacted different person' },
-    // Enquiry follow-up statuses
-    { value: 'qtn_submitted', label: 'QTN Submitted' },
-    { value: 'qtn_followup', label: 'QTN Followup' },
-    { value: 'technical_discussions', label: 'Technical Discussions' },
-    { value: 'at_customer_desk', label: 'At Customer Desk' },
-    { value: 'order_finalization_ap', label: 'Order Finalization (AP)' },
-    { value: 'po_release_ap', label: 'PO Release (AP)' },
-    { value: 'po_acknowledge_ap', label: 'PO Acknowledge (AP)' },
-    { value: 'wo_prepared', label: 'WO Prepared' },
-    { value: 'on_hold_customer_end', label: 'On-Hold (Customer end)' },
-    { value: 'requirement_cancelled_customer_end', label: 'Requirement Cancelled (Customer end)' },
-    { value: 'order_loss_1', label: '1 - Order Loss' },
-    { value: 'order_loss_2', label: '2 - Order Loss' },
-    { value: 'order_loss_3', label: '3 - Order Loss' },
   ];
 
   const activityTypeLabel = (type: string) => {
@@ -1094,13 +1077,7 @@ export const LeadFormPage: React.FC = () => {
       else if (lead.referred_by_employee_id) setReferredByType('employee');
       else if (lead.referred_by_customer_id) setReferredByType('customer');
       else setReferredByType('none');
-      if (lead.next_follow_up_at) {
-        const d = new Date(lead.next_follow_up_at);
-        const pad = (n: number) => String(n).padStart(2, '0');
-        setFollowUpTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
-      } else {
-        setFollowUpTime('');
-      }
+
 
       setCustomers(customersData);
       if (lead.contact_id) {
@@ -1509,46 +1486,20 @@ export const LeadFormPage: React.FC = () => {
     }
   };
 
-  const toDatetimeLocalValue = (iso?: string | null) => {
-    if (!iso) return '';
-    try {
-      const d = new Date(iso);
-      const pad = (n: number) => String(n).padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    } catch {
-      return '';
-    }
-  };
-
-  const setFollowUpQuick = (daysAhead: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + daysAhead);
-    d.setHours(10, 0, 0, 0);
-    setFollowUpTime('10:00');
-    setFormData((f) => ({ ...f, next_follow_up_at: d.toISOString(), follow_up_reminder_type: 'once' }));
-  };
-
   const saveFollowUp = async () => {
     if (!id) return;
-    const reminderType = formData.follow_up_reminder_type ?? undefined;
-    const isRecurring = reminderType === 'daily' || reminderType === 'weekly' || reminderType === 'monthly';
-    const hasDate = !!formData.next_follow_up_at;
-    if (reminderType === 'once' && !hasDate) {
-      showToast('Please set the date and time for one-time follow-up.', 'error');
-      return;
-    }
-    if (isRecurring && !followUpTime) {
-      showToast('Please set the follow-up time.', 'error');
+    if (!formData.next_follow_up_at) {
+      showToast('Please set the date and time for follow-up.', 'error');
       return;
     }
     setFollowUpSaving(true);
     try {
       await marketingAPI.scheduleLeadFollowUp(parseInt(id), {
-        next_follow_up_at: formData.next_follow_up_at || null,
-        follow_up_reminder_type: reminderType || null,
-        follow_up_time: isRecurring ? followUpTime : null,
+        next_follow_up_at: formData.next_follow_up_at,
+        follow_up_reminder_type: 'once',
+        follow_up_time: null,
       });
-      showToast((reminderType || hasDate || followUpTime) ? 'Follow-up schedule saved' : 'Follow-up schedule cleared', 'success');
+      showToast('Follow-up saved', 'success');
       await loadLead();
     } catch (e: any) {
       showToast(e?.message || 'Failed to save follow-up', 'error');
@@ -1597,105 +1548,6 @@ export const LeadFormPage: React.FC = () => {
         </div>
       }
     >
-      {isEdit && id && !viewMode && (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
-          <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Follow-up</span>
-          <div className="flex items-center gap-1 rounded-full bg-slate-100 p-0.5">
-            <button
-              type="button"
-              className="h-7 rounded-full px-2.5 text-xs font-medium text-slate-700 transition-colors hover:bg-white"
-              onClick={() => setFollowUpQuick(1)}
-            >
-              Tomorrow 10:00
-            </button>
-            <button
-              type="button"
-              className="h-7 rounded-full px-2.5 text-xs font-medium text-slate-700 transition-colors hover:bg-white"
-              onClick={() => setFollowUpQuick(7)}
-            >
-              Next week
-            </button>
-          </div>
-          <div className="mx-1 hidden h-5 w-px bg-slate-200 sm:block" />
-          <select
-            className="h-8 rounded-full border border-slate-200 bg-white px-3 text-xs min-w-[145px]"
-            value={formData.follow_up_reminder_type === undefined || formData.follow_up_reminder_type === null ? '' : formData.follow_up_reminder_type}
-            onChange={(e) => {
-              const v = e.target.value === '' ? undefined : e.target.value;
-              setFormData({ ...formData, follow_up_reminder_type: v });
-              if ((v === 'daily' || v === 'weekly' || v === 'monthly') && !followUpTime) {
-                setFollowUpTime('10:00');
-              }
-            }}
-            title="Repeat type"
-          >
-            <option value="">No reminder</option>
-            <option value="once">Custom (one time)</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
-          {(formData.follow_up_reminder_type === 'daily' || formData.follow_up_reminder_type === 'weekly' || formData.follow_up_reminder_type === 'monthly') ? (
-            <input
-              type="time"
-              className="h-8 rounded-full border border-slate-200 bg-white px-3 text-xs min-w-[150px]"
-              value={followUpTime}
-              onChange={(e) => setFollowUpTime(e.target.value)}
-              title="Time"
-            />
-          ) : (
-            <input
-              type="datetime-local"
-              className="h-8 rounded-full border border-slate-200 bg-white px-3 text-xs min-w-[205px]"
-              value={toDatetimeLocalValue(formData.next_follow_up_at)}
-              onChange={(e) => {
-                setFormData({ ...formData, next_follow_up_at: e.target.value ? new Date(e.target.value).toISOString() : undefined });
-                if (e.target.value) {
-                  const d = new Date(e.target.value);
-                  const pad = (n: number) => String(n).padStart(2, '0');
-                  setFollowUpTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
-                }
-              }}
-              title="Date & time"
-            />
-          )}
-          <button
-            type="button"
-            disabled={followUpSaving}
-            onClick={saveFollowUp}
-            className="h-8 rounded-full bg-slate-900 px-3 text-xs font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {followUpSaving ? 'Saving...' : 'Save follow-up'}
-          </button>
-          {formData.next_follow_up_at && (
-            <span className="ml-auto pr-2 text-xs text-slate-500">
-              Scheduled: {new Date(formData.next_follow_up_at).toLocaleString()}
-            </span>
-          )}
-        </div>
-      )}
-
-      {isEdit && (
-        <div className="flex rounded-full border border-slate-200 p-0.5 bg-slate-100/50 mb-4 w-fit">
-          <button
-            type="button"
-            onClick={() => setActiveTab('enquiry')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${activeTab === 'enquiry' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-              }`}
-          >
-            <FileText size={16} /> Enquiry log
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('status_logs')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${activeTab === 'status_logs' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-              }`}
-          >
-            <History size={16} /> Lead status logs
-          </button>
-        </div>
-      )}
-
       {isEdit && (
         <Card className="mb-4">
           <div className="flex items-center gap-2 mb-3">
@@ -1761,6 +1613,59 @@ export const LeadFormPage: React.FC = () => {
             </div>
           )}
         </Card>
+      )}
+
+      {isEdit && (
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <div className="flex rounded-full border border-slate-200 p-0.5 bg-slate-100/50 shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('enquiry')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${activeTab === 'enquiry' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+                }`}
+            >
+              <FileText size={16} /> Enquiry log
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('status_logs')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${activeTab === 'status_logs' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+                }`}
+            >
+              <History size={16} /> Lead status logs
+            </button>
+          </div>
+          {id && !viewMode && (
+            <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
+              <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Follow-up</span>
+              <DatePicker
+                value={formData.next_follow_up_at ? new Date(formData.next_follow_up_at).toISOString().slice(0, 16) : undefined}
+                onChange={(v) => {
+                  setFormData({ ...formData, next_follow_up_at: v ? new Date(v).toISOString() : undefined });
+                }}
+                showTime
+                showNow
+                timePanelPosition="right"
+                inputSize="sm"
+                placeholder="Select date & time..."
+                className="w-[180px]"
+              />
+              <button
+                type="button"
+                disabled={followUpSaving}
+                onClick={saveFollowUp}
+                className="h-8 rounded-full bg-slate-900 px-3 text-xs font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {followUpSaving ? 'Saving...' : 'Save follow-up'}
+              </button>
+              {formData.next_follow_up_at && (
+                <span className="text-xs text-slate-500 whitespace-nowrap">
+                  {new Date(formData.next_follow_up_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {!isEdit && (

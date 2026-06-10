@@ -5,6 +5,29 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-06-10] — Release: Enquiry Log Type Cleanup, Layout Reorder, Favicon & Changelog (v1.0.5)
+
+### 🖥️ Frontend
+- **Enquiry Log Type Dropdown Trimmed**: Reduced the activity type options in the lead edit page and dashboard task modal from 20 to 5: `Note`, `Contacted`, `Call`, `Email`, `Meeting`. Removed unused follow-up status options (QTN submitted, order loss, etc.).
+- **Lead Edit Page Layout Reorder**: Moved "Lead details" card to the top. Tab pills (Enquiry log / Lead status logs) and Follow-up bar are now side-by-side on the same row, vertically centered with reduced gap.
+- **Follow-up Pill Simplified**: Stripped the follow-up bar down to just a label, date-time picker, and save button. Removed quick-date buttons, repeat type dropdown, and scheduled text. Replaced native `<input type="datetime-local">` with the app's custom `DatePicker` component (with calendar popup and time selection).
+- **Favicon Updated**: Changed favicon from `/mkt_logo.png` to `/favicon.ico` for proper cross-size rendering.
+- **Version Bump**: Updated app version from v1.0.4 to v1.0.5.
+- **Changelog Added**: This changelog entry.
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `pages/LeadFormPage.tsx` | Trimmed activity type options, reordered layout, simplified follow-up bar, replaced native datetime input with DatePicker |
+| `pages/DashboardPage.tsx` | Trimmed activity type options in task modal |
+| `index.html` | Switched favicon to `/favicon.ico` |
+| `package.json` | Version 1.0.4 → 1.0.5 |
+| `components/ui/Sidebar.tsx` | Version v1.0.4 → v1.0.5 |
+| `CHANGELOG.md` | Added v1.0.5 entry |
+| `components/ui/ChangelogContent.tsx` | Added v1.0.5 entry |
+
+---
+
 ## [2026-06-09] — Release: Quotation Submitted Progress Bar & Quote Value Field (v1.0.4)
 
 ### 📊 Dashboard & Target Tracking
