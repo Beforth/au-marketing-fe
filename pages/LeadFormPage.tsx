@@ -17,7 +17,7 @@ import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission, selectUser, selectEmployee } from '../store/slices/authSlice';
 import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadThroughOption, LeadActivity, LeadActivityAttachment, Domain, Region, Customer, Contact, Plant, Series, Organization, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
-import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, DEFAULT_LEAD_SERIES_STORAGE_KEY } from '../constants';
+import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, DEFAULT_LEAD_SERIES_STORAGE_KEY, INDIAN_STATES, INDUSTRY_OPTIONS } from '../constants';
 import CountryList from 'country-list-with-dial-code-and-flag';
 
 const countryOptions = CountryList.getAll({ withSecondary: false })
@@ -1958,7 +1958,7 @@ export const LeadFormPage: React.FC = () => {
                           <Input label="Address line 1" value={plantModalData.address_line1 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
                           <Input label="Address line 2" value={plantModalData.address_line2 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
                           <Input label="City" value={plantModalData.city || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, city: e.target.value }))} />
-                          <Input label="State" value={plantModalData.state || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, state: e.target.value }))} placeholder="State" />
+                          <Select label="State" options={INDIAN_STATES} value={plantModalData.state || ''} onChange={(val) => setPlantModalData(prev => ({ ...prev, state: val as string }))} placeholder="Select or type state..." isCombobox creatable searchable />
                           <Input label="Country" value={plantModalData.country || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, country: e.target.value }))} />
                           <Input label="Postal code" value={plantModalData.postal_code || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, postal_code: e.target.value }))} />
                         </div>
@@ -1995,7 +1995,7 @@ export const LeadFormPage: React.FC = () => {
                     <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-3 animate-in slide-in-from-top-2">
                       <p className="text-sm font-bold text-slate-700">Create new organization on save</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <Input label="Industry" value={newOrgForm.industry} onChange={(e) => setNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="e.g. IT, Manufacturing" />
+                        <Select label="Industry" options={INDUSTRY_OPTIONS} value={newOrgForm.industry} onChange={(val) => setNewOrgForm(prev => ({ ...prev, industry: (val as string) || '' }))} placeholder="Select industry..." />
                         <Select label="Size of organization" options={COMPANY_SIZES} value={newOrgForm.organization_size} onChange={(val) => setNewOrgForm(prev => ({ ...prev, organization_size: String(val ?? '') }))} placeholder="Select size" searchable />
                         <div className="md:col-span-2">
                           <label className="block text-sm font-medium text-slate-700 mb-1.5">Description</label>
@@ -2016,7 +2016,7 @@ export const LeadFormPage: React.FC = () => {
                           <Input label="Address line 1" value={inlineNewPlantForm.address_line1} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
                           <Input label="Address line 2" value={inlineNewPlantForm.address_line2} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
                           <Input label="City" value={inlineNewPlantForm.city} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, city: e.target.value }))} />
-                          <Input label="State" value={inlineNewPlantForm.state} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, state: e.target.value }))} placeholder="State" />
+                          <Select label="State" options={INDIAN_STATES} value={inlineNewPlantForm.state} onChange={(val) => setInlineNewPlantForm(prev => ({ ...prev, state: (val as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable />
                           <Input label="Country" value={inlineNewPlantForm.country} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, country: e.target.value }))} />
                           <Input label="Postal code" value={inlineNewPlantForm.postal_code} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} />
                         </div>
@@ -3367,7 +3367,7 @@ export const LeadFormPage: React.FC = () => {
                         <Input label="Address line 2" value={newPlantForm.address_line2} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" inputSize="sm" />
                         <div className="grid grid-cols-2 gap-2">
                           <Input label="City" value={newPlantForm.city} onChange={(e) => setNewPlantForm(prev => ({ ...prev, city: e.target.value }))} placeholder="City" inputSize="sm" />
-                          <Input label="State" value={newPlantForm.state} onChange={(e) => setNewPlantForm(prev => ({ ...prev, state: e.target.value }))} placeholder="State" inputSize="sm" />
+                          <Select label="State" options={INDIAN_STATES} value={newPlantForm.state} onChange={(val) => setNewPlantForm(prev => ({ ...prev, state: (val as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable inputSize="sm" />
                           <Input label="Country" value={newPlantForm.country} onChange={(e) => setNewPlantForm(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" inputSize="sm" />
                           <Input label="Postal code" value={newPlantForm.postal_code} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" inputSize="sm" />
                         </div>
@@ -3399,7 +3399,7 @@ export const LeadFormPage: React.FC = () => {
             <div className="space-y-3">
               <Input label="Name" value={newOrgForm.name} onChange={(e) => setNewOrgForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Organization name" required />
               <Input label="Website" value={newOrgForm.website} onChange={(e) => setNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
-              <Input label="Industry" value={newOrgForm.industry} onChange={(e) => setNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="e.g. IT, Manufacturing" />
+              <Select label="Industry" options={INDUSTRY_OPTIONS} value={newOrgForm.industry} onChange={(val) => setNewOrgForm(prev => ({ ...prev, industry: (val as string) || '' }))} placeholder="Select industry..." />
               <Select
                 label="Size of organization"
                 options={COMPANY_SIZES}

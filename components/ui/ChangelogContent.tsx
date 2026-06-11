@@ -15,7 +15,7 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
             Version {appVersion}
           </span>
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-            June 10, 2026 (Latest)
+            June 11, 2026 (Latest)
           </span>
         </div>
 
@@ -42,6 +42,31 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
               <li><strong>Stripped to Essentials:</strong> Removed quick-date buttons (Tomorrow 10:00 / Next week), repeat type dropdown (No reminder / Daily / Weekly / Monthly), and scheduled date text.</li>
               <li><strong>Custom DatePicker:</strong> Replaced the native <code>&lt;input type="datetime-local"&gt;</code> with the app's <code>DatePicker</code> component — clicking the calendar icon opens the date-time picker popup.</li>
               <li><strong>Scheduled Date Shown:</strong> Selected date/time displays beside the Save button for easy reference.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">State Field → Indian States Autocomplete</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li>Changed all address state fields from free-text inputs to a searchable combobox listing all 28 Indian states + 8 union territories.</li>
+              <li>Still allows custom text entry for international addresses via the <code>creatable</code> prop on the Select component.</li>
+              <li>Updated across LeadFormPage, OrganizationFormPage, CustomerFormPage, and ContactFormPage (10 locations total).</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Industry Field → Dropdown</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li>Changed all organization industry inputs to a dropdown with 3 options: End User, Distributor / Dealer, Consultant.</li>
+              <li>Updated across 6 form pages: OrganizationFormPage, LeadFormPage, CustomerFormPage, ContactFormPage, and ODPlanPage.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Domain Coordinator Dashboard 404 Fix</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li>Fixed <code>_can_view</code> and <code>_can_edit</code> in <code>saved_dashboards.py</code> to apply the domain coordinator role override (<code>domain_head</code> → <code>domain_coordinator</code>) that <code>_list_visible_dashboard_ids</code> already used.</li>
+              <li>Domain coordinators were getting 404 when viewing individual dashboards assigned to the <code>domain_coordinator</code> role, even though the list endpoint showed them correctly.</li>
             </ul>
           </section>
 

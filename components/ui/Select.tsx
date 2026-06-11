@@ -28,6 +28,7 @@ interface SelectProps {
   inputSize?: 'sm' | 'md' | 'lg';
   triggerClassName?: string;
   isCombobox?: boolean;
+  creatable?: boolean;
   dropdownWidth?: number | 'auto' | 'trigger';
 }
 
@@ -62,6 +63,7 @@ export const Select: React.FC<SelectProps> = ({
   inputSize = 'md',
   triggerClassName,
   isCombobox = false,
+  creatable = false,
   dropdownWidth = 'trigger'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -72,6 +74,7 @@ export const Select: React.FC<SelectProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const selectedOption = options.find(opt => opt.value == value);
+  const isCustomValue = creatable && value !== undefined && !options.some(opt => opt.value == value);
   const trimmedQuery = (searchQuery ?? '').trim();
   const isQueryDialCode = exactValueMatchWhenQueryMatches?.test(trimmedQuery);
   const normalizedDialCode = isQueryDialCode && trimmedQuery
@@ -111,6 +114,9 @@ export const Select: React.FC<SelectProps> = ({
       const path = event.composedPath();
       if (selectRef.current && path.includes(selectRef.current)) return;
       if (dropdownRef.current && path.includes(dropdownRef.current)) return;
+      if (isCombobox && creatable && searchQuery.trim() && !options.some(opt => String(opt.value) === searchQuery.trim())) {
+        onChange(searchQuery.trim());
+      }
       setIsOpen(false);
       setSearchQuery('');
     };
@@ -120,7 +126,7 @@ export const Select: React.FC<SelectProps> = ({
       setTimeout(() => searchInputRef.current?.focus(), 50);
     }
     return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [isOpen]);
+  }, [isOpen, isCombobox, creatable, searchQuery, options, onChange]);
 
   const handleSelect = (optionValue: string | number) => {
     if (optionValue != value) onChange(optionValue);
@@ -150,12 +156,19 @@ export const Select: React.FC<SelectProps> = ({
               type="text"
               disabled={disabled}
               placeholder={placeholder}
-              value={isOpen ? searchQuery : (selectedOption?.label || '')}
+              value={isOpen ? searchQuery : (selectedOption?.label || (isCustomValue ? String(value) : ''))}
               onChange={(e) => {
                 if (!isOpen) setIsOpen(true);
                 setSearchQuery(e.target.value);
               }}
               onFocus={() => !disabled && setIsOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && isCombobox && creatable && searchQuery.trim() && !options.some(opt => String(opt.value) === searchQuery.trim())) {
+                  onChange(searchQuery.trim());
+                  setIsOpen(false);
+                  setSearchQuery('');
+                }
+              }}
               className={cn(
                 'w-full border rounded-lg text-left transition-all',
                 'focus:outline-none focus:ring-2 focus:ring-indigo-500',

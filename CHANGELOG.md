@@ -5,7 +5,7 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-06-10] — Release: Enquiry Log Type Cleanup, Layout Reorder, Favicon & Changelog (v1.0.5)
+## [2026-06-11] — Release: State/Industry Dropdowns, Domain Coordinator Dashboard 404 Fix (v1.0.5)
 
 ### 🖥️ Frontend
 - **Enquiry Log Type Dropdown Trimmed**: Reduced the activity type options in the lead edit page and dashboard task modal from 20 to 5: `Note`, `Contacted`, `Call`, `Email`, `Meeting`. Removed unused follow-up status options (QTN submitted, order loss, etc.).
@@ -13,19 +13,31 @@ Format: `[Date] — Category: Description`
 - **Follow-up Pill Simplified**: Stripped the follow-up bar down to just a label, date-time picker, and save button. Removed quick-date buttons, repeat type dropdown, and scheduled text. Replaced native `<input type="datetime-local">` with the app's custom `DatePicker` component (with calendar popup and time selection).
 - **Attach Files Highlighted**: Made "Attach files" and "Add attachments" buttons more prominent with dashed indigo border pill styling in the lead edit page.
 - **Favicon Updated**: Changed favicon from `/mkt_logo.png` to `/favicon.ico` for proper cross-size rendering.
+- **State Field → Indian States Autocomplete**: Changed all address state fields across LeadFormPage, OrganizationFormPage, CustomerFormPage, and ContactFormPage from free-text inputs to a searchable combobox listing all 28 Indian states + 8 union territories, while allowing custom text entry for international addresses.
+- **Industry Field → Dropdown**: Changed all organization industry fields across 6 form pages from free-text inputs to a dropdown with 3 options: End User, Distributor / Dealer, Consultant.
 - **Version Bump**: Updated app version from v1.0.4 to v1.0.5.
 - **Changelog Added**: This changelog entry.
+
+### 🔧 Backend
+- **Domain Coordinator Dashboard 404 Fix**: Fixed `_can_view` and `_can_edit` in `saved_dashboards.py` to apply the domain coordinator role override (`domain_head` → `domain_coordinator`) that `_list_visible_dashboard_ids` already used, so domain coordinators can view dashboards assigned to the `domain_coordinator` role (they were getting 404 on individual dashboard GET).
 
 ### 📁 Files Changed
 | File | Change |
 |------|--------|
-| `pages/LeadFormPage.tsx` | Trimmed activity type options, reordered layout, simplified follow-up bar, replaced native datetime input with DatePicker |
+| `pages/LeadFormPage.tsx` | Trimmed activity type options, reordered layout, simplified follow-up bar, replaced native datetime input with DatePicker; state field → Indian states combobox; industry field → dropdown |
 | `pages/DashboardPage.tsx` | Trimmed activity type options in task modal |
+| `pages/OrganizationFormPage.tsx` | State field → Indian states combobox; industry field → dropdown |
+| `pages/CustomerFormPage.tsx` | State field → Indian states combobox; industry field → dropdown |
+| `pages/ContactFormPage.tsx` | State field → Indian states combobox; industry field → dropdown |
+| `pages/ODPlanPage.tsx` | Industry field → dropdown |
+| `components/ui/Select.tsx` | Added `creatable` prop for free-text combobox support |
+| `constants.tsx` | Added `INDIAN_STATES` and `INDUSTRY_OPTIONS` constants |
 | `index.html` | Switched favicon to `/favicon.ico` |
 | `package.json` | Version 1.0.4 → 1.0.5 |
 | `components/ui/Sidebar.tsx` | Version v1.0.4 → v1.0.5 |
 | `CHANGELOG.md` | Added v1.0.5 entry |
 | `components/ui/ChangelogContent.tsx` | Added v1.0.5 entry |
+| `au-marketing-api/app/routers/saved_dashboards.py` | Fixed domain coordinator dashboard 404 in `_can_view` and `_can_edit` |
 
 ---
 

@@ -14,7 +14,7 @@ import { useApp } from '../App';
 import { Tooltip } from '../UI/Tooltip';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from '../constants';
+import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, INDUSTRY_OPTIONS } from '../constants';
 import { serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import {
   ArrowLeft,
@@ -1021,7 +1021,7 @@ export const ODPlanPage: React.FC = () => {
           <Input label="Name *" value={newOrgForm.name} onChange={(e) => setNewOrgForm((f) => ({ ...f, name: e.target.value }))} placeholder="Organization name" />
           <Input label="Code" value={newOrgForm.code} onChange={(e) => setNewOrgForm((f) => ({ ...f, code: e.target.value }))} placeholder="Optional code" />
           <Input label="Website" value={newOrgForm.website} onChange={(e) => setNewOrgForm((f) => ({ ...f, website: e.target.value }))} placeholder="https://..." />
-          <Input label="Industry" value={newOrgForm.industry} onChange={(e) => setNewOrgForm((f) => ({ ...f, industry: e.target.value }))} placeholder="e.g. IT, Manufacturing" />
+          <Select label="Industry" options={INDUSTRY_OPTIONS} value={newOrgForm.industry} onChange={(v) => setNewOrgForm((f) => ({ ...f, industry: (v as string) || '' }))} placeholder="Select industry..." />
           <Select
             label="Size"
             options={COMPANY_SIZES}

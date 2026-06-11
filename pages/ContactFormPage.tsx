@@ -14,7 +14,7 @@ import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission, selectUser, selectEmployee } from '../store/slices/authSlice';
 import { marketingAPI, Contact, Domain, Region, Organization, Plant } from '../lib/marketing-api';
-import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText } from '../constants';
+import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, INDIAN_STATES, INDUSTRY_OPTIONS } from '../constants';
 import { parseNameWithPrefix, parsePhoneWithCountryCode, serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import { getStoredMarketingScope } from '../lib/marketing-scope';
 import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Globe, Plus, X } from 'lucide-react';
@@ -577,7 +577,7 @@ export const ContactFormPage: React.FC = () => {
                         <Input label="Address line 1" value={plantModalData.address_line1 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
                         <Input label="Address line 2" value={plantModalData.address_line2 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
                         <Input label="City" value={plantModalData.city || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, city: e.target.value }))} />
-                        <Input label="State" value={plantModalData.state || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, state: e.target.value }))} placeholder="State" />
+                        <Select label="State" options={INDIAN_STATES} value={plantModalData.state || ''} onChange={(val) => setPlantModalData(prev => ({ ...prev, state: (val as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable />
                         <Input label="Country" value={plantModalData.country || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, country: e.target.value }))} />
                         <Input label="Pin / Postal code" value={plantModalData.postal_code || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, postal_code: e.target.value }))} />
                       </div>
@@ -625,7 +625,7 @@ export const ContactFormPage: React.FC = () => {
                       />
                       <Input label="Code" value={newOrgForm.code} onChange={(e) => setNewOrgForm(prev => ({ ...prev, code: e.target.value }))} placeholder="Optional code" />
                       <Input label="Website" value={newOrgForm.website} onChange={(e) => setNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
-                      <Input label="Industry" value={newOrgForm.industry} onChange={(e) => setNewOrgForm(prev => ({ ...prev, industry: e.target.value }))} placeholder="e.g. IT, Manufacturing" />
+                      <Select label="Industry" options={INDUSTRY_OPTIONS} value={newOrgForm.industry} onChange={(val) => setNewOrgForm(prev => ({ ...prev, industry: (val as string) || '' }))} placeholder="Select industry..." />
                       <div className="md:col-span-2">
                         <Select
                           label="Size of organization"
@@ -654,7 +654,7 @@ export const ContactFormPage: React.FC = () => {
                         <Input label="Address line 1" value={newPlantForm.address_line1 || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
                         <Input label="Address line 2" value={newPlantForm.address_line2 || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
                         <Input label="City" value={newPlantForm.city || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, city: e.target.value }))} />
-                        <Input label="State" value={newPlantForm.state || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, state: e.target.value }))} placeholder="State" />
+                        <Select label="State" options={INDIAN_STATES} value={newPlantForm.state || ''} onChange={(val) => setNewPlantForm(prev => ({ ...prev, state: (val as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable />
                         <Input label="Country" value={newPlantForm.country || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, country: e.target.value }))} />
                         <Input label="Postal code" value={newPlantForm.postal_code || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} />
                       </div>

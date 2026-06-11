@@ -18,6 +18,7 @@ import {
   selectPlantsForOrganization,
 } from '../store/slices/organizationPlantsSlice';
 import { marketingAPI, Organization, Plant } from '../lib/marketing-api';
+import { INDIAN_STATES, INDUSTRY_OPTIONS } from '../constants';
 import { ArrowLeft, Plus, MapPin, Building2, Layers, Pencil, Trash2 } from 'lucide-react';
 
 const ORGANIZATION_SIZES = [
@@ -316,11 +317,12 @@ export const OrganizationFormPage: React.FC = () => {
             onChange={(e) => setFormData({ ...formData, website: e.target.value })}
             placeholder="https://..."
           />
-          <Input
+          <Select
             label="Industry"
+            options={INDUSTRY_OPTIONS}
             value={formData.industry || ''}
-            onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-            placeholder="e.g. Manufacturing"
+            onChange={(val) => setFormData({ ...formData, industry: (val as string) || '' })}
+            placeholder="Select industry..."
           />
           <Select
             label="Size of organization"
@@ -390,11 +392,13 @@ export const OrganizationFormPage: React.FC = () => {
                       value={p.city || ''}
                       onChange={(e) => updatePendingPlant(index, 'city', e.target.value)}
                     />
-                    <Input
+                    <Select
                       label="State"
+                      options={INDIAN_STATES}
                       value={p.state || ''}
-                      onChange={(e) => updatePendingPlant(index, 'state', e.target.value)}
-                      placeholder="State"
+                      onChange={(val) => updatePendingPlant(index, 'state', (val as string) || '')}
+                      placeholder="Select or type state..."
+                      isCombobox creatable searchable
                     />
                     <Input
                       label="Country"
@@ -456,11 +460,13 @@ export const OrganizationFormPage: React.FC = () => {
                           value={editingPlantForm.city || ''}
                           onChange={(e) => setEditingPlantForm(prev => ({ ...prev, city: e.target.value }))}
                         />
-                        <Input
+                        <Select
                           label="State"
+                          options={INDIAN_STATES}
                           value={editingPlantForm.state || ''}
-                          onChange={(e) => setEditingPlantForm(prev => ({ ...prev, state: e.target.value }))}
-                          placeholder="State"
+                          onChange={(val) => setEditingPlantForm(prev => ({ ...prev, state: (val as string) || '' }))}
+                          placeholder="Select or type state..."
+                          isCombobox creatable searchable
                         />
                         <Input
                           label="Country"
@@ -553,11 +559,13 @@ export const OrganizationFormPage: React.FC = () => {
                     value={plantForm.city || ''}
                     onChange={(e) => setPlantForm({ ...plantForm, city: e.target.value })}
                   />
-                  <Input
+                  <Select
                     label="State"
+                    options={INDIAN_STATES}
                     value={plantForm.state || ''}
-                    onChange={(e) => setPlantForm({ ...plantForm, state: e.target.value })}
-                    placeholder="State"
+                    onChange={(val) => setPlantForm({ ...plantForm, state: (val as string) || '' })}
+                    placeholder="Select or type state..."
+                    isCombobox creatable searchable
                   />
                   <Input
                     label="Country"
