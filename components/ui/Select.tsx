@@ -68,10 +68,12 @@ export const Select: React.FC<SelectProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [dropdownRect, setDropdownRect] = useState<{ top: number; bottom: number; left: number; width: number; openUp: boolean } | null>(null);
   const selectRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const selectedOption = options.find(opt => opt.value == value);
   const isCustomValue = creatable && value !== undefined && !options.some(opt => opt.value == value);
@@ -123,10 +125,17 @@ export const Select: React.FC<SelectProps> = ({
 
     if (isOpen) {
       document.addEventListener('mousedown', handlePointerDown);
+      setActiveIndex(0);
       setTimeout(() => searchInputRef.current?.focus(), 50);
     }
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [isOpen, isCombobox, creatable, searchQuery, options, onChange]);
+
+  useEffect(() => {
+    if (isOpen && activeIndex >= 0 && optionRefs.current[activeIndex]) {
+      optionRefs.current[activeIndex]?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [isOpen, activeIndex]);
 
   const handleSelect = (optionValue: string | number) => {
     if (optionValue != value) onChange(optionValue);
@@ -150,7 +159,7 @@ export const Select: React.FC<SelectProps> = ({
       )}
       <div className={cn("relative", isCombobox && "group/combobox")} ref={selectRef}>
         {isCombobox ? (
-          <div className="relative flex items-center">
+          <div className="relative flex items-center" role="combobox" aria-expanded={isOpen} aria-haspopup="listbox" aria-label={label || placeholder}>
             <input
               ref={searchInputRef}
               type="text"
@@ -160,15 +169,25 @@ export const Select: React.FC<SelectProps> = ({
               onChange={(e) => {
                 if (!isOpen) setIsOpen(true);
                 setSearchQuery(e.target.value);
+                setActiveIndex(0);
               }}
               onFocus={() => !disabled && setIsOpen(true)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && isCombobox && creatable && searchQuery.trim() && !options.some(opt => String(opt.value) === searchQuery.trim())) {
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setIsOpen(true);
+                  setActiveIndex(0);
+                } else if (e.key === 'Escape') {
+                  setIsOpen(false);
+                } else if (e.key === 'Enter' && isCombobox && creatable && searchQuery.trim() && !options.some(opt => String(opt.value) === searchQuery.trim())) {
                   onChange(searchQuery.trim());
                   setIsOpen(false);
                   setSearchQuery('');
                 }
               }}
+              aria-autocomplete="list"
+              aria-controls={isOpen ? 'select-listbox' : undefined}
+              aria-activedescendant={isOpen && activeIndex >= 0 ? `select-option-${activeIndex}` : undefined}
               className={cn(
                 'w-full border rounded-lg text-left transition-all',
                 'focus:outline-none focus:ring-2 focus:ring-indigo-500',
@@ -195,7 +214,20 @@ export const Select: React.FC<SelectProps> = ({
           <button
             type="button"
             onClick={() => !disabled && setIsOpen(!isOpen)}
+            onKeyDown={(e) => {
+              if (disabled) return;
+              if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                setIsOpen(true);
+                setActiveIndex(0);
+              } else if (e.key === 'Escape') {
+                setIsOpen(false);
+              }
+            }}
             disabled={disabled}
+            aria-haspopup="listbox"
+            aria-expanded={isOpen}
+            aria-label={label || placeholder}
             className={cn(
               'w-full border rounded-lg text-left transition-all',
               'focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm',
@@ -227,6 +259,9 @@ export const Select: React.FC<SelectProps> = ({
           <div
             ref={dropdownRef}
             data-marketing-select-dropdown
+            role="listbox"
+            id="select-listbox"
+            aria-label={label || placeholder}
             className="fixed z-[99999] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
             style={{
               top: dropdownRect.openUp ? 'auto' : dropdownRect.bottom + 4,
@@ -245,15 +280,48 @@ export const Select: React.FC<SelectProps> = ({
                     ref={searchInputRef}
                     type="text"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setActiveIndex(0);
+                    }}
                     placeholder="Search..."
                     className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                     onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setActiveIndex(prev => Math.min(prev + 1, filteredOptions.length - 1));
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setActiveIndex(prev => Math.max(prev - 1, 0));
+                      } else if (e.key === 'Enter' && activeIndex >= 0) {
+                        const opt = filteredOptions[activeIndex];
+                        if (opt && !opt.disabled) handleSelect(opt.value);
+                      } else if (e.key === 'Escape') {
+                        setIsOpen(false);
+                      }
+                    }}
                   />
                 </div>
               </div>
             )}
-            <div className="overflow-y-auto customize-scrollbar py-1 min-h-0">
+            <div
+              className="overflow-y-auto customize-scrollbar py-1 min-h-0"
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setActiveIndex(prev => Math.min(prev + 1, filteredOptions.length - 1));
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setActiveIndex(prev => Math.max(prev - 1, 0));
+                } else if (e.key === 'Enter' && activeIndex >= 0) {
+                  const opt = filteredOptions[activeIndex];
+                  if (opt && !opt.disabled) handleSelect(opt.value);
+                } else if (e.key === 'Escape') {
+                  setIsOpen(false);
+                }
+              }}
+            >
               {filteredOptions.length === 0 ? (
                 <div className="px-3 py-8 text-[10px] text-slate-300 text-center uppercase tracking-[0.2em] font-bold">
                   No results
@@ -262,13 +330,19 @@ export const Select: React.FC<SelectProps> = ({
                 filteredOptions.map((option, index) => (
                   <button
                     key={getOptionKey ? getOptionKey(option, index) : option.value}
+                    id={`select-option-${index}`}
+                    ref={el => { optionRefs.current[index] = el; }}
                     type="button"
+                    role="option"
+                    aria-selected={value == option.value}
                     onClick={() => !option.disabled && handleSelect(option.value)}
+                    onMouseEnter={() => setActiveIndex(index)}
                     disabled={option.disabled}
                     className={cn(
                       'w-[calc(100%-8px)] mx-1 px-3 py-2 text-sm text-left transition-colors rounded-lg mb-0.5 flex items-center justify-between',
                       value == option.value ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-600',
-                      option.disabled && 'opacity-40 cursor-not-allowed'
+                      option.disabled && 'opacity-40 cursor-not-allowed',
+                      activeIndex === index && !option.disabled && 'bg-slate-100'
                     )}
                   >
                     <span className="truncate">{option.label}</span>

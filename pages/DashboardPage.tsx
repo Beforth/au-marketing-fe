@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../App';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { addManualTask, completeTaskById, fetchTodayTasks, selectTasksLoading, selectTodayTasks } from '../store/slices/tasksSlice';
+import { ChangelogModal } from '../components/ChangelogModal';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { PageLayout } from '../components/layout/PageLayout';
@@ -693,33 +693,6 @@ export const DashboardPage: React.FC = () => {
   const [reportScope, setReportScope] = useState<ReportScopeResponse | null>(null);
   const [headSummary, setHeadSummary] = useState<HeadDashboardSummaryResponse | null>(null);
   const [headSummaryLoading, setHeadSummaryLoading] = useState(false);
-  const todayTasks = useAppSelector(selectTodayTasks);
-  const tasksLoading = useAppSelector(selectTasksLoading);
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
-  const [manualTaskTitle, setManualTaskTitle] = useState('');
-  const [manualTaskDescription, setManualTaskDescription] = useState('');
-  const [showAddTask, setShowAddTask] = useState(false);
-  const [enquiryForm, setEnquiryForm] = useState({
-    activity_type: 'call',
-    title: '',
-    description: '',
-    from_status_id: undefined as number | undefined,
-    to_status_id: undefined as number | undefined,
-    contact_person_name_prefix: '',
-    contact_person_name: '',
-    contact_person_email: '',
-    contact_person_phone_code: DEFAULT_COUNTRY_CODE,
-    contact_person_phone: '',
-  });
-  const [enquirySubmitting, setEnquirySubmitting] = useState(false);
-  const [manualTaskSubmitting, setManualTaskSubmitting] = useState(false);
-  const [taskModalLeadStatuses, setTaskModalLeadStatuses] = useState<{ id: number; label: string }[]>([]);
-  const [taskModalSeriesList, setTaskModalSeriesList] = useState<{ code: string; name: string }[]>([]);
-  type AttachmentEntry = { id: string; kind: 'quotation' | 'attachment'; file: File | null; quotationNumber: string; title: string; quoteValue: string };
-  const [taskModalAttachments, setTaskModalAttachments] = useState<AttachmentEntry[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
-  const [taskModalQuotationSeriesCode, setTaskModalQuotationSeriesCode] = useState('');
-  const [taskModalQuotationIsRevised, setTaskModalQuotationIsRevised] = useState(false);
-  const [quickQuotationFile, setQuickQuotationFile] = useState<File | null>(null);
   const [quickQuotationSubmitting, setQuickQuotationSubmitting] = useState(false);
   const [quickQuotationValue, setQuickQuotationValue] = useState('');
 
@@ -739,6 +712,7 @@ export const DashboardPage: React.FC = () => {
   const [dashboardDateTo, setDashboardDateTo] = useState('');
   const [savedDashboardsLoading, setSavedDashboardsLoading] = useState(false);
   const [showCreateDashboardModal, setShowCreateDashboardModal] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
   const [createDashboardName, setCreateDashboardName] = useState('');
   const [createDashboardSubmitting, setCreateDashboardSubmitting] = useState(false);
   const [showAssignDashboardModal, setShowAssignDashboardModal] = useState(false);
@@ -848,17 +822,6 @@ export const DashboardPage: React.FC = () => {
     }
   }, [permissionDenied, canViewReport, dashboardDateFrom, dashboardDateTo]);
 
-  const loadTasks = useCallback(async () => {
-    if (permissionDenied) return;
-    try {
-      await dispatch(fetchTodayTasks()).unwrap();
-    } catch {
-      // handled in slice
-    } finally {
-      // loading handled in slice
-    }
-  }, [dispatch, permissionDenied]);
-
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
@@ -879,21 +842,6 @@ export const DashboardPage: React.FC = () => {
   }, [permissionDenied, loading, reportScope, isHeadRole, dashboardDateFrom, dashboardDateTo]);
 
   useEffect(() => {
-    if (!permissionDenied && !loading && reportScope && !isHeadRole) {
-      loadTasks();
-    }
-  }, [permissionDenied, loading, reportScope, isHeadRole, loadTasks]);
-
-  const selectedTask = todayTasks.find((task) => task.id === selectedTaskId) ?? null;
-
-  useEffect(() => {
-    if (selectedTaskId == null) return;
-    if (!todayTasks.some((task) => task.id === selectedTaskId)) {
-      setSelectedTaskId(null);
-    }
-  }, [selectedTaskId, todayTasks]);
-
-  useEffect(() => {
     if (permissionDenied) return;
     setSavedDashboardsLoading(true);
     marketingAPI.getSavedDashboards()
@@ -909,6 +857,8 @@ export const DashboardPage: React.FC = () => {
     }
     setSelectedDashboardId((prev) => {
       if (prev != null && savedDashboards.some((d) => d.id === prev)) return prev;
+      const lastId = localStorage.getItem('lastDashboardId');
+      if (lastId && savedDashboards.some((d) => d.id === parseInt(lastId, 10))) return parseInt(lastId, 10);
       return savedDashboards[0].id;
     });
   }, [savedDashboards]);
@@ -927,29 +877,13 @@ export const DashboardPage: React.FC = () => {
       setLayout(nextLayout);
       lastPersistedLayoutRef.current = JSON.stringify(nextLayout);
       setSqlWidgetData(res.widget_data ?? {});
+      if (selectedDashboardId != null) localStorage.setItem('lastDashboardId', String(selectedDashboardId));
     }).catch((e: unknown) => {
       setSqlWidgetData({});
       const msg = e instanceof Error ? e.message : 'Failed to load selected dashboard';
       showToastRef.current(msg, 'error');
     });
   }, [selectedDashboardId, dashboardDateFrom, dashboardDateTo]);
-
-  useEffect(() => {
-    if (selectedTask?.lead_id) {
-      marketingAPI.getLeadStatuses({ is_active: true }).then((list) =>
-        setTaskModalLeadStatuses(list.map((s: { id: number; label: string }) => ({ id: s.id, label: s.label })))
-      ).catch(() => setTaskModalLeadStatuses([]));
-      marketingAPI.getSeries({ page: 1, page_size: 100, is_active: true }).then((r) => {
-        const list = r.items.map((s: { code: string; name: string }) => ({ code: s.code, name: s.name }));
-        setTaskModalSeriesList(list);
-        // Default to first series so quotation numbers use the number series (not QTN-1, QTN-2)
-        if (list.length > 0) setTaskModalQuotationSeriesCode(list[0].code);
-      }).catch(() => setTaskModalSeriesList([]));
-    } else {
-      setTaskModalLeadStatuses([]);
-      setTaskModalSeriesList([]);
-    }
-  }, [selectedTask?.lead_id]);
 
   const toggleResize = (id: string) => {
     setLayout(prev => prev.map(w => {
@@ -1804,6 +1738,14 @@ export const DashboardPage: React.FC = () => {
       >
         Export
       </Button>
+
+      <button
+        onClick={() => setShowChangelog(true)}
+        className="text-[10px] font-medium text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer ml-1"
+        title="View changelog"
+      >
+        v1.0.5
+      </button>
     </div>
   );
 
@@ -1945,494 +1887,11 @@ export const DashboardPage: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* Today's tasks - visible on small/medium (below content); hidden for admin/domain head */}
-          {!isHeadRole && (
-          <div className="lg:hidden mt-6">
-            <Card title="Today's tasks" description="Auto (follow-up) or manual. Tap to open; add enquiry to complete.">
-              {tasksLoading ? (
-                <div className="p-4 flex items-center justify-center text-slate-500"><RefreshCw size={20} className="animate-spin" /></div>
-              ) : todayTasks.length === 0 ? (
-                <p className="text-xs text-slate-500 p-3">No tasks for today.</p>
-              ) : (
-                <div className="space-y-1 max-h-[280px] overflow-y-auto">
-                  {todayTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer ${task.completed_at ? 'bg-slate-50' : 'bg-white border-slate-200'}`}
-                      onClick={() => setSelectedTaskId(task.id)}
-                    >
-                      <button type="button" className="shrink-0 mt-0.5" onClick={async (e) => { e.stopPropagation(); if (task.completed_at) return; try { await dispatch(completeTaskById(task.id)).unwrap(); showToast('Task marked complete'); } catch { showToast('Failed to complete task', 'error'); } }}>
-                        {task.completed_at ? <CheckSquare size={18} className="text-emerald-600" /> : <Square size={18} />}
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-medium truncate ${task.completed_at ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{task.title}</p>
-                        {task.description && (
-                          <p className={`text-[11px] truncate ${task.completed_at ? 'text-slate-400' : 'text-slate-500'}`}>{task.description}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="pt-2 border-t border-slate-100 mt-2">
-                <Button type="button" variant="outline" size="sm" className="w-full" leftIcon={<Plus size={14} />} onClick={() => { setShowAddTask(true); setManualTaskTitle(''); setManualTaskDescription(''); }}>Add task</Button>
-              </div>
-            </Card>
           </div>
-          )}
-          </div>
-
-          {/* Today's tasks - right column (desktop); hidden for admin/domain head */}
-          {!isHeadRole && (
-          <div className="w-80 flex-shrink-0 hidden lg:block self-start">
-            <Card
-              className="sticky top-4 h-[calc(100vh-2rem)] flex flex-col overflow-hidden"
-              contentClassName="p-0 overflow-hidden"
-              title="Today's tasks"
-              description="Auto (follow-up) or manual. Click to open; add enquiry to complete."
-            >
-              <div className="h-full min-h-0 flex flex-col">
-                {tasksLoading ? (
-                  <div className="p-4 flex items-center justify-center text-slate-500">
-                    <RefreshCw size={20} className="animate-spin" />
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
-                      {todayTasks.length === 0 ? (
-                        <p className="text-xs text-slate-500 p-3">No tasks for today.</p>
-                      ) : (
-                        todayTasks.map((task) => (
-                          <div
-                            key={task.id}
-                            className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                              task.completed_at ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/30'
-                            }`}
-                            onClick={() => setSelectedTaskId(task.id)}
-                          >
-                            <button
-                              type="button"
-                              className="shrink-0 mt-0.5 text-slate-400 hover:text-indigo-600"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                if (task.completed_at) return;
-                                try {
-                                  await dispatch(completeTaskById(task.id)).unwrap();
-                                  showToast('Task marked complete');
-                                } catch {
-                                  showToast('Failed to complete task', 'error');
-                                }
-                              }}
-                              aria-label={task.completed_at ? 'Completed' : 'Mark complete'}
-                            >
-                              {task.completed_at ? (
-                                <CheckSquare size={18} className="text-emerald-600" />
-                              ) : (
-                                <Square size={18} />
-                              )}
-                            </button>
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-xs font-medium truncate ${task.completed_at ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
-                                {task.title}
-                              </p>
-                              {task.description && (
-                                <p className={`text-[11px] truncate ${task.completed_at ? 'text-slate-400' : 'text-slate-500'}`}>{task.description}</p>
-                              )}
-                              {task.lead_name && (
-                                <p className="text-[10px] text-slate-500 truncate">{task.lead_series || task.lead_name}</p>
-                              )}
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                    <div className="p-2 border-t border-slate-100">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full justify-center"
-                        leftIcon={<Plus size={14} />}
-                        onClick={() => { setShowAddTask(true); setManualTaskTitle(''); setManualTaskDescription(''); }}
-                      >
-                        Add task
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </Card>
-          </div>
-          )}
         </div>
 
-          {/* Task detail modal: description + inline add enquiry (completes task) or mark complete */}
-          {selectedTask && (
-          <Modal
-            isOpen={!!selectedTask}
-            onClose={() => {
-              setSelectedTaskId(null);
-              setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' });
-              setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
-              setTaskModalQuotationSeriesCode('');
-              setTaskModalQuotationIsRevised(false);
-              setQuickQuotationFile(null);
-            }}
-            title={selectedTask.title}
-          >
-            <div className="space-y-4">
-              {selectedTask.description && (
-                <p className="text-sm text-slate-600 whitespace-pre-wrap">{selectedTask.description}</p>
-              )}
-              {selectedTask.lead_id != null && !selectedTask.completed_at && (
-                <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-4 max-h-[70vh] overflow-y-auto">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-slate-700">Add enquiry / quotation to complete this task</p>
-                    <Button variant="ghost" size="sm" type="button" className="text-xs" onClick={() => { setSelectedTaskId(null); navigate(`/leads/${selectedTask.lead_id}/edit`); }}>Open lead →</Button>
-                  </div>
-
-                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3 space-y-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">Add quotation</p>
-                      <p className="text-xs text-slate-600">Upload a file to add an enquiry with title "Added quotation". No need to fill title or description.</p>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">Choose file</label>
-                        <label className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
-                          <Upload size={14} />
-                          <span className="truncate">{quickQuotationFile ? quickQuotationFile.name : 'Choose file'}</span>
-                          <input
-                            type="file"
-                            accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                            className="hidden"
-                            onChange={(e) => setQuickQuotationFile(e.target.files?.[0] ?? null)}
-                          />
-                        </label>
-                      </div>
-                      <div>
-                        <Input
-                          label="Quote Value (₹) *"
-                          type="text"
-                          value={quickQuotationValue}
-                          onChange={(e) => setQuickQuotationValue(e.target.value.replace(/\D/g, ''))}
-                          placeholder="e.g. 500000"
-                          inputSize="sm"
-                        />
-                      </div>
-                      {taskModalSeriesList.length > 0 && (
-                        <Select
-                          label="Quotation series"
-                          value={taskModalQuotationSeriesCode}
-                          onChange={(v) => setTaskModalQuotationSeriesCode((v ?? '') as string)}
-                          options={taskModalSeriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
-                          placeholder="Choose series"
-                        />
-                      )}
-                    </div>
-                    <label className="inline-flex items-center gap-2 text-xs text-slate-700">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                        checked={taskModalQuotationIsRevised}
-                        onChange={(e) => setTaskModalQuotationIsRevised(e.target.checked)}
-                      />
-                      Mark as revised quotation
-                    </label>
-                    <div className="flex justify-end">
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={!quickQuotationFile || quickQuotationSubmitting}
-                        onClick={async () => {
-                          if (!selectedTask.lead_id || !quickQuotationFile) return;
-                          setQuickQuotationSubmitting(true);
-                          try {
-                            const created = await marketingAPI.createLeadActivity(selectedTask.lead_id, {
-                              activity_type: 'qtn_submitted',
-                              title: 'Added quotation',
-                              activity_date: new Date().toISOString(),
-                            });
-                            await marketingAPI.uploadLeadActivityAttachments(
-                              selectedTask.lead_id,
-                              created.id,
-                              [quickQuotationFile],
-                              ['quotation'],
-                              undefined,
-                              undefined,
-                              taskModalQuotationSeriesCode || undefined,
-                              taskModalQuotationIsRevised,
-                              [quickQuotationValue ? Number(quickQuotationValue) : undefined]
-                            );
-                            await dispatch(completeTaskById(selectedTask.id)).unwrap();
-                            setSelectedTaskId(null);
-                            setQuickQuotationFile(null);
-                            setTaskModalQuotationIsRevised(false);
-                            setQuickQuotationValue('');
-                            setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' });
-                            setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
-                            showToast('Quotation added and task completed');
-                          } catch (err: unknown) {
-                            showToast(err instanceof Error ? err.message : 'Failed to add quotation', 'error');
-                          } finally {
-                            setQuickQuotationSubmitting(false);
-                          }
-                        }}
-                      >
-                        {quickQuotationSubmitting ? 'Adding quotation...' : 'Add quotation'}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="pt-1">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Or add detailed log</p>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
-                    <div className="grid grid-cols-1 gap-2">
-                      <Select
-                        label="Type"
-                        options={ACTIVITY_TYPE_OPTIONS}
-                        value={enquiryForm.activity_type}
-                        onChange={(v) => setEnquiryForm(f => ({ ...f, activity_type: (v ?? 'call') as string }))}
-                        searchable={false}
-                      />
-                      {enquiryForm.activity_type === 'qtn_submitted' ? (
-                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                          Title will be set automatically: <strong>Added quotation</strong>
-                        </div>
-                      ) : (
-                        <Input
-                          label="Title *"
-                          value={enquiryForm.title}
-                          onChange={(e) => setEnquiryForm(f => ({ ...f, title: e.target.value }))}
-                          placeholder="e.g. Called to discuss requirements"
-                        />
-                      )}
-                    </div>
-                  </div>
-                  {enquiryForm.activity_type === 'lead_status_change' && (
-                    <div className="grid grid-cols-2 gap-2 p-2 rounded-lg bg-slate-100 border border-slate-200">
-                      <Select label="From status" options={[{ value: '', label: '—' }, ...taskModalLeadStatuses.map(s => ({ value: String(s.id), label: s.label }))]} value={enquiryForm.from_status_id != null ? String(enquiryForm.from_status_id) : ''} onChange={(v) => setEnquiryForm(f => ({ ...f, from_status_id: v != null ? parseInt(String(v), 10) : undefined }))} searchable={false} />
-                      <Select label="To status" options={[{ value: '', label: '—' }, ...taskModalLeadStatuses.map(s => ({ value: String(s.id), label: s.label }))]} value={enquiryForm.to_status_id != null ? String(enquiryForm.to_status_id) : ''} onChange={(v) => setEnquiryForm(f => ({ ...f, to_status_id: v != null ? parseInt(String(v), 10) : undefined }))} searchable={false} />
-                    </div>
-                  )}
-                  {enquiryForm.activity_type === 'contacted_different_person' && (
-                    <div className="grid grid-cols-1 gap-2 p-2 rounded-lg bg-slate-100 border border-slate-200">
-                      <div className="flex gap-2 items-end">
-                        <div className="w-24 shrink-0"><Select label="Title" options={NAME_PREFIXES} value={enquiryForm.contact_person_name_prefix} onChange={(v) => setEnquiryForm(f => ({ ...f, contact_person_name_prefix: (v ?? '') as string }))} searchable={false} /></div>
-                        <div className="flex-1"><Input label="Contact person name" value={enquiryForm.contact_person_name} onChange={(e) => setEnquiryForm(f => ({ ...f, contact_person_name: e.target.value }))} placeholder="Name" /></div>
-                      </div>
-                      <Input label="Contact person email" value={enquiryForm.contact_person_email} onChange={(e) => setEnquiryForm(f => ({ ...f, contact_person_email: e.target.value }))} placeholder="email@example.com" />
-                      <div className="flex gap-2 items-end">
-                        <div className="w-28 shrink-0"><Select label="Phone code" options={COUNTRY_CODES} value={enquiryForm.contact_person_phone_code} onChange={(v) => setEnquiryForm(f => ({ ...f, contact_person_phone_code: (v ?? '') as string }))} searchable getSearchText={getCountryCodeSearchText} /></div>
-                        <div className="flex-1"><Input label="Phone" value={enquiryForm.contact_person_phone} onChange={(e) => setEnquiryForm(f => ({ ...f, contact_person_phone: e.target.value }))} placeholder="Number" /></div>
-                      </div>
-                    </div>
-                  )}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">File attachments (optional)</label>
-                    <p className="text-[10px] text-slate-500 mb-1">Add quotations (trackable) and/or general attachments (diagrams, docs).</p>
-                    <div className="space-y-2">
-                      {taskModalAttachments.map((row) => (
-                        <div key={row.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
-                              <Upload size={12} /><span className="truncate max-w-[180px]">{row.file ? row.file.name : 'Choose file'}</span>
-                              <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; setTaskModalAttachments(prev => prev.map(r => r.id === row.id ? { ...r, file: file || null } : r)); }} />
-                            </label>
-                            <select className="rounded border border-slate-200 px-2 py-1 text-xs" value={row.kind} onChange={(e) => setTaskModalAttachments(prev => prev.map(r => r.id === row.id ? { ...r, kind: e.target.value as 'quotation' | 'attachment' } : r))}>
-                              <option value="quotation">Quotation</option>
-                              <option value="attachment">Attachment</option>
-                            </select>
-                            <button type="button" onClick={() => setTaskModalAttachments(prev => prev.length > 1 ? prev.filter(r => r.id !== row.id) : prev)} className="p-1.5 rounded text-slate-400 hover:bg-slate-200 hover:text-rose-600"><Trash2 size={14} /></button>
-                          </div>
-                          {row.kind === 'attachment' ? (
-                            <input className="w-full rounded border border-slate-200 px-2 py-1 text-xs" placeholder="Title (e.g. Diagram, Documentation)" value={row.title} onChange={(e) => setTaskModalAttachments(prev => prev.map(r => r.id === row.id ? { ...r, title: e.target.value } : r))} />
-                          ) : (
-                            <input className="w-full rounded border border-slate-200 px-2 py-1 text-xs" placeholder="Quote Value (₹) *" value={row.quoteValue} onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setTaskModalAttachments(prev => prev.map(r => r.id === row.id ? { ...r, quoteValue: val } : r)); }} />
-                          )}
-                        </div>
-                      ))}
-                      <button type="button" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1" onClick={() => setTaskModalAttachments(prev => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }])}><Plus size={12} /> Add another file</button>
-                    </div>
-                    {taskModalAttachments.some(e => e.kind === 'quotation') && (
-                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {taskModalSeriesList.length > 0 && (
-                          <Select
-                            label="Quotation series"
-                            value={taskModalQuotationSeriesCode}
-                            onChange={(v) => setTaskModalQuotationSeriesCode((v ?? '') as string)}
-                            options={taskModalSeriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
-                            placeholder="Choose series"
-                          />
-                        )}
-                        <label className="inline-flex items-center gap-2 text-xs text-slate-700 mt-6">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                            checked={taskModalQuotationIsRevised}
-                            onChange={(e) => setTaskModalQuotationIsRevised(e.target.checked)}
-                          />
-                          Mark quotation as revised
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">What was discussed / notes</label>
-                    <textarea className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm min-h-[70px]" placeholder="e.g. Asked about timeline, budget. They need chamber by Q2." value={enquiryForm.description} onChange={(e) => setEnquiryForm(f => ({ ...f, description: e.target.value }))} />
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    leftIcon={<MessageSquare size={14} />}
-                    disabled={enquirySubmitting}
-                    onClick={async () => {
-                      if (!selectedTask.lead_id) return;
-                      const isQuotationLog = enquiryForm.activity_type === 'qtn_submitted';
-                      const effectiveTitle = isQuotationLog ? 'Added quotation' : enquiryForm.title.trim();
-                      if (!effectiveTitle) {
-                        showToast('Please enter title', 'error');
-                        return;
-                      }
-                      if (isQuotationLog) {
-                        const quotationFiles = taskModalAttachments.filter(a => a.file && a.kind === 'quotation');
-                        if (quotationFiles.length === 0) {
-                          showToast('Please upload quotation file', 'error');
-                          return;
-                        }
-                      }
-                      setEnquirySubmitting(true);
-                      try {
-                        const created = await marketingAPI.createLeadActivity(selectedTask.lead_id, {
-                          activity_type: enquiryForm.activity_type,
-                          title: effectiveTitle,
-                          description: enquiryForm.description?.trim() || undefined,
-                          activity_date: new Date().toISOString(),
-                          from_status_id: enquiryForm.activity_type === 'lead_status_change' ? enquiryForm.from_status_id : undefined,
-                          to_status_id: enquiryForm.activity_type === 'lead_status_change' ? enquiryForm.to_status_id : undefined,
-                          contact_person_title: enquiryForm.activity_type === 'contacted_different_person' ? (enquiryForm.contact_person_name_prefix?.trim() || undefined) : undefined,
-                          contact_person_name: enquiryForm.activity_type === 'contacted_different_person' ? enquiryForm.contact_person_name?.trim() || undefined : undefined,
-                          contact_person_email: enquiryForm.activity_type === 'contacted_different_person' ? enquiryForm.contact_person_email?.trim() || undefined : undefined,
-                          contact_person_phone: enquiryForm.activity_type === 'contacted_different_person' ? (serializePhoneWithCountryCode(enquiryForm.contact_person_phone_code, enquiryForm.contact_person_phone)?.trim() || undefined) : undefined,
-                        });
-                        const toUpload = taskModalAttachments.filter(e => e.file);
-                        if (toUpload.length > 0) {
-                          await marketingAPI.uploadLeadActivityAttachments(
-                            selectedTask.lead_id,
-                            created.id,
-                            toUpload.map(e => e.file!),
-                            toUpload.map(e => e.kind),
-                            undefined,
-                            toUpload.map(e => e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined),
-                            toUpload.some(e => e.kind === 'quotation') ? (taskModalQuotationSeriesCode || undefined) : undefined,
-                            toUpload.some(e => e.kind === 'quotation') ? taskModalQuotationIsRevised : undefined,
-                            toUpload.map(e => e.kind === 'quotation' && e.quoteValue ? Number(e.quoteValue) : undefined)
-                          );
-                        }
-                        await dispatch(completeTaskById(selectedTask.id)).unwrap();
-                        setSelectedTaskId(null);
-                        setQuickQuotationFile(null);
-                        setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' });
-                        setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
-                        showToast('Enquiry added and task completed');
-                      } catch (err: unknown) {
-                        showToast(err instanceof Error ? err.message : 'Failed to add enquiry', 'error');
-                      } finally {
-                        setEnquirySubmitting(false);
-                      }
-                    }}
-                  >
-                    {enquirySubmitting ? 'Adding...' : 'Add log'}
-                  </Button>
-                </div>
-              )}
-              {selectedTask.lead_id != null && selectedTask.completed_at && (
-                <p className="text-xs text-slate-500">Lead: {selectedTask.lead_series || selectedTask.lead_name || `#${selectedTask.lead_id}`}</p>
-              )}
-              <div className="flex justify-between pt-2">
-                <Button variant="outline" size="sm" type="button" onClick={() => { setSelectedTaskId(null); setEnquiryForm({ activity_type: 'call', title: '', description: '', from_status_id: undefined, to_status_id: undefined, contact_person_name_prefix: '', contact_person_name: '', contact_person_email: '', contact_person_phone_code: DEFAULT_COUNTRY_CODE, contact_person_phone: '' }); setTaskModalAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]); }}>Close</Button>
-                {!selectedTask.completed_at && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    leftIcon={<CheckSquare size={14} />}
-                    onClick={async () => {
-                      try {
-                        await dispatch(completeTaskById(selectedTask.id)).unwrap();
-                        showToast('Task marked complete');
-                      } catch {
-                        showToast('Failed to complete task', 'error');
-                      }
-                    }}
-                  >
-                    Mark complete
-                  </Button>
-                )}
-              </div>
-            </div>
-          </Modal>
-          )}
-
-          {/* Add manual task modal */}
-          {showAddTask && (
-          <Modal isOpen onClose={() => setShowAddTask(false)} title="Add task">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Title <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="e.g. Call back client X"
-                  value={manualTaskTitle}
-                  onChange={(e) => setManualTaskTitle(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Description (optional)</label>
-                <textarea
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="e.g. Discuss pricing, send revised quote by Friday."
-                  value={manualTaskDescription}
-                  onChange={(e) => setManualTaskDescription(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-1">
-                <Button variant="outline" size="sm" type="button" onClick={() => setShowAddTask(false)}>Cancel</Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={manualTaskSubmitting}
-                  onClick={async () => {
-                    if (!manualTaskTitle.trim()) { showToast('Enter a title', 'error'); return; }
-                    setManualTaskSubmitting(true);
-                    try {
-                      await dispatch(addManualTask({
-                        title: manualTaskTitle.trim(),
-                        description: manualTaskDescription.trim() || undefined,
-                      })).unwrap();
-                      setShowAddTask(false);
-                      setManualTaskTitle('');
-                      setManualTaskDescription('');
-                      showToast('Task added');
-                    } catch (err: unknown) {
-                      showToast(err instanceof Error ? err.message : 'Failed to add task', 'error');
-                    } finally {
-                      setManualTaskSubmitting(false);
-                    }
-                  }}
-                >
-                  {manualTaskSubmitting ? 'Adding...' : 'Add task'}
-                </Button>
-              </div>
-            </div>
-          </Modal>
-          )}
-
-          {/* Create saved dashboard modal */}
+          <ChangelogModal isOpen={showChangelog} onClose={() => setShowChangelog(false)} />
+{/* Create saved dashboard modal */}
           {showCreateDashboardModal && (
             <Modal
               isOpen

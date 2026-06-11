@@ -63,6 +63,8 @@ export const LeadFormPage: React.FC = () => {
   const user = useAppSelector(selectUser);
   const employee = useAppSelector(selectEmployee);
   const isEdit = Boolean(id);
+  const leadId = isEdit ? parseInt(id!, 10) || null : null;
+  const isValidId = isEdit && leadId !== null;
 
   const canCreate = useAppSelector(selectHasPermission('marketing.create_lead'));
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_lead'));
@@ -705,14 +707,14 @@ export const LeadFormPage: React.FC = () => {
   }, [createContactForm, linkLeadToContact, showToast]);
 
   const loadActivities = () => {
-    if (!isEdit || !id) return;
+    if (!isValidId) return;
     setActivitiesLoading(true);
-    marketingAPI.getLeadActivities(parseInt(id)).then(setActivities).catch(() => setActivities([])).finally(() => setActivitiesLoading(false));
+    marketingAPI.getLeadActivities(leadId).then(setActivities).catch(() => setActivities([])).finally(() => setActivitiesLoading(false));
   };
 
   useEffect(() => {
-    if (isEdit && id) loadActivities();
-  }, [isEdit, id]);
+    if (isValidId) loadActivities();
+  }, [isValidId]);
 
   useEffect(() => {
     if (hasExistingQuotation) {
@@ -737,7 +739,7 @@ export const LeadFormPage: React.FC = () => {
 
   const handleAddActivity = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id) return;
+    if (!isValidId) return;
     const isQuotationLog = activityForm.activity_type === 'qtn_submitted';
     const effectiveTitle = isQuotationLog ? 'Added quotation' : activityForm.title.trim();
     if (!effectiveTitle) {
@@ -757,7 +759,7 @@ export const LeadFormPage: React.FC = () => {
     }
     setActivitySubmitting(true);
     try {
-      const created = await marketingAPI.createLeadActivity(parseInt(id), {
+      const created = await marketingAPI.createLeadActivity(leadId, {
         activity_type: activityForm.activity_type,
         title: effectiveTitle,
         description: activityForm.description?.trim() || undefined,
@@ -771,7 +773,7 @@ export const LeadFormPage: React.FC = () => {
       const toUpload = attachmentEntries.filter((e) => e.file);
       if (toUpload.length > 0) {
         await marketingAPI.uploadLeadActivityAttachments(
-          parseInt(id),
+          leadId,
           created.id,
           toUpload.map((e) => e.file!),
           toUpload.map((e) => e.kind),
@@ -806,16 +808,16 @@ export const LeadFormPage: React.FC = () => {
   };
 
   const handleQuickAddQuotation = async () => {
-    if (!id || !quickAddQuotationFile) return;
+    if (!isValidId || !quickAddQuotationFile) return;
     setQuickAddQuotationSubmitting(true);
     try {
-      const created = await marketingAPI.createLeadActivity(parseInt(id), {
+      const created = await marketingAPI.createLeadActivity(leadId, {
         activity_type: 'qtn_submitted',
         title: 'Added quotation',
         description: undefined,
       });
       await marketingAPI.uploadLeadActivityAttachments(
-        parseInt(id),
+        leadId,
         created.id,
         [quickAddQuotationFile],
         ['quotation'],
@@ -882,13 +884,13 @@ export const LeadFormPage: React.FC = () => {
   };
 
   const handleSaveEditActivity = async () => {
-    if (!id || editingActivityId == null || !editActivityForm.title.trim()) {
+    if (!isValidId || editingActivityId == null || !editActivityForm.title.trim()) {
       showToast('Title is required', 'error');
       return;
     }
     setEditActivitySubmitting(true);
     try {
-      await marketingAPI.updateLeadActivity(parseInt(id), editingActivityId, {
+      await marketingAPI.updateLeadActivity(leadId, editingActivityId, {
         activity_type: editActivityForm.activity_type,
         title: editActivityForm.title.trim(),
         description: editActivityForm.description?.trim() || undefined,
@@ -910,9 +912,9 @@ export const LeadFormPage: React.FC = () => {
   };
 
   const handleConfirmDeleteActivity = async () => {
-    if (!id || deleteActivityId == null) return;
+    if (!isValidId || deleteActivityId == null) return;
     try {
-      await marketingAPI.deleteLeadActivity(parseInt(id), deleteActivityId);
+      await marketingAPI.deleteLeadActivity(leadId, deleteActivityId);
       showToast('Enquiry deleted', 'success');
       setDeleteActivityId(null);
       loadActivities();
@@ -1004,11 +1006,11 @@ export const LeadFormPage: React.FC = () => {
   };
 
   const loadLead = async () => {
-    if (!id) return;
+    if (!isValidId) return;
     setIsLoading(true);
     try {
       const [lead, customersRes] = await Promise.all([
-        marketingAPI.getLead(parseInt(id)),
+        marketingAPI.getLead(leadId),
         marketingAPI.getCustomers({ is_active: true, page: 1, page_size: 100 })
       ]);
       const customersData = customersRes.items;
@@ -1322,8 +1324,8 @@ export const LeadFormPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      if (isEdit && id) {
-        await marketingAPI.updateLead(parseInt(id), payload as UpdateLeadRequest);
+      if (isValidId) {
+        await marketingAPI.updateLead(leadId, payload as UpdateLeadRequest);
         showToast('Lead updated successfully', 'success');
         setShowEditModal(false);
         loadLead();
@@ -1380,13 +1382,13 @@ export const LeadFormPage: React.FC = () => {
     }
     setGeneratingQuoteNumber(true);
     try {
-      const res = isEdit && id
-        ? await marketingAPI.generateNextSeriesNumberByCode(code, { lead_id: parseInt(id, 10) })
+      const res = isValidId
+        ? await marketingAPI.generateNextSeriesNumberByCode(code, { lead_id: leadId })
         : await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company } });
       const generated = res.generated_value ?? undefined;
       setFormData((prev) => ({ ...prev, series: generated }));
-      if (isEdit && id && generated) {
-        const updated = await marketingAPI.updateLead(parseInt(id, 10), { series_code: code, series: generated } as UpdateLeadRequest);
+      if (isValidId && generated) {
+        const updated = await marketingAPI.updateLead(leadId, { series_code: code, series: generated } as UpdateLeadRequest);
         setCurrentLead(updated);
         showToast('Lead number generated and saved', 'success');
       } else {
@@ -1430,7 +1432,7 @@ export const LeadFormPage: React.FC = () => {
   const lostStatusId = useMemo(() => leadStatuses.find((s) => s.is_lost)?.id ?? null, [leadStatuses]);
 
   const handleMarkWonSubmit = async () => {
-    if (!id || !wonStatusId || !markWonClosedValue.trim()) return;
+    if (!isValidId || !wonStatusId || !markWonClosedValue.trim()) return;
     const value = parseFloat(markWonClosedValue.replace(/,/g, '').trim());
     if (Number.isNaN(value) || value < 0) {
       showToast('Please enter a valid positive number for closed value', 'error');
@@ -1438,9 +1440,9 @@ export const LeadFormPage: React.FC = () => {
     }
     setMarkWonSubmitting(true);
     try {
-      await marketingAPI.updateLead(parseInt(id), { status_id: wonStatusId ?? undefined, closed_value: value } as UpdateLeadRequest);
+      await marketingAPI.updateLead(leadId, { status_id: wonStatusId ?? undefined, closed_value: value } as UpdateLeadRequest);
       const description = `Closed value: ₹${value.toLocaleString()}${markWonPO.trim() ? `\nPO: ${markWonPO.trim()}` : ''}`;
-      await marketingAPI.createLeadActivity(parseInt(id), {
+      await marketingAPI.createLeadActivity(leadId, {
         activity_type: 'lead_status_change',
         title: 'Marked as Won',
         description,
@@ -1462,10 +1464,14 @@ export const LeadFormPage: React.FC = () => {
   };
 
   const handleMarkLostConfirm = async () => {
-    if (!id || !lostStatusId || markLostReason.trim().length < 100) return;
+    if (!isValidId || !lostStatusId) return;
+    if (markLostReason.trim().length < 100) {
+      showToast('Please provide a reason of at least 100 characters', 'error');
+      return;
+    }
     setMarkLostSubmitting(true);
     try {
-      await marketingAPI.updateLead(parseInt(id), {
+      await marketingAPI.updateLead(leadId, {
         status_id: lostStatusId ?? undefined,
         status_change_reason: markLostReason.trim(),
         lost_to_competitor: markLostCompetitor.trim() || 'Not sure',
@@ -1486,14 +1492,14 @@ export const LeadFormPage: React.FC = () => {
   };
 
   const saveFollowUp = async () => {
-    if (!id) return;
+    if (!isValidId) return;
     if (!formData.next_follow_up_at) {
       showToast('Please set the date and time for follow-up.', 'error');
       return;
     }
     setFollowUpSaving(true);
     try {
-      await marketingAPI.scheduleLeadFollowUp(parseInt(id), {
+      await marketingAPI.scheduleLeadFollowUp(leadId, {
         next_follow_up_at: formData.next_follow_up_at,
         follow_up_reminder_type: 'once',
         follow_up_time: null,
@@ -1560,10 +1566,10 @@ export const LeadFormPage: React.FC = () => {
                 <span className="text-slate-500">Latest quotation</span>
                 <br />
                 <span className="font-medium">{latestQuotation.att.quotation_number || '—'}</span>
-                {id && (
+                {isValidId && (
                   <button
                     type="button"
-                    onClick={() => marketingAPI.downloadLeadActivityAttachment(parseInt(id), latestQuotation.activity.id, latestQuotation.att.id, latestQuotation.att.file_name || 'download')}
+                    onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, latestQuotation.activity.id, latestQuotation.att.id, latestQuotation.att.file_name || 'download')}
                     className="ml-2 text-xs text-indigo-600 hover:text-indigo-700 font-medium inline-flex items-center gap-0.5"
                   >
                     <Download size={12} /> Download
@@ -1634,7 +1640,7 @@ export const LeadFormPage: React.FC = () => {
               <History size={16} /> Lead status logs
             </button>
           </div>
-          {id && !viewMode && (
+          {isValidId && !viewMode && (
             <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
               <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Custom follow-up</span>
               <DatePicker
@@ -2826,7 +2832,7 @@ export const LeadFormPage: React.FC = () => {
                                         {att.quotation_number && <span className="text-slate-400">·</span>}
                                         <button
                                           type="button"
-                                          onClick={() => marketingAPI.downloadLeadActivityAttachment(parseInt(id!), a.id, att.id, att.file_name)}
+                                          onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, a.id, att.id, att.file_name)}
                                           className="text-indigo-600 hover:underline flex items-center gap-1"
                                         >
                                           <Download size={12} /> {att.quotation_number || att.file_name}
@@ -2834,12 +2840,10 @@ export const LeadFormPage: React.FC = () => {
                                         {canEditDelete && (
                                           <button
                                             type="button"
-                                            disabled={deletingAttachmentId === att.id}
                                             onClick={async () => {
-                                              if (!id) return;
                                               setDeletingAttachmentId(att.id);
                                               try {
-                                                await marketingAPI.deleteLeadActivityAttachment(parseInt(id), a.id, att.id);
+                                                await marketingAPI.deleteLeadActivityAttachment(leadId!, a.id, att.id);
                                                 showToast('Removed', 'success');
                                                 loadActivities();
                                               } catch (err: any) {
@@ -2870,7 +2874,7 @@ export const LeadFormPage: React.FC = () => {
                                         {att.title && <span className="text-slate-400">·</span>}
                                         <button
                                           type="button"
-                                          onClick={() => marketingAPI.downloadLeadActivityAttachment(parseInt(id!), a.id, att.id, att.file_name)}
+                                          onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, a.id, att.id, att.file_name)}
                                           className="text-indigo-600 hover:underline flex items-center gap-1"
                                         >
                                           <Download size={12} /> {att.title || att.file_name}
@@ -2878,12 +2882,10 @@ export const LeadFormPage: React.FC = () => {
                                         {canEditDelete && (
                                           <button
                                             type="button"
-                                            disabled={deletingAttachmentId === att.id}
                                             onClick={async () => {
-                                              if (!id) return;
                                               setDeletingAttachmentId(att.id);
                                               try {
-                                                await marketingAPI.deleteLeadActivityAttachment(parseInt(id), a.id, att.id);
+                                                await marketingAPI.deleteLeadActivityAttachment(leadId!, a.id, att.id);
                                                 showToast('Removed', 'success');
                                                 loadActivities();
                                               } catch (err: any) {
@@ -3091,11 +3093,11 @@ export const LeadFormPage: React.FC = () => {
                                     }
                                     onClick={async () => {
                                       const toUpload = addAttachmentRows.filter((r) => r.file);
-                                      if (!id || toUpload.length === 0) return;
+                                      if (!isValidId || toUpload.length === 0) return;
                                       setUploadingAttachmentsForActivityId(a.id);
                                       try {
                                         await marketingAPI.uploadLeadActivityAttachments(
-                                          parseInt(id),
+                                          leadId,
                                           a.id,
                                           toUpload.map((r) => r.file!),
                                           toUpload.map((r) => r.kind),

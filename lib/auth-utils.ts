@@ -1,6 +1,12 @@
 /**
  * Authentication utility functions
  * Direct localStorage checks for route guards
+ *
+ * ⚠️ SECURITY NOTE: Storing auth tokens and user data in localStorage
+ * exposes them to XSS attacks. Any injected script can read localStorage
+ * via `window.localStorage`. For production hardening, migrate auth to
+ * httpOnly, SameSite=Strict cookies (set by the backend) and remove all
+ * localStorage auth reads. See SECURITY.md for details.
  */
 
 export const checkAuthFromStorage = (): boolean => {

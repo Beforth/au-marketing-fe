@@ -1740,6 +1740,8 @@ export interface ReportSummaryResponse {
   leads_total: number;
   leads_by_status: LeadsByStatusItem[];
   leads_created_count: number;
+  total_contacts: number;
+  total_customers: number;
 }
 
 export interface ExpectedOrderReportLeadItem {
