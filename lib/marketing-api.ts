@@ -1481,6 +1481,11 @@ class MarketingAPIService {
     return apiClient.get<QuotationStatsResponse>(`/api/dashboard/quotation-stats?period=${period}`);
   }
 
+  /** Performer of the month: top employees by target achievement across all domains/regions. */
+  async getPerformerOfMonth(): Promise<PerformerOfMonthResponse> {
+    return apiClient.get<PerformerOfMonthResponse>('/api/dashboard/performer-of-month');
+  }
+
   // Saved dashboards (user-created; assignable; widgets with SQL or preset)
   async getSavedDashboards(): Promise<SavedDashboardResponse[]> {
     return apiClient.get<SavedDashboardResponse[]>('/api/saved-dashboards');
@@ -1878,6 +1883,24 @@ export interface HeadDashboardSummaryResponse {
   lost_count: number;
   year: number;
   month: number;
+}
+
+export interface PerformerOfMonthItem {
+  employee_id: number;
+  employee_name: string;
+  domain_name: string;
+  region_name: string | null;
+  monthly_target: number;
+  achieved_value: number;
+  achievement_pct: number;
+  won_count: number;
+}
+
+export interface PerformerOfMonthResponse {
+  year: number;
+  month: number;
+  performers: PerformerOfMonthItem[];
+  highest_absolute_achiever: PerformerOfMonthItem | null;
 }
 
 /** Quotation stats: region-wise counts per period label (month/quarter/all-time). */

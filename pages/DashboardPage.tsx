@@ -11,9 +11,9 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { marketingAPI } from '../lib/marketing-api';
 import { ApiError } from '../lib/api';
 import { StatItem } from '../types';
-import { Lead, DashboardTargetStats, ScopeTargetStats, ReportScopeResponse, HeadDashboardSummaryResponse, leadDisplayName, leadDisplayCompany, SavedDashboardResponse, AssignableUser, SavedDashboardAssignmentResponse } from '../lib/marketing-api';
+import { Lead, DashboardTargetStats, ScopeTargetStats, ReportScopeResponse, HeadDashboardSummaryResponse, PerformerOfMonthResponse, leadDisplayName, leadDisplayCompany, SavedDashboardResponse, AssignableUser, SavedDashboardAssignmentResponse } from '../lib/marketing-api';
 import { Modal } from '../components/ui/Modal';
-import { Download, Layout as LayoutIcon, Check, RefreshCw, Users, UserCircle, Quote, FileText, ShieldAlert, Target, Trophy, XCircle, ListTodo, CheckSquare, Square, Plus, MessageSquare, Upload, Trash2, UserPlus, Wand2, Edit3, X, Search, Calendar } from 'lucide-react';
+import { Layout as LayoutIcon, Check, RefreshCw, Users, UserCircle, Quote, FileText, ShieldAlert, Target, Trophy, XCircle, ListTodo, CheckSquare, Square, Plus, MessageSquare, Upload, Trash2, UserPlus, Wand2, Edit3, X, Search, Calendar } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
@@ -71,6 +71,35 @@ function migrateLayout(saved: WidgetConfig[]): WidgetConfig[] {
   }));
 }
 
+function ensureDefaultWidgets(layout: WidgetConfig[]): WidgetConfig[] {
+  const hasPerformer = layout.some(w => w.type === 'performer-of-month');
+  if (!hasPerformer) {
+    layout = [{ id: 'performer-of-month-def', type: 'performer-of-month', span: 2 }, ...layout];
+  }
+  return layout;
+}
+
+function packLayout(layout: WidgetConfig[]): WidgetConfig[] {
+  const remaining = [...layout];
+  const result: WidgetConfig[] = [];
+  let rowCursor = 0;
+
+  while (remaining.length > 0) {
+    const idx = remaining.findIndex(w => rowCursor + w.span <= 4);
+    if (idx !== -1) {
+      const [item] = remaining.splice(idx, 1);
+      result.push(item);
+      rowCursor = (rowCursor + item.span) % 4;
+    } else {
+      const [item] = remaining.splice(0, 1);
+      result.push(item);
+      rowCursor = item.span % 4;
+    }
+  }
+
+  return result;
+}
+
 const WIDGET_TYPE_OPTIONS: { value: DashboardWidgetType; label: string }[] = [
   { value: 'target-card', label: 'Target (this month)' },
   { value: 'leads-by-region', label: 'Leads by region' },
@@ -91,6 +120,7 @@ const WIDGET_TYPE_OPTIONS: { value: DashboardWidgetType; label: string }[] = [
   { value: 'custom_code', label: 'Custom / code' },
   { value: 'custom_sql', label: 'Custom SQL chart' },
   { value: 'stat', label: 'Stat card' },
+  { value: 'performer-of-month', label: 'Performer of the month' },
 ];
 
 const AI_SCOPE_OPTIONS = [
@@ -680,7 +710,6 @@ export const DashboardPage: React.FC = () => {
   const canViewReport = useAppSelector(selectHasPermission('marketing.view_report'));
   const canCreateDashboard = useAppSelector(selectHasPermission('marketing.create_dashboard')) || useAppSelector(selectHasPermission('marketing.admin'));
   const canAssignDashboard = useAppSelector(selectHasPermission('marketing.assign_dashboard')) || useAppSelector(selectHasPermission('marketing.admin'));
-  const [isExporting, setIsExporting] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -693,6 +722,8 @@ export const DashboardPage: React.FC = () => {
   const [reportScope, setReportScope] = useState<ReportScopeResponse | null>(null);
   const [headSummary, setHeadSummary] = useState<HeadDashboardSummaryResponse | null>(null);
   const [headSummaryLoading, setHeadSummaryLoading] = useState(false);
+  const [performerData, setPerformerData] = useState<PerformerOfMonthResponse | null>(null);
+  const [performerLoading, setPerformerLoading] = useState(false);
   const [quickQuotationSubmitting, setQuickQuotationSubmitting] = useState(false);
   const [quickQuotationValue, setQuickQuotationValue] = useState('');
 
@@ -700,9 +731,9 @@ export const DashboardPage: React.FC = () => {
     try {
       const saved = localStorage.getItem('dashboard-layout');
       const parsed = saved ? (JSON.parse(saved) as WidgetConfig[]) : [];
-      return migrateLayout(parsed);
+      return packLayout(ensureDefaultWidgets(migrateLayout(parsed)));
     } catch (e) {
-      return [];
+      return packLayout(ensureDefaultWidgets([]));
     }
   });
 
@@ -727,6 +758,8 @@ export const DashboardPage: React.FC = () => {
   const [assignRole, setAssignRole] = useState('employee');
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [draggedCount, setDraggedCount] = useState(1);
+  const [draggedOverIndex, setDraggedOverIndex] = useState<number | null>(null);
   const [showAddWidgetModal, setShowAddWidgetModal] = useState(false);
   const [addWidgetType, setAddWidgetType] = useState<DashboardWidgetType>('target-card');
   const [addWidgetTitle, setAddWidgetTitle] = useState('');
@@ -841,6 +874,23 @@ export const DashboardPage: React.FC = () => {
     }
   }, [permissionDenied, loading, reportScope, isHeadRole, dashboardDateFrom, dashboardDateTo]);
 
+  const loadPerformer = useCallback(async () => {
+    setPerformerLoading(true);
+    try {
+      const data = await marketingAPI.getPerformerOfMonth();
+      setPerformerData(data);
+    } catch {
+      setPerformerData(null);
+    } finally {
+      setPerformerLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (permissionDenied || loading) return;
+    loadPerformer();
+  }, [permissionDenied, loading, loadPerformer]);
+
   useEffect(() => {
     if (permissionDenied) return;
     setSavedDashboardsLoading(true);
@@ -873,7 +923,7 @@ export const DashboardPage: React.FC = () => {
       date_to: dashboardDateTo || undefined,
     }).then((res) => {
       const layoutFromApi = Array.isArray(res.config?.layout) ? (res.config?.layout as WidgetConfig[]) : [];
-      const nextLayout = migrateLayout(layoutFromApi);
+      const nextLayout = ensureDefaultWidgets(migrateLayout(layoutFromApi));
       setLayout(nextLayout);
       lastPersistedLayoutRef.current = JSON.stringify(nextLayout);
       setSqlWidgetData(res.widget_data ?? {});
@@ -886,13 +936,13 @@ export const DashboardPage: React.FC = () => {
   }, [selectedDashboardId, dashboardDateFrom, dashboardDateTo]);
 
   const toggleResize = (id: string) => {
-    setLayout(prev => prev.map(w => {
+    setLayout(prev => packLayout(prev.map(w => {
       if (w.id === id) {
         const nextSpan = (w.span % 3) + 1 as 1 | 2 | 3;
         return { ...w, span: nextSpan };
       }
       return w;
-    }));
+    })));
   };
 
   const removeWidget = (id: string) => {
@@ -955,7 +1005,7 @@ export const DashboardPage: React.FC = () => {
       chart_type: addWidgetType === 'custom_sql' ? (addWidgetChartType || 'table') : undefined,
       time_group: addWidgetType === 'custom_sql' && (addWidgetCode.includes('{{time_group}}')) ? (addWidgetTimeGroup || 'month') : undefined,
     };
-    setLayout(prev => [...prev, widget]);
+    setLayout(prev => packLayout([...prev, widget]));
     closeWidgetModal();
   };
 
@@ -1033,13 +1083,21 @@ export const DashboardPage: React.FC = () => {
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
+  const handleDragOverIndex = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDraggedOverIndex(index);
+  };
+
+  const handleDragLeave = () => setDraggedOverIndex(null);
+
   const handleDrop = (index: number) => {
+    setDraggedOverIndex(null);
     if (draggedIndex === null) return;
     const newOrder = [...layout];
-    const itemToMove = newOrder[draggedIndex];
-    newOrder.splice(draggedIndex, 1);
-    newOrder.splice(index, 0, itemToMove);
-    setLayout(newOrder);
+    const items = newOrder.splice(draggedIndex, draggedCount);
+    const insertAt = index > draggedIndex ? index - draggedCount : index;
+    newOrder.splice(insertAt, 0, ...items);
+    setLayout(packLayout(newOrder));
     setDraggedIndex(null);
   };
 
@@ -1061,6 +1119,7 @@ export const DashboardPage: React.FC = () => {
               type: 'number-card-group',
               widgets: [...currentGroup],
               span: 4,
+              _rawStart: rawLayout.indexOf(currentGroup[0]),
             });
           }
           currentGroup = [];
@@ -1078,6 +1137,7 @@ export const DashboardPage: React.FC = () => {
           type: 'number-card-group',
           widgets: [...currentGroup],
           span: 4,
+          _rawStart: rawLayout.indexOf(currentGroup[0]),
         });
       }
     }
@@ -1091,10 +1151,11 @@ export const DashboardPage: React.FC = () => {
       isDraggable: isEditMode,
       showHandle: isEditMode,
       onDragStart: () => handleDragStart(layout.indexOf(config)),
-      onDragOver: handleDragOver,
+      onDragOver: (e: React.DragEvent) => handleDragOverIndex(e, layout.indexOf(config)),
+      onDragLeave: handleDragLeave,
       onDrop: () => handleDrop(layout.indexOf(config)),
       onResize: () => toggleResize(config.id),
-      className: `${config.span === 1 ? 'col-span-1' : config.span === 2 ? 'col-span-2' : config.span === 3 ? 'col-span-3' : 'col-span-4'} min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''}`,
+      className: `${config.span === 1 ? 'col-span-1' : config.span === 2 ? 'col-span-2' : config.span === 3 ? 'col-span-3' : 'col-span-4'} min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''} ${draggedOverIndex === layout.indexOf(config) ? 'ring-indigo-300' : ''}`,
       headerAction: isEditMode ? (
         <div className="flex items-center gap-0.5">
           <button
@@ -1120,15 +1181,21 @@ export const DashboardPage: React.FC = () => {
     switch (widgetType) {
       case 'number-card-group': {
         const group = config as any;
+        const rawStart = group._rawStart as number;
+        const groupVisible = draggedOverIndex === rawStart;
         return (
           <Card
             key={group.id}
             title="Key Performance Indicators"
-            className="col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4 min-w-0"
+            className={`col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4 min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''} ${groupVisible ? 'ring-indigo-300' : ''}`}
             isDraggable={isEditMode}
             showHandle={isEditMode}
             noPadding
             contentClassName="p-5"
+            onDragStart={() => { setDraggedCount(group.widgets.length); handleDragStart(rawStart); }}
+            onDragOver={(e: React.DragEvent) => handleDragOverIndex(e, rawStart)}
+            onDragLeave={handleDragLeave}
+            onDrop={() => handleDrop(rawStart)}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {group.widgets.map((w: WidgetConfig) => {
@@ -1610,17 +1677,48 @@ export const DashboardPage: React.FC = () => {
             />
           </Card>
         );
+      case 'performer-of-month':
+        return (
+          <Card key={config.id} {...commonProps} title="Performer of the Month" description="Top 5 by achievement %" noPadding>
+            {performerLoading ? (
+              <div className="flex items-center gap-3 text-slate-500 p-6">
+                <RefreshCw size={16} className="animate-spin" />
+                <span className="text-xs font-medium">Loading performer data…</span>
+              </div>
+            ) : performerData?.performers.length ? (
+              <div className="divide-y divide-slate-100">
+                {performerData.performers.map((p, i) => {
+                  const pct = Math.min(p.achievement_pct, 100);
+                  const barColor = i === 0
+                    ? (pct >= 100 ? 'bg-emerald-500' : pct >= 75 ? 'bg-indigo-500' : pct >= 50 ? 'bg-amber-500' : 'bg-slate-400')
+                    : (pct >= 100 ? 'bg-emerald-400' : 'bg-indigo-400');
+                  return (
+                    <div key={p.employee_id} className="px-5 py-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="text-sm font-semibold text-slate-800 truncate block">{p.employee_name}</span>
+                          <span className="text-[10px] text-slate-400">{p.domain_name}{p.region_name ? ` / ${p.region_name}` : ''}</span>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-xs font-bold text-slate-700">{p.achievement_pct}%</span>
+                          <span className="text-[10px] text-slate-400 ml-1">{p.won_count} won</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500 p-6">No performer data available.</p>
+            )}
+          </Card>
+        );
       default:
         return null;
     }
-  };
-
-  const handleExport = () => {
-    setIsExporting(true);
-    setTimeout(() => {
-      setIsExporting(false);
-      showToast('Export not implemented for dashboard', 'info');
-    }, 500);
   };
 
   const handleSaveLayout = async () => {
@@ -1726,17 +1824,6 @@ export const DashboardPage: React.FC = () => {
         )}
       >
         {isEditMode ? 'Save Layout' : 'Edit Layout'}
-      </Button>
-
-      <Button 
-        size="sm" 
-        onClick={handleExport} 
-        isLoading={isExporting} 
-        leftIcon={<Download size={14} />} 
-        variant="outline"
-        className="h-8 bg-white border-slate-100 font-medium px-4 hover:bg-slate-50 transition-all rounded-xl shadow-sm text-[11px]"
-      >
-        Export
       </Button>
 
       <button
@@ -1863,6 +1950,7 @@ export const DashboardPage: React.FC = () => {
                 Add widget
               </Button>
             </div>
+
             {layout.length === 0 ? (
               <div className="rounded-[2rem] border border-slate-200/60 bg-white/40 backdrop-blur-sm p-16 text-center shadow-sm relative overflow-hidden group/empty">
                 <div className="absolute inset-0 bg-gradient-to-b from-indigo-50/20 to-transparent opacity-0 group-hover/empty:opacity-100 transition-opacity duration-700" />

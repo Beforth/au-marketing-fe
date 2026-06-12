@@ -74,7 +74,8 @@ export type DashboardWidgetType =
   | 'goal-chart'
   | 'activity-table'
   | 'global-reach'
-  | 'custom_sql';
+  | 'custom_sql'
+  | 'performer-of-month';
 
 export interface WidgetConfig {
   id: string;

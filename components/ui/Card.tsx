@@ -13,6 +13,7 @@ interface CardProps {
   isDraggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onDragOver?: (e: React.DragEvent) => void;
+  onDragLeave?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
   showHandle?: boolean;
   onResize?: () => void;
@@ -31,6 +32,7 @@ export const Card: React.FC<CardProps> = ({
   isDraggable,
   onDragStart,
   onDragOver,
+  onDragLeave,
   onDrop,
   showHandle,
   onResize,
@@ -43,6 +45,7 @@ export const Card: React.FC<CardProps> = ({
       draggable={isDraggable}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
       onDrop={onDrop}
       className={cn(
         'bg-white border border-slate-200/50 transition-[box-shadow,border-color,background-color] duration-200 relative group/card flex flex-col min-h-[140px] shadow-[0_1px_3px_rgba(0,0,0,0.05),0_10px_40px_-15px_rgba(0,0,0,0.02)]',
