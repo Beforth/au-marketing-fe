@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -9,26 +9,46 @@ import { marketingAPI, ReportScopeResponse, ExpectedOrderReportItem, ODPlanRepor
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
+import { getCached, setCache, getCacheKey } from '../lib/api-cache';
 import { Calendar, MapPin, Eye, ExternalLink } from 'lucide-react';
+
+const SCOPE_CACHE_KEY = 'reports_scope';
+
+interface ReportData {
+  expectedOrderReports: ExpectedOrderReportItem[];
+  odPlanReports: ODPlanReportItem[];
+}
 
 export const ReportsPage: React.FC = () => {
   const { showToast } = useApp();
   const navigate = useNavigate();
   const canViewReport = useAppSelector(selectHasPermission('marketing.view_report'));
   const canCreateReport = useAppSelector(selectHasPermission('marketing.create_report'));
+
   const [scope, setScope] = useState<ReportScopeResponse | null>(null);
   const [loadingScope, setLoadingScope] = useState(true);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | undefined>(undefined);
+
   const [expectedOrderReports, setExpectedOrderReports] = useState<ExpectedOrderReportItem[]>([]);
   const [odPlanReports, setODPlanReports] = useState<ODPlanReportItem[]>([]);
   const [loadingExpected, setLoadingExpected] = useState(false);
   const [loadingOD, setLoadingOD] = useState(false);
   const [viewExpectedOrderReport, setViewExpectedOrderReport] = useState<ExpectedOrderReportItem | null>(null);
 
+  const dataCache = useRef<Map<string, ReportData>>(new Map());
+
   const loadScope = useCallback(async () => {
+    const cached = getCached<ReportScopeResponse>(SCOPE_CACHE_KEY);
+    if (cached) {
+      setScope(cached);
+      setLoadingScope(false);
+      return;
+    }
+
     setLoadingScope(true);
     try {
       const data = await marketingAPI.getReportsScope();
+      setCache(SCOPE_CACHE_KEY, data);
       setScope(data);
     } catch (e: any) {
       showToast(e?.message || 'Failed to load report scope', 'error');
@@ -39,20 +59,46 @@ export const ReportsPage: React.FC = () => {
 
   useEffect(() => {
     if (canViewReport) loadScope();
-  }, [canViewReport]);
+  }, [canViewReport, loadScope]);
 
+  // Fetch expected orders with caching
   useEffect(() => {
     if (!canViewReport) return;
+
+    const cacheKey = getCacheKey('report_expected', selectedEmployeeId);
+    const cached = dataCache.current.get(cacheKey);
+    if (cached?.expectedOrderReports) {
+      setExpectedOrderReports(cached.expectedOrderReports);
+      return;
+    }
+
     setLoadingExpected(true);
     const params = selectedEmployeeId != null ? { employee_id: selectedEmployeeId } : undefined;
-    marketingAPI.listExpectedOrderReports(params).then(setExpectedOrderReports).catch(() => setExpectedOrderReports([])).finally(() => setLoadingExpected(false));
+    marketingAPI.listExpectedOrderReports(params).then((data) => {
+      setExpectedOrderReports(data);
+      const existing = dataCache.current.get(cacheKey) || {} as ReportData;
+      dataCache.current.set(cacheKey, { ...existing, expectedOrderReports: data });
+    }).catch(() => setExpectedOrderReports([])).finally(() => setLoadingExpected(false));
   }, [canViewReport, selectedEmployeeId]);
 
+  // Fetch OD plans with caching
   useEffect(() => {
     if (!canViewReport) return;
+
+    const cacheKey = getCacheKey('report_od', selectedEmployeeId);
+    const cached = dataCache.current.get(cacheKey);
+    if (cached?.odPlanReports) {
+      setODPlanReports(cached.odPlanReports);
+      return;
+    }
+
     setLoadingOD(true);
     const params = selectedEmployeeId != null ? { employee_id: selectedEmployeeId } : undefined;
-    marketingAPI.listODPlanReports(params).then(setODPlanReports).catch(() => setODPlanReports([])).finally(() => setLoadingOD(false));
+    marketingAPI.listODPlanReports(params).then((data) => {
+      setODPlanReports(data);
+      const existing = dataCache.current.get(cacheKey) || {} as ReportData;
+      dataCache.current.set(cacheKey, { ...existing, odPlanReports: data });
+    }).catch(() => setODPlanReports([])).finally(() => setLoadingOD(false));
   }, [canViewReport, selectedEmployeeId]);
 
   const breadcrumbs = [{ label: 'Reports', href: '/reports' }];
@@ -102,7 +148,7 @@ export const ReportsPage: React.FC = () => {
       </Card>
       )}
 
-      {/* Create report actions (when user has create_report) */}
+      {/* Create report actions */}
       {canCreateReport && (
         <Card className="mb-6" title="Create report" description="Create plans and forecasts.">
           <div className="flex flex-wrap gap-3">
@@ -120,7 +166,10 @@ export const ReportsPage: React.FC = () => {
         {/* Expected order reports list */}
         <Card title="Expected order reports" description="Next month potential clients (selected leads).">
           {loadingExpected ? (
-            <p className="text-slate-500">Loading...</p>
+            <div className="animate-pulse space-y-3">
+              <div className="h-24 bg-slate-200 rounded-lg" />
+              <div className="h-24 bg-slate-200 rounded-lg" />
+            </div>
           ) : expectedOrderReports.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
               <Calendar size={32} />
@@ -161,7 +210,10 @@ export const ReportsPage: React.FC = () => {
         {/* OD plan reports list */}
         <Card title="Outdoor (OD) plans" description="Monthly visit / travel / return plans.">
           {loadingOD ? (
-            <p className="text-slate-500">Loading...</p>
+            <div className="animate-pulse space-y-3">
+              <div className="h-24 bg-slate-200 rounded-lg" />
+              <div className="h-24 bg-slate-200 rounded-lg" />
+            </div>
           ) : odPlanReports.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
               <MapPin size={32} />

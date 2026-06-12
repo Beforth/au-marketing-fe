@@ -76,6 +76,30 @@ export interface AllPermissionsResponse {
   permissions: string[];
 }
 
+export interface DSRTask {
+  id: number;
+  date: string;
+  title: string;
+  description?: string;
+  status: 'pending' | 'completed';
+  created_at?: string;
+  updated_at?: string;
+  completed_at?: string | null;
+}
+
+export interface DSRResponse {
+  success: boolean;
+  employee?: {
+    id: number;
+    username: string;
+    first_name: string;
+    last_name: string;
+  };
+  reports: DSRTask[];
+  count: number;
+  error?: string;
+}
+
 class HRMSRBACClient {
   private baseURL: string;
 
@@ -286,6 +310,38 @@ class HRMSRBACClient {
       return marketingRoles.length > 0 ? marketingRoles : roles;
     } catch (error) {
       console.error('Get marketing roles error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get DSR tasks for a user.
+   * GET /api/rbac/dsr/ – when called without username, returns the authenticated user's tasks.
+   */
+  async getDSR(
+    token: string,
+    params?: { username?: string; date?: string; filter_date?: string; status?: 'pending' | 'completed' }
+  ): Promise<DSRTask[]> {
+    try {
+      const query = new URLSearchParams();
+      if (params?.username) query.set('username', params.username);
+      if (params?.date) query.set('date', params.date);
+      if (params?.filter_date) query.set('filter_date', params.filter_date);
+      if (params?.status) query.set('status', params.status);
+      const qs = query.toString();
+      const url = `${this.baseURL}/dsr/${qs ? '?' + qs : ''}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) return [];
+      return Array.isArray(data.reports) ? data.reports : [];
+    } catch (error) {
+      console.error('DSR fetch error:', error);
       return [];
     }
   }

@@ -1,11 +1,13 @@
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SearchInput } from './SearchInput';
-import { Search, Bell, Settings, Command, ShoppingBag, ShieldAlert, Package, MessageSquare, User, ArrowRight, LayoutDashboard, FileText, PieChart, CreditCard, X, LogOut, UserCircle, Users, Globe, Quote, Building2, Database } from 'lucide-react';
+import { Search, Bell, Settings, Command, ShoppingBag, ShieldAlert, Package, MessageSquare, User, ArrowRight, LayoutDashboard, FileText, PieChart, CreditCard, X, LogOut, UserCircle, Users, Globe, Quote, Building2, Database, ClipboardList, CheckCircle2, Clock, RefreshCw } from 'lucide-react';
 import { useApp } from '../../App';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { logout, selectUserDisplayName, selectUserInitials, selectEmployee, selectHasPermission } from '../../store/slices/authSlice';
+import { logout, selectUserDisplayName, selectUserInitials, selectEmployee, selectHasPermission, selectToken } from '../../store/slices/authSlice';
+import { setDSRTasks, selectDSRTasks, selectDSRIsStale } from '../../store/slices/dsrSlice';
+import { hrmsRBACClient } from '../../lib/hrms-rbac';
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
@@ -24,18 +26,45 @@ export const Navbar: React.FC = () => {
 
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showDSR, setShowDSR] = useState(false);
+  const [dsrLoading, setDsrLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const dsrRef = useRef<HTMLDivElement>(null);
+  const token = useAppSelector(selectToken);
+  const dsrTasks = useAppSelector(selectDSRTasks);
+  const dsrIsStale = useAppSelector(selectDSRIsStale);
+
+  const fetchDSR = useCallback(async () => {
+    if (!token) return;
+    setDsrLoading(true);
+    try {
+      const tasks = await hrmsRBACClient.getDSR(token, { date: new Date().toISOString().slice(0, 10) });
+      dispatch(setDSRTasks(tasks));
+    } catch {
+      dispatch(setDSRTasks([]));
+    } finally {
+      setDsrLoading(false);
+    }
+  }, [token, dispatch]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
+      if (dsrRef.current && !dsrRef.current.contains(event.target as Node)) {
+        setShowDSR(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Fetch DSR when opening if stale; refresh button forces re-fetch
+  useEffect(() => {
+    if (showDSR && dsrIsStale) fetchDSR();
+  }, [showDSR, dsrIsStale, fetchDSR]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -171,6 +200,84 @@ export const Navbar: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-3">
+        <div className="relative" ref={dsrRef}>
+          <button
+            onClick={() => setShowDSR(!showDSR)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all active:scale-95 ${showDSR ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-indigo-50/50 border-indigo-100 text-indigo-600 hover:bg-indigo-50'}`}
+            title="Today's DSR"
+          >
+            <ClipboardList size={16} strokeWidth={2} />
+            {dsrTasks.filter(t => t.status === 'pending').length > 0 && (
+              <span className={`text-[11px] font-black tracking-tight ${showDSR ? 'text-indigo-50' : 'text-indigo-600'}`}>
+                {dsrTasks.filter(t => t.status === 'pending').length}
+              </span>
+            )}
+          </button>
+
+          {showDSR && (
+            <div className="absolute top-full right-0 mt-3 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Today's DSR</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); fetchDSR(); }}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                  title="Refresh"
+                >
+                  <RefreshCw size={13} className={dsrLoading ? 'animate-spin' : ''} />
+                </button>
+              </div>
+              <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
+                {dsrLoading ? (
+                  <div className="py-8 text-center text-slate-300">
+                    <p className="text-[10px] font-medium uppercase tracking-widest">Loading...</p>
+                  </div>
+                ) : dsrTasks.length === 0 ? (
+                  <div className="py-8 text-center text-slate-300">
+                    <p className="text-[10px] font-medium uppercase tracking-widest">No tasks for today</p>
+                  </div>
+                ) : (
+                  <div>
+                    {dsrTasks.filter(t => t.status === 'pending').length > 0 && (
+                      <div className="px-4 py-2">
+                        <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                          <Clock size={11} /> Pending
+                        </p>
+                        {dsrTasks.filter(t => t.status === 'pending').map(task => (
+                          <div key={task.id} className="px-3 py-2 rounded-lg bg-amber-50/50 mb-1.5 last:mb-0">
+                            <p className="text-xs font-semibold text-slate-800">{task.title}</p>
+                            {task.description && <p className="text-[10px] text-slate-500 mt-0.5">{task.description}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {dsrTasks.filter(t => t.status === 'completed').length > 0 && (
+                      <div className="px-4 py-2 border-t border-slate-50">
+                        <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                          <CheckCircle2 size={11} /> Completed
+                        </p>
+                        {dsrTasks.filter(t => t.status === 'completed').map(task => (
+                          <div key={task.id} className="px-3 py-2 rounded-lg bg-emerald-50/50 mb-1.5 last:mb-0">
+                            <p className="text-xs font-semibold text-slate-800">{task.title}</p>
+                            {task.description && <p className="text-[10px] text-slate-500 mt-0.5">{task.description}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="p-3 bg-slate-50/50 border-t border-slate-100">
+                <button
+                  onClick={() => { navigate('/dsr'); setShowDSR(false); }}
+                  className="w-full py-1.5 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors uppercase tracking-widest flex items-center gap-2 justify-center"
+                >
+                  View All DSR <ArrowRight size={10} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="relative" ref={notificationRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}

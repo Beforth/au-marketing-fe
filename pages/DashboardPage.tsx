@@ -1744,7 +1744,7 @@ export const DashboardPage: React.FC = () => {
         className="text-[10px] font-medium text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer ml-1"
         title="View changelog"
       >
-        v1.0.5
+        v1.0.6
       </button>
     </div>
   );

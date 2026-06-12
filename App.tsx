@@ -36,6 +36,8 @@ import { SettingsPage } from './pages/SettingsPage';
 import { SupportPage } from './pages/SupportPage';
 import { SchemaPage } from './pages/SchemaPage';
 import { ReportTemplatesPage } from './pages/ReportTemplatesPage';
+import { MyTeamPage } from './pages/MyTeamPage';
+import { DSRPage } from './pages/DSRPage';
 import { RolesPage } from './pages/RolesPage';
 import { TooltipProvider } from './UI/Tooltip';
 import { Toast, ToastType } from './components/ui/Toast';
@@ -268,6 +270,8 @@ const AppMain: React.FC = () => {
               <Route path="customers" element={<CustomersPage />} />
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="financials" element={<FinancialsPage />} />
+              <Route path="my-team" element={<MyTeamPage />} />
+              <Route path="dsr" element={<DSRPage />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="report-templates" element={<ReportTemplatesPage />} />
               <Route path="reports/expected-order/new" element={<ExpectedOrderNewPage />} />

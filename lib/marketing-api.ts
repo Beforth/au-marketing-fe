@@ -1712,6 +1712,7 @@ export interface QuotationLeadOption {
 export interface ReportableEmployee {
   id: number;
   name: string;
+  username?: string;
 }
 export interface ReportScopeResponse {
   can_select_employee: boolean;

@@ -17,7 +17,7 @@ export const Sidebar: React.FC = () => {
   const userInitials = useAppSelector(selectUserInitials);
   const employee = useAppSelector(selectEmployee);
   const user = useAppSelector(selectUser);
-  const appVersion = 'v1.0.5';
+  const appVersion = 'v1.0.6';
   const changelogSeenKey = useMemo(
     () => `marketing_changelog_seen_${appVersion}_${user?.id ?? 'anon'}`,
     [appVersion, user?.id]
@@ -33,6 +33,7 @@ export const Sidebar: React.FC = () => {
 
   const hasViewOrganization = useAppSelector(selectHasPermission('marketing.view_organization'));
   const hasViewReport = useAppSelector(selectHasPermission('marketing.view_report'));
+  const hasViewMyTeam = useAppSelector(selectHasPermission('marketing.view_myteam'));
   const hasAdmin = useAppSelector(selectHasPermission('marketing.admin'));
 
   // Filter links based on permissions
@@ -49,11 +50,12 @@ export const Sidebar: React.FC = () => {
         case 'marketing.view_organization': return hasViewOrganization;
         case 'marketing.view_database': return hasViewOrganization || hasViewCustomer || hasViewContact;
         case 'marketing.view_report': return hasViewReport;
+        case 'marketing.view_myteam': return hasViewMyTeam;
         case 'marketing.admin': return hasAdmin;
         default: return true;
       }
     });
-  }, [hasViewDomainTab, hasViewDomain, hasViewContact, hasViewLead, hasViewCampaign, hasViewCustomer, hasViewOrganization, hasViewReport, hasAdmin]);
+  }, [hasViewDomainTab, hasViewDomain, hasViewContact, hasViewLead, hasViewCampaign, hasViewCustomer, hasViewOrganization, hasViewReport, hasViewMyTeam, hasAdmin]);
 
   // Filter secondary links (Settings and Support don't need permissions for now)
   const filteredSecondaryLinks = SECONDARY_LINKS;

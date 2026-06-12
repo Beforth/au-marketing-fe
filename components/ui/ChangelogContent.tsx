@@ -8,14 +8,70 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
   return (
     <div className="space-y-10 text-sm text-slate-700 max-h-[70vh] overflow-y-auto pr-3 scrollbar-thin">
       
-      {/* ==================== VERSION 1.0.5 (June 10, 2026) ==================== */}
+      {/* ==================== VERSION 1.0.6 (June 12, 2026) ==================== */}
       <div className="space-y-4">
         <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
           <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg">
             Version {appVersion}
           </span>
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-            June 11, 2026 (Latest)
+            June 12, 2026 (Latest)
+          </span>
+        </div>
+
+        <div className="space-y-6 pl-4 border-l-2 border-indigo-100">
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">New Pages</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Daily Status Report (DSR):</strong> New page showing pending/completed daily tasks. Quick-access dropdown in the Navbar with pending count badge, grouped lists, and refresh button.</li>
+              <li><strong>My Team:</strong> New employee oversight page behind permission control. Added to sidebar nav.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Performance</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>ReportsPage Caching:</strong> Data cache for expected order and OD plan reports per employee filter — eliminates re-fetching on re-mount.</li>
+              <li><strong>Scope Cache:</strong> Added caching utility for report scope data.</li>
+              <li><strong>Dashboard Persistence:</strong> Last selected dashboard ID saved and restored on reload.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Removed</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Today's Tasks:</strong> Removed from Dashboard. Includes the tasks card, add-task modal, task completion flow, and enquiry form within task modal.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">UI Polish</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Skeleton Loaders:</strong> Replaced plain "Loading..." text with skeleton pulse animations on ReportsPage.</li>
+              <li><strong>Design Doc Rewrite:</strong> Design system reference fully rewritten with accurate component patterns.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Code Quality</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>HRMS RBAC:</strong> Added DSR types and API client method.</li>
+              <li><strong>Select:</strong> Added support for free-text combobox entry.</li>
+              <li><strong>Auth Utils:</strong> New shared auth utility module.</li>
+              <li><strong>ChangelogModal:</strong> New in-app changelog display component.</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+
+      {/* ==================== VERSION 1.0.5 (June 11, 2026) ==================== */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+          <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-slate-700 bg-slate-50 border border-slate-200 rounded-lg">
+            Version v1.0.5
+          </span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            June 11, 2026
           </span>
         </div>
 

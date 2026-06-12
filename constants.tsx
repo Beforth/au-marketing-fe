@@ -15,7 +15,8 @@ import {
   Globe,
   Hash,
   Building2,
-  Database
+  Database,
+  UserCheck
 } from 'lucide-react';
 import { NavItem, StatItem, Transaction } from './types';
 
@@ -29,6 +30,7 @@ export const SIDEBAR_LINKS: NavItem[] = [
   { title: 'Quotations', icon: Quote, href: '/quotations', permission: 'marketing.view_lead' },
   { title: 'Orders', icon: Package, href: '/orders', permission: 'marketing.view_lead' },
   { title: 'Database', icon: Database, href: '/database', permission: 'marketing.view_database' },
+  { title: 'My Team', icon: UserCheck, href: '/my-team', permission: 'marketing.view_myteam' },
   { title: 'Reports', icon: PieChart, href: '/reports', permission: 'marketing.view_report' },
   // { title: 'Report templates', icon: FileText, href: '/report-templates', permission: 'marketing.view_lead' },
   // { title: 'Employees', icon: Users, href: '/employees', permission: 'marketing.view_domain' },

@@ -5,6 +5,59 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-06-12] — Release: DSR & My Team Pages, Reports Caching, Remove Today's Tasks (v1.0.6)
+
+### 🖥️ Frontend
+
+#### New Pages
+- **Daily Status Report (DSR) Page**: Added a dedicated DSR page (`/dsr`) displaying pending and completed daily tasks. Includes a Navbar dropdown quick-access button with pending count badge, grouped pending/completed sections, refresh capability, and "View All DSR" link.
+- **My Team Page**: Added a new page (`/my-team`) for employee oversight, controlled by the `marketing.view_myteam` permission. Added `UserCheck` nav icon and route registration.
+- **Sidebar Link**: "My Team" added to the sidebar navigation behind the `marketing.view_myteam` permission check.
+
+#### Performance
+- **ReportsPage Data Caching**: Added in-memory `Map` cache for expected order reports and OD plan reports per employee filter — prevents re-fetching on component re-mount.
+- **ReportsPage Scope Caching**: Added `api-cache.ts` utility with TTL-based expiry for caching `getReportsScope()` response.
+- **Dashboard Persistence**: Last selected dashboard ID is now persisted to `localStorage` and restored on page load.
+
+#### Removed
+- **Today's Tasks Feature Removed**: Stripped the `tasksSlice` (Redux store, actions, reducers), the `fetchTodayTasks` and `completeTaskById` thunks, and all Today's Tasks UI from the DashboardPage — including the tasks card with auto/follow-up task list, add-task modal with manual task creation, task completion/enquiry workflow, and associated lead status/numbering series loading logic.
+
+#### UI Polish
+- **ReportsPage Skeletons**: Replaced plain "Loading..." text with skeleton pulse placeholders for both expected order and OD plan loading states.
+- **design.md Rewrite**: Complete rewrite of the design system reference document with accurate component patterns extracted from live code.
+
+#### Code Quality
+- **HRMS RBAC Client**: Added TypeScript interfaces (`DSRTask`, `DSRResponse`) and `getDSR()` method for fetching daily status reports from the HRMS API.
+- **ChangelogModal**: New in-app changelog display component and `lib/changelog.ts` data module.
+- **Auth Utils**: New shared `lib/auth-utils.ts` module.
+- **Select Component**: Enhanced with `creatable` prop supporting free-text combobox entry.
+- **ReportableEmployee**: Added `username` field to the interface.
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `pages/DSRPage.tsx` | New — DSR page with pending/completed task lists |
+| `store/slices/dsrSlice.ts` | New — DSR Redux slice with tasks state, stale flag |
+| `pages/MyTeamPage.tsx` | New — My Team page |
+| `components/ChangelogModal.tsx` | New — in-app changelog display modal |
+| `lib/changelog.ts` | New — changelog data module |
+| `lib/api-cache.ts` | New — TTL-based cache utility |
+| `lib/auth-utils.ts` | New — shared auth utilities |
+| `components/ui/Navbar.tsx` | Added DSR dropdown with badge, pending/completed groups, refresh |
+| `components/ui/Sidebar.tsx` | Added My Team link; version v1.0.5 → v1.0.6 |
+| `constants.tsx` | Added My Team sidebar nav entry |
+| `App.tsx` | Added DSR and My Team route registrations |
+| `pages/DashboardPage.tsx` | Removed Today's Tasks feature (tasks card, add-task modal, task enquiry flow); added persisted dashboard ID; shows v1.0.6 |
+| `lib/hrms-rbac.ts` | Added DSR types and `getDSR()` method |
+| `lib/marketing-api.ts` | Added `username` to `ReportableEmployee` |
+| `store/index.ts` | Registered `dsrReducer` |
+| `pages/ReportsPage.tsx` | Added scope/data caching, skeleton loaders |
+| `design.md` | Complete rewrite |
+| `components/ui/Select.tsx` | Added `creatable` prop |
+| `package.json` | Version 1.0.5 → 1.0.6 |
+
+---
+
 ## [2026-06-11] — Release: State/Industry Dropdowns, Domain Coordinator Dashboard 404 Fix (v1.0.5)
 
 ### 🖥️ Frontend
