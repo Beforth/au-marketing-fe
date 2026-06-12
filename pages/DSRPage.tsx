@@ -68,39 +68,50 @@ export const DSRPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
 
-  const fetchAll = useCallback(async () => {
+  const fetchDSR = useCallback(async () => {
     if (!token) return;
     setLoadingDSR(true);
-    setLoadingLeads(true);
-    setLoadingOrders(true);
     try {
-      const [tasks, leadResult, orderResult] = await Promise.all([
-        hrmsRBACClient.getDSR(token, {
-          filter_date: dateFrom || undefined,
-        }),
-        marketingAPI.getLeads({
-          page: 1, page_size: 10,
-          date_from: dateFrom || undefined,
-          date_to: dateTo || undefined,
-          order_by: '-created_at',
-        }),
-        marketingAPI.getOrders({ page: 1, page_size: 10 }),
-      ]);
+      const tasks = await hrmsRBACClient.getDSR(token, { filter_date: dateFrom || undefined });
       setLocalDSR(tasks);
-      setLeads(leadResult.items);
-      setOrders(orderResult.items);
     } catch {
-      showToast('Failed to load data', 'error');
+      showToast('Failed to load DSR', 'error');
     } finally {
       setLoadingDSR(false);
+    }
+  }, [token, dateFrom, showToast]);
+
+  const fetchLeads = useCallback(async () => {
+    if (!token) return;
+    setLoadingLeads(true);
+    try {
+      const result = await marketingAPI.getLeads({ page: 1, page_size: 10, date_from: dateFrom || undefined, date_to: dateTo || undefined, order_by: '-created_at' });
+      setLeads(result.items);
+    } catch {
+      showToast('Failed to load leads', 'error');
+    } finally {
       setLoadingLeads(false);
+    }
+  }, [token, dateFrom, dateTo, showToast]);
+
+  const fetchOrders = useCallback(async () => {
+    if (!token) return;
+    setLoadingOrders(true);
+    try {
+      const result = await marketingAPI.getOrders({ page: 1, page_size: 10, date_from: dateFrom || undefined, date_to: dateTo || undefined });
+      setOrders(result.items);
+    } catch {
+      showToast('Failed to load orders', 'error');
+    } finally {
       setLoadingOrders(false);
     }
   }, [token, dateFrom, dateTo, showToast]);
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    fetchDSR();
+    fetchLeads();
+    fetchOrders();
+  }, [fetchDSR, fetchLeads, fetchOrders]);
 
   const filteredDSR = useMemo(() => {
     if (statusFilter === 'all') return dsrTasks;
@@ -171,7 +182,7 @@ export const DSRPage: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchAll}
+            onClick={() => { fetchDSR(); fetchLeads(); fetchOrders(); }}
             className="flex items-center gap-1.5"
           >
             <RefreshCw size={13} /> Refresh
