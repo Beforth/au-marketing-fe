@@ -794,6 +794,8 @@ class MarketingAPIService {
     status_id?: number;
     assigned_to?: number;
     lead_id?: number;
+    date_from?: string;
+    date_to?: string;
   }): Promise<PaginatedResponse<Order>> {
     const queryParams = new URLSearchParams();
     queryParams.append('page', String(params?.page ?? 1));
@@ -801,6 +803,8 @@ class MarketingAPIService {
     if (params?.status_id != null) queryParams.append('status_id', params.status_id.toString());
     if (params?.assigned_to != null) queryParams.append('assigned_to', params.assigned_to.toString());
     if (params?.lead_id != null) queryParams.append('lead_id', params.lead_id.toString());
+    if (params?.date_from) queryParams.append('date_from', params.date_from);
+    if (params?.date_to) queryParams.append('date_to', params.date_to);
     return apiClient.get<PaginatedResponse<Order>>(`/api/orders/?${queryParams.toString()}`);
   }
 
