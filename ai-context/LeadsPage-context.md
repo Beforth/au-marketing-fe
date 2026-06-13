@@ -112,7 +112,7 @@
 - **Group Wrapper (Lines 1317-1351):** Collapsible vertical container with `groupLabel` and total lead count.
 - **Status Columns (Lines 1501-1638):**
   - Horizontal list of columns.
-  - **Drop Zone (Lines 1515-1521):** Highlights with `border-indigo-500` on drag over.
+  - **Drop Zone (Lines 1515-1521):** Highlights with `border-blue-500` on drag over.
   - **Status Header (Lines 1523-1540):** Label + Count + Inline "Plus" button to add a lead to that specific status.
   - **Lead Cards (Lines 1563-1630):**
     - Show Series (Lead #), Name, Company, Email, Potential Value.

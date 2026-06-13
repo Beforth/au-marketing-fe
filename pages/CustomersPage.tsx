@@ -123,7 +123,7 @@ export const CustomersPage: React.FC = () => {
                     cn(
                       'flex items-center gap-2 py-2 px-1 text-sm font-bold transition-all border-b-2',
                       isActive
-                        ? 'border-indigo-600 text-indigo-600'
+                        ? 'border-blue-600 text-blue-600'
                         : 'border-transparent text-slate-400 hover:text-slate-600'
                     )
                   }
@@ -151,7 +151,7 @@ export const CustomersPage: React.FC = () => {
       <Card noPadding contentClassName="py-0">
         {isLoading ? (
           <div className="py-24 text-center">
-            <div className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-indigo-600 border-t-transparent" />
+            <div className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-blue-600 border-t-transparent" />
             <p className="mt-4 text-slate-600">Loading customers...</p>
           </div>
         ) : filteredCustomers.length === 0 ? (
@@ -230,12 +230,12 @@ export const CustomersPage: React.FC = () => {
                   render: (c) =>
                     c.converted_from_contact_id ? (
                       <div className="flex items-center gap-2">
-                        <User size={12} className="text-indigo-500" />
+                        <User size={12} className="text-blue-500" />
                         <Button
                           type="button"
                           variant="link"
                           size="xxs"
-                          className="text-indigo-600 p-0 h-auto min-w-0 text-xs"
+                          className="text-blue-600 p-0 h-auto min-w-0 text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/contacts/${c.converted_from_contact_id}/edit`);

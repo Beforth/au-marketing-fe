@@ -288,7 +288,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         {isOpen && dropdownRect && createPortal(
           <div
             ref={dropdownRef}
-            className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl p-4 shadow-indigo-100/20 animate-spring-in"
+            className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl p-4 shadow-blue-100/20 animate-spring-in"
             style={{ top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width }}
           >
             <div className={cn(timeOnRight && !isYearPickerOpen && 'flex flex-row gap-3 items-stretch')}>
@@ -342,10 +342,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-tight">Time</span>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400" value={hours} onChange={(e) => handleTimeChange(Number(e.target.value), minutes)} aria-label="Hour">
+                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400" value={hours} onChange={(e) => handleTimeChange(Number(e.target.value), minutes)} aria-label="Hour">
                       {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}</option>)}
                     </select>
-                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400" value={minutes} onChange={(e) => handleTimeChange(hours, Number(e.target.value))} aria-label="Minute">
+                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400" value={minutes} onChange={(e) => handleTimeChange(hours, Number(e.target.value))} aria-label="Minute">
                       {Array.from({ length: 60 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}</option>)}
                     </select>
                   </div>
@@ -361,13 +361,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
-                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400" value={hours} onChange={(e) => handleTimeChange(Number(e.target.value), minutes)}>
+                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400" value={hours} onChange={(e) => handleTimeChange(Number(e.target.value), minutes)}>
                       {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}</option>)}
                     </select>
                   </div>
                   <span className="text-slate-300 font-bold">:</span>
                   <div className="flex-1">
-                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400" value={minutes} onChange={(e) => handleTimeChange(hours, Number(e.target.value))}>
+                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400" value={minutes} onChange={(e) => handleTimeChange(hours, Number(e.target.value))}>
                       {Array.from({ length: 60 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}</option>)}
                     </select>
                   </div>

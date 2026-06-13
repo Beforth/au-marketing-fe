@@ -23,12 +23,12 @@ import type { QuotationStatsResponse } from '../../lib/marketing-api';
 
 const chartColors = {
   target: '#f1f5f9', // slate-100
-  achieved: '#6366f1', // indigo-500
+  achieved: '#3b82f6', // blue-500
   won: '#10b981', // emerald-500
   lost: '#f43f5e', // rose-500
   total: '#94a3b8', // slate-400
   hot: '#f59e0b', // amber-500
-  default: ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6', '#ec4899'],
+  default: ['#3b82f6', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6', '#ec4899'],
 };
 
 const formatYAxisValue = (value: number) => {
@@ -96,8 +96,8 @@ export const TargetAchievedBarChart: React.FC<{
               <stop offset="100%" stopColor="#cbd5e1" stopOpacity={0.5} />
             </linearGradient>
             <linearGradient id="achievedBarGrad" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.95} />
-              <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.6} />
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#2563eb" stopOpacity={0.6} />
             </linearGradient>
           </defs>
           <XAxis type="number" hide />
@@ -215,8 +215,8 @@ export const LeadStatusPieChart: React.FC<{ data: { label: string; count: number
         <PieChart>
           <defs>
             <linearGradient id="statusGrad0" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.95} />
-              <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.6} />
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#2563eb" stopOpacity={0.6} />
             </linearGradient>
             <linearGradient id="statusGrad1" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#10b981" stopOpacity={0.95} />
@@ -363,8 +363,8 @@ export const InquiriesQuotationsBarChart: React.FC<{ inquiries: number; quotatio
               <stop offset="100%" stopColor="#cbd5e1" stopOpacity={0.4} />
             </linearGradient>
             <linearGradient id="quotationsGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.95} />
-              <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.5} />
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#2563eb" stopOpacity={0.5} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
@@ -391,8 +391,8 @@ export const RevenueChart: React.FC = () => {
         <AreaChart data={CHART_DATA} margin={{ top: 10, right: 20, left: 15, bottom: 0 }}>
           <defs>
             <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
@@ -413,7 +413,7 @@ export const RevenueChart: React.FC = () => {
           <Area
             type="monotone"
             dataKey="revenue"
-            stroke="#6366f1"
+            stroke="#3b82f6"
             strokeWidth={3}
             fillOpacity={1}
             fill="url(#colorRevenue)"
@@ -436,8 +436,8 @@ export const SalesTargetChart: React.FC = () => {
               <stop offset="100%" stopColor="#cbd5e1" stopOpacity={0.4} />
             </linearGradient>
             <linearGradient id="achievedChartGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.95} />
-              <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.5} />
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#2563eb" stopOpacity={0.5} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
@@ -518,7 +518,7 @@ export const QuotationSubmittedWidget: React.FC = () => {
           className={cn(
             'text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg transition-colors',
             period === p
-              ? 'bg-indigo-100 text-indigo-700'
+              ? 'bg-blue-100 text-blue-700'
               : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
           )}
         >

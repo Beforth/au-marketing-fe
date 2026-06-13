@@ -68,7 +68,7 @@ export function DataTable<T>({
                     id={`th-${colKey}`}
                     className={cn(
                       'h-10 px-4 text-left font-semibold text-slate-600 bg-[#F8FAFC] border-b border-slate-200 transition-colors relative select-none uppercase tracking-wider text-[11px]',
-                      isSortable && "cursor-pointer hover:bg-slate-100/80 hover:text-indigo-600",
+                      isSortable && "cursor-pointer hover:bg-slate-100/80 hover:text-blue-600",
                       col.align === 'center' && "text-center",
                       col.align === 'right' && "text-right",
                       idx === 0 && "pl-6",
@@ -82,8 +82,8 @@ export function DataTable<T>({
                       <span className="truncate">{col.label}</span>
                       {isSortable && (
                         <div className="flex flex-col text-slate-300">
-                          <ChevronUp size={10} className={cn(sortConfig?.key === colKey && sortConfig.direction === 'asc' && "text-indigo-600")} />
-                          <ChevronDown size={10} className={cn(sortConfig?.key === colKey && sortConfig.direction === 'desc' && "text-indigo-600")} />
+                          <ChevronUp size={10} className={cn(sortConfig?.key === colKey && sortConfig.direction === 'asc' && "text-blue-600")} />
+                          <ChevronDown size={10} className={cn(sortConfig?.key === colKey && sortConfig.direction === 'desc' && "text-blue-600")} />
                         </div>
                       )}
                     </div>
@@ -97,7 +97,7 @@ export function DataTable<T>({
           {isLoading && data.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="py-20 text-center">
-                <div className="inline-block w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                <div className="inline-block w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
               </td>
             </tr>
           ) : data.length === 0 ? (
@@ -110,7 +110,7 @@ export function DataTable<T>({
             <>
               {isLoading && (
                 <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-30 flex items-center justify-center transition-all duration-300">
-                  <div className="w-6 h-6 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
                 </div>
               )}
               {data.map((item) => (

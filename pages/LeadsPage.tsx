@@ -33,7 +33,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   new: { bg: 'bg-blue-100/50', text: 'text-blue-700' },
   contacted: { bg: 'bg-amber-100/50', text: 'text-amber-700' },
   qualified: { bg: 'bg-emerald-100/50', text: 'text-emerald-700' },
-  proposal: { bg: 'bg-indigo-100/50', text: 'text-indigo-700' },
+  proposal: { bg: 'bg-blue-100/50', text: 'text-blue-700' },
   negotiation: { bg: 'bg-purple-100/50', text: 'text-purple-700' },
   won: { bg: 'bg-green-100/50', text: 'text-green-700' },
   lost: { bg: 'bg-rose-100/50', text: 'text-rose-700' },
@@ -1245,7 +1245,7 @@ export const LeadsPage: React.FC = () => {
                 type="checkbox"
                 checked={includeWonLost}
                 onChange={(e) => setIncludeWonLost(e.target.checked)}
-                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
               />
               <span className="font-semibold">Show Won &amp; Lost</span>
             </label>
@@ -1260,7 +1260,7 @@ export const LeadsPage: React.FC = () => {
                       return (
                         <Tooltip key={eid} content={emp?.name ?? `Employee ${eid}`}>
                           <div
-                            className="w-8 h-8 rounded-full border-2 border-white bg-indigo-50 text-indigo-700 flex items-center justify-center text-[10px] font-bold shadow-sm ring-1 ring-slate-100"
+                            className="w-8 h-8 rounded-full border-2 border-white bg-blue-50 text-blue-700 flex items-center justify-center text-[10px] font-bold shadow-sm ring-1 ring-slate-100"
                           >
                             {emp ? getInitials(emp.name) : '?'}
                           </div>
@@ -1272,7 +1272,7 @@ export const LeadsPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowEmployeeFilterPopover((v) => !v)}
-                      className="w-8 h-8 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-600 flex items-center justify-center transition-all bg-white hover:shadow-sm"
+                      className="w-8 h-8 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-600 flex items-center justify-center transition-all bg-white hover:shadow-sm"
                     >
                       <Plus size={14} strokeWidth={2.5} />
                     </button>
@@ -1284,7 +1284,7 @@ export const LeadsPage: React.FC = () => {
                     type="checkbox"
                     checked={createdByMeOnly}
                     onChange={(e) => setCreatedByMeOnly(e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600 w-4 h-4"
+                    className="rounded border-slate-300 text-blue-600 w-4 h-4"
                   />
                   <span className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Only mine</span>
                 </label>
@@ -1394,7 +1394,7 @@ export const LeadsPage: React.FC = () => {
                         prev.includes(emp.id) ? prev.filter((id) => id !== emp.id) : [...prev, emp.id]
                       );
                     }}
-                    className="rounded border-slate-300 text-indigo-600"
+                    className="rounded border-slate-300 text-blue-600"
                   />
                   <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-medium shrink-0">
                     {getInitials(emp.name)}
@@ -1507,7 +1507,7 @@ export const LeadsPage: React.FC = () => {
                             return (
                               <div
                                 key={status.id}
-                                className={`flex-shrink-0 w-72 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${dragOverStatusId === status.id ? 'border-indigo-500 bg-indigo-50/30' : 'border-slate-200 bg-slate-50/50'
+                                className={`flex-shrink-0 w-72 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${dragOverStatusId === status.id ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 bg-slate-50/50'
                                   }`}
                                 onDragOver={(e) => handleColumnDragOver(e, status.id)}
                                 onDragLeave={handleColumnDragLeave}
@@ -1704,7 +1704,7 @@ export const LeadsPage: React.FC = () => {
         <div className="flex gap-2 mb-3">
           <input
             type="text"
-            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g. ABC Corp or click Not sure"
             value={markLostCompetitor}
             onChange={(e) => setMarkLostCompetitor(e.target.value)}
@@ -1716,7 +1716,7 @@ export const LeadsPage: React.FC = () => {
         <div className="flex gap-2 mb-4">
           <input
             type="text"
-            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g. ₹50,000 or click Not sure"
             value={markLostPrice}
             onChange={(e) => setMarkLostPrice(e.target.value)}
@@ -1726,7 +1726,7 @@ export const LeadsPage: React.FC = () => {
 
         <label className="block text-sm font-medium text-slate-700 mb-1">Reason why lost (required, min 100 characters)</label>
         <textarea
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[130px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[130px] focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="e.g. Customer chose competitor due to pricing. Budget was cut this quarter. No response after 3 follow-ups."
           value={markLostReason}
           onChange={(e) => setMarkLostReason(e.target.value)}
@@ -1831,7 +1831,7 @@ export const LeadsPage: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Notes *</label>
                 <textarea
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Additional details..."
                   value={statusChangeForm.description}
                   onChange={(e) => setStatusChangeForm((f) => ({ ...f, description: e.target.value }))}
@@ -1888,7 +1888,7 @@ export const LeadsPage: React.FC = () => {
                   ))}
                   <button
                     type="button"
-                    className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
                     onClick={() => setStatusChangeAttachments((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, title: '' }])}
                   >
                     <Plus size={12} /> Add file
@@ -2257,7 +2257,7 @@ export const LeadsPage: React.FC = () => {
                   <th className="px-2 py-1.5">Color</th>
                   <th className="px-2 py-1.5">
                     {canEdit && (
-                      <Button variant="ghost" size="xs" className="text-indigo-600" onClick={() => { setAddingGroup(true); setEditingGroup(null); setGroupForm({ code: '', label: '', expected_duration_days: undefined, follow_up_interval_days: undefined, display_order: leadStatusGroups.length, is_active: true, hex_color: '' }); }} leftIcon={<Plus size={12} />}>
+                      <Button variant="ghost" size="xs" className="text-blue-600" onClick={() => { setAddingGroup(true); setEditingGroup(null); setGroupForm({ code: '', label: '', expected_duration_days: undefined, follow_up_interval_days: undefined, display_order: leadStatusGroups.length, is_active: true, hex_color: '' }); }} leftIcon={<Plus size={12} />}>
                         Create group
                       </Button>
                     )}
@@ -2284,7 +2284,7 @@ export const LeadsPage: React.FC = () => {
                     </td>
                     <td className="px-2 py-1 align-middle">
                       <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                        <input type="checkbox" checked={groupForm.is_active} onChange={(e) => setGroupForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                        <input type="checkbox" checked={groupForm.is_active} onChange={(e) => setGroupForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
                         <span>Active</span>
                       </label>
                     </td>
@@ -2322,7 +2322,7 @@ export const LeadsPage: React.FC = () => {
                       </td>
                       <td className="px-2 py-1.5">
                         <label className="flex items-center gap-1">
-                          <input type="checkbox" checked={groupForm.is_active} onChange={(e) => setGroupForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                          <input type="checkbox" checked={groupForm.is_active} onChange={(e) => setGroupForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
                           <span className="text-xs">Active</span>
                         </label>
                       </td>
@@ -2358,7 +2358,7 @@ export const LeadsPage: React.FC = () => {
                       <td className="px-2 py-1 align-middle">
                         {canEdit && (
                           <>
-                            <Button variant="ghost" size="xs" className="text-indigo-600" onClick={() => openAddStatusToGroup(g.id)} leftIcon={<Plus size={12} />}>Add status</Button>
+                            <Button variant="ghost" size="xs" className="text-blue-600" onClick={() => openAddStatusToGroup(g.id)} leftIcon={<Plus size={12} />}>Add status</Button>
                             <Button variant="ghost" size="xs" onClick={() => { setEditingGroup(g); setAddingGroup(false); setGroupForm({ code: g.code, label: g.label, expected_duration_days: g.expected_duration_days ?? undefined, follow_up_interval_days: g.follow_up_interval_days ?? undefined, display_order: g.display_order, is_active: g.is_active, hex_color: g.hex_color ?? '' }); }}>Edit</Button>
                             <Button variant="ghost" size="xs" className="text-rose-600" onClick={() => setDeleteGroupId(g.id)}>Delete</Button>
                           </>
@@ -2436,7 +2436,7 @@ export const LeadsPage: React.FC = () => {
                             <div className="flex items-center justify-between">
                               <span>{groupLabel}</span>
                               {groupId !== 'none' && canEdit && (
-                                <Button variant="ghost" size="xs" className="text-indigo-600" onClick={() => openAddStatusToGroup(groupId)} leftIcon={<Plus size={12} />}>
+                                <Button variant="ghost" size="xs" className="text-blue-600" onClick={() => openAddStatusToGroup(groupId)} leftIcon={<Plus size={12} />}>
                                   Add status
                                 </Button>
                               )}
@@ -2456,25 +2456,25 @@ export const LeadsPage: React.FC = () => {
                             </td>
                             <td className="py-2 pr-2 align-middle">
                               <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                <input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
                                 <span>Active</span>
                               </label>
                             </td>
                             <td className="py-2 pr-2 align-middle">
                               <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                <input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
                                 <span>Final</span>
                               </label>
                             </td>
                             <td className="py-2 pr-2 align-middle">
                               <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.is_lost} onChange={(e) => setStatusForm((f) => ({ ...f, is_lost: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                <input type="checkbox" checked={statusForm.is_lost} onChange={(e) => setStatusForm((f) => ({ ...f, is_lost: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
                                 <span>Lost</span>
                               </label>
                             </td>
                             <td className="py-2 pr-2 align-middle">
                               <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.is_hot} onChange={(e) => setStatusForm((f) => ({ ...f, is_hot: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                <input type="checkbox" checked={statusForm.is_hot} onChange={(e) => setStatusForm((f) => ({ ...f, is_hot: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
                                 <span>Hot</span>
                               </label>
                             </td>
@@ -2486,19 +2486,19 @@ export const LeadsPage: React.FC = () => {
                             </td>
                             <td className="py-2 pr-2 align-middle">
                               <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.set_when_quotation_added} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quotation_added: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                <input type="checkbox" checked={statusForm.set_when_quotation_added} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quotation_added: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
                                 <span>Yes</span>
                               </label>
                             </td>
                             <td className="py-2 pr-2 align-middle">
                               <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.set_when_quote_number_generated} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quote_number_generated: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                <input type="checkbox" checked={statusForm.set_when_quote_number_generated} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quote_number_generated: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
                                 <span>Yes</span>
                               </label>
                             </td>
                             <td className="py-2 pr-2 align-middle">
                               <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                <input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
                                 <span>Yes</span>
                               </label>
                             </td>
@@ -2528,17 +2528,17 @@ export const LeadsPage: React.FC = () => {
                                   <input type="number" className="h-8 w-14 rounded border border-slate-200 bg-white px-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200" value={statusForm.display_order} onChange={(e) => setStatusForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))} />
                                 </td>
                                 <td className="py-2 pr-2 align-middle">
-                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Active</span></label>
+                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span>Active</span></label>
                                 </td>
                                 <td className="py-2 pr-2 align-middle">
-                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Final</span></label>
+                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span>Final</span></label>
                                 </td>
                                 <td className="py-2 pr-2 align-middle">
-                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_lost} onChange={(e) => setStatusForm((f) => ({ ...f, is_lost: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Lost</span></label>
+                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_lost} onChange={(e) => setStatusForm((f) => ({ ...f, is_lost: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span>Lost</span></label>
                                 </td>
                                 <td className="py-2 pr-2 align-middle">
                                   <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                    <input type="checkbox" checked={statusForm.is_hot} onChange={(e) => setStatusForm((f) => ({ ...f, is_hot: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                    <input type="checkbox" checked={statusForm.is_hot} onChange={(e) => setStatusForm((f) => ({ ...f, is_hot: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
                                     <span>Hot</span>
                                   </label>
                                 </td>
@@ -2550,19 +2550,19 @@ export const LeadsPage: React.FC = () => {
                                 </td>
                                 <td className="py-2 pr-2 align-middle">
                                   <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                    <input type="checkbox" checked={statusForm.set_when_quotation_added} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quotation_added: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                    <input type="checkbox" checked={statusForm.set_when_quotation_added} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quotation_added: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
                                     <span>Yes</span>
                                   </label>
                                 </td>
                                 <td className="py-2 pr-2 align-middle">
                                   <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                    <input type="checkbox" checked={statusForm.set_when_quote_number_generated} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quote_number_generated: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                    <input type="checkbox" checked={statusForm.set_when_quote_number_generated} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quote_number_generated: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
                                     <span>Yes</span>
                                   </label>
                                 </td>
                                 <td className="py-2 pr-2 align-middle">
                                   <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                    <input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                    <input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
                                     <span>Yes</span>
                                   </label>
                                 </td>
@@ -2663,7 +2663,7 @@ export const LeadsPage: React.FC = () => {
                 type="checkbox"
                 checked={leadTypeForm.is_active}
                 onChange={(e) => setLeadTypeForm((f) => ({ ...f, is_active: e.target.checked }))}
-                className="rounded border-slate-300 text-indigo-600"
+                className="rounded border-slate-300 text-blue-600"
               />
               Active
             </label>

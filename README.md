@@ -1,6 +1,6 @@
 # AP | Sales & Marketing Module — Frontend
 
-> **au-marketing-fe** — A high-density, professional ERP-grade frontend for the Aureole Group Sales & Marketing microservice. Built with React 19, TypeScript, and a bespoke Slate/Indigo design system.
+> **au-marketing-fe** — A high-density, professional ERP-grade frontend for the Aureole Group Sales & Marketing microservice. Built with React 19, TypeScript, and a bespoke Slate/Blue design system.
 
 ---
 
@@ -156,7 +156,7 @@ Users log in with HRMS credentials. The app:
 
 ## 🎨 Design System
 
-All UI components follow the **Slate/Indigo High-Density ERP** visual language documented in [`UI_COMPONENTS_LIBRARY.md`](./UI_COMPONENTS_LIBRARY.md).
+All UI components follow the **Slate/Blue High-Density ERP** visual language documented in [`UI_COMPONENTS_LIBRARY.md`](./UI_COMPONENTS_LIBRARY.md).
 
 **Key rules:**
 - Font: **Outfit** (Google Fonts)

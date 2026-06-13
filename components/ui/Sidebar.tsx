@@ -113,7 +113,7 @@ export const Sidebar: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowChangelog(true)}
-            className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-2 py-0.5 hover:bg-indigo-100 transition-colors"
+            className="text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-100 transition-colors"
             title="View changelog"
           >
             {appVersion}
@@ -141,7 +141,7 @@ export const Sidebar: React.FC = () => {
                 onClick={() => setAdminOpen(o => !o)}
                 className={`w-full group flex items-center justify-between rounded-lg text-[13px] transition-all duration-200 font-medium px-3 py-2 ${
                   adminOpen
-                    ? 'bg-indigo-50 text-indigo-700'
+                    ? 'bg-blue-50 text-blue-700'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
@@ -149,7 +149,7 @@ export const Sidebar: React.FC = () => {
                   <ShieldCheck
                     size={18}
                     strokeWidth={adminOpen ? 2.2 : 1.8}
-                    className={adminOpen ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}
+                    className={adminOpen ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}
                   />
                   <span className={adminOpen ? 'font-semibold' : ''}>Administration</span>
                 </div>
@@ -161,13 +161,13 @@ export const Sidebar: React.FC = () => {
 
               {/* Dropdown items */}
               {adminOpen && (
-                <div className="mt-0.5 ml-3 pl-3 border-l-2 border-indigo-100 space-y-0.5">
+                <div className="mt-0.5 ml-3 pl-3 border-l-2 border-blue-100 space-y-0.5">
                   <NavLink
                     to="/numbering-series"
                     className={({ isActive }) =>
                       `flex items-center gap-2.5 w-full rounded-lg text-[12.5px] transition-all duration-200 font-medium px-2.5 py-1.5 ${
                         isActive
-                          ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                          ? 'bg-blue-50 text-blue-700 font-semibold'
                           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                       }`
                     }
@@ -177,7 +177,7 @@ export const Sidebar: React.FC = () => {
                         <Hash
                           size={15}
                           strokeWidth={isActive ? 2.2 : 1.8}
-                          className={isActive ? 'text-indigo-500' : 'text-slate-400'}
+                          className={isActive ? 'text-blue-500' : 'text-slate-400'}
                         />
                         Numbering Series
                       </>
@@ -189,7 +189,7 @@ export const Sidebar: React.FC = () => {
                     className={({ isActive }) =>
                       `flex items-center gap-2.5 w-full rounded-lg text-[12.5px] transition-all duration-200 font-medium px-2.5 py-1.5 ${
                         isActive
-                          ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                          ? 'bg-blue-50 text-blue-700 font-semibold'
                           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                       }`
                     }
@@ -199,7 +199,7 @@ export const Sidebar: React.FC = () => {
                         <Users
                           size={15}
                           strokeWidth={isActive ? 2.2 : 1.8}
-                          className={isActive ? 'text-indigo-500' : 'text-slate-400'}
+                          className={isActive ? 'text-blue-500' : 'text-slate-400'}
                         />
                         Roles
                       </>
@@ -218,8 +218,8 @@ export const Sidebar: React.FC = () => {
           </div>
 
           <div className="mt-4 flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100/80 bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer">
-            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0 border border-indigo-200/50">
-              <span className="text-indigo-600 font-bold text-xs">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0 border border-blue-200/50">
+              <span className="text-blue-600 font-bold text-xs">
                 {userInitials}
               </span>
             </div>
@@ -244,7 +244,7 @@ export const Sidebar: React.FC = () => {
           <button
             type="button"
             onClick={closeChangelog}
-            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-indigo-700 active:scale-95 animate-pulse"
+            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-700 active:scale-95 animate-pulse"
           >
             Looks good, close changelog
           </button>
@@ -264,7 +264,7 @@ const SidebarItem: React.FC<{ item: NavItem }> = ({ item }) => {
       className={({ isActive }) => `
         group flex items-center justify-between w-full rounded-lg text-[13px] transition-all duration-200 font-medium px-3 py-2
         ${isActive
-          ? 'bg-indigo-50 text-indigo-700'
+          ? 'bg-blue-50 text-blue-700'
           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}
       `}
     >
@@ -274,12 +274,12 @@ const SidebarItem: React.FC<{ item: NavItem }> = ({ item }) => {
             <item.icon
               size={18}
               strokeWidth={isActive ? 2.2 : 1.8}
-              className={isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}
+              className={isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}
             />
             <span className={isActive ? 'font-semibold' : ''}>{item.title}</span>
           </div>
           {item.badge && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
               {item.badge}
             </span>
           )}

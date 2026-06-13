@@ -26,7 +26,7 @@ export interface WaveLoaderProps {
 
 /**
  * A waving bar loader using framer-motion.
- * Standardized to work with the project's indigo/slate palette.
+ * Standardized to work with the project's blue/slate palette.
  */
 export function WaveLoader({
   bars = 5,
@@ -40,7 +40,7 @@ export function WaveLoader({
         {Array.from({ length: bars }).map((_, index) => (
           <motion.div
             key={index}
-            className={cn('w-1.5 rounded-full bg-indigo-600 shadow-sm shadow-indigo-200/50', barClassName)}
+            className={cn('w-1.5 rounded-full bg-blue-600 shadow-sm shadow-blue-200/50', barClassName)}
             initial={{ height: 8 }}
             animate={{ height: [8, 24, 8] }}
             transition={{

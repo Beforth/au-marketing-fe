@@ -23,7 +23,7 @@ export function Changelog({ items }: { items: ChangelogItem[] }) {
     <div className="flex flex-col gap-8 w-full">
       {items.map((item, idx) => (
         <div key={idx} className="relative pl-8 border-l-2 border-slate-100">
-          <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full border-4 border-white bg-indigo-500 ring-2 ring-indigo-500/20" />
+          <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full border-4 border-white bg-blue-500 ring-2 ring-blue-500/20" />
           <div className="flex flex-col gap-1 mb-4">
             <div className="flex items-center gap-3">
               <h3 className="text-xl font-black text-slate-900 leading-none">{item.version}</h3>

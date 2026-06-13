@@ -266,7 +266,7 @@ export const OrganizationFormPage: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('organization')}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'organization' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+              activeTab === 'organization' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
             <span className="flex items-center gap-2">
@@ -277,7 +277,7 @@ export const OrganizationFormPage: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('plants')}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'plants' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+              activeTab === 'plants' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
             <span className="flex items-center gap-2">

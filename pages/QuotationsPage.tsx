@@ -100,7 +100,7 @@ export const QuotationsPage: React.FC = () => {
                 <span></span>
               </div>
               {items.map((item) => (
-                <div key={item.id} className="grid grid-cols-[1fr_80px_100px_40px] gap-4 items-center bg-white p-3 rounded-xl border border-slate-200 hover:border-indigo-200 hover:shadow-sm transition-all">
+                <div key={item.id} className="grid grid-cols-[1fr_80px_100px_40px] gap-4 items-center bg-white p-3 rounded-xl border border-slate-200 hover:border-blue-200 hover:shadow-sm transition-all">
                   <input className="bg-transparent text-sm font-medium text-slate-800 outline-none px-2" placeholder="Item name..." value={item.description} onChange={(e) => updateItem(item.id, 'description', e.target.value)} />
                   <input type="number" className="bg-transparent text-sm font-semibold text-slate-600 text-center outline-none" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 0)} />
                   <div className="text-right">
@@ -126,10 +126,10 @@ export const QuotationsPage: React.FC = () => {
               </div>
               <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
                 <span className="text-sm font-semibold text-slate-900">Total Payable</span>
-                <span className="text-2xl font-bold text-indigo-600">${total.toLocaleString()}</span>
+                <span className="text-2xl font-bold text-blue-600">${total.toLocaleString()}</span>
               </div>
             </div>
-            <Button className="w-full mt-6 rounded-lg h-11 shadow-md shadow-indigo-100" rightIcon={<ChevronRight size={14} />}>Issue Document</Button>
+            <Button className="w-full mt-6 rounded-lg h-11 shadow-md shadow-blue-100" rightIcon={<ChevronRight size={14} />}>Issue Document</Button>
           </Card>
 
           <div className="p-4 bg-[var(--primary-muted)] border border-[var(--primary)]/10 rounded-xl flex gap-3 shadow-sm">

@@ -90,7 +90,7 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen flex">
       {/* Left Section - Lottie Animation (60%) */}
-      <div className="hidden lg:flex lg:w-[60%] items-center justify-center bg-gradient-to-br from-[var(--primary)]/10 via-indigo-50 to-purple-50 p-8">
+      <div className="hidden lg:flex lg:w-[60%] items-center justify-center bg-gradient-to-br from-[var(--primary)]/10 via-blue-50 to-purple-50 p-8">
         <div className="w-full h-full max-w-4xl flex items-center justify-center">
           {animationData ? (
             <Lottie

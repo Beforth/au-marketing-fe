@@ -7,7 +7,7 @@ This is the **Source of Truth** for the au-marketing-fe design system. Each comp
 ## 🛠️ Global Design System Architecture
 
 ### Universal Design Prompt (The Core DNA)
-> "Build a high-density, professional ERP interface using the **Outfit** font and a Slate/Indigo palette. Elements use `rounded-xl` (12px) for containers and `rounded-full` for pills. Typography uses `font-black uppercase tracking-widest text-[11px]` for labels and headers. All interactive elements must exhibit a subtle scale-down effect on click (`active:scale-[0.98]`) and use `spring` transitions (300ms, bounce 0). Layouts focus on maximum data density with tight 8-10px padding and `slate-200/60` borders."
+> "Build a high-density, professional ERP interface using the **Outfit** font and a Slate/Blue palette. Elements use `rounded-xl` (12px) for containers and `rounded-full` for pills. Typography uses `font-black uppercase tracking-widest text-[11px]` for labels and headers. All interactive elements must exhibit a subtle scale-down effect on click (`active:scale-[0.98]`) and use `spring` transitions (300ms, bounce 0). Layouts focus on maximum data density with tight 8-10px padding and `slate-200/60` borders."
 
 ---
 
@@ -15,7 +15,7 @@ This is the **Source of Truth** for the au-marketing-fe design system. Each comp
 
 ### 1. Button
 **Design Prompt:**
-> "Create a premium industrial button. Variants: `primary` (Indigo-600 bg, white text), `secondary` (Slate-900 bg), `outline` (white bg, Slate-200 border), `ghost` (Slate-500 text, Indigo hover), `danger` (Rose-600). Sizes: `sm` (36px), `md` (40px), `lg` (48px). All buttons must scale down to `0.98` on click and use a `200ms` spring."
+> "Create a premium industrial button. Variants: `primary` (Blue-600 bg, white text), `secondary` (Slate-900 bg), `outline` (white bg, Slate-200 border), `ghost` (Slate-500 text, Blue hover), `danger` (Rose-600). Sizes: `sm` (36px), `md` (40px), `lg` (48px). All buttons must scale down to `0.98` on click and use a `200ms` spring."
 
 **Source Code (`UI/Button.tsx`):**
 ```tsx
@@ -34,12 +34,12 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading, leftIcon, rightIcon, children, disabled, ...props }, ref) => {
     const variants = {
-      primary: 'bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 hover:shadow-indigo-500/20 active:scale-[0.98]',
+      primary: 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 hover:shadow-blue-500/20 active:scale-[0.98]',
       secondary: 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm active:scale-[0.98]',
       outline: 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-xs active:scale-[0.98]',
       ghost: 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 active:scale-[0.98]',
       danger: 'bg-rose-600 text-white hover:bg-rose-700 shadow-sm active:scale-[0.98]',
-      link: 'text-indigo-600 hover:underline font-semibold p-0 h-auto',
+      link: 'text-blue-600 hover:underline font-semibold p-0 h-auto',
     };
 
     const sizes = {
@@ -80,7 +80,7 @@ Button.displayName = 'Button';
 
 ### 2. Badge
 **Design Prompt:**
-> "Design a status capsule. Rounded-full, high-contrast, `font-black text-[9px] uppercase tracking-[0.15em]`. Variants: `success` (Emerald-50/700), `warning` (Amber-50/700), `danger` (Rose-50/700), `info` (Indigo-50/700)."
+> "Design a status capsule. Rounded-full, high-contrast, `font-black text-[9px] uppercase tracking-[0.15em]`. Variants: `success` (Emerald-50/700), `warning` (Amber-50/700), `danger` (Rose-50/700), `info` (Blue-50/700)."
 
 **Source Code (`UI/Badge.tsx`):**
 ```tsx
@@ -99,7 +99,7 @@ export function Badge({ className, variant = 'default', ...props }: BadgeProps) 
     success: 'bg-emerald-50 text-emerald-700 border-emerald-100 uppercase tracking-widest text-[9px] font-black',
     warning: 'bg-amber-50 text-amber-700 border-amber-100 uppercase tracking-widest text-[9px] font-black',
     danger: 'bg-rose-50 text-rose-700 border-rose-100 uppercase tracking-widest text-[9px] font-black',
-    info: 'bg-indigo-50 text-indigo-700 border-indigo-100 uppercase tracking-widest text-[9px] font-black',
+    info: 'bg-blue-50 text-blue-700 border-blue-100 uppercase tracking-widest text-[9px] font-black',
   };
 
   return (
@@ -220,7 +220,7 @@ export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivEl
 
 ### 1. Input & Textarea
 **Design Prompt:**
-> "Standard h-11 input. Border: `slate-200`. Focus: `indigo-500` border + `indigo-500/20` ring. Labels are `font-black text-[11px] uppercase tracking-widest text-slate-500`. Errors in `rose-500`."
+> "Standard h-11 input. Border: `slate-200`. Focus: `blue-500` border + `blue-500/20` ring. Labels are `font-black text-[11px] uppercase tracking-widest text-slate-500`. Errors in `rose-500`."
 
 **Source Code (`UI/Input.tsx`):**
 ```tsx
@@ -245,7 +245,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <input
           type={type}
           className={cn(
-            'flex h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20 focus-visible:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200',
+            'flex h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200',
             error ? 'border-rose-500' : 'hover:border-slate-300',
             className
           )}
@@ -272,7 +272,7 @@ Input.displayName = 'Input';
 
 ### 2. Checkbox
 **Design Prompt:**
-> "Custom checkbox with `Indigo-600` checked state and a scale-up checkmark animation."
+> "Custom checkbox with `Blue-600` checked state and a scale-up checkmark animation."
 
 **Source Code (`UI/Checkbox.tsx`):**
 ```tsx
@@ -297,8 +297,8 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           />
           <div className={cn(
             'h-5 w-5 rounded-md border-2 border-slate-200 bg-white transition-all duration-200 flex items-center justify-center',
-            'peer-checked:bg-indigo-600 peer-checked:border-indigo-600',
-            'peer-focus:ring-2 peer-focus:ring-indigo-500/20',
+            'peer-checked:bg-blue-600 peer-checked:border-blue-600',
+            'peer-focus:ring-2 peer-focus:ring-blue-500/20',
             'group-hover:border-slate-300',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             className
@@ -317,7 +317,7 @@ Checkbox.displayName = 'Checkbox';
 
 ### 3. Radio
 **Design Prompt:**
-> "Round radio button with `Indigo-600` dot on selection."
+> "Round radio button with `Blue-600` dot on selection."
 
 **Source Code (`UI/Radio.tsx`):**
 ```tsx
@@ -341,13 +341,13 @@ export const Radio = React.forwardRef<HTMLInputElement, RadioProps>(
           />
           <div className={cn(
             'h-5 w-5 rounded-full border-2 border-slate-200 bg-white transition-all duration-200 flex items-center justify-center',
-            'peer-checked:border-indigo-600',
-            'peer-focus:ring-2 peer-focus:ring-indigo-500/20',
+            'peer-checked:border-blue-600',
+            'peer-focus:ring-2 peer-focus:ring-blue-500/20',
             'group-hover:border-slate-300',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             className
           )}>
-            <div className="h-2.5 w-2.5 rounded-full bg-indigo-600 scale-0 peer-checked:scale-100 transition-transform duration-200" />
+            <div className="h-2.5 w-2.5 rounded-full bg-blue-600 scale-0 peer-checked:scale-100 transition-transform duration-200" />
           </div>
         </div>
         {label && <span className="text-sm font-semibold text-slate-700 select-none">{label}</span>}
@@ -385,7 +385,7 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
             {...props}
           />
           <div className={cn(
-            'rounded-full bg-slate-200 transition-all duration-300 peer-checked:bg-indigo-600',
+            'rounded-full bg-slate-200 transition-all duration-300 peer-checked:bg-blue-600',
             size === 'sm' ? 'h-4 w-8' : 'h-6 w-11',
             className
           )}>
@@ -427,7 +427,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         <div className="relative">
           <select
             className={cn(
-              'flex h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-50 transition-all duration-200',
+              'flex h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-50 transition-all duration-200',
               error ? 'border-rose-500' : 'hover:border-slate-300',
               className
             )}
@@ -527,7 +527,7 @@ export function DataTable<T>({
                     id={`th-${colKey}`}
                     className={cn(
                       'h-10 px-4 text-left font-semibold text-slate-600 bg-[#F8FAFC] border-b border-slate-200 transition-colors relative select-none uppercase tracking-wider text-[11px]',
-                      isSortable && "cursor-pointer hover:bg-slate-100/80 hover:text-indigo-600",
+                      isSortable && "cursor-pointer hover:bg-slate-100/80 hover:text-blue-600",
                       col.align === 'center' && "text-center",
                       col.align === 'right' && "text-right",
                       idx === 0 && "pl-6",
@@ -541,8 +541,8 @@ export function DataTable<T>({
                       <span className="truncate">{col.label}</span>
                       {isSortable && (
                         <div className="flex flex-col text-slate-300">
-                          <ChevronUp size={10} className={cn(sortConfig?.key === colKey && sortConfig.direction === 'asc' && "text-indigo-600")} />
-                          <ChevronDown size={10} className={cn(sortConfig?.key === colKey && sortConfig.direction === 'desc' && "text-indigo-600")} />
+                          <ChevronUp size={10} className={cn(sortConfig?.key === colKey && sortConfig.direction === 'asc' && "text-blue-600")} />
+                          <ChevronDown size={10} className={cn(sortConfig?.key === colKey && sortConfig.direction === 'desc' && "text-blue-600")} />
                         </div>
                       )}
                     </div>
@@ -556,7 +556,7 @@ export function DataTable<T>({
           {isLoading && data.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="py-20 text-center">
-                <div className="inline-block w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                <div className="inline-block w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
               </td>
             </tr>
           ) : data.length === 0 ? (
@@ -569,7 +569,7 @@ export function DataTable<T>({
             <>
               {isLoading && (
                 <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-30 flex items-center justify-center transition-all duration-300">
-                  <div className="w-6 h-6 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
                 </div>
               )}
               {data.map((item) => (
@@ -663,7 +663,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, className }:
                 onClick={() => onPageChange(page as number)}
                 className={cn(
                   'h-9 w-9 p-0 rounded-lg text-xs',
-                  currentPage === page ? 'shadow-indigo-500/20' : 'text-slate-600'
+                  currentPage === page ? 'shadow-blue-500/20' : 'text-slate-600'
                 )}
               >
                 {page}
@@ -708,9 +708,9 @@ export interface StatItem {
 }
 
 export const StatCard: React.FC<{ stat: StatItem }> = ({ stat }) => (
-  <div className="bg-white border border-slate-200/60 p-6 rounded-2xl group hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-200/50 transition-all duration-300">
+  <div className="bg-white border border-slate-200/60 p-6 rounded-2xl group hover:shadow-xl hover:shadow-blue-500/5 hover:border-blue-200/50 transition-all duration-300">
     <div className="flex items-center justify-between mb-4">
-      <div className="w-9 h-9 bg-slate-50 rounded-lg group-hover:bg-indigo-50 group-hover:text-indigo-600 flex items-center justify-center transition-all duration-300 border border-slate-100 group-hover:border-indigo-100">
+      <div className="w-9 h-9 bg-slate-50 rounded-lg group-hover:bg-blue-50 group-hover:text-blue-600 flex items-center justify-center transition-all duration-300 border border-slate-100 group-hover:border-blue-100">
         <stat.icon size={18} />
       </div>
       <div className={cn(
@@ -755,12 +755,12 @@ import { CHART_DATA } from '../../constants';
 
 const chartColors = {
   target: '#f1f5f9', // slate-100
-  achieved: '#6366f1', // indigo-500
+  achieved: '#3b82f6', // blue-500
   won: '#10b981', // emerald-500
   lost: '#f43f5e', // rose-500
   total: '#94a3b8', // slate-400
   hot: '#f59e0b', // amber-500
-  default: ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6', '#ec4899'],
+  default: ['#3b82f6', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6', '#ec4899'],
 };
 
 const CustomTooltip = ({ active, payload }: any) => {
@@ -841,7 +841,7 @@ const SidebarItem: React.FC<{ item: NavItem }> = ({ item }) => {
       to={item.href}
       className={({ isActive }) => `
         group flex items-center justify-between w-full rounded-lg text-[13px] transition-all duration-200 font-medium px-3 py-2
-        ${isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}
+        ${isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}
       `}
     >
       <div className="flex items-center gap-3">
@@ -1096,7 +1096,7 @@ export const KanbanColumn = ({ status, items, onDrop }) => (
 
 // Draggable Card Component
 export const KanbanCard = ({ item }) => (
-  <div draggable onDragStart={(e) => e.dataTransfer.setData('application/json', JSON.stringify(item))} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-400 transition-all cursor-grab active:cursor-grabbing">
+  <div draggable onDragStart={(e) => e.dataTransfer.setData('application/json', JSON.stringify(item))} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-blue-400 transition-all cursor-grab active:cursor-grabbing">
     {/* Card Content (Title, Meta, Status Dot) */}
   </div>
 );

@@ -39,7 +39,7 @@
 
 ### Calendar Body (Lines 450-475)
 - **`CalendarBody` (Line 455):** Renders the grid.
-- **`CalendarItem` (Line 465):** Custom renderer for the entry blocks. Colors are dynamic: indigo for Visits, amber for Travel.
+- **`CalendarItem` (Line 465):** Custom renderer for the entry blocks. Colors are dynamic: blue for Visits, amber for Travel.
 
 ### Modals (Lines 480-800)
 - **Entry Modal (Lines 485-565):** Date, Type (Visit/Travel/Return), Location, and Contact search.

@@ -34,9 +34,9 @@ export function SearchSuggestion<T>({
       containerClassName
     )}>
       {/* Header */}
-      <div className="px-3 py-1.5 border-b border-indigo-100 bg-indigo-50/40 flex items-center gap-2">
-        <Icon size={14} className="text-indigo-500" />
-        <span className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">{title}</span>
+      <div className="px-3 py-1.5 border-b border-blue-100 bg-blue-50/40 flex items-center gap-2">
+        <Icon size={14} className="text-blue-500" />
+        <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">{title}</span>
       </div>
 
       {/* Suggestions List */}
@@ -53,17 +53,17 @@ export function SearchSuggestion<T>({
                 onSelect(item);
               }}
               className={cn(
-                "w-full px-4 py-2 text-left hover:bg-indigo-50/50 flex items-center gap-3 transition-colors group border-b border-slate-50 last:border-0",
+                "w-full px-4 py-2 text-left hover:bg-blue-50/50 flex items-center gap-3 transition-colors group border-b border-slate-50 last:border-0",
                 className
               )}
             >
               <div className="flex-1 min-w-0 flex items-center justify-between gap-4">
                 <div className="min-w-0 flex flex-col">
-                  <span className="font-bold text-[13px] text-slate-900 truncate group-hover:text-indigo-700 transition-colors leading-tight">
+                  <span className="font-bold text-[13px] text-slate-900 truncate group-hover:text-blue-700 transition-colors leading-tight">
                     {itemTitle}
                   </span>
                   {subtitle && (
-                    <span className="text-[11px] text-indigo-400 font-medium truncate leading-normal">
+                    <span className="text-[11px] text-blue-400 font-medium truncate leading-normal">
                       {subtitle}
                     </span>
                   )}

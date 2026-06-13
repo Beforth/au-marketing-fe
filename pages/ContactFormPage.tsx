@@ -334,7 +334,7 @@ export const ContactFormPage: React.FC = () => {
       <PageLayout title={isEdit ? 'Edit Contact' : 'Create Contact'} breadcrumbs={breadcrumbs}>
         <Card>
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <p className="mt-4 text-slate-600">Loading contact...</p>
           </div>
         </Card>
@@ -473,7 +473,7 @@ export const ContactFormPage: React.FC = () => {
                           href={`/organizations/${formData.organization_id}/edit`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-indigo-600 transition-colors inline-flex"
+                          className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-blue-600 transition-colors inline-flex"
                           title="Open organization in new tab"
                         >
                           <ArrowRight size={16} />
@@ -639,7 +639,7 @@ export const ContactFormPage: React.FC = () => {
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-slate-700 mb-1.5">Description</label>
                         <textarea
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           rows={2}
                           value={newOrgForm.description}
                           onChange={(e) => setNewOrgForm(prev => ({ ...prev, description: e.target.value }))}
@@ -747,7 +747,7 @@ export const ContactFormPage: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
             <textarea
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows={4}
               value={formData.notes || ''}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -761,7 +761,7 @@ export const ContactFormPage: React.FC = () => {
               id="is_active"
               checked={formData.is_active ?? true}
               onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-              className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+              className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
             />
             <label htmlFor="is_active" className="text-sm font-medium text-slate-700">
               Active

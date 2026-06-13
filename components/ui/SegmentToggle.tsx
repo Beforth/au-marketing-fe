@@ -39,7 +39,7 @@ export function SegmentToggle<T extends string | number>({
 					className={cn(
 						'relative flex-1 flex items-center justify-center gap-2 px-6 py-2 rounded-full transition-all z-10 active:scale-[0.98]',
 						value === option.value
-							? 'text-indigo-700 font-bold'
+							? 'text-blue-700 font-bold'
 							: 'text-slate-500 hover:text-slate-800',
 					)}
 					role="radio"

@@ -22,7 +22,7 @@ export const Loader: React.FC<LoaderProps> = ({
   };
 
   const variantClasses = {
-    primary: 'border-indigo-600/20 border-t-indigo-600',
+    primary: 'border-blue-600/20 border-t-blue-600',
     white: 'border-white/20 border-t-white',
     slate: 'border-slate-200 border-t-slate-500',
   };

@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type ThemeColor = 'blue' | 'sky' | 'indigo' | 'emerald' | 'rose' | 'violet' | 'slate';
+export type ThemeColor = 'blue' | 'sky' | 'emerald' | 'rose' | 'violet' | 'slate';
 export type Density = 'compact' | 'default' | 'relaxed';
 
 interface Theme {
@@ -15,7 +15,6 @@ interface Theme {
 export const THEMES: Record<ThemeColor, Theme> = {
   blue: { name: 'Royal Blue', primary: '#2563eb', hover: '#1d4ed8', muted: '#eff6ff', foreground: '#ffffff' },
   sky: { name: 'Sky Blue', primary: '#0ea5e9', hover: '#0284c7', muted: '#f0f9ff', foreground: '#ffffff' },
-  indigo: { name: 'Indigo', primary: '#6366f1', hover: '#4f46e5', muted: '#f5f3ff', foreground: '#ffffff' },
   emerald: { name: 'Emerald', primary: '#10b981', hover: '#059669', muted: '#f0fdf4', foreground: '#ffffff' },
   rose: { name: 'Rose', primary: '#f43f5e', hover: '#e11d48', muted: '#fff1f2', foreground: '#ffffff' },
   violet: { name: 'Violet', primary: '#8b5cf6', hover: '#7c3aed', muted: '#f5f3ff', foreground: '#ffffff' },

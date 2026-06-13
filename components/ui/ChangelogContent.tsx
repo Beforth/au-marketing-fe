@@ -11,7 +11,7 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
       {/* ==================== VERSION 1.0.7 (June 13, 2026) ==================== */}
       <div className="space-y-4">
         <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
-          <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg">
+          <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-blue-700 bg-blue-50 border border-blue-100 rounded-lg">
             Version {appVersion}
           </span>
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
@@ -19,7 +19,7 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
           </span>
         </div>
 
-        <div className="space-y-6 pl-4 border-l-2 border-indigo-100">
+        <div className="space-y-6 pl-4 border-l-2 border-blue-100">
           <section className="space-y-2">
             <h4 className="text-sm font-bold text-slate-900">Marketing Employees Cache</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
@@ -69,7 +69,7 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
           <section className="space-y-2">
             <h4 className="text-sm font-bold text-slate-900">Dashboard Color Overhaul</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
-              <li><strong>New Chart Palette:</strong> Replaced the indigo-heavy palette (3 stacked indigo hues) with vibrant well-spaced colours: indigo, emerald, amber, red, violet, cyan, orange. Updated gradient fills and chart colour mappings to match.</li>
+              <li><strong>New Chart Palette:</strong> Replaced the blue-heavy palette (3 stacked blue hues) with vibrant well-spaced colours: blue, emerald, amber, red, violet, cyan, orange. Updated gradient fills and chart colour mappings to match.</li>
               <li><strong>Unified Semantic Card Colours:</strong> "Conversion rate" now consistently maps to blue across all render paths (<code>getCardIcon</code>, number-card, standalone KPI cards). "Hot cases" changed from rose (which clashed with "lost" status) to warm amber, matching the Head Summary widget's existing usage.</li>
               <li><strong>Chart Gradient Palettes:</strong> Updated <code>CHART_COLOR_PALETTES</code> from 6 to 7 entries, adding cyan and orange, replacing rose with pure red for better semantic alignment.</li>
             </ul>
@@ -106,7 +106,7 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
           </span>
         </div>
 
-        <div className="space-y-6 pl-4 border-l-2 border-indigo-100">
+        <div className="space-y-6 pl-4 border-l-2 border-blue-100">
           <section className="space-y-2">
             <h4 className="text-sm font-bold text-slate-900">New Pages</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
@@ -162,7 +162,7 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
           </span>
         </div>
 
-        <div className="space-y-6 pl-4 border-l-2 border-indigo-100">
+        <div className="space-y-6 pl-4 border-l-2 border-blue-100">
           <section className="space-y-2">
             <h4 className="text-sm font-bold text-slate-900">Enquiry Log Type Cleanup</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
@@ -216,7 +216,7 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
           <section className="space-y-2">
             <h4 className="text-sm font-bold text-slate-900">Other Changes</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
-              <li><strong>Attach Files Highlighted:</strong> Made "Attach files" and "Add attachments" buttons more prominent with dashed indigo border pill styling in the lead edit page.</li>
+              <li><strong>Attach Files Highlighted:</strong> Made "Attach files" and "Add attachments" buttons more prominent with dashed blue border pill styling in the lead edit page.</li>
               <li><strong>Favicon:</strong> Switched from <code>/mkt_logo.png</code> to <code>/favicon.ico</code> for proper rendering at all sizes.</li>
               <li><strong>Version Bump:</strong> Updated from v1.0.4 to v1.0.5.</li>
             </ul>
@@ -414,7 +414,7 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
           </span>
         </div>
 
-        <div className="space-y-6 pl-4 border-l-2 border-indigo-100">
+        <div className="space-y-6 pl-4 border-l-2 border-blue-100">
           <section className="space-y-2">
             <h4 className="text-sm font-bold text-slate-900">Dashboard & KPI Card Upgrades</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">

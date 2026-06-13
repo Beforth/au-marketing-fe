@@ -190,7 +190,7 @@ export const Select: React.FC<SelectProps> = ({
               aria-activedescendant={isOpen && activeIndex >= 0 ? `select-option-${activeIndex}` : undefined}
               className={cn(
                 'w-full border rounded-lg text-left transition-all',
-                'focus:outline-none focus:ring-2 focus:ring-indigo-500',
+                'focus:outline-none focus:ring-2 focus:ring-blue-500',
                 'bg-white border-slate-300 shadow-sm',
                 inputSize === 'sm' && 'h-9 px-3 text-xs',
                 inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
@@ -230,7 +230,7 @@ export const Select: React.FC<SelectProps> = ({
             aria-label={label || placeholder}
             className={cn(
               'w-full border rounded-lg text-left transition-all',
-              'focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm',
+              'focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm',
               'bg-white border-slate-300 hover:border-slate-400 hover:bg-slate-50/30 font-medium',
               inputSize === 'sm' && 'h-9 px-3 text-xs',
               inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
@@ -285,7 +285,7 @@ export const Select: React.FC<SelectProps> = ({
                       setActiveIndex(0);
                     }}
                     placeholder="Search..."
-                    className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => {
                       if (e.key === 'ArrowDown') {
@@ -340,13 +340,13 @@ export const Select: React.FC<SelectProps> = ({
                     disabled={option.disabled}
                     className={cn(
                       'w-[calc(100%-8px)] mx-1 px-3 py-2 text-sm text-left transition-colors rounded-lg mb-0.5 flex items-center justify-between',
-                      value == option.value ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-600',
+                      value == option.value ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-600',
                       option.disabled && 'opacity-40 cursor-not-allowed',
                       activeIndex === index && !option.disabled && 'bg-slate-100'
                     )}
                   >
                     <span className="truncate">{option.label}</span>
-                    {value == option.value && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />}
+                    {value == option.value && <div className="w-1.5 h-1.5 rounded-full bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]" />}
                   </button>
                 ))
               )}

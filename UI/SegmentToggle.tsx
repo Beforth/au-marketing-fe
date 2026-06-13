@@ -43,7 +43,7 @@ export function SegmentToggle<T extends string | number>({
             'relative flex-1 flex items-center justify-center gap-2 rounded-[10px] transition-all z-10 active:scale-[0.98]',
             size === 'sm' ? 'px-3 py-1.5' : 'px-5 py-2',
             value === option.value
-              ? 'text-indigo-700'
+              ? 'text-blue-700'
               : 'text-slate-500 hover:text-slate-800',
           )}
           role="radio"

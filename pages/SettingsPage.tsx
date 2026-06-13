@@ -286,7 +286,7 @@ export const SettingsPage: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 border-dashed text-slate-500 hover:text-indigo-600 hover:border-indigo-200 font-semibold uppercase tracking-wide text-xs"
+                    className="h-8 border-dashed text-slate-500 hover:text-blue-600 hover:border-blue-200 font-semibold uppercase tracking-wide text-xs"
                     onClick={async () => {
                       setIsSyncingHRMS(true);
                       setSyncResults(null);
@@ -343,7 +343,7 @@ export const SettingsPage: React.FC = () => {
                               </td>
                               <td className="px-4 py-2">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border ${
-                                  emp.role === 'domain_head' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                  emp.role === 'domain_head' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                                   emp.role === 'domain_coordinator' ? 'bg-purple-50 text-purple-700 border-purple-200' :
                                   emp.role === 'region_head' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                   emp.role === 'region_coordinator' ? 'bg-orange-50 text-orange-700 border-orange-200' :
@@ -379,7 +379,7 @@ export const SettingsPage: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 border-dashed text-slate-500 hover:text-indigo-600 hover:border-indigo-200 font-semibold uppercase tracking-wide text-xs"
+                className="h-8 border-dashed text-slate-500 hover:text-blue-600 hover:border-blue-200 font-semibold uppercase tracking-wide text-xs"
                 onClick={async () => {
                    setIsRefreshingPermissions(true);
                    try {
@@ -412,7 +412,7 @@ export const SettingsPage: React.FC = () => {
                  <input 
                     type="text" 
                     placeholder="Specification filter..." 
-                    className="w-full h-8 pl-8 pr-3 text-xs font-semibold uppercase tracking-wide bg-slate-50 border-none rounded-lg focus:ring-1 focus:ring-indigo-500/20 outline-none placeholder:text-slate-300 placeholder:font-normal"
+                    className="w-full h-8 pl-8 pr-3 text-xs font-semibold uppercase tracking-wide bg-slate-50 border-none rounded-lg focus:ring-1 focus:ring-blue-500/20 outline-none placeholder:text-slate-300 placeholder:font-normal"
                     value={logsSearch}
                     onChange={(e) => setLogsSearch(e.target.value)}
                  />
@@ -535,23 +535,23 @@ export const SettingsPage: React.FC = () => {
                 className={cn(
                   "flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 relative group whitespace-nowrap active:scale-[0.98]",
                   activeTab === item.label 
-                    ? "text-indigo-600 font-semibold" 
+                    ? "text-blue-600 font-semibold" 
                     : "text-slate-500 hover:text-slate-900"
                 )}
               >
                 {activeTab === item.label && (
                    <motion.div 
                      layoutId="horizontal-active-indicator"
-                     className="absolute inset-0 bg-indigo-50 rounded-xl -z-10"
+                     className="absolute inset-0 bg-blue-50 rounded-xl -z-10"
                      transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
                    />
                 )}
-                <item.icon size={15} className={cn("transition-transform group-hover:scale-110", activeTab === item.label ? "text-indigo-600" : "opacity-40")} />
+                <item.icon size={15} className={cn("transition-transform group-hover:scale-110", activeTab === item.label ? "text-blue-600" : "opacity-40")} />
                 <span className="text-xs font-medium uppercase tracking-wide">{item.label}</span>
                 {activeTab === item.label && (
                    <motion.div 
                      layoutId="underline"
-                     className="absolute bottom-0 left-4 right-4 h-0.5 bg-indigo-600 rounded-full"
+                     className="absolute bottom-0 left-4 right-4 h-0.5 bg-blue-600 rounded-full"
                    />
                 )}
               </button>

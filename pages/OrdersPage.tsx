@@ -37,7 +37,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   new: { bg: 'bg-blue-100/50', text: 'text-blue-700' },
   confirmed: { bg: 'bg-emerald-100/50', text: 'text-emerald-700' },
   in_production: { bg: 'bg-amber-100/50', text: 'text-amber-700' },
-  shipped: { bg: 'bg-indigo-100/50', text: 'text-indigo-700' },
+  shipped: { bg: 'bg-blue-100/50', text: 'text-blue-700' },
   delivered: { bg: 'bg-green-100/50', text: 'text-green-700' },
   cancelled: { bg: 'bg-rose-100/50', text: 'text-rose-700' },
 };
@@ -470,7 +470,7 @@ export const OrdersPage: React.FC = () => {
       key: 'series',
       label: 'Order Ref',
       render: (o) => (
-        <span className="text-sm font-medium text-indigo-600">
+        <span className="text-sm font-medium text-blue-600">
           {o.series || `#${o.id}`}
         </span>
       ),
@@ -645,7 +645,7 @@ export const OrdersPage: React.FC = () => {
                           className="border-b border-slate-100 hover:bg-slate-50/50"
                         >
                           <td className="px-4 py-3">
-                            <span className="font-medium text-indigo-600">
+                            <span className="font-medium text-blue-600">
                               {lead.series ? `${lead.series} – ` : ''}{leadDisplayName(lead)}
                             </span>
                           </td>
@@ -662,7 +662,7 @@ export const OrdersPage: React.FC = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300"
+                              className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
                               title="View lead & enquiry log"
                               onClick={() => navigate(`/leads/${lead.id}/edit?view=1`)}
                             >
@@ -736,7 +736,7 @@ export const OrdersPage: React.FC = () => {
                     {!collapsedGroups.has('nogroup') && (
                     <div className="flex gap-4 overflow-x-auto pb-2">
                       <div
-                        className={`flex-shrink-0 w-72 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${dragOverStatusId === 'none' ? 'border-indigo-500 bg-indigo-50/30' : 'border-slate-200 bg-slate-50/50'}`}
+                        className={`flex-shrink-0 w-72 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${dragOverStatusId === 'none' ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 bg-slate-50/50'}`}
                         onDragOver={(e) => handleColumnDragOver(e, 'none')}
                         onDragLeave={handleColumnDragLeave}
                         onDrop={(e) => handleColumnDrop(e, null)}
@@ -762,7 +762,7 @@ export const OrdersPage: React.FC = () => {
                               className={`rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-all hover:shadow-md cursor-pointer ${canEdit && !isWonOrLostOrderStatus(o.status_id ?? null) ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedOrderId === o.id ? 'opacity-50' : ''} ${updatingOrderId === o.id ? 'animate-pulse' : ''}`}
                             >
                               <div className="flex items-start justify-between gap-1">
-                                <div className="font-medium text-indigo-600 text-sm truncate min-w-0">{o.series || `#${o.id}`}</div>
+                                <div className="font-medium text-blue-600 text-sm truncate min-w-0">{o.series || `#${o.id}`}</div>
                                 {canDelete && (
                                   <button
                                     type="button"
@@ -859,7 +859,7 @@ export const OrdersPage: React.FC = () => {
                         return (
                           <div
                             key={status.id}
-                            className={`flex-shrink-0 w-72 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${dragOverStatusId === status.id ? 'border-indigo-500 bg-indigo-50/30' : 'border-slate-200 bg-slate-50/50'}`}
+                            className={`flex-shrink-0 w-72 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${dragOverStatusId === status.id ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 bg-slate-50/50'}`}
                             onDragOver={(e) => handleColumnDragOver(e, status.id)}
                             onDragLeave={handleColumnDragLeave}
                             onDrop={(e) => handleColumnDrop(e, status.id)}
@@ -888,7 +888,7 @@ export const OrdersPage: React.FC = () => {
                                   className={`rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-all hover:shadow-md cursor-pointer ${canEdit && !isWonOrLostOrderStatus(o.status_id ?? null) ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedOrderId === o.id ? 'opacity-50' : ''} ${updatingOrderId === o.id ? 'animate-pulse' : ''}`}
                                 >
                                   <div className="flex items-start justify-between gap-1">
-                                    <div className="font-medium text-indigo-600 text-sm truncate min-w-0">{o.series || `#${o.id}`}</div>
+                                    <div className="font-medium text-blue-600 text-sm truncate min-w-0">{o.series || `#${o.id}`}</div>
                                     {canDelete && (
                                       <button
                                         type="button"
@@ -1019,7 +1019,7 @@ export const OrdersPage: React.FC = () => {
                   <th className="px-2 py-1.5">Active</th>
                   <th className="px-2 py-1.5">Color</th>
                   <th className="px-2 py-1.5">
-                    <Button variant="ghost" size="xs" className="text-indigo-600" onClick={() => { setAddingGroup(true); setEditingGroup(null); setGroupForm({ code: '', label: '', expected_duration_days: undefined, display_order: orderStatusGroups.length, is_active: true, hex_color: '' }); }} leftIcon={<Plus size={12} />}>Create group</Button>
+                    <Button variant="ghost" size="xs" className="text-blue-600" onClick={() => { setAddingGroup(true); setEditingGroup(null); setGroupForm({ code: '', label: '', expected_duration_days: undefined, display_order: orderStatusGroups.length, is_active: true, hex_color: '' }); }} leftIcon={<Plus size={12} />}>Create group</Button>
                   </th>
                 </tr>
               </thead>
@@ -1030,7 +1030,7 @@ export const OrdersPage: React.FC = () => {
                     <td className="px-2 py-1"><input className="h-8 w-full max-w-[8rem] rounded border border-slate-200 bg-white px-2 text-sm" placeholder="e.g. Production" value={groupForm.label} onChange={(e) => setGroupForm((f) => ({ ...f, label: e.target.value }))} /></td>
                     <td className="px-2 py-1"><input type="number" className="h-8 w-14 rounded border border-slate-200 bg-white px-2 text-sm" placeholder="—" value={groupForm.expected_duration_days ?? ''} onChange={(e) => setGroupForm((f) => ({ ...f, expected_duration_days: e.target.value === '' ? undefined : parseInt(e.target.value, 10) || 0 }))} /></td>
                     <td className="px-2 py-1"><input type="number" className="h-8 w-14 rounded border border-slate-200 bg-white px-2 text-sm" value={groupForm.display_order} onChange={(e) => setGroupForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))} /></td>
-                    <td className="px-2 py-1"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={groupForm.is_active} onChange={(e) => setGroupForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Active</span></label></td>
+                    <td className="px-2 py-1"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={groupForm.is_active} onChange={(e) => setGroupForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span>Active</span></label></td>
                     <td className="px-2 py-1"><div className="flex items-center gap-1.5"><input type="color" className="h-8 w-10 cursor-pointer rounded border border-slate-200 bg-white p-0.5" value={groupForm.hex_color && /^#[0-9A-Fa-f]{6}$/.test(groupForm.hex_color) ? groupForm.hex_color : '#3b82f6'} onChange={(e) => setGroupForm((f) => ({ ...f, hex_color: e.target.value }))} /><input className="h-8 w-20 rounded border border-slate-200 bg-white px-2 text-sm font-mono" placeholder="#3b82f6" value={groupForm.hex_color} onChange={(e) => setGroupForm((f) => ({ ...f, hex_color: e.target.value }))} /></div></td>
                     <td className="px-2 py-1"><div className="flex gap-1"><Button size="xs" onClick={saveOrderGroup} disabled={savingGroup || !groupForm.label?.trim()}>{savingGroup ? '...' : 'Save'}</Button><Button size="xs" variant="outline" onClick={cancelOrderGroupForm}>Cancel</Button></div></td>
                   </tr>
@@ -1042,7 +1042,7 @@ export const OrdersPage: React.FC = () => {
                       <td className="px-2 py-1.5"><input className="w-full rounded border border-slate-300 px-2 py-1 text-sm" value={groupForm.label} onChange={(e) => setGroupForm((f) => ({ ...f, label: e.target.value }))} /></td>
                       <td className="px-2 py-1.5"><input type="number" className="w-14 rounded border border-slate-300 px-2 py-1 text-sm" value={groupForm.expected_duration_days ?? ''} onChange={(e) => setGroupForm((f) => ({ ...f, expected_duration_days: e.target.value === '' ? undefined : parseInt(e.target.value, 10) || 0 }))} /></td>
                       <td className="px-2 py-1.5"><input type="number" className="w-14 rounded border border-slate-300 px-2 py-1 text-sm" value={groupForm.display_order} onChange={(e) => setGroupForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))} /></td>
-                      <td className="px-2 py-1.5"><label className="flex items-center gap-1"><input type="checkbox" checked={groupForm.is_active} onChange={(e) => setGroupForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span className="text-xs">Active</span></label></td>
+                      <td className="px-2 py-1.5"><label className="flex items-center gap-1"><input type="checkbox" checked={groupForm.is_active} onChange={(e) => setGroupForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span className="text-xs">Active</span></label></td>
                       <td className="px-2 py-1.5"><div className="flex items-center gap-1.5"><input type="color" className="h-8 w-10 cursor-pointer rounded border border-slate-300 bg-white p-0.5" value={groupForm.hex_color && /^#[0-9A-Fa-f]{6}$/.test(groupForm.hex_color) ? groupForm.hex_color : '#3b82f6'} onChange={(e) => setGroupForm((f) => ({ ...f, hex_color: e.target.value }))} /><input className="w-20 rounded border border-slate-300 px-2 py-1 text-sm font-mono" value={groupForm.hex_color} onChange={(e) => setGroupForm((f) => ({ ...f, hex_color: e.target.value }))} /></div></td>
                       <td className="px-2 py-1.5"><div className="flex gap-1"><Button size="xs" onClick={saveOrderGroup} disabled={savingGroup || !groupForm.label?.trim()}>{savingGroup ? '...' : 'Save'}</Button><Button size="xs" variant="outline" onClick={cancelOrderGroupForm}>Cancel</Button></div></td>
                     </tr>
@@ -1055,7 +1055,7 @@ export const OrdersPage: React.FC = () => {
                       <td className="px-2 py-1">{g.is_active ? 'Yes' : 'No'}</td>
                       <td className="px-2 py-1">{g.hex_color ? <span className="inline-flex items-center gap-1.5"><span className="inline-block h-5 w-5 rounded border border-slate-300 shrink-0" style={{ backgroundColor: g.hex_color }} /><span className="text-xs font-mono text-slate-600">{g.hex_color}</span></span> : '—'}</td>
                       <td className="px-2 py-1">
-                        <Button variant="ghost" size="xs" className="text-indigo-600" onClick={() => openAddOrderStatusToGroup(g.id)} leftIcon={<Plus size={12} />}>Add status</Button>
+                        <Button variant="ghost" size="xs" className="text-blue-600" onClick={() => openAddOrderStatusToGroup(g.id)} leftIcon={<Plus size={12} />}>Add status</Button>
                         <Button variant="ghost" size="xs" onClick={() => { setEditingGroup(g); setAddingGroup(false); setGroupForm({ code: g.code, label: g.label, expected_duration_days: g.expected_duration_days ?? undefined, display_order: g.display_order, is_active: g.is_active, hex_color: g.hex_color ?? '' }); }}>Edit</Button>
                         <Button variant="ghost" size="xs" className="text-rose-600" onClick={() => setDeleteGroupId(g.id)}>Delete</Button>
                       </td>
@@ -1103,9 +1103,9 @@ export const OrdersPage: React.FC = () => {
                             <td className="py-2 pr-2"><input className="h-8 w-full max-w-[7rem] rounded border border-slate-200 bg-white px-2 text-sm font-mono" placeholder="Code" value={statusForm.code} onChange={(e) => setStatusForm((f) => ({ ...f, code: e.target.value }))} /></td>
                             <td className="py-2 pr-2"><input className="h-8 w-full max-w-[8rem] rounded border border-slate-200 bg-white px-2 text-sm" placeholder="Label" value={statusForm.label} onChange={(e) => setStatusForm((f) => ({ ...f, label: e.target.value }))} /></td>
                             <td className="py-2 pr-2"><input type="number" className="h-8 w-14 rounded border border-slate-200 bg-white px-2 text-sm" value={statusForm.display_order} onChange={(e) => setStatusForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))} /></td>
-                            <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Active</span></label></td>
-                            <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Final</span></label></td>
-                            <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Yes</span></label></td>
+                            <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span>Active</span></label></td>
+                            <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span>Final</span></label></td>
+                            <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span>Yes</span></label></td>
                             <td className="py-2 pr-2"><div className="flex items-center gap-1.5"><input type="color" className="h-8 w-10 cursor-pointer rounded border border-slate-200 bg-white p-0.5" value={statusForm.hex_color && /^#[0-9A-Fa-f]{6}$/.test(statusForm.hex_color) ? statusForm.hex_color : '#3b82f6'} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} /><input className="h-8 w-20 rounded border border-slate-200 bg-white px-2 text-sm font-mono" placeholder="#3b82f6" value={statusForm.hex_color} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} /></div></td>
                             <td className="py-2"><div className="flex gap-1"><Button size="xs" onClick={saveOrderStatus} disabled={savingStatus || !statusForm.label?.trim()}>{savingStatus ? '...' : 'Save'}</Button><Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, hex_color: '', attachment_required_on_kanban_change: false }); }}>Cancel</Button></div></td>
                           </tr>
@@ -1119,9 +1119,9 @@ export const OrdersPage: React.FC = () => {
                                 <td className="py-2 pr-2"><input className="h-8 w-full max-w-[7rem] rounded border border-slate-200 bg-white px-2 text-sm font-mono" value={statusForm.code} onChange={(e) => setStatusForm((f) => ({ ...f, code: e.target.value }))} /></td>
                                 <td className="py-2 pr-2"><input className="h-8 w-full max-w-[8rem] rounded border border-slate-200 bg-white px-2 text-sm" value={statusForm.label} onChange={(e) => setStatusForm((f) => ({ ...f, label: e.target.value }))} /></td>
                                 <td className="py-2 pr-2"><input type="number" className="h-8 w-14 rounded border border-slate-200 bg-white px-2 text-sm" value={statusForm.display_order} onChange={(e) => setStatusForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))} /></td>
-                                <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Active</span></label></td>
-                                <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Final</span></label></td>
-                                <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" /><span>Yes</span></label></td>
+                                <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span>Active</span></label></td>
+                                <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span>Final</span></label></td>
+                                <td className="py-2 pr-2"><label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span>Yes</span></label></td>
                                 <td className="py-2 pr-2"><div className="flex items-center gap-1.5"><input type="color" className="h-8 w-10 cursor-pointer rounded border border-slate-200 bg-white p-0.5" value={statusForm.hex_color && /^#[0-9A-Fa-f]{6}$/.test(statusForm.hex_color) ? statusForm.hex_color : '#3b82f6'} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} /><input className="h-8 w-20 rounded border border-slate-200 bg-white px-2 text-sm font-mono" value={statusForm.hex_color} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} /></div></td>
                                 <td className="py-2"><div className="flex gap-1"><Button size="xs" onClick={saveOrderStatus} disabled={savingStatus || !statusForm.label?.trim()}>{savingStatus ? '...' : 'Save'}</Button><Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, hex_color: '', attachment_required_on_kanban_change: false }); }}>Cancel</Button></div></td>
                               </tr>
@@ -1213,7 +1213,7 @@ export const OrdersPage: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Description *</label>
               <textarea
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[100px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Add details for this status change..."
                 value={statusChangeForm.description}
                 onChange={(e) => setStatusChangeForm((f) => ({ ...f, description: e.target.value }))}
@@ -1259,7 +1259,7 @@ export const OrdersPage: React.FC = () => {
                 ))}
                 <button
                   type="button"
-                  className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
                   onClick={() => setStatusChangeAttachments((prev) => [...prev, { id: crypto.randomUUID(), file: null, title: '' }])}
                 >
                   <Plus size={12} /> Add file

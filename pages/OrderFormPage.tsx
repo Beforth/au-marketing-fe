@@ -277,7 +277,7 @@ export const OrderFormPage: React.FC = () => {
           <div>
             <span className="text-slate-500 block">From Lead</span>
             {lead ? (
-              <button type="button" className="text-indigo-600 hover:underline" onClick={() => navigate(`/leads/${lead.id}/edit`)}>
+              <button type="button" className="text-blue-600 hover:underline" onClick={() => navigate(`/leads/${lead.id}/edit`)}>
                 {lead.series || `#${lead.id}`} – {leadDisplayName(lead)}
               </button>
             ) : '—'}
@@ -427,7 +427,7 @@ export const OrderFormPage: React.FC = () => {
                           <li key={att.id}>
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-800"
+                              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-800"
                               onClick={() => orderId && marketingAPI.downloadOrderActivityAttachment(orderId, a.id, att.id, att.file_name)}
                             >
                               <Download size={12} />

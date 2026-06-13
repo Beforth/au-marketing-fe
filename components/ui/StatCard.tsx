@@ -9,11 +9,11 @@ export const StatCard: React.FC<{ stat: StatItem }> = ({ stat }) => {
 
   return (
     <div
-      className="bg-white border border-slate-200/60 transition-all duration-300 group cursor-default shadow-[0_2px_4px_rgba(0,0,0,0.02),0_1px_0_rgba(0,0,0,0.02)] hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-200/50 flex flex-col justify-between p-6"
+      className="bg-white border border-slate-200/60 transition-all duration-300 group cursor-default shadow-[0_2px_4px_rgba(0,0,0,0.02),0_1px_0_rgba(0,0,0,0.02)] hover:shadow-xl hover:shadow-blue-500/5 hover:border-blue-200/50 flex flex-col justify-between p-6"
       style={{ borderRadius: '1rem' }}
     >
       <div className="flex items-center justify-between mb-4">
-        <div className="w-9 h-9 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 group-hover:border-indigo-100 flex items-center justify-center transition-all">
+        <div className="w-9 h-9 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50 group-hover:border-blue-100 flex items-center justify-center transition-all">
           <stat.icon size={18} strokeWidth={2} />
         </div>
         <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${isUp ? 'text-emerald-600 bg-emerald-50' :

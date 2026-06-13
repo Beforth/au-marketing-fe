@@ -72,7 +72,7 @@ export const TransactionTable: React.FC = () => {
         <Button
           variant="ghost"
           size="xs"
-          className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-indigo-600"
+          className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-blue-600"
           leftIcon={<MoreHorizontal size={14} />}
         />
       )

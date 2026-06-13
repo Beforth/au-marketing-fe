@@ -161,7 +161,7 @@ export const ContactsPage: React.FC = () => {
                     cn(
                       'flex items-center gap-2 py-2 px-1 text-sm font-bold transition-all border-b-2',
                       isActive
-                        ? 'border-indigo-600 text-indigo-600'
+                        ? 'border-blue-600 text-blue-600'
                         : 'border-transparent text-slate-400 hover:text-slate-600'
                     )
                   }
@@ -275,7 +275,7 @@ export const ContactsPage: React.FC = () => {
         <Card noPadding contentClassName="py-6 px-4">
           {isLoading ? (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <p className="mt-4 text-slate-600">Loading contacts...</p>
             </div>
           ) : filteredContacts.length === 0 ? (

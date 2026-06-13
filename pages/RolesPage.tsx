@@ -6,8 +6,8 @@ import { Tooltip } from '../UI/Tooltip';
 const ROLE_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   admin:     { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200' },
   manager:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
-  sales:     { bg: 'bg-indigo-50',  text: 'text-indigo-700',  border: 'border-indigo-200' },
-  crm:       { bg: 'bg-indigo-50',  text: 'text-indigo-700',  border: 'border-indigo-200' },
+  sales:     { bg: 'bg-blue-50',  text: 'text-blue-700',  border: 'border-blue-200' },
+  crm:       { bg: 'bg-blue-50',  text: 'text-blue-700',  border: 'border-blue-200' },
   marketing: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
   employee:  { bg: 'bg-slate-50',   text: 'text-slate-600',   border: 'border-slate-200' },
 };
@@ -56,8 +56,8 @@ export const RolesPage: React.FC = () => {
       <div className="bg-white border-b border-slate-200/60 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200/60 flex items-center justify-center">
-              <Shield size={16} className="text-indigo-600" />
+            <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200/60 flex items-center justify-center">
+              <Shield size={16} className="text-blue-600" />
             </div>
             <div>
               <h1 className="text-[15px] font-black uppercase tracking-tight text-slate-900">Marketing Roles</h1>
@@ -104,7 +104,7 @@ export const RolesPage: React.FC = () => {
             <p className="text-[13px] font-semibold text-slate-700">{error}</p>
             <button
               onClick={fetchRoles}
-              className="mt-1 px-4 py-2 rounded-lg bg-indigo-600 text-white text-[12px] font-semibold hover:bg-indigo-700 transition-colors active:scale-[0.98]"
+              className="mt-1 px-4 py-2 rounded-lg bg-blue-600 text-white text-[12px] font-semibold hover:bg-blue-700 transition-colors active:scale-[0.98]"
             >
               Try again
             </button>

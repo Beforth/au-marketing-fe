@@ -174,7 +174,7 @@ export const FinancialsPage: React.FC = () => {
               <div key={i} className="flex-1 flex flex-col items-center gap-1 relative group/bar">
                 {d.p > 0 && (
                   <div
-                    className="absolute bottom-6 w-full border-t-2 border-indigo-200 border-dashed z-0 opacity-40 group-hover/bar:opacity-100 transition-opacity"
+                    className="absolute bottom-6 w-full border-t-2 border-blue-200 border-dashed z-0 opacity-40 group-hover/bar:opacity-100 transition-opacity"
                     style={{ bottom: `calc(${d.p}% + 24px)` }}
                   />
                 )}

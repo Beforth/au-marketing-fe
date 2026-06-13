@@ -361,14 +361,14 @@ export const SupportPage: React.FC = () => {
             <a key={item.title} href={item.href} target="_blank" rel="noopener noreferrer" className="block group">
               <Card className="hover:-translate-y-1 transition-all duration-200 h-full">
                 <div className="flex flex-col gap-4 h-full">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
                     <item.icon size={20} />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-[13px] font-bold text-slate-900 tracking-tight mb-1">{item.title}</h3>
                     <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{item.desc}</p>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-indigo-600 group-hover:gap-2.5 transition-all">
+                  <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-blue-600 group-hover:gap-2.5 transition-all">
                     Open guide <ExternalLink size={11} />
                   </div>
                 </div>
@@ -407,7 +407,7 @@ export const SupportPage: React.FC = () => {
                     href={`${DOCS_BASE}${module.anchor}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-slate-300 hover:text-indigo-500 transition-colors"
+                    className="text-slate-300 hover:text-blue-500 transition-colors"
                     onClick={e => e.stopPropagation()}
                     title="Open in docs"
                   >
@@ -443,7 +443,7 @@ export const SupportPage: React.FC = () => {
                               href={`${DOCS_BASE}${faq.anchor}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-700 transition-colors mt-1"
+                              className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-700 transition-colors mt-1"
                             >
                               Full documentation <ArrowRight size={10} />
                             </a>

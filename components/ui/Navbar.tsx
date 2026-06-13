@@ -83,7 +83,7 @@ export const Navbar: React.FC = () => {
       case 'system': return <ShieldAlert size={14} className="text-amber-500" />;
       case 'inventory': return <Package size={14} className="text-rose-500" />;
       case 'customer': return <MessageSquare size={14} className="text-emerald-500" />;
-      case 'follow_up': return <MessageSquare size={14} className="text-indigo-500" />;
+      case 'follow_up': return <MessageSquare size={14} className="text-blue-500" />;
       case 'new_inquiry': return <MessageSquare size={14} className="text-emerald-500" />;
       default: return <Bell size={14} className="text-slate-400" />;
     }
@@ -171,7 +171,7 @@ export const Navbar: React.FC = () => {
               <span className="text-[10px] font-bold uppercase">K</span>
             </>
           )}
-          className="!h-9 !bg-slate-50/50 !border-slate-200/50 focus:!bg-white focus:!border-indigo-500/30 transition-all font-medium"
+          className="!h-9 !bg-slate-50/50 !border-slate-200/50 focus:!bg-white focus:!border-blue-500/30 transition-all font-medium"
         />
 
         {isSearchFocused && globalSearch.length > 0 && (
@@ -185,7 +185,7 @@ export const Navbar: React.FC = () => {
                       onClick={() => { navigate(item.href); setGlobalSearch(''); }}
                       className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-slate-50 transition-colors group"
                     >
-                      <item.icon size={14} className="text-slate-400 group-hover:text-indigo-600" />
+                      <item.icon size={14} className="text-slate-400 group-hover:text-blue-600" />
                       <span className="text-xs font-medium text-slate-700">{item.title}</span>
                       <ArrowRight size={12} className="ml-auto text-slate-300 opacity-0 group-hover:opacity-100" />
                     </button>
@@ -203,12 +203,12 @@ export const Navbar: React.FC = () => {
         <div className="relative" ref={dsrRef}>
           <button
             onClick={() => setShowDSR(!showDSR)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all active:scale-95 ${showDSR ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-indigo-50/50 border-indigo-100 text-indigo-600 hover:bg-indigo-50'}`}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all active:scale-95 ${showDSR ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-blue-50/50 border-blue-100 text-blue-600 hover:bg-blue-50'}`}
             title="Today's DSR"
           >
             <ClipboardList size={16} strokeWidth={2} />
             {dsrTasks.filter(t => t.status === 'pending').length > 0 && (
-              <span className={`text-[11px] font-black tracking-tight ${showDSR ? 'text-indigo-50' : 'text-indigo-600'}`}>
+              <span className={`text-[11px] font-black tracking-tight ${showDSR ? 'text-blue-50' : 'text-blue-600'}`}>
                 {dsrTasks.filter(t => t.status === 'pending').length}
               </span>
             )}
@@ -220,7 +220,7 @@ export const Navbar: React.FC = () => {
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Today's DSR</span>
                 <button
                   onClick={(e) => { e.stopPropagation(); fetchDSR(); }}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                   title="Refresh"
                 >
                   <RefreshCw size={13} className={dsrLoading ? 'animate-spin' : ''} />
@@ -269,7 +269,7 @@ export const Navbar: React.FC = () => {
               <div className="p-3 bg-slate-50/50 border-t border-slate-100">
                 <button
                   onClick={() => { navigate('/dsr'); setShowDSR(false); }}
-                  className="w-full py-1.5 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors uppercase tracking-widest flex items-center gap-2 justify-center"
+                  className="w-full py-1.5 text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-widest flex items-center gap-2 justify-center"
                 >
                   View All DSR <ArrowRight size={10} />
                 </button>
@@ -281,11 +281,11 @@ export const Navbar: React.FC = () => {
         <div className="relative" ref={notificationRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all active:scale-95 ${showNotifications ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-indigo-50/50 border-indigo-100 text-indigo-600 hover:bg-indigo-50'}`}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all active:scale-95 ${showNotifications ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-blue-50/50 border-blue-100 text-blue-600 hover:bg-blue-50'}`}
           >
             <Bell size={16} strokeWidth={2} />
             {unreadCount > 0 && (
-              <span className={`text-[11px] font-black tracking-tight ${showNotifications ? 'text-indigo-50' : 'text-indigo-600'}`}>
+              <span className={`text-[11px] font-black tracking-tight ${showNotifications ? 'text-blue-50' : 'text-blue-600'}`}>
                 {unreadCount}
               </span>
             )}
@@ -297,7 +297,7 @@ export const Navbar: React.FC = () => {
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Notifications</span>
                 <button
                   onClick={markAllAsRead}
-                  className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors uppercase tracking-tight"
+                  className="text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-tight"
                 >
                   Clear all
                 </button>
@@ -318,7 +318,7 @@ export const Navbar: React.FC = () => {
                           <p className={`text-[11px] truncate tracking-tight ${notif.read ? 'text-slate-500' : 'text-slate-900 font-bold'}`}>
                             {notif.title}
                           </p>
-                          {!notif.read && <div className="w-1 h-1 rounded-full bg-indigo-600 shrink-0 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />}
+                          {!notif.read && <div className="w-1 h-1 rounded-full bg-blue-600 shrink-0 shadow-[0_0_8px_rgba(37,99,235,0.4)]" />}
                         </div>
                         <p className="text-[10px] text-slate-400 line-clamp-1 mt-0.5 leading-snug">
                           {notif.message}

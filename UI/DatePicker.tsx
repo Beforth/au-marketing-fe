@@ -17,7 +17,7 @@ export const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
           </label>
         )}
         <div className="relative group">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors pointer-events-none">
             {(props.type === 'time' || props.type === 'datetime-local') ? (
               <Clock size={18} />
             ) : (
@@ -30,7 +30,7 @@ export const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
             type={props.type || 'date'}
             className={cn(
               'flex h-11 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-semibold transition-all duration-200',
-              'focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+              'focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500',
               'group-hover:border-slate-300 [appearance:none] cursor-pointer',
               'relative z-10 bg-transparent',
               error ? 'border-rose-500' : '',

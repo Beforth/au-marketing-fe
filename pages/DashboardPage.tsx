@@ -49,10 +49,10 @@ import {
   CustomTooltip,
 } from '../components/ui/ChartsSection';
 
-const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
+const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
 
 const CHART_COLOR_PALETTES = [
-  { stroke: '#6366f1', start: '#6366f1', end: '#4f46e5' }, // indigo
+  { stroke: '#3b82f6', start: '#3b82f6', end: '#2563eb' }, // blue
   { stroke: '#10b981', start: '#10b981', end: '#059669' }, // emerald
   { stroke: '#f59e0b', start: '#f59e0b', end: '#d97706' }, // amber
   { stroke: '#ef4444', start: '#ef4444', end: '#dc2626' }, // red
@@ -208,7 +208,7 @@ function CustomSqlWidgetContent({
       return <ShieldAlert size={18} className="text-amber-600 shrink-0" />;
     }
     if (t.includes('won') || t.includes('deals')) {
-      return <Check size={18} className="text-indigo-600 shrink-0" />;
+      return <Check size={18} className="text-violet-600 shrink-0" />;
     }
     if (t.includes('leads') || t.includes('count') || t.includes('team') || t.includes('size')) {
       return <Users size={18} className="text-blue-600 shrink-0" />;
@@ -247,8 +247,8 @@ function CustomSqlWidgetContent({
     const labelText = rawLabel && rawLabel !== '—' ? rawLabel : (labelKey !== valueKey ? labelKey : undefined);
     const valueText = cellValue(primary, valueKey);
 
-    let cardColorClasses = "bg-gradient-to-br from-indigo-50/40 to-indigo-100/10 border border-indigo-100/60";
-    let valueColorClass = "text-indigo-800";
+    let cardColorClasses = "bg-gradient-to-br from-blue-50/40 to-blue-100/10 border border-blue-100/60";
+    let valueColorClass = "text-blue-800";
     const tText = labelText ? labelText.toLowerCase() : '';
     if (tText.includes('revenue') || tText.includes('achieved') || tText.includes('sales') || tText.includes('value')) {
       cardColorClasses = "bg-gradient-to-br from-emerald-50/40 to-emerald-100/10 border border-emerald-100/60 hover:from-emerald-50/60 hover:to-emerald-100/20";
@@ -313,7 +313,7 @@ function CustomSqlWidgetContent({
               key={index}
               className={cn(
                 "flex items-center justify-between p-3 rounded-lg border border-slate-200 transition-all duration-200",
-                rank === 1 && "border-indigo-200"
+                rank === 1 && "border-blue-200"
               )}
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -322,7 +322,7 @@ function CustomSqlWidgetContent({
                   className={cn(
                     "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
                     rank === 1
-                      ? "bg-indigo-50 text-indigo-600"
+                      ? "bg-blue-50 text-blue-600"
                       : rank === 2
                       ? "bg-slate-100 text-slate-600"
                       : rank === 3
@@ -336,7 +336,7 @@ function CustomSqlWidgetContent({
                 {/* Avatar */}
                 <div className={cn(
                   "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 border",
-                  rank === 1 ? "bg-indigo-50 text-indigo-600 border-indigo-200" :
+                  rank === 1 ? "bg-blue-50 text-blue-600 border-blue-200" :
                   "bg-slate-50 text-slate-600 border-slate-200"
                 )}>
                   {initials}
@@ -570,8 +570,8 @@ function CustomSqlWidgetContent({
           const label = String(row[mKey] ?? '');
           const val = String(row[vKey] ?? '');
 
-          let accentClass = "border-l-indigo-500 bg-gradient-to-br from-indigo-50/40 to-indigo-100/10 hover:from-indigo-50/60 hover:to-indigo-100/20 border-indigo-100/60";
-          let iconBg = "bg-indigo-50 text-indigo-600 border border-indigo-100/85";
+          let accentClass = "border-l-blue-500 bg-gradient-to-br from-blue-50/40 to-blue-100/10 hover:from-blue-50/60 hover:to-blue-100/20 border-blue-100/60";
+          let iconBg = "bg-blue-50 text-blue-600 border border-blue-100/85";
           const lLower = label.toLowerCase();
           if (lLower.includes('achieved') || lLower.includes('won') || lLower.includes('revenue') || lLower.includes('sales') || lLower.includes('value')) {
             accentClass = "border-l-emerald-500 bg-gradient-to-br from-emerald-50/40 to-emerald-100/10 hover:from-emerald-50/60 hover:to-emerald-100/20 border-emerald-100/60";
@@ -1116,7 +1116,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
       onDragLeave: handleDragLeave,
       onDrop: () => handleDrop(layout.indexOf(config)),
       onResize: () => toggleResize(config.id),
-      className: `min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''} ${draggedOverIndex === layout.indexOf(config) ? 'ring-indigo-300' : ''}`,
+      className: `min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''} ${draggedOverIndex === layout.indexOf(config) ? 'ring-blue-300' : ''}`,
       headerAction: isEditMode ? (
         <div className="flex items-center gap-0.5">
           <button
@@ -1173,8 +1173,8 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
           >
             <div className="p-4 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-100 shadow-sm shrink-0">
-                  <Target size={20} className="text-indigo-600 animate-pulse" />
+                <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-100 shadow-sm shrink-0">
+                  <Target size={20} className="text-blue-600 animate-pulse" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-sm mb-1.5">
@@ -1183,7 +1183,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
                     <div 
-                      className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(99,102,241,0.3)]" 
+                      className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]" 
                       style={{ width: `${Math.min(100, (s.monthly_target ? (s.achieved_this_month / s.monthly_target) * 100 : 0)).toFixed(1)}%` }} 
                     />
                   </div>
@@ -1383,7 +1383,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                     <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{scopeLabel} leads (assigned)</p>
                     <p className="text-2xl font-black text-slate-900 mt-1">{reportSummary.leads_total}</p>
                   </div>
-                  <div className="bg-gradient-to-br from-indigo-50/40 to-indigo-100/10 border border-indigo-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 p-3.5 rounded-xl">
+                  <div className="bg-gradient-to-br from-blue-50/40 to-blue-100/10 border border-blue-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 p-3.5 rounded-xl">
                     <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{scopeLabel} inquiries</p>
                     <p className="text-2xl font-black text-slate-900 mt-1">{reportSummary.inquiries_count}</p>
                   </div>
@@ -1419,14 +1419,14 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                       </div>
                       <span className="font-black text-slate-900 text-sm">{reportSummary.inquiries_count}</span>
                     </div>
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-br from-indigo-50/40 to-indigo-100/10 border border-indigo-100/60 shadow-sm transition-all duration-300 hover:shadow-md">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-br from-blue-50/40 to-blue-100/10 border border-blue-100/60 shadow-sm transition-all duration-300 hover:shadow-md">
                       <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+                        <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
                           <Quote size={14} />
                         </div>
                         <span className="text-slate-600 text-xs font-semibold">Quotations sent</span>
                       </div>
-                      <span className="font-black text-indigo-900 text-sm">{reportSummary.quotations_sent_count}</span>
+                      <span className="font-black text-blue-900 text-sm">{reportSummary.quotations_sent_count}</span>
                     </div>
                   </div>
                   <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => navigate('/reports')}>
@@ -1476,7 +1476,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                 </table>
               )}
               <div className="p-2 border-t border-slate-100 bg-slate-50/30">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/leads')} className="text-xs font-black uppercase tracking-wider text-indigo-600 hover:text-indigo-700">
+                <Button variant="ghost" size="sm" onClick={() => navigate('/leads')} className="text-xs font-black uppercase tracking-wider text-blue-600 hover:text-blue-700">
                   View all leads →
                 </Button>
               </div>
@@ -1518,8 +1518,8 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
         return (
           <Card key={config.id} {...commonProps} title={config.title || 'Stat'} description="Summary metric">
             <div className="p-4 flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-100 shadow-sm shrink-0">
-                <Target size={20} className="text-indigo-600" />
+              <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-100 shadow-sm shrink-0">
+                <Target size={20} className="text-blue-600" />
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Metric</p>
@@ -1587,7 +1587,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
         );
       case 'custom_sql': {
         const widgetRuntime = sqlWidgetData[config.id];
-        const gridClass = `min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''} ${draggedOverIndex === layout.indexOf(config) ? 'ring-indigo-300' : ''}`;
+        const gridClass = `min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''} ${draggedOverIndex === layout.indexOf(config) ? 'ring-blue-300' : ''}`;
         if ((widgetRuntime?.chart_type || config.chart_type) === 'number-card') {
           const data = Array.isArray(widgetRuntime?.data) ? widgetRuntime.data : [];
           const row = data[0] as Record<string, unknown> | undefined;
@@ -1613,15 +1613,20 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
             iconColor = 'text-blue-600';
             valueColor = 'text-blue-700';
             IconComponent = Users;
-          } else if (t.includes('achieved') || t.includes('revenue') || t.includes('won')) {
+          } else if (t.includes('achieved') || t.includes('revenue')) {
             accentColor = 'from-emerald-100/60 to-emerald-50 border-emerald-200';
             iconColor = 'text-emerald-600';
             valueColor = 'text-emerald-700';
             IconComponent = Trophy;
+          } else if (t.includes('won') || t.includes('deals')) {
+            accentColor = 'from-violet-100/60 to-violet-50 border-violet-200';
+            iconColor = 'text-violet-600';
+            valueColor = 'text-violet-700';
+            IconComponent = Check;
           } else if (t.includes('open') || t.includes('lead')) {
-            accentColor = 'from-indigo-100/60 to-indigo-50 border-indigo-200';
-            iconColor = 'text-indigo-600';
-            valueColor = 'text-indigo-700';
+            accentColor = 'from-blue-100/60 to-blue-50 border-blue-200';
+            iconColor = 'text-blue-600';
+            valueColor = 'text-blue-700';
             IconComponent = Quote;
           } else if (t.includes('conversion') || t.includes('rate')) {
             accentColor = 'from-blue-100/60 to-blue-50 border-blue-200';
@@ -1682,7 +1687,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); toggleResize(config.id); }}
-                    className="p-1 rounded text-slate-400 hover:text-indigo-600 transition-colors"
+                    className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors"
                     title="Toggle size"
                   >
                     <Maximize2 size={12} />
@@ -1721,7 +1726,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
       }
       case 'performer-of-month': {
         const topPerformer = performerData?.performers[0];
-        const perfGridClass = `min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''} ${draggedOverIndex === layout.indexOf(config) ? 'ring-indigo-300' : ''}`;
+        const perfGridClass = `min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''} ${draggedOverIndex === layout.indexOf(config) ? 'ring-blue-300' : ''}`;
         return (
           <div
             key={config.id}
@@ -1769,7 +1774,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); toggleResize(config.id); }}
-                  className="p-1 rounded text-slate-400 hover:text-indigo-600 transition-colors"
+                  className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors"
                   title="Toggle size"
                 >
                   <Maximize2 size={12} />
@@ -1869,7 +1874,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
       <button
         onClick={loadDashboard}
         disabled={loading || permissionDenied}
-        className="p-1.5 text-slate-300 hover:text-indigo-500 transition-all active:rotate-180 duration-500"
+        className="p-1.5 text-slate-300 hover:text-blue-500 transition-all active:rotate-180 duration-500"
         title="Refresh"
       >
         <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
@@ -1890,7 +1895,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
         leftIcon={isEditMode ? <Check size={14} /> : <LayoutIcon size={14} />}
         className={cn(
           "h-8 font-medium px-4 transition-all duration-300 rounded-xl text-[11px]",
-          isEditMode ? "bg-indigo-600 hover:bg-indigo-700 border-none shadow-lg shadow-indigo-500/20 text-white" : "bg-white border-slate-100 shadow-sm"
+          isEditMode ? "bg-blue-600 hover:bg-blue-700 border-none shadow-lg shadow-blue-500/20 text-white" : "bg-white border-slate-100 shadow-sm"
         )}
       >
         {isEditMode ? 'Save Layout' : 'Edit Layout'}
@@ -1898,7 +1903,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
 
       <button
         onClick={() => setShowChangelog(true)}
-        className="text-[10px] font-medium text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer ml-1"
+        className="text-[10px] font-medium text-slate-400 hover:text-blue-600 transition-colors cursor-pointer ml-1"
         title="View changelog"
       >
         v1.0.6
@@ -1910,7 +1915,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
     <div className="flex flex-wrap items-center gap-4 p-1 bg-white border border-slate-200 rounded-2xl shadow-sm mb-4 w-full">
       {/* Dashboard Selection (Clean & Integrated) */}
       <div className="flex flex-1 min-w-[200px] items-center pl-4 pr-1 border-r border-slate-100 group">
-        <Search size={14} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors shrink-0" />
+        <Search size={14} className="text-slate-400 group-focus-within:text-blue-500 transition-colors shrink-0" />
         <Select
           isCombobox={true}
           containerClassName="flex-1 !space-y-0"
@@ -1950,7 +1955,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
             size="sm"
             onClick={() => setShowCreateDashboardModal(true)}
             leftIcon={<Plus size={16} />}
-            className="h-9 px-6 font-medium rounded-xl shadow-lg shadow-indigo-500/10 text-xs"
+            className="h-9 px-6 font-medium rounded-xl shadow-lg shadow-blue-500/10 text-xs"
           >
             New Dashboard
           </Button>
@@ -2033,14 +2038,14 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
 
             {layout.length === 0 ? (
               <div className="rounded-[2rem] border border-slate-200/60 bg-white/40 backdrop-blur-sm p-16 text-center shadow-sm relative overflow-hidden group/empty">
-                <div className="absolute inset-0 bg-gradient-to-b from-indigo-50/20 to-transparent opacity-0 group-hover/empty:opacity-100 transition-opacity duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-b from-blue-50/20 to-transparent opacity-0 group-hover/empty:opacity-100 transition-opacity duration-700" />
                 <div className="relative z-10">
-                  <div className="mx-auto h-20 w-20 bg-indigo-50 rounded-3xl flex items-center justify-center mb-6 shadow-inner">
-                    <LayoutIcon className="h-10 w-10 text-indigo-500" />
+                  <div className="mx-auto h-20 w-20 bg-blue-50 rounded-3xl flex items-center justify-center mb-6 shadow-inner">
+                    <LayoutIcon className="h-10 w-10 text-blue-500" />
                   </div>
                   <h3 className="text-xl font-black text-slate-800 mb-2 tracking-tight">Your Workspace is Empty</h3>
                   <p className="text-sm text-slate-500 mb-8 max-w-sm mx-auto font-medium leading-relaxed">Customize your command center by adding graphs, key metrics, or live data tables from the widget gallery.</p>
-                  <Button size="lg" variant="primary" leftIcon={<Plus size={18} />} onClick={() => setShowAddWidgetModal(true)} disabled={!canCustomizeDashboard} className="shadow-xl shadow-indigo-500/20 px-8 rounded-2xl h-11">
+                  <Button size="lg" variant="primary" leftIcon={<Plus size={18} />} onClick={() => setShowAddWidgetModal(true)} disabled={!canCustomizeDashboard} className="shadow-xl shadow-blue-500/20 px-8 rounded-2xl h-11">
                     Initialize Dashboard
                   </Button>
                 </div>
@@ -2161,7 +2166,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                     <label className="flex items-center gap-2 text-sm text-slate-700 mt-6 sm:mt-0">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                         checked={assignCanEdit}
                         onChange={(e) => setAssignCanEdit(e.target.checked)}
                       />
@@ -2186,7 +2191,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                     <label className="flex items-center gap-2 text-sm text-slate-700 mt-6 sm:mt-0">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                         checked={assignCanEdit}
                         onChange={(e) => setAssignCanEdit(e.target.checked)}
                       />
@@ -2413,7 +2418,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                     {addWidgetType === 'custom_sql' && (
                       <>
                         <p className="text-xs text-slate-500 mb-1">
-                          <Link to="/schema" className="text-indigo-600 hover:underline">View tables &amp; columns (ER diagram)</Link>
+                          <Link to="/schema" className="text-blue-600 hover:underline">View tables &amp; columns (ER diagram)</Link>
                         </p>
                         <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3 mb-2">
                           <p className="font-medium text-slate-700 mb-1">How to create a SQL widget</p>
@@ -2422,7 +2427,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                             <li>Optionally set a <strong>Title</strong> for the card.</li>
                             <li>Write a <strong>SELECT</strong> query below with scope placeholders like <code>{'{{employee_id}}'}</code> or <code>{'{{domain_id}}'}</code>.</li>
                             <li>For date filtering from dashboard header, use <code>{'{{date_from}}'}</code> and <code>{'{{date_to}}'}</code>.</li>
-                            <li>Use <Link to="/schema" className="text-indigo-600 hover:underline">Schema / ER diagram</Link> to see table and column names.</li>
+                            <li>Use <Link to="/schema" className="text-blue-600 hover:underline">Schema / ER diagram</Link> to see table and column names.</li>
                             <li>Pick <strong>Chart / display</strong> (Table, Bar, Line, Pie, Heatmap, or Number card).</li>
                             <li>Click <strong>Add widget</strong>. Data is loaded from the backend when the dashboard is viewed.</li>
                           </ol>
@@ -2431,7 +2436,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                       </>
                     )}
                     <textarea
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono min-h-[100px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={addWidgetCode}
                       onChange={(e) => { setAddWidgetCode(e.target.value); setSqlPreviewError(null); }}
                       placeholder={addWidgetType === 'custom_sql' ? 'e.g. SELECT id, series FROM leads LIMIT 100' : 'Paste code or notes to display in the widget...'}

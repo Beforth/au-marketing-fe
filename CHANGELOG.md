@@ -103,7 +103,7 @@ Format: `[Date] — Category: Description`
 - **Enquiry Log Type Dropdown Trimmed**: Reduced the activity type options in the lead edit page and dashboard task modal from 20 to 5: `Note`, `Contacted`, `Call`, `Email`, `Meeting`. Removed unused follow-up status options (QTN submitted, order loss, etc.).
 - **Lead Edit Page Layout Reorder**: Moved "Lead details" card to the top. Tab pills (Enquiry log / Lead status logs) and Follow-up bar are now side-by-side on the same row, vertically centered with reduced gap.
 - **Follow-up Pill Simplified**: Stripped the follow-up bar down to just a label, date-time picker, and save button. Removed quick-date buttons, repeat type dropdown, and scheduled text. Replaced native `<input type="datetime-local">` with the app's custom `DatePicker` component (with calendar popup and time selection).
-- **Attach Files Highlighted**: Made "Attach files" and "Add attachments" buttons more prominent with dashed indigo border pill styling in the lead edit page.
+- **Attach Files Highlighted**: Made "Attach files" and "Add attachments" buttons more prominent with dashed blue border pill styling in the lead edit page.
 - **Favicon Updated**: Changed favicon from `/mkt_logo.png` to `/favicon.ico` for proper cross-size rendering.
 - **State Field → Indian States Autocomplete**: Changed all address state fields across LeadFormPage, OrganizationFormPage, CustomerFormPage, and ContactFormPage from free-text inputs to a searchable combobox listing all 28 Indian states + 8 union territories, while allowing custom text entry for international addresses.
 - **Industry Field → Dropdown**: Changed all organization industry fields across 6 form pages from free-text inputs to a dropdown with 3 options: End User, Distributor / Dealer, Consultant.
@@ -414,7 +414,7 @@ Format: `[Date] — Category: Description`
   Column sorting has been wired up for the Numbering Series page with `sortConfig` state and `onSort` handler, passing parameters to the `getSeries` API call.
 
 - **Sort indicators**  
-  Active sort column highlights its chevron icon in `indigo-600`; inactive columns show neutral `slate-300` chevrons.
+  Active sort column highlights its chevron icon in `blue-600`; inactive columns show neutral `slate-300` chevrons.
 
 ---
 

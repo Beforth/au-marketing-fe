@@ -219,8 +219,8 @@ export const CalendarBody = ({ features, children, onDateClick }: CalendarBodyPr
         className="relative flex h-full w-full flex-col gap-1.5 p-3 text-slate-900 text-xs cursor-pointer hover:bg-slate-50 transition-colors group/day"
       >
         <div className="flex items-center justify-between">
-          <span className="font-bold text-slate-700 group-hover/day:text-indigo-600 transition-colors">{day}</span>
-          <span className="opacity-0 group-hover/day:opacity-100 text-[9px] font-black uppercase tracking-widest text-indigo-500 transition-opacity whitespace-nowrap">
+          <span className="font-bold text-slate-700 group-hover/day:text-blue-600 transition-colors">{day}</span>
+          <span className="opacity-0 group-hover/day:opacity-100 text-[9px] font-black uppercase tracking-widest text-blue-500 transition-opacity whitespace-nowrap">
             Add plan +
           </span>
         </div>
@@ -263,7 +263,7 @@ export const CalendarBody = ({ features, children, onDateClick }: CalendarBodyPr
           className={cn(
             'relative aspect-square overflow-hidden border-b border-r border-slate-200 transition-colors bg-white',
             // Highlight today?
-            // isSameDay(new Date(), new Date(year, month, index - firstDay + 1)) && 'bg-indigo-50/10'
+            // isSameDay(new Date(), new Date(year, month, index - firstDay + 1)) && 'bg-blue-50/10'
           )}
         >
           {day}

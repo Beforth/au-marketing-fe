@@ -78,10 +78,10 @@ const getProgressMessage = (
     if (pct < 50) {
       return {
         text: "Q1 Milestone unlocked! Keep pushing to reach the halfway Q2 target! ⚡",
-        colorClass: "text-indigo-700",
-        bgClass: "bg-indigo-50/50",
-        borderClass: "border-indigo-100",
-        iconColor: "text-indigo-500"
+        colorClass: "text-blue-700",
+        bgClass: "bg-blue-50/50",
+        borderClass: "border-blue-100",
+        iconColor: "text-blue-500"
       };
     }
     if (pct < 75) {
@@ -123,10 +123,10 @@ const getProgressMessage = (
   if (pct < 50) {
     return {
       text: "Great progress! Almost halfway to the target! 👍",
-      colorClass: "text-indigo-700",
-      bgClass: "bg-indigo-50/50",
-      borderClass: "border-indigo-100",
-      iconColor: "text-indigo-500"
+      colorClass: "text-blue-700",
+      bgClass: "bg-blue-50/50",
+      borderClass: "border-blue-100",
+      iconColor: "text-blue-500"
     };
   }
   if (pct < 75) {
@@ -159,7 +159,7 @@ const getProgressMessage = (
 const getBarGradient = (pct: number): string => {
   if (pct === 0) return "from-slate-300 to-slate-400";
   if (pct < 25) return "from-sky-500 to-blue-600";
-  if (pct < 50) return "from-blue-600 via-indigo-500 to-purple-600";
+  if (pct < 50) return "from-blue-600 via-blue-500 to-purple-600";
   if (pct < 75) return "from-purple-600 via-fuchsia-500 to-rose-500";
   if (pct < 100) return "from-rose-500 via-orange-500 to-amber-500";
   return "from-emerald-500 via-teal-400 to-yellow-400 animate-pulse";
@@ -194,12 +194,12 @@ const RULE_SCHEMA: { role: RoleKey; field: string; label: string; hint: string; 
   { role: 'employee', field: 'view_region_target',              label: 'See region\'s total target', hint: 'Can see the combined target for their whole region.',                            default: false },
 ];
 
-const ROLE_COLUMNS: { key: RoleKey; label: string; color: 'indigo' | 'violet' }[] = [
-  { key: 'domain_head',        label: 'Domain Head',        color: 'indigo' },
+const ROLE_COLUMNS: { key: RoleKey; label: string; color: 'blue' | 'violet' }[] = [
+  { key: 'domain_head',        label: 'Domain Head',        color: 'blue' },
   { key: 'domain_coordinator', label: 'Domain Coordinator', color: 'violet' },
-  { key: 'region_head',        label: 'Region Head',        color: 'indigo' },
+  { key: 'region_head',        label: 'Region Head',        color: 'blue' },
   { key: 'region_coordinator', label: 'Region Coordinator', color: 'violet' },
-  { key: 'employee',           label: 'Employee',           color: 'indigo' },
+  { key: 'employee',           label: 'Employee',           color: 'blue' },
 ];
 
 // Auto-derive DEFAULT_GLOBAL_RULES from the schema so it's always in sync
@@ -228,7 +228,7 @@ const PRESETS: { id: string; label: string; description: string; color: string; 
     id: 'balanced',
     label: 'Balanced (Recommended)',
     description: 'Names visible upward; targets isolated. Best for most teams.',
-    color: 'indigo',
+    color: 'blue',
     rules: {
       domain_head:        { view_other_domains: false, view_other_regions: true },
       domain_coordinator: { view_other_domains: false, view_other_regions: true, view_region_targets: true,  view_employee_targets: true  },
@@ -278,31 +278,31 @@ const getPresetStyle = (color: string, isActive: boolean, isModified: boolean) =
   if (isActive) {
     const activeMap: Record<string, string> = {
       rose:    'border-rose-600 bg-rose-50/80 text-rose-800 ring-2 ring-rose-500/20 shadow-sm scale-[1.01]',
-      indigo:  'border-indigo-600 bg-indigo-50/80 text-indigo-800 ring-2 ring-indigo-500/20 shadow-sm scale-[1.01]',
+      blue:  'border-blue-600 bg-blue-50/80 text-blue-800 ring-2 ring-blue-500/20 shadow-sm scale-[1.01]',
       emerald: 'border-emerald-600 bg-emerald-50/80 text-emerald-800 ring-2 ring-emerald-500/20 shadow-sm scale-[1.01]',
       amber:   'border-amber-600 bg-amber-50/80 text-amber-800 ring-2 ring-amber-500/20 shadow-sm scale-[1.01]',
     };
-    return activeMap[color] || activeMap.indigo;
+    return activeMap[color] || activeMap.blue;
   }
   
   if (isModified) {
     const modifiedMap: Record<string, string> = {
       rose:    'border-rose-400 border-dashed bg-rose-50/30 text-rose-700 hover:border-rose-500 hover:bg-rose-50/40',
-      indigo:  'border-indigo-400 border-dashed bg-indigo-50/30 text-indigo-700 hover:border-indigo-500 hover:bg-indigo-50/40',
+      blue:  'border-blue-400 border-dashed bg-blue-50/30 text-blue-700 hover:border-blue-500 hover:bg-blue-50/40',
       emerald: 'border-emerald-400 border-dashed bg-emerald-50/30 text-emerald-700 hover:border-emerald-500 hover:bg-emerald-50/40',
       amber:   'border-amber-400 border-dashed bg-amber-50/30 text-amber-700 hover:border-amber-500 hover:bg-amber-50/40',
     };
-    return modifiedMap[color] || modifiedMap.indigo;
+    return modifiedMap[color] || modifiedMap.blue;
   }
 
   // Inactive
   const inactiveMap: Record<string, string> = {
     rose:    'border-rose-200/80 hover:border-rose-400 hover:bg-rose-50/40 text-rose-700 bg-white',
-    indigo:  'border-indigo-200/80 hover:border-indigo-400 hover:bg-indigo-50/40 text-indigo-700 bg-white',
+    blue:  'border-blue-200/80 hover:border-blue-400 hover:bg-blue-50/40 text-blue-700 bg-white',
     emerald: 'border-emerald-200/80 hover:border-emerald-400 hover:bg-emerald-50/40 text-emerald-700 bg-white',
     amber:   'border-amber-200/80 hover:border-amber-400 hover:bg-amber-50/40 text-amber-700 bg-white',
   };
-  return inactiveMap[color] || inactiveMap.indigo;
+  return inactiveMap[color] || inactiveMap.blue;
 };
 
 export const DomainsPage: React.FC = () => {
@@ -1032,7 +1032,7 @@ export const DomainsPage: React.FC = () => {
             </p>
             {targetSummaryLoading && (
               <div className="flex items-center gap-2 text-xs text-slate-500 animate-pulse py-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
                 <span>Syncing target calculations…</span>
               </div>
             )}
@@ -1171,8 +1171,8 @@ export const DomainsPage: React.FC = () => {
 
                 return {
                   text: `Completed: ${completed}/4 Quarters. Active: ${statusText} ⚡`,
-                  colorClass: completed > 0 ? "text-indigo-700" : "text-slate-700",
-                  iconColor: completed > 0 ? "text-indigo-500" : "text-slate-400"
+                  colorClass: completed > 0 ? "text-blue-700" : "text-slate-700",
+                  iconColor: completed > 0 ? "text-blue-500" : "text-slate-400"
                 };
               };
 
@@ -1497,7 +1497,7 @@ export const DomainsPage: React.FC = () => {
           {reviewLoading ? (
             <Card>
               <div className="flex items-center justify-center py-16">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
                 <span className="ml-3 text-slate-600">Loading hierarchy...</span>
               </div>
             </Card>
@@ -1523,7 +1523,7 @@ export const DomainsPage: React.FC = () => {
                         {/* Level 0: Domain (root) */}
                         <div className="tree-node flex items-center gap-2 py-2 pr-2 rounded-md hover:bg-slate-50/80 group">
                           <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-300" aria-hidden />
-                          <Globe size={18} className="text-indigo-600 shrink-0" />
+                          <Globe size={18} className="text-blue-600 shrink-0" />
                           <span className="font-semibold text-slate-900">{domain.name}</span>
                           {domain.code && <Badge variant="outline" className="text-xs">{domain.code}</Badge>}
                           <span className="text-slate-400 mx-1">·</span>
@@ -1543,7 +1543,7 @@ export const DomainsPage: React.FC = () => {
                                 {domainTargetInfo.assigned != null && domainTargetInfo.assigned > 0 ? (
                                   <>
                                     <span className="font-medium text-slate-700">Goal: </span>
-                                    <span className="font-semibold text-indigo-700">{formatTargetAmount(domainTargetInfo.assigned)}</span>
+                                    <span className="font-semibold text-blue-700">{formatTargetAmount(domainTargetInfo.assigned)}</span>
                                     {Math.abs(domainTargetInfo.assigned - domainTargetInfo.rolledUp) > 1 && (
                                       <span className="text-slate-500 font-normal"> (team {formatTargetAmount(domainTargetInfo.rolledUp)})</span>
                                     )}
@@ -1551,7 +1551,7 @@ export const DomainsPage: React.FC = () => {
                                 ) : (
                                   <>
                                     <span className="font-medium text-slate-700">Team target: </span>
-                                    <span className="font-semibold text-indigo-700">{formatTargetAmount(domainTargetInfo.rolledUp)}</span>
+                                    <span className="font-semibold text-blue-700">{formatTargetAmount(domainTargetInfo.rolledUp)}</span>
                                   </>
                                 )}
                               </span>
@@ -1563,7 +1563,7 @@ export const DomainsPage: React.FC = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
                                   onClick={() => {
                                     const mult = getYearlyMultiplier();
                                     setTargetHierarchyModal({
@@ -1740,7 +1740,7 @@ export const DomainsPage: React.FC = () => {
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                          className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
                                           onClick={() => {
                                             setAddEmployeeRegion(region);
                                             setAddEmployeeSelected(null);
@@ -1794,7 +1794,7 @@ export const DomainsPage: React.FC = () => {
                                                   <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="text-indigo-600"
+                                                    className="text-blue-600"
                                                     onClick={() => {
                                                       const mult = getYearlyMultiplier();
                                                       setTargetHierarchyModal({

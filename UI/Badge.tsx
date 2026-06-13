@@ -13,7 +13,7 @@ export function Badge({ className, variant = 'default', ...props }: BadgeProps) 
     success: 'bg-emerald-50 text-emerald-700 border-emerald-100 uppercase tracking-widest text-[9px] font-black',
     warning: 'bg-amber-50 text-amber-700 border-amber-100 uppercase tracking-widest text-[9px] font-black',
     danger: 'bg-rose-50 text-rose-700 border-rose-100 uppercase tracking-widest text-[9px] font-black',
-    info: 'bg-indigo-50 text-indigo-700 border-indigo-100 uppercase tracking-widest text-[9px] font-black',
+    info: 'bg-blue-50 text-blue-700 border-blue-100 uppercase tracking-widest text-[9px] font-black',
   };
 
   return (

@@ -131,7 +131,7 @@ export const ExpectedOrderNewPage: React.FC = () => {
                   type="checkbox"
                   checked={selectedIds.size === leads.length && leads.length > 0}
                   onChange={toggleAll}
-                  className="rounded border-slate-300 text-indigo-600"
+                  className="rounded border-slate-300 text-blue-600"
                 />
                 <span className="text-sm font-medium text-slate-700">Select all ({leads.length})</span>
               </label>
@@ -151,14 +151,14 @@ export const ExpectedOrderNewPage: React.FC = () => {
                   {leads.map((lead) => (
                     <tr
                       key={lead.id}
-                      className={`border-b border-slate-100 hover:bg-slate-50/50 ${selectedIds.has(lead.id) ? 'bg-indigo-50/50' : ''}`}
+                      className={`border-b border-slate-100 hover:bg-slate-50/50 ${selectedIds.has(lead.id) ? 'bg-blue-50/50' : ''}`}
                     >
                       <td className="py-2 pl-3">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(lead.id)}
                           onChange={() => toggleLead(lead.id)}
-                          className="rounded border-slate-300 text-indigo-600"
+                          className="rounded border-slate-300 text-blue-600"
                         />
                       </td>
                       <td className="py-2 font-medium text-slate-900">

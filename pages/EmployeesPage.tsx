@@ -318,7 +318,7 @@ export const EmployeesPage: React.FC = () => {
       <Card noPadding contentClassName="py-6 px-4">
         {isLoading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
             <p className="mt-4 text-slate-600">Loading marketing team...</p>
           </div>
         ) : rows.length === 0 ? (

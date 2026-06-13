@@ -7,8 +7,8 @@
 
 ## 1. Core Philosophy
 
-A **professional, data-dense internal tool** with restrained Slate/Indigo palette.
-Neutral greys dominate surfaces; Indigo is the interactive/brand accent.
+A **professional, data-dense internal tool** with restrained Slate/Blue palette.
+Neutral greys dominate surfaces; Blue is the interactive/brand accent.
 Uppercase-heavy labels, metadata, table headers. Micro-animations (spring-based
 transitions, scale-on-click, slide-in reveals). Tone is **utilitarian-premium**.
 
@@ -19,12 +19,12 @@ transitions, scale-on-click, slide-in reveals). Tone is **utilitarian-premium**.
 ### Primary / Brand
 | Class | Hex | Usage |
 |---|---|---|
-| `indigo-600` | `#4f46e5` | Buttons, active nav, switch-on, focus rings, active tab |
-| `indigo-700` | `#4338ca` | Hover on indigo-600 |
-| `indigo-50` | `#eef2ff` | Muted bg for active/hover, role badges |
-| `indigo-100` | `#e0e7ff` | Borders for indigo-tinted elements |
-| `indigo-500/20` | — | Focus ring (ring-2) |
-| `indigo-500/10` | — | SearchBar focus ring (ring-4) |
+| `blue-600` | `#2563eb` | Buttons, active nav, switch-on, focus rings, active tab |
+| `blue-700` | `#1d4ed8` | Hover on blue-600 |
+| `blue-50` | `#eff6ff` | Muted bg for active/hover, role badges |
+| `blue-100` | `#dbeafe` | Borders for blue-tinted elements |
+| `blue-500/20` | — | Focus ring (ring-2) |
+| `blue-500/10` | — | SearchBar focus ring (ring-4) |
 
 ### Neutral (Slate scale)
 | Class | Hex | Usage |
@@ -61,7 +61,7 @@ transitions, scale-on-click, slide-in reveals). Tone is **utilitarian-premium**.
 ### Dashboard Chart Palette
 | Index | Color | Hex | Usage |
 |---|---|---|---|
-| 1 | Indigo | `#6366f1` | Primary chart series |
+| 1 | Blue | `#3b82f6` | Primary chart series |
 | 2 | Emerald | `#10b981` | Revenue, won, positive |
 | 3 | Amber | `#f59e0b` | Conversions, pending (not rose/red) |
 | 4 | Red | `#ef4444` | Lost, negatives |
@@ -225,12 +225,12 @@ Content:      flex-1
 ### Button
 ```
 Variants:
-  primary:   bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98]
+  primary:   bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98]
   secondary: bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.98]
   outline:   bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 active:scale-[0.98]
   ghost:     text-slate-500 hover:bg-slate-100 hover:text-slate-900
   danger:    bg-rose-600 text-white hover:bg-rose-700 active:scale-[0.98]
-  link:      text-indigo-600 hover:underline font-semibold p-0 h-auto
+  link:      text-blue-600 hover:underline font-semibold p-0 h-auto
 
 Base: inline-flex items-center justify-center transition-all duration-200
       disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap
@@ -240,7 +240,7 @@ Base: inline-flex items-center justify-center transition-all duration-200
 ### Select
 ```
 Base:     h-11 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium
-Focus:    ring-2 ring-indigo-500/20 focus:border-indigo-500
+Focus:    ring-2 ring-blue-500/20 focus:border-blue-500
 Label:    text-[11px] uppercase font-black tracking-widest text-slate-500 ml-1
 Chevron:  position absolute right-3 top-3.5 h-4 w-4 text-slate-400
 ```
@@ -248,15 +248,15 @@ Chevron:  position absolute right-3 top-3.5 h-4 w-4 text-slate-400
 ### DatePicker
 ```
 Base:     h-11 rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-semibold
-Icon:     Calendar/Clock at left-4, turns text-indigo-500 on focus
+Icon:     Calendar/Clock at left-4, turns text-blue-500 on focus
 Label:    text-[11px] uppercase font-black tracking-widest text-slate-500 ml-1
 ```
 
 ### Breadcrumb
 ```
 Container:  flex items-center gap-2 mb-6
-Item:       text-xs font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600
-Active:     text-slate-900 border-b-2 border-indigo-500/50 pb-0.5
+Item:       text-xs font-black uppercase tracking-widest text-slate-500 hover:text-blue-600
+Active:     text-slate-900 border-b-2 border-blue-500/50 pb-0.5
 Separator:  ChevronRight size={14} text-slate-300
 ```
 
@@ -375,7 +375,7 @@ Accent color by keyword:
 ### Clickable List Items
 ```
 <div className="border border-slate-200 rounded-lg p-3 cursor-pointer
-            hover:border-indigo-200 hover:bg-indigo-50/20 transition-colors"
+            hover:border-blue-200 hover:bg-blue-50/20 transition-colors"
      onClick={...}>
   <!-- content -->
 </div>
@@ -383,8 +383,8 @@ Accent color by keyword:
 
 ### "View All" Link
 ```
-<button className="w-full py-2 text-[11px] font-bold text-indigo-600
-                   hover:text-indigo-700 transition-colors text-center
+<button className="w-full py-2 text-[11px] font-bold text-blue-600
+                   hover:text-blue-700 transition-colors text-center
                    uppercase tracking-wider">
   View All →
 </button>
@@ -417,8 +417,8 @@ Accent color by keyword:
 ```
 text-slate-400     — default inactive
 text-slate-500     — slightly more prominent inactive
-text-indigo-500    — active/focused
-text-indigo-600    — active nav, primary accent
+text-blue-500    — active/focused
+text-blue-600    — active nav, primary accent
 text-emerald-500   — success
 text-amber-500     — warning
 text-rose-500      — error/danger
@@ -443,12 +443,12 @@ Dashboard:      grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4
 | Context | Shadow |
 |---|---|
 | Card default | `shadow-[0_1px_3px_rgba(0,0,0,0.05),0_10px_40px_-15px_rgba(0,0,0,0.02)]` |
-| Card hover | `hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.08)] hover:border-indigo-200/50 hover:-translate-y-1` |
+| Card hover | `hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.08)] hover:border-blue-200/50 hover:-translate-y-1` |
 | Modal | `shadow-2xl` |
 | Notification panel | `shadow-2xl` |
 | Tooltip | `shadow-lg shadow-slate-100/80` |
 | StatCard | `shadow-[0_2px_4px_rgba(0,0,0,0.02),0_1px_0_rgba(0,0,0,0.02)]` |
-| StatCard hover | `hover:shadow-xl hover:shadow-indigo-500/5` |
+| StatCard hover | `hover:shadow-xl hover:shadow-blue-500/5` |
 
 ---
 

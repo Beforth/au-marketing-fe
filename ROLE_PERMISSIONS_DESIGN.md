@@ -385,7 +385,7 @@ class EmployeeRegionAssignment(Base):
 The system uses a custom, premium UI library located in the `UI/` folder, designed for high-density ERP applications.
 
 #### Design Principles:
-- **Visual Excellence**: Professional color palettes (Indigo primaries with Slate neutrals) and premium micro-interactions.
+- **Visual Excellence**: Professional color palettes (Blue primaries with Slate neutrals) and premium micro-interactions.
 - **High Density**: Compact layouts with optimized spacing to maximize information visibility for expert users.
 - **Modular Architecture**: Components are broken down into their smallest functional units (atoms) for maximum reusability.
 

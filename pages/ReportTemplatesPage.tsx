@@ -524,7 +524,7 @@ export const ReportTemplatesPage: React.FC = () => {
                       </Button>
                       <p className="text-xs text-slate-500">
                         Sections run SQL (placeholders: {'{{employee_id}}'}, {'{{date_from}}'}, {'{{date_to}}'}; or {'{{lead_id}}'}, {'{{domain_id}}'}, {'{{lead_ids}}'}, etc. for entity filters).{' '}
-                        <Link to="/schema" className="text-indigo-600 hover:underline">Schema</Link>
+                        <Link to="/schema" className="text-blue-600 hover:underline">Schema</Link>
                       </p>
                     </div>
                   )}
@@ -578,7 +578,7 @@ export const ReportTemplatesPage: React.FC = () => {
                                     placeholder="Search in section..."
                                     value={sectionSearch[sec.id] ?? ''}
                                     onChange={(e) => setSectionSearch((prev) => ({ ...prev, [sec.id]: e.target.value }))}
-                                    className="flex-1 rounded border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="flex-1 rounded border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                   />
                                 </div>
                                 <div className="flex items-center gap-2 flex-wrap">
@@ -589,7 +589,7 @@ export const ReportTemplatesPage: React.FC = () => {
                                       ...prev,
                                       [sec.id]: { column: e.target.value, value: prev[sec.id]?.value ?? '' },
                                     }))}
-                                    className="rounded border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="rounded border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                   >
                                     <option value="">— Column —</option>
                                     {columns.map((c) => (
@@ -604,7 +604,7 @@ export const ReportTemplatesPage: React.FC = () => {
                                       ...prev,
                                       [sec.id]: { column: prev[sec.id]?.column ?? '', value: e.target.value },
                                     }))}
-                                    className="w-32 rounded border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-32 rounded border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                   />
                                 </div>
                                 <span className="text-xs text-slate-500">
@@ -749,7 +749,7 @@ export const ReportTemplatesPage: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">SQL (SELECT only)</label>
               <p className="text-xs text-slate-500 mb-1">
-                Use {'{{employee_id}}'}, {'{{date_from}}'}, {'{{date_to}}'} for scope — write date placeholders without quotes (e.g. created_at &gt;= {'{{date_from}}'}). For entity-wise data use {'{{lead_id}}'}, {'{{domain_id}}'}, etc. <Link to="/schema" className="text-indigo-600 hover:underline">Schema</Link>
+                Use {'{{employee_id}}'}, {'{{date_from}}'}, {'{{date_to}}'} for scope — write date placeholders without quotes (e.g. created_at &gt;= {'{{date_from}}'}). For entity-wise data use {'{{lead_id}}'}, {'{{domain_id}}'}, etc. <Link to="/schema" className="text-blue-600 hover:underline">Schema</Link>
               </p>
               <textarea
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono min-h-[120px]"

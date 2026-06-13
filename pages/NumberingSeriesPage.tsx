@@ -290,7 +290,7 @@ export const NumberingSeriesPage: React.FC = () => {
         <PageLayout title={isEdit ? 'Edit Numbering Series' : 'Create Numbering Series'} breadcrumbs={formBreadcrumbs}>
           <Card>
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <p className="mt-4 text-slate-600">Loading series...</p>
             </div>
           </Card>
@@ -414,7 +414,7 @@ export const NumberingSeriesPage: React.FC = () => {
                   id="series_is_active"
                   checked={formActive}
                   onChange={(e) => setFormActive(e.target.checked)}
-                  className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                  className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                 />
                 <label htmlFor="series_is_active" className="text-sm font-medium text-slate-700">
                   Active
@@ -488,8 +488,8 @@ export const NumberingSeriesPage: React.FC = () => {
         </div>
 
         {generatedValue && (
-          <Card className="p-3 flex items-center justify-between bg-indigo-50 border-indigo-200">
-            <span className="font-mono text-indigo-900">{generatedValue}</span>
+          <Card className="p-3 flex items-center justify-between bg-blue-50 border-blue-200">
+            <span className="font-mono text-blue-900">{generatedValue}</span>
             <Button size="sm" variant="ghost" leftIcon={<Copy size={14} />} onClick={copyGenerated}>
               Copy
             </Button>
@@ -500,7 +500,7 @@ export const NumberingSeriesPage: React.FC = () => {
           <Card noPadding>
             {isLoading ? (
               <div className="text-center py-12">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 <p className="mt-4 text-slate-600">Loading numbering series...</p>
               </div>
             ) : list.length === 0 ? (

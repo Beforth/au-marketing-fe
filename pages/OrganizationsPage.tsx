@@ -109,7 +109,7 @@ export const OrganizationsPage: React.FC = () => {
                     cn(
                       'flex items-center gap-2 py-2 px-1 text-sm font-bold transition-all border-b-2',
                       isActive
-                        ? 'border-indigo-600 text-indigo-600'
+                        ? 'border-blue-600 text-blue-600'
                         : 'border-transparent text-slate-400 hover:text-slate-600'
                     )
                   }
@@ -137,7 +137,7 @@ export const OrganizationsPage: React.FC = () => {
       <Card noPadding contentClassName="py-0">
         {isLoading ? (
           <div className="py-24 text-center">
-            <div className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-indigo-600 border-t-transparent" />
+            <div className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-blue-600 border-t-transparent" />
             <p className="mt-4 text-slate-600">Loading organizations...</p>
           </div>
         ) : organizations.length === 0 ? (

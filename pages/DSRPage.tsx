@@ -233,13 +233,13 @@ export const DSRPage: React.FC = () => {
         </Card>
         <Card noPadding className="min-h-0">
           <div className="px-3 py-2.5 flex items-center gap-3">
-            <FileText size={18} className="text-indigo-400 shrink-0" />
+            <FileText size={18} className="text-blue-400 shrink-0" />
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Leads</p>
               {loadingLeads ? (
                 <p className="text-base font-bold text-slate-300">—</p>
               ) : (
-                <p className="text-base font-bold text-indigo-600">{leads.length}</p>
+                <p className="text-base font-bold text-blue-600">{leads.length}</p>
               )}
             </div>
           </div>
@@ -326,12 +326,12 @@ export const DSRPage: React.FC = () => {
                 <div
                   key={lead.id}
                   onClick={() => navigate(`/leads/${lead.id}/edit`)}
-                  className="border border-slate-200 rounded-lg p-3 cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/20 transition-colors"
+                  className="border border-slate-200 rounded-lg p-3 cursor-pointer hover:border-blue-200 hover:bg-blue-50/20 transition-colors"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-slate-800 truncate">
-                        {lead.series && <span className="text-xs font-mono text-indigo-600 mr-1">{lead.series}</span>}
+                        {lead.series && <span className="text-xs font-mono text-blue-600 mr-1">{lead.series}</span>}
                         {lead.contact?.contact_person_name || lead.contact?.first_name || `Lead #${lead.id}`}
                       </p>
                       {lead.created_at && (
@@ -356,7 +356,7 @@ export const DSRPage: React.FC = () => {
               ))}
               <button
                 onClick={() => navigate('/leads')}
-                className="w-full py-2 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors text-center uppercase tracking-wider"
+                className="w-full py-2 text-[11px] font-bold text-blue-600 hover:text-blue-700 transition-colors text-center uppercase tracking-wider"
               >
                 View All Leads →
               </button>
@@ -380,7 +380,7 @@ export const DSRPage: React.FC = () => {
                 <div
                   key={order.id}
                   onClick={() => navigate(`/orders/${order.id}`)}
-                  className="border border-slate-200 rounded-lg p-3 cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/20 transition-colors"
+                  className="border border-slate-200 rounded-lg p-3 cursor-pointer hover:border-blue-200 hover:bg-blue-50/20 transition-colors"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0 flex-1">
@@ -415,7 +415,7 @@ export const DSRPage: React.FC = () => {
               ))}
               <button
                 onClick={() => navigate('/orders')}
-                className="w-full py-2 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors text-center uppercase tracking-wider"
+                className="w-full py-2 text-[11px] font-bold text-blue-600 hover:text-blue-700 transition-colors text-center uppercase tracking-wider"
               >
                 View All Orders →
               </button>

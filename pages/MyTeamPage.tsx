@@ -379,7 +379,7 @@ export const MyTeamPage: React.FC = () => {
                   </div>
                 )}
                 {scope?.role && scope.role !== 'self' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                     <UserCheck size={13} />
                     {scope.role === 'domain_head' ? 'Domain Head' : scope.role === 'region_head' ? 'Region Head' : scope.role === 'super_admin' ? 'Super Admin' : 'Team Lead'}
                   </span>
@@ -419,7 +419,7 @@ export const MyTeamPage: React.FC = () => {
                         {targetAchievedPct !== null && (
                           <div className="mt-2">
                             <div className="w-full bg-slate-100 rounded-full h-1.5">
-                              <div className="bg-indigo-600 h-1.5 rounded-full transition-all" style={{ width: `${Math.min(targetAchievedPct, 100)}%` }} />
+                              <div className="bg-blue-600 h-1.5 rounded-full transition-all" style={{ width: `${Math.min(targetAchievedPct, 100)}%` }} />
                             </div>
                             <p className="text-[11px] text-slate-500 mt-1">{Math.round(targetAchievedPct)}% achieved</p>
                           </div>
@@ -634,27 +634,27 @@ export const MyTeamPage: React.FC = () => {
                   <>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
                       <div className="bg-slate-50 rounded-lg p-3 text-center">
-                        <MessageSquare size={18} className="text-indigo-500 mx-auto mb-1" />
+                        <MessageSquare size={18} className="text-blue-500 mx-auto mb-1" />
                         <p className="text-lg font-bold text-slate-900">{summary.inquiries_count}</p>
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Inquiries</p>
                       </div>
                       <div className="bg-slate-50 rounded-lg p-3 text-center">
-                        <FileText size={18} className="text-indigo-500 mx-auto mb-1" />
+                        <FileText size={18} className="text-blue-500 mx-auto mb-1" />
                         <p className="text-lg font-bold text-slate-900">{summary.quotations_sent_count}</p>
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Quotations</p>
                       </div>
                       <div className="bg-slate-50 rounded-lg p-3 text-center">
-                        <BarChart3 size={18} className="text-indigo-500 mx-auto mb-1" />
+                        <BarChart3 size={18} className="text-blue-500 mx-auto mb-1" />
                         <p className="text-lg font-bold text-slate-900">{summary.leads_total}</p>
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Total Leads</p>
                       </div>
                       <div className="bg-slate-50 rounded-lg p-3 text-center">
-                        <Phone size={18} className="text-indigo-500 mx-auto mb-1" />
+                        <Phone size={18} className="text-blue-500 mx-auto mb-1" />
                         <p className="text-lg font-bold text-slate-900">{summary.total_contacts}</p>
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Contacts</p>
                       </div>
                       <div className="bg-slate-50 rounded-lg p-3 text-center">
-                        <Building2 size={18} className="text-indigo-500 mx-auto mb-1" />
+                        <Building2 size={18} className="text-blue-500 mx-auto mb-1" />
                         <p className="text-lg font-bold text-slate-900">{summary.total_customers}</p>
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Customers</p>
                       </div>

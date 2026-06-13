@@ -18,8 +18,8 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
             {...props}
           />
           <div className={cn(
-            'rounded-full bg-slate-200 transition-all duration-300 peer-checked:bg-indigo-600',
-            'peer-focus:ring-2 peer-focus:ring-indigo-500/20',
+            'rounded-full bg-slate-200 transition-all duration-300 peer-checked:bg-blue-600',
+            'peer-focus:ring-2 peer-focus:ring-blue-500/20',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             size === 'sm' ? 'h-4 w-8' : 'h-6 w-11',
             className

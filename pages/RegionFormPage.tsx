@@ -182,7 +182,7 @@ export const RegionFormPage: React.FC = () => {
       <PageLayout title={isEdit ? 'Edit Region' : 'Create Region'} breadcrumbs={breadcrumbs}>
         <Card>
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
             <p className="mt-4 text-slate-600">Loading region...</p>
           </div>
         </Card>
@@ -265,7 +265,7 @@ export const RegionFormPage: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
             <textarea
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows={4}
               value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -351,7 +351,7 @@ export const RegionFormPage: React.FC = () => {
               id="is_active"
               checked={formData.is_active ?? true}
               onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-              className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+              className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
             />
             <label htmlFor="is_active" className="text-sm font-medium text-slate-700">
               Active

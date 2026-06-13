@@ -201,7 +201,7 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
           disabled={disabled}
           className={cn(
             'w-full border rounded-lg text-left transition-all',
-            'focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm',
+            'focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm',
             'bg-white border-slate-300 hover:border-slate-400 hover:bg-slate-50/30',
             inputSize === 'sm' && 'h-9 px-3 text-xs',
             inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
@@ -254,14 +254,14 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
           >
             <div className="p-2 border-b border-slate-200 shrink-0">
               <div className="relative group/search">
-                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-indigo-600 transition-colors" />
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-blue-600 transition-colors" />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search..."
-                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition-all shadow-inner"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white transition-all shadow-inner"
                   onClick={(e) => e.stopPropagation()}
                 />
                 {isLoading && (
@@ -272,7 +272,7 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
             <div className="overflow-y-auto max-h-48 scrollbar-hide py-1 min-h-0">
               {isLoading && options.length === 0 ? (
                 <div className="px-3 py-8 text-sm text-slate-500 text-center">
-                  <Loader2 size={24} className="animate-spin mx-auto mb-2 text-indigo-500 opacity-50" />
+                  <Loader2 size={24} className="animate-spin mx-auto mb-2 text-blue-500 opacity-50" />
                   <p className="text-xs uppercase tracking-widest font-black opacity-30">Loading options...</p>
                 </div>
               ) : options.length === 0 ? (
@@ -289,13 +289,13 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
                     className={cn(
                       'w-full px-4 py-2 text-sm text-left hover:bg-slate-50 transition-colors',
                       'flex items-center justify-between mx-1 rounded-lg w-[calc(100%-8px)]',
-                      value === option.value && 'bg-indigo-50 text-indigo-700 font-bold',
+                      value === option.value && 'bg-blue-50 text-blue-700 font-bold',
                       option.disabled && 'opacity-50 cursor-not-allowed'
                     )}
                   >
                     <span className="truncate">{option.label}</span>
                     {value === option.value && (
-                      <div className="h-2 w-2 rounded-full bg-indigo-600 shadow-sm" />
+                      <div className="h-2 w-2 rounded-full bg-blue-600 shadow-sm" />
                     )}
                   </button>
                 ))

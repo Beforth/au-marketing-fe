@@ -163,7 +163,7 @@ export const EnquiryQuotationsPage: React.FC = () => {
                     setDateFrom('');
                     setDateTo('');
                   }}
-                  className="text-xs text-indigo-600 hover:underline"
+                  className="text-xs text-blue-600 hover:underline"
                 >
                   Clear filters
                 </button>
@@ -219,7 +219,7 @@ export const EnquiryQuotationsPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleDownload(q.lead_id, q.activity_id, q.id, q.file_name)}
-                            className="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-600 transition-colors"
+                            className="p-1.5 hover:bg-blue-50 rounded-lg text-blue-600 transition-colors"
                           >
                             <Download size={15} />
                           </button>
