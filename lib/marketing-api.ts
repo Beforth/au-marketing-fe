@@ -17,6 +17,31 @@ export interface HRMSEmployee {
   is_active: boolean;
 }
 
+// Local Marketing Employee (cached table)
+export interface MarketingEmployee {
+  id: number;
+  hrms_employee_id: number | null;
+  hrms_user_id: number | null;
+  username: string | null;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  employee_code: string | null;
+  department: string | null;
+  designation: string | null;
+  phone: string | null;
+  is_active: boolean;
+  role: string | null;
+  domain_id: number | null;
+  domain_name: string | null;
+  region_id: number | null;
+  region_name: string | null;
+  synced_from_hrms: boolean;
+  last_synced_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 // Domain Types
 export interface Domain {
   id: number;
@@ -1023,6 +1048,50 @@ class MarketingAPIService {
 
   async getDesignations(): Promise<{ id: number; title: string }[]> {
     return apiClient.get<{ id: number; title: string }[]>('/api/employees/designations/');
+  }
+
+  // Local Marketing Employees (cached table)
+  async getLocalEmployees(params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    role?: string;
+    domain_id?: number;
+    region_id?: number;
+    is_active?: boolean;
+    synced_from_hrms?: boolean;
+  }): Promise<PaginatedResponse<MarketingEmployee>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.role) queryParams.append('role', params.role);
+    if (params?.domain_id != null) queryParams.append('domain_id', params.domain_id.toString());
+    if (params?.region_id != null) queryParams.append('region_id', params.region_id.toString());
+    if (params?.is_active != null) queryParams.append('is_active', params.is_active.toString());
+    if (params?.synced_from_hrms != null) queryParams.append('synced_from_hrms', params.synced_from_hrms.toString());
+    const query = queryParams.toString();
+    return apiClient.get(query ? `/api/employees/local/?${query}` : '/api/employees/local/');
+  }
+
+  async getLocalEmployee(id: number): Promise<MarketingEmployee> {
+    return apiClient.get(`/api/employees/local/${id}`);
+  }
+
+  async updateLocalEmployee(id: number, data: Partial<MarketingEmployee>): Promise<MarketingEmployee> {
+    return apiClient.put(`/api/employees/local/${id}`, data);
+  }
+
+  async syncEmployeesFromHRMS(): Promise<{
+    total_hrms_employees: number;
+    synced: number;
+    created: number;
+    updated: number;
+    skipped: number;
+    errors: string[];
+    employees: MarketingEmployee[];
+  }> {
+    return apiClient.post('/api/employees/sync');
   }
 
   // Regions

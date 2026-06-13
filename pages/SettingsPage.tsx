@@ -14,9 +14,11 @@ import {
   History,
   Search,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   Fingerprint,
   Settings,
+  Users,
 } from 'lucide-react';
 import { useApp } from '../App';
 import { PageLayout } from '../components/layout/PageLayout';
@@ -46,7 +48,7 @@ import {
 import { useTheme, Density } from '../context/ThemeContext';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { refreshUserInfo, selectUser, selectEmployee, selectHasPermission } from '../store/slices/authSlice';
-import { marketingAPI, AuditLog } from '../lib/marketing-api';
+import { marketingAPI, AuditLog, MarketingEmployee } from '../lib/marketing-api';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -66,6 +68,15 @@ export const SettingsPage: React.FC = () => {
   const [emailConnectionLoading, setEmailConnectionLoading] = useState(false);
   const [connectEmailLoading, setConnectEmailLoading] = useState(false);
   const [disconnectEmailLoading, setDisconnectEmailLoading] = useState(false);
+  const [isSyncingHRMS, setIsSyncingHRMS] = useState(false);
+  const [syncResults, setSyncResults] = useState<{
+    employees: MarketingEmployee[];
+    created: number;
+    updated: number;
+    synced: number;
+  } | null>(null);
+  const [syncResultsOpen, setSyncResultsOpen] = useState(true);
+  const canSyncHRMS = useAppSelector(selectHasPermission('marketing.admin'));
 
 
   // Audit Logs state
@@ -260,6 +271,101 @@ export const SettingsPage: React.FC = () => {
                   </Button>
                 )}
               </div>
+
+              {canSyncHRMS && (
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-4">
+                    <div className="size-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-200">
+                      <Users size={18} />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-black uppercase tracking-tight text-slate-900">HRMS Employees</div>
+                      <div className="text-sm font-semibold text-slate-400">Refresh employee metadata for marketing team members.</div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-dashed text-slate-500 hover:text-indigo-600 hover:border-indigo-200 font-semibold uppercase tracking-wide text-xs"
+                    onClick={async () => {
+                      setIsSyncingHRMS(true);
+                      setSyncResults(null);
+                      try {
+                        const result = await marketingAPI.syncEmployeesFromHRMS();
+                        setSyncResults({
+                          employees: result.employees ?? [],
+                          created: result.created,
+                          updated: result.updated,
+                          synced: result.synced,
+                        });
+                        setSyncResultsOpen(true);
+                        showToast(`Synced ${result.synced} employees (${result.created} new, ${result.updated} updated)`, 'success');
+                      } catch (err: any) {
+                        showToast(err.message || 'HRMS sync failed', 'error');
+                      } finally {
+                        setIsSyncingHRMS(false);
+                      }
+                    }}
+                    isLoading={isSyncingHRMS}
+                    leftIcon={<RefreshCw size={14} className={isSyncingHRMS ? 'animate-spin' : ''} />}
+                  >
+                    Sync Employees
+                  </Button>
+                </div>
+              )}
+
+              {syncResults && syncResults.employees.length > 0 && (
+                <div className="border border-slate-200 rounded-xl overflow-hidden mt-2">
+                  <button
+                    onClick={() => setSyncResultsOpen(!syncResultsOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                  >
+                    <span className="text-[11px] font-black uppercase tracking-tight text-slate-700">
+                      Synced Employees ({syncResults.employees.length})
+                    </span>
+                    {syncResultsOpen ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+                  </button>
+                  {syncResultsOpen && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-slate-50/50 border-b border-slate-200">
+                            <th className="text-left px-4 py-2 font-bold text-slate-500 uppercase tracking-wider">Employee</th>
+                            <th className="text-left px-4 py-2 font-bold text-slate-500 uppercase tracking-wider">Role</th>
+                            <th className="text-left px-4 py-2 font-bold text-slate-500 uppercase tracking-wider">Domain / Region</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {syncResults.employees.map((emp) => (
+                            <tr key={emp.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                              <td className="px-4 py-2 text-slate-900 font-semibold">
+                                {`${emp.first_name} ${emp.last_name}`.trim() || emp.email || emp.username || `ID ${emp.hrms_employee_id}`}
+                              </td>
+                              <td className="px-4 py-2">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border ${
+                                  emp.role === 'domain_head' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                  emp.role === 'domain_coordinator' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                  emp.role === 'region_head' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                  emp.role === 'region_coordinator' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                  'bg-slate-50 text-slate-600 border-slate-200'
+                                }`}>
+                                  {emp.role ? emp.role.replace('_', ' ') : '—'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 text-slate-500">
+                                {[emp.domain_name, emp.region_name].filter(Boolean).join(' / ') || '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  <div className="px-4 py-2 bg-slate-50/50 border-t border-slate-200 text-[10px] font-semibold text-slate-400 text-right">
+                    {syncResults.created} new &middot; {syncResults.updated} updated &middot; {syncResults.synced} total
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="border-t border-slate-200 -mx-4 md:-mx-6 lg:-mx-8" />

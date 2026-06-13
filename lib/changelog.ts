@@ -6,6 +6,33 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "v1.0.7",
+    date: "2026-06-13",
+    sections: [
+      {
+        title: "Marketing Employees Cache",
+        items: [
+          "New marketing_employees table caches employee metadata locally — reduces HRMS API calls for employee lookups",
+          "Admin Sync button in Settings > Integrations syncs marketing-relevant employees with role resolution",
+          "Sync results table shows employee name, role badge (domain_head, region_head, etc.), and domain/region",
+        ],
+      },
+      {
+        title: "Role Resolution",
+        items: [
+          "Sync endpoint resolves roles: domain_head, domain_coordinator, region_head, region_coordinator, employee",
+          "Auto-populates MarketingEmployee on region assignment and domain head/coordinator set",
+        ],
+      },
+      {
+        title: "Bug Fixes",
+        items: [
+          "My Team page now shows correct employee names instead of 'Employee {id}' for domain/region heads",
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.0.6",
     date: "2026-06-12",
     sections: [

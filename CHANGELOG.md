@@ -5,7 +5,44 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-06-12] — Release: DSR & My Team Pages, Reports Caching, Remove Today's Tasks (v1.0.6)
+## [2026-06-13] — Marketing Employee Cache, HRMS Sync, Role Fixes (v1.0.7)
+
+### 🖥️ Frontend
+
+#### Features
+- **HRMS Sync Button**: Added "Sync Employees" button in Settings > Integrations (admin only) — syncs marketing-relevant employees into the local cache; shows collapsible results table with employee name, role badge, and domain/region.
+- **Local Employees API Methods**: Added `getLocalEmployees`, `getLocalEmployee`, `updateLocalEmployee`, `syncEmployeesFromHRMS` to the marketing API client.
+
+#### Performance
+- **Marketing Employee Cache**: New `marketing_employees` table caches employee metadata locally, reducing HRMS API calls for employee lookups.
+
+### ⚙️ Backend (API)
+
+#### Features
+- **MarketingEmployee Model**: New `marketing_employees` table caching employee metadata (name, email, department, designation, role, domain/region scope) with auto-population on region assignment and domain head/coordinator set.
+- **HRMS Sync Endpoint**: `POST /api/employees/sync` — admin-only endpoint; fetches only employees referenced in marketing tables, resolves their role (`domain_head`, `domain_coordinator`, `region_head`, `region_coordinator`, `employee`), and upserts into the local cache.
+- **Local Employee CRUD**: `GET /api/employees/local/`, `GET /api/employees/local/{id}`, `PUT /api/employees/local/{id}` for querying and managing cached records.
+
+#### Bug Fixes
+- **Employee Names in My Team Page**: `GET /api/reports/scope` now falls back to `MarketingEmployee` first_name + last_name before resorting to the generic "Employee {id}" fallback, fixing incorrect name display for domain/region heads.
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `au-marketing-api/app/models.py` | Added `MarketingEmployee` model |
+| `au-marketing-api/app/schemas.py` | Added `MarketingEmployeeResponse`, `MarketingEmployeeUpdate`, `MarketingEmployeeSyncResponse` |
+| `au-marketing-api/app/routers/employees.py` | Added local employee CRUD, sync endpoint, `_get_marketing_employee_ids`, `_resolve_employee_marketing_info` |
+| `au-marketing-api/app/routers/regions.py` | Auto-populate MarketingEmployee on region assignment |
+| `au-marketing-api/app/routers/domains.py` | Auto-populate MarketingEmployee on domain head/coordinator set |
+| `au-marketing-api/app/routers/reports.py` | Fallback to MarketingEmployee for scope name resolution |
+| `migrations/versions/2a3b4c5d6e7f_add_marketing_employees_table.py` | New migration for `marketing_employees` table |
+| `migrations/env.py` | Import MarketingEmployee for autogenerate |
+| `lib/marketing-api.ts` | Added `MarketingEmployee` interface, local employee + sync API methods |
+| `pages/SettingsPage.tsx` | Added HRMS sync button with collapsible results table |
+
+---
+
+## [2026-06-12] — DSR & My Team Pages, Reports Caching, Remove Today's Tasks (v1.0.6)
 
 ### 🖥️ Frontend
 
