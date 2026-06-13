@@ -12,6 +12,7 @@ Format: `[Date] — Category: Description`
 #### Features
 - **HRMS Sync Button**: Added "Sync Employees" button in Settings > Integrations (admin only) — syncs marketing-relevant employees into the local cache; shows collapsible results table with employee name, role badge, and domain/region.
 - **Local Employees API Methods**: Added `getLocalEmployees`, `getLocalEmployee`, `updateLocalEmployee`, `syncEmployeesFromHRMS` to the marketing API client.
+- **Region Head Dashboard — Unified 4-Card KPI Row**: Replaced grouped number-cards with standalone inline KPI widgets. Top 4 cards (Team Size, Team Achieved, Conversion Rate, Top Performer) are now `span: 1`, render without the `<Card>` wrapper for independent dragging/resizing, and include hover-revealed edit-mode toolbar (drag, resize, edit, delete). Gradient vibrancy boosted. Performer card layout swapped to show employee name as the big value.
 
 #### Performance
 - **Marketing Employee Cache**: New `marketing_employees` table caches employee metadata locally, reducing HRMS API calls for employee lookups.
@@ -39,6 +40,7 @@ Format: `[Date] — Category: Description`
 | `migrations/env.py` | Import MarketingEmployee for autogenerate |
 | `lib/marketing-api.ts` | Added `MarketingEmployee` interface, local employee + sync API methods |
 | `pages/SettingsPage.tsx` | Added HRMS sync button with collapsible results table |
+| `pages/DashboardPage.tsx` | Unified 4-card KPI row, standalone number-cards, hover toolbar, performer card relayout, dynamic conversion rate detail |
 
 ---
 

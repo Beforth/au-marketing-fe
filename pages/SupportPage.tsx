@@ -5,7 +5,7 @@ import { SearchInput } from '../components/ui/SearchInput';
 import {
   HelpCircle, BookOpen, FileQuestion, ArrowRight, ExternalLink,
   Layers, Users, ShoppingCart, BarChart2, FileText, Settings,
-  Globe, Briefcase, ChevronRight, ChevronDown,
+  Globe, Briefcase, ChevronRight, ChevronDown, LayoutDashboard,
 } from 'lucide-react';
 import { PageLayout } from '../components/layout/PageLayout';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -102,6 +102,164 @@ const MODULES = [
         q: 'How do I link an Organization to a Lead?',
         a: 'When creating or editing a lead, select a Contact or Customer already linked to an Organization and Plant. That context flows through to the lead, reports, and filters automatically.',
         anchor: '#7-4-using-organizations-and-plants-when-creating-leads',
+      },
+    ],
+  },
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    anchor: '#m-dashboard',
+    faqs: [
+      {
+        q: 'What does Revenue Achieved / Team Achieved / My Achieved show?',
+        a: 'A number card showing the sum of deal values that have been Won within the current scope and period. Available as "Revenue Achieved" (Super Admin / Domain Head), "Team Achieved" (Region Head — team-wide), and "My Achieved" (Sales Rep — personal). Subtitle: "Won this month".',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Conversion Rate show?',
+        a: 'A number card showing the percentage of closed deals that were Won: (Won ÷ Total Closed) × 100. "Closed" means the deal reached a final stage (Won or Lost). The subtitle shows the breakdown, e.g. "12 won · 3 lost · 15 closed". Also shows the month target comparison when available.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Team Size show?',
+        a: 'A number card showing the count of distinct active employees assigned to the current region. Exclusive to the Region Head Dashboard. Subtitle: "Active members".',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Avg Lead Age show?',
+        a: 'A number card showing the average number of days that open (non-final) leads have been active. Measures lead freshness for the domain scope. Subtitle: "In scope".',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Days Left show?',
+        a: 'A number card showing how many calendar days remain in the current month. Exclusive to the Sales Rep Dashboard. Subtitle: "Remaining".',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Hot Leads / Hot Cases show?',
+        a: 'A number card showing the count of open leads flagged as urgent (is_hot = true) or with follow-up due within 7 days. Subtitle: "Requires action". The table variant lists each lead with priority labels (URGENT / TODAY).',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Deals Won show?',
+        a: 'A number card showing the total count of Won leads within the current scope and period. Available on the Super Admin Dashboard. Subtitle: "Won this month".',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does the Top Performer widget show?',
+        a: 'Shows the #1 employee company-wide ranked by total won deal value this month. The big number displays the employee name, with their achievement percentage and won deal count below as "XX% · N won".',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does the Monthly Target widget show?',
+        a: 'A gradient progress bar showing achieved revenue against the monthly/yearly target. Split into 4 quarterly segments with milestone badges (Completed / Active / Missed / Pending). Includes a stretch "Quotation Target" bar set at 4× the yearly target.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does the Conversion Funnel show?',
+        a: 'A horizontal bar chart showing lead count at each pipeline stage: New → Working → QTN Generated → Negotiation (A/A+) → Won/Lost. Helps identify where leads are dropping off. Each bar is a stage group with its lead count.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Revenue Pipeline show?',
+        a: 'A bar chart showing three values: Achieved (won revenue), Committed (non-final deals with potential value), and Pipeline (all remaining open deals). Gives a quick view of total addressable revenue.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Leads by Kanban Stage show?',
+        a: 'A bar chart with two series per kanban stage: lead count (bars) and total potential value. Stages follow the kanban columns (Initialize → C → B → A → A+). Shows distribution of workload and value across stages.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does the Team Leaderboard show?',
+        a: 'A ranked horizontal bar chart showing each employee\'s achieved revenue (won deals) and total lead count. Only visible to Region Heads. Employees are sorted by achieved revenue descending.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Lead Stage Mix by Region show?',
+        a: 'A grouped bar chart showing Won vs Open lead counts per region within the domain. Helps compare regional performance at a glance.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Lead Source to Win Flow show?',
+        a: 'A bar chart showing lead volume and win percentage for each lead-through source (Cold Calling, Website, Referral, etc.). Helps identify which sources yield the highest conversion.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Avg Quotation Revisions show?',
+        a: 'A bar chart showing the distribution of quotation revision counts (how many quotations had 0 revisions, 1 revision, 2+ revisions). Helps track quotation accuracy.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Potential vs Achieved Revenue Trend show?',
+        a: 'A dual-series line chart showing monthly A/A+ stage potential value vs actual won revenue over the last 12 months. Helps spot whether the pipeline is healthy enough to meet targets.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Created Quotation by Month show?',
+        a: 'A line chart showing the number of quotations created each month. Supports Day / Week / Month time grouping via the widget edit modal. Helps track quotation velocity.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Follow-up Activity show?',
+        a: 'A line chart showing weekly counts of upcoming follow-ups (next_follow_up_at dates within the next 4 weeks). Helps the team plan engagement capacity.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Target Burn-up show?',
+        a: 'A line chart showing the cumulative sum of won deal values day-by-day across the current month. Exclusive to the Sales Rep Dashboard. Shows progress toward the monthly target.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Lead Source Mix show?',
+        a: 'A pie chart showing the distribution of leads by their lead-through source (Cold Calling, Website, Exhibition, Referral, etc.). Each slice = the count of leads from that source.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Lead Success Share show?',
+        a: 'A pie chart showing the split of a Sales Rep\'s leads into Won / Lost / Open segments. Exclusive to the Sales Rep Dashboard. Quick visual of personal performance.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does the High Value Deals table show?',
+        a: 'A table listing leads with potential value exceeding ₹50L, showing lead name, amount, current status, and region. Helps prioritize high-value opportunities.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does the Most Quotations table show?',
+        a: 'A table showing companies ranked by the number of quotations created. Each row shows the company name and quotation count. Helps identify the most active quotation clients.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does the Active Deals (Negotiation) table show?',
+        a: 'A table showing negotiation-stage deals sorted by potential value descending. Each row shows the lead name, deal value, and age in days. Available as "Negotiation Stage High-Value Deals".',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does the Recent Leads Requiring Action table show?',
+        a: 'A table showing open leads that need attention — with lead name, region, current status, and days since last activity. Exclusive to Domain Head and Domain Coordinator dashboards.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does Quotations Submitted (by region) show?',
+        a: 'A special chart showing quotation submission metrics grouped by region. This is a built-in widget type (not a custom SQL widget). Shows submission counts across the domain.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does My Lead Funnel show?',
+        a: 'A bar chart of a Sales Rep\'s personal lead count at each kanban stage group. Same as the Conversion Funnel but scoped to the individual employee\'s leads.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does My Follow-up Calendar show?',
+        a: 'A bar chart showing a Sales Rep\'s upcoming follow-up counts over the next 14 days. Each bar represents one day with the number of follow-ups scheduled. Exclusive to Sales Rep Dashboard.',
+        anchor: '#m-dashboard',
+      },
+      {
+        q: 'What does My Top Won Customers show?',
+        a: 'A table listing a Sales Rep\'s top customers ranked by total won deal revenue. Shows customer name and achieved value. Exclusive to Sales Rep Dashboard.',
+        anchor: '#m-dashboard',
       },
     ],
   },

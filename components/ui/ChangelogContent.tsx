@@ -8,14 +8,101 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
   return (
     <div className="space-y-10 text-sm text-slate-700 max-h-[70vh] overflow-y-auto pr-3 scrollbar-thin">
       
-      {/* ==================== VERSION 1.0.6 (June 12, 2026) ==================== */}
+      {/* ==================== VERSION 1.0.7 (June 13, 2026) ==================== */}
       <div className="space-y-4">
         <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
           <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg">
             Version {appVersion}
           </span>
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-            June 12, 2026 (Latest)
+            June 13, 2026 (Latest)
+          </span>
+        </div>
+
+        <div className="space-y-6 pl-4 border-l-2 border-indigo-100">
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Marketing Employees Cache</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>New marketing_employees table:</strong> Caches employee metadata locally, reducing HRMS API calls for employee lookups.</li>
+              <li><strong>Admin Sync Button:</strong> Added "Sync Employees" button in Settings &gt; Integrations (admin only) — syncs marketing-relevant employees with role resolution.</li>
+              <li><strong>Sync Results Table:</strong> Shows employee name, role badge (domain_head, region_head, etc.), and domain/region.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Role Resolution</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Sync endpoint</strong> resolves roles: domain_head, domain_coordinator, region_head, region_coordinator, employee.</li>
+              <li><strong>Auto-populates</strong> MarketingEmployee on region assignment and domain head/coordinator set.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Bug Fixes</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Employee Names in My Team Page:</strong> Now correctly shows employee names instead of generic "Employee {'{'}id{'}'}" for domain/region heads.</li>
+              <li><strong>Changelog White Screen:</strong> Unescaped <code>{'{'}id{'}'}</code> in JSX text was parsed as a JavaScript expression, throwing <code>ReferenceError</code> and silently unmounting the entire React tree. Now escaped with JSX expression syntax.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Stability &amp; Error Handling</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>ErrorBoundary:</strong> New <code>ErrorBoundary</code> component wraps the entire app. Any uncaught render error now shows a visible error message with reload button instead of a silent white page.</li>
+              <li><strong>Importmap React Alignment:</strong> Wildcard importmap entries (<code>react/</code>, <code>react-dom/</code>) now resolve to the same version as bare specifiers (<code>19.0.0</code> instead of <code>^19.2.4</code>), preventing hook registry mismatches between React and React DOM bundles.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Dashboard Layout &amp; Widget Fixes</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Smart Grid Layout:</strong> Replaced <code>packLayout</code> with gap-filling logic that separates row-start items (preserving user drag order) from mid-row items (scans for fitting widget). Ends row cleanly when nothing fits instead of force-placing oversized items.</li>
+              <li><strong>Equal Row Heights:</strong> Grid changed from <code>items-start</code> to <code>items-stretch</code> — all widgets in the same row now match height. <code>h-full</code> added to <code>Card.tsx</code> and self-rendered widget wrappers (number-card, performer-of-month) to complete the flex stretch chain.</li>
+              <li><strong>Chart Container Sizing:</strong> Changed from fixed <code>h-[260px]</code> to <code>h-full min-h-[200px]</code> for bar, line, pie, and area charts in custom SQL widgets.</li>
+              <li><strong>Pie Chart Fixes:</strong> Replaced percentage radii with pixel values (45/55 inner, 65/85 outer) so charts never clip in narrow containers. Fixed-height container (195px/250px) prevents overflow in stretched rows. Center value text fades on hover to avoid tooltip overlap.</li>
+              <li><strong>Leaderboard Cards:</strong> Redesigned per design.md — <code>rounded-lg</code>, <code>border-slate-200</code>, no gradients or left-border accents. Name = <code>text-sm font-semibold text-slate-800</code>, region = <code>text-xs text-slate-500</code>, revenue = <code>text-sm font-bold text-slate-900</code>.</li>
+              <li><strong>Leads by Kanban Stage:</strong> Changed from donut chart (<code>LeadStatusPieChart</code>) to vertical bar chart with per-status lead counts.</li>
+              <li><strong>CustomTooltip:</strong> Standardised per design.md — <code>rounded-lg</code>, <code>shadow-lg shadow-slate-100/80</code>, label = <code>text-[11px] font-black uppercase tracking-widest text-slate-500</code>, value = <code>text-xs font-bold text-slate-900</code>.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Dashboard Color Overhaul</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>New Chart Palette:</strong> Replaced the indigo-heavy palette (3 stacked indigo hues) with vibrant well-spaced colours: indigo, emerald, amber, red, violet, cyan, orange. Updated gradient fills and chart colour mappings to match.</li>
+              <li><strong>Unified Semantic Card Colours:</strong> "Conversion rate" now consistently maps to blue across all render paths (<code>getCardIcon</code>, number-card, standalone KPI cards). "Hot cases" changed from rose (which clashed with "lost" status) to warm amber, matching the Head Summary widget's existing usage.</li>
+              <li><strong>Chart Gradient Palettes:</strong> Updated <code>CHART_COLOR_PALETTES</code> from 6 to 7 entries, adding cyan and orange, replacing rose with pure red for better semantic alignment.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Dashboard — Unified 4-Card KPI Row</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Standalone KPI cards:</strong> Top 4 cards (Team Size, Team Achieved, Conversion Rate, Top Performer) now render inline without the &lt;Card&gt; wrapper — each is independently draggable and resizable.</li>
+              <li><strong>Equal sizing:</strong> All 4 cards are <code>span: 1</code> for consistent quarter-width layout.</li>
+              <li><strong>Edit-mode toolbar:</strong> Hover reveals drag (GripVertical), resize (Maximize2), edit (Edit3), and delete (Trash2) buttons.</li>
+              <li><strong>Visual polish:</strong> Boosts gradient vibrancy across all 4 cards. Performer card now shows employee name as the big value with achievement% and won count.</li>
+              <li><strong>Conversion Rate detail:</strong> Replaced Open Leads card with Conversion Rate showing win/loss breakdown (e.g. "12 won · 3 lost · 15 closed").</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">UI Polish</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Modal Animated Entry/Exit:</strong> Replaced plain Tailwind <code>animate-in</code> classes (unloaded plugin, entry-only) with framer-motion <code>AnimatePresence</code>. Backdrop fades in, content slides up 12px in 0.15s with smooth no-bounce easing. Exit animation plays before DOM removal — no more instant disappearance.</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+
+      {/* ==================== VERSION 1.0.6 (June 12, 2026) ==================== */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+          <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-slate-700 bg-slate-50 border border-slate-200 rounded-lg">
+            Version v1.0.6
+          </span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            June 12, 2026
           </span>
         </div>
 

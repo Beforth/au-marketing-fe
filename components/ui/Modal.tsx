@@ -1,6 +1,7 @@
 
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -23,31 +24,50 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   return createPortal(
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 isolate">
-      <div 
-        className="absolute inset-0 bg-slate-900/55 animate-in fade-in duration-300" 
-        onClick={onClose} 
-      />
-      <div className={`relative w-full bg-white rounded-2xl shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200 overflow-visible ${contentClassName ?? 'max-w-lg'}`}>
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between rounded-t-2xl bg-white">
-          <h3 className="font-bold text-slate-900">{title}</h3>
-          <button type="button" onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
-          {children}
-        </div>
-        {footer && (
-          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-            {footer}
-          </div>
-        )}
-      </div>
-    </div>,
+    <AnimatePresence>
+      {isOpen && (
+          <motion.div
+            key="modal"
+            className="fixed inset-0 z-[120] flex items-center justify-center p-4 isolate"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <motion.div
+              className="absolute inset-0 bg-slate-900/55"
+              onClick={onClose}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+            />
+            <motion.div
+              className={`relative w-full bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-visible ${contentClassName ?? 'max-w-lg'}`}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+            >
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between rounded-t-2xl bg-white">
+              <h3 className="font-bold text-slate-900">{title}</h3>
+              <button type="button" onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              {children}
+            </div>
+            {footer && (
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                {footer}
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
     document.body
   );
 };

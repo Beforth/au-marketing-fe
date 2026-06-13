@@ -47,9 +47,9 @@ const formatYAxisValue = (value: number) => {
 export const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-lg">
+      <div className="bg-white border border-slate-200 p-3 rounded-lg shadow-lg shadow-slate-100/80">
         {label && (
-          <p className="text-[11px] font-bold text-slate-600 mb-2 pb-2 border-b border-slate-100">
+          <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2 pb-2 border-b border-slate-100">
             {label}
           </p>
         )}
@@ -60,7 +60,7 @@ export const CustomTooltip = ({ active, payload, label }: any) => {
                 <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color || entry.fill }} />
                 <span className="text-[11px] text-slate-500 font-semibold whitespace-nowrap">{entry.name || entry.dataKey}</span>
               </div>
-              <span className="text-[11px] font-bold text-slate-800">
+              <span className="text-xs font-bold text-slate-900">
                 {typeof entry.value === 'number' && entry.value < 1000 && entry.value % 1 !== 0 
                   ? entry.value.toFixed(2) 
                   : typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
@@ -262,6 +262,10 @@ export const LeadStatusPieChart: React.FC<{ data: { label: string; count: number
             align="center" 
             iconType="circle"
             iconSize={6}
+            formatter={(value: string) => {
+              const item = data.find(d => d.name === value);
+              return `${value} (${item?.value ?? 0})`;
+            }}
             wrapperStyle={{ fontSize: '10px', fontWeight: 600, color: '#64748b', paddingTop: '10px' }}
           />
         </PieChart>

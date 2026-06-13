@@ -44,6 +44,7 @@ import { Toast, ToastType } from './components/ui/Toast';
 
 const NumberingSeriesPage = lazy(() => import('./pages/NumberingSeriesPage').then(m => ({ default: m.NumberingSeriesPage })));
 import { AppNotification } from './types';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 interface AppContextType {
   showToast: (message: string, type?: ToastType) => void;
@@ -301,7 +302,9 @@ const AppMain: React.FC = () => {
 
 const App: React.FC = () => (
   <ThemeProvider>
-    <AppMain />
+    <ErrorBoundary>
+      <AppMain />
+    </ErrorBoundary>
   </ThemeProvider>
 );
 

@@ -80,7 +80,7 @@ export type DashboardWidgetType =
 export interface WidgetConfig {
   id: string;
   type?: DashboardWidgetType;
-  span: 1 | 2 | 3;
+  span: 1 | 2 | 3 | 4;
   title?: string;
   /** Optional code or config (e.g. for custom_code widget, or SQL for custom_sql). */
   code?: string;

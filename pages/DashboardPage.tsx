@@ -13,7 +13,7 @@ import { ApiError } from '../lib/api';
 import { StatItem } from '../types';
 import { Lead, DashboardTargetStats, ScopeTargetStats, ReportScopeResponse, HeadDashboardSummaryResponse, PerformerOfMonthResponse, leadDisplayName, leadDisplayCompany, SavedDashboardResponse, AssignableUser, SavedDashboardAssignmentResponse } from '../lib/marketing-api';
 import { Modal } from '../components/ui/Modal';
-import { Layout as LayoutIcon, Check, RefreshCw, Users, UserCircle, Quote, FileText, ShieldAlert, Target, Trophy, XCircle, ListTodo, CheckSquare, Square, Plus, MessageSquare, Upload, Trash2, UserPlus, Wand2, Edit3, X, Search, Calendar } from 'lucide-react';
+import { Layout as LayoutIcon, Check, RefreshCw, Users, UserCircle, Quote, FileText, ShieldAlert, Target, Trophy, XCircle, ListTodo, CheckSquare, Square, Plus, MessageSquare, Upload, Trash2, UserPlus, Wand2, Edit3, X, Search, Calendar, GripVertical, Maximize2, Settings } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
@@ -49,15 +49,16 @@ import {
   CustomTooltip,
 } from '../components/ui/ChartsSection';
 
-const CHART_COLORS = ['#4f46e5', '#6366f1', '#818cf8', '#059669', '#e11d48', '#f59e0b', '#94a3b8'];
+const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
 
 const CHART_COLOR_PALETTES = [
   { stroke: '#6366f1', start: '#6366f1', end: '#4f46e5' }, // indigo
   { stroke: '#10b981', start: '#10b981', end: '#059669' }, // emerald
-  { stroke: '#3b82f6', start: '#3b82f6', end: '#1d4ed8' }, // blue
-  { stroke: '#8b5cf6', start: '#8b5cf6', end: '#7c3aed' }, // violet
-  { stroke: '#f43f5e', start: '#f43f5e', end: '#e11d48' }, // rose
   { stroke: '#f59e0b', start: '#f59e0b', end: '#d97706' }, // amber
+  { stroke: '#ef4444', start: '#ef4444', end: '#dc2626' }, // red
+  { stroke: '#8b5cf6', start: '#8b5cf6', end: '#7c3aed' }, // violet
+  { stroke: '#06b6d4', start: '#06b6d4', end: '#0891b2' }, // cyan
+  { stroke: '#f97316', start: '#f97316', end: '#ea580c' }, // orange
 ];
 
 /** Migrate saved layout: ensure each widget has type (from id for legacy). */
@@ -85,15 +86,25 @@ function packLayout(layout: WidgetConfig[]): WidgetConfig[] {
   let rowCursor = 0;
 
   while (remaining.length > 0) {
-    const idx = remaining.findIndex(w => rowCursor + w.span <= 4);
-    if (idx !== -1) {
-      const [item] = remaining.splice(idx, 1);
-      result.push(item);
-      rowCursor = (rowCursor + item.span) % 4;
-    } else {
+    if (rowCursor === 0) {
+      // Start of a fresh row — take the next item in the user's intended order
       const [item] = remaining.splice(0, 1);
       result.push(item);
-      rowCursor = item.span % 4;
+      rowCursor = item.span >= 4 ? 0 : item.span;
+    } else {
+      // Mid-row — scan for the first item that fits in the remaining columns
+      const colsLeft = 4 - rowCursor;
+      const idx = remaining.findIndex(w => w.span <= colsLeft);
+
+      if (idx !== -1) {
+        const [item] = remaining.splice(idx, 1);
+        result.push(item);
+        rowCursor += item.span;
+        if (rowCursor >= 4) rowCursor = 0;
+      } else {
+        // Nothing fits mid-row — close this row and retry without consuming an item
+        rowCursor = 0;
+      }
     }
   }
 
@@ -191,10 +202,10 @@ function CustomSqlWidgetContent({
       return <Trophy size={18} className="text-emerald-600 shrink-0" />;
     }
     if (t.includes('conversion') || t.includes('rate') || t.includes('pct') || t.includes('ratio')) {
-      return <RefreshCw size={18} className="text-indigo-600 shrink-0" />;
+      return <RefreshCw size={18} className="text-blue-600 shrink-0" />;
     }
     if (t.includes('hot') || t.includes('alert') || t.includes('cases') || t.includes('urgent')) {
-      return <ShieldAlert size={18} className="text-rose-600 shrink-0" />;
+      return <ShieldAlert size={18} className="text-amber-600 shrink-0" />;
     }
     if (t.includes('won') || t.includes('deals')) {
       return <Check size={18} className="text-indigo-600 shrink-0" />;
@@ -246,8 +257,8 @@ function CustomSqlWidgetContent({
       cardColorClasses = "bg-gradient-to-br from-blue-50/40 to-blue-100/10 border border-blue-100/60 hover:from-blue-50/60 hover:to-blue-100/20";
       valueColorClass = "text-blue-800";
     } else if (tText.includes('hot') || tText.includes('alert') || tText.includes('cases') || tText.includes('urgent')) {
-      cardColorClasses = "bg-gradient-to-br from-rose-50/40 to-rose-100/10 border border-rose-100/60 hover:from-rose-50/60 hover:to-rose-100/20";
-      valueColorClass = "text-rose-800";
+      cardColorClasses = "bg-gradient-to-br from-amber-50/40 to-amber-100/10 border border-amber-100/60 hover:from-amber-50/60 hover:to-amber-100/20";
+      valueColorClass = "text-amber-800";
     } else if (tText.includes('won') || tText.includes('deals')) {
       cardColorClasses = "bg-gradient-to-br from-violet-50/40 to-violet-100/10 border border-violet-100/60 hover:from-violet-50/60 hover:to-violet-100/20";
       valueColorClass = "text-violet-800";
@@ -282,7 +293,7 @@ function CustomSqlWidgetContent({
   if (isTopRepsList) {
     return (
       <div className="flex flex-col gap-3 p-1">
-        {rows.map((row, index) => {
+        {rows.slice(0, 5).map((row, index) => {
           const rank = index + 1;
           const rep = String(row.representative || row.Representative || 'Unknown');
           const region = String(row.region || row.Region || 'All');
@@ -301,48 +312,40 @@ function CustomSqlWidgetContent({
             <div
               key={index}
               className={cn(
-                "flex items-center justify-between p-3 rounded-xl border transition-all duration-200 hover:shadow-md hover:-translate-y-0.5",
-                rank === 1
-                  ? "border-amber-200 bg-gradient-to-r from-amber-50/20 to-white border-l-4 border-l-amber-500"
-                  : rank === 2
-                  ? "border-slate-200 bg-gradient-to-r from-slate-50/20 to-white border-l-4 border-l-slate-400"
-                  : rank === 3
-                  ? "border-orange-200 bg-gradient-to-r from-orange-50/20 to-white border-l-4 border-l-orange-500"
-                  : "border-slate-100 bg-slate-50/30 hover:bg-slate-50/80 border-l border-l-slate-200"
+                "flex items-center justify-between p-3 rounded-lg border border-slate-200 transition-all duration-200",
+                rank === 1 && "border-indigo-200"
               )}
             >
               <div className="flex items-center gap-3 min-w-0">
                 {/* Rank badge */}
                 <div
                   className={cn(
-                    "w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-inner",
+                    "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
                     rank === 1
-                      ? "bg-amber-100 text-amber-800 ring-2 ring-amber-300"
+                      ? "bg-indigo-50 text-indigo-600"
                       : rank === 2
-                      ? "bg-slate-200 text-slate-800 ring-2 ring-slate-300"
+                      ? "bg-slate-100 text-slate-600"
                       : rank === 3
-                      ? "bg-orange-100 text-orange-800 ring-2 ring-orange-300"
-                      : "bg-slate-100 text-slate-500"
+                      ? "bg-slate-100 text-slate-600"
+                      : "bg-slate-50 text-slate-500"
                   )}
                 >
-                  {rank === 1 ? <Trophy className="w-3.5 h-3.5 text-amber-700" /> : rank}
+                  {rank === 1 ? <Trophy className="w-3.5 h-3.5" /> : rank}
                 </div>
 
                 {/* Avatar */}
                 <div className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shrink-0 border shadow-inner",
-                  rank === 1 ? "bg-amber-50 text-amber-700 border-amber-200" :
-                  rank === 2 ? "bg-slate-100 text-slate-700 border-slate-200" :
-                  rank === 3 ? "bg-orange-50 text-orange-700 border-orange-200" :
-                  "bg-indigo-50 text-indigo-600 border-indigo-100"
+                  "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 border",
+                  rank === 1 ? "bg-indigo-50 text-indigo-600 border-indigo-200" :
+                  "bg-slate-50 text-slate-600 border-slate-200"
                 )}>
                   {initials}
                 </div>
 
                 {/* Name & Region */}
                 <div className="min-w-0">
-                  <p className="text-xs font-black text-slate-800 truncate">{rep}</p>
-                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">
+                  <p className="text-sm font-semibold text-slate-800 truncate">{rep}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
                     {region}
                   </p>
                 </div>
@@ -350,9 +353,9 @@ function CustomSqlWidgetContent({
 
               {/* Metrics */}
               <div className="text-right shrink-0">
-                <p className="text-xs font-black text-slate-900">₹{revenue}</p>
-                <p className="text-[10px] text-emerald-600 font-black uppercase tracking-widest mt-0.5 flex items-center justify-end gap-1">
-                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                <p className="text-sm font-bold text-slate-900">₹{revenue}</p>
+                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-0.5 flex items-center justify-end gap-1">
+                  <Check className="w-3 h-3" />
                   {won} won
                 </p>
               </div>
@@ -429,7 +432,7 @@ function CustomSqlWidgetContent({
       const totalValue = pieData.reduce((sum, d) => sum + d.value, 0);
 
       return (
-        <div className="h-[260px] w-full pt-2 relative">
+        <div className="w-full relative" style={{ height: span === 1 ? 195 : 250 }}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -437,9 +440,9 @@ function CustomSqlWidgetContent({
                 dataKey="value"
                 nameKey="name"
                 cx="50%"
-                cy="42%"
-                innerRadius={span === 1 ? 50 : 65}
-                outerRadius={span === 1 ? 70 : 90}
+                cy="45%"
+                innerRadius={span === 1 ? 45 : 55}
+                outerRadius={span === 1 ? 65 : 85}
                 paddingAngle={3}
                 stroke="none"
                 onMouseEnter={(_, index) => setHoveredSlice(pieData[index])}
@@ -459,8 +462,8 @@ function CustomSqlWidgetContent({
               />
             </PieChart>
           </ResponsiveContainer>
-          <div className="absolute top-[37%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none w-[45%] overflow-hidden">
-            <p className="text-xl font-black text-slate-900 leading-none transition-all duration-200">
+          <div className={`absolute top-[37%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none w-[45%] overflow-hidden transition-opacity duration-200 ${hoveredSlice ? 'opacity-0' : 'opacity-100'}`}>
+            <p className={`font-black text-slate-900 leading-none transition-all duration-200 ${span === 1 ? 'text-base' : 'text-xl'}`}>
               {hoveredSlice ? hoveredSlice.value.toLocaleString() : totalValue.toLocaleString()}
             </p>
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5 transition-all duration-200 truncate px-1">
@@ -473,7 +476,7 @@ function CustomSqlWidgetContent({
 
     if (chartType === 'bar') {
       return (
-        <div className="h-[260px] w-full pt-2">
+        <div className="h-full w-full pt-2 min-h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} {...commonChartProps}>
               <defs>
@@ -510,7 +513,7 @@ function CustomSqlWidgetContent({
 
     if (chartType === 'line' || chartType === 'area') {
       return (
-        <div className="h-[260px] w-full pt-2">
+        <div className="h-full w-full pt-2 min-h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} {...commonChartProps}>
               <defs>
@@ -747,6 +750,8 @@ export const DashboardPage: React.FC = () => {
   const [createDashboardName, setCreateDashboardName] = useState('');
   const [createDashboardSubmitting, setCreateDashboardSubmitting] = useState(false);
   const [showAssignDashboardModal, setShowAssignDashboardModal] = useState(false);
+const [showSettingsModal, setShowSettingsModal] = useState(false);
+const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
   const [savedDashboardAssignments, setSavedDashboardAssignments] = useState<SavedDashboardAssignmentResponse[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
   const [assigningDashboard, setAssigningDashboard] = useState(false);
@@ -938,7 +943,7 @@ export const DashboardPage: React.FC = () => {
   const toggleResize = (id: string) => {
     setLayout(prev => packLayout(prev.map(w => {
       if (w.id === id) {
-        const nextSpan = (w.span % 3) + 1 as 1 | 2 | 3;
+        const nextSpan = (w.span % 4) + 1 as 1 | 2 | 3 | 4;
         return { ...w, span: nextSpan };
       }
       return w;
@@ -1101,50 +1106,6 @@ export const DashboardPage: React.FC = () => {
     setDraggedIndex(null);
   };
 
-  const getGroupedLayout = (rawLayout: WidgetConfig[]): any[] => {
-    const grouped: any[] = [];
-    let currentGroup: WidgetConfig[] = [];
-
-    rawLayout.forEach((w) => {
-      const isNumCard = w.chart_type === 'number-card';
-      if (isNumCard) {
-        currentGroup.push(w);
-      } else {
-        if (currentGroup.length > 0) {
-          if (currentGroup.length === 1) {
-            grouped.push(currentGroup[0]);
-          } else {
-            grouped.push({
-              id: `num-card-group-${currentGroup[0].id}`,
-              type: 'number-card-group',
-              widgets: [...currentGroup],
-              span: 4,
-              _rawStart: rawLayout.indexOf(currentGroup[0]),
-            });
-          }
-          currentGroup = [];
-        }
-        grouped.push(w);
-      }
-    });
-
-    if (currentGroup.length > 0) {
-      if (currentGroup.length === 1) {
-        grouped.push(currentGroup[0]);
-      } else {
-        grouped.push({
-          id: `num-card-group-${currentGroup[0].id}`,
-          type: 'number-card-group',
-          widgets: [...currentGroup],
-          span: 4,
-          _rawStart: rawLayout.indexOf(currentGroup[0]),
-        });
-      }
-    }
-
-    return grouped;
-  };
-
   const renderWidget = (config: WidgetConfig) => {
     const widgetType = (config.type ?? config.id) as string;
     const commonProps = {
@@ -1155,7 +1116,7 @@ export const DashboardPage: React.FC = () => {
       onDragLeave: handleDragLeave,
       onDrop: () => handleDrop(layout.indexOf(config)),
       onResize: () => toggleResize(config.id),
-      className: `${config.span === 1 ? 'col-span-1' : config.span === 2 ? 'col-span-2' : config.span === 3 ? 'col-span-3' : 'col-span-4'} min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''} ${draggedOverIndex === layout.indexOf(config) ? 'ring-indigo-300' : ''}`,
+      className: `min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''} ${draggedOverIndex === layout.indexOf(config) ? 'ring-indigo-300' : ''}`,
       headerAction: isEditMode ? (
         <div className="flex items-center gap-0.5">
           <button
@@ -1179,62 +1140,7 @@ export const DashboardPage: React.FC = () => {
     };
 
     switch (widgetType) {
-      case 'number-card-group': {
-        const group = config as any;
-        const rawStart = group._rawStart as number;
-        const groupVisible = draggedOverIndex === rawStart;
-        return (
-          <Card
-            key={group.id}
-            title="Key Performance Indicators"
-            className={`col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4 min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''} ${groupVisible ? 'ring-indigo-300' : ''}`}
-            isDraggable={isEditMode}
-            showHandle={isEditMode}
-            noPadding
-            contentClassName="p-5"
-            onDragStart={() => { setDraggedCount(group.widgets.length); handleDragStart(rawStart); }}
-            onDragOver={(e: React.DragEvent) => handleDragOverIndex(e, rawStart)}
-            onDragLeave={handleDragLeave}
-            onDrop={() => handleDrop(rawStart)}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {group.widgets.map((w: WidgetConfig) => {
-                const widgetRuntime = sqlWidgetData[w.id];
-                return (
-                  <div key={w.id} className="relative group/sub">
-                    <CustomSqlWidgetContent
-                      code={w.code}
-                      chartType="number-card"
-                      data={widgetRuntime?.data}
-                      error={widgetRuntime?.error || null}
-                      span={1}
-                      title={w.title}
-                    />
-                    {isEditMode && (
-                      <div className="absolute top-1 right-1 opacity-0 group-hover/sub:opacity-100 transition-opacity flex items-center bg-white/80 rounded-md border border-slate-100 shadow-sm p-0.5 z-10">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); openEditWidget(w); }}
-                          className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-                        >
-                          <Edit3 size={12} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); removeWidget(w.id); }}
-                          className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        );
-      }
+
       case 'leads-by-region':
         if (!isHeadRole || !headSummary?.region_breakdown.length) {
           return (
@@ -1425,8 +1331,9 @@ export const DashboardPage: React.FC = () => {
           </Card>
         );
       }
-      case 'leads-by-status-chart':
-        if (leadStatusCounts.length === 0) {
+      case 'leads-by-status-chart': {
+        const filteredStatuses = leadStatusCounts.filter(d => d.count > 0);
+        if (filteredStatuses.length === 0) {
           return (
             <Card key={config.id} {...commonProps} title="Leads by status" description="From recent leads in scope.">
               <p className="text-sm text-slate-500 p-4">No lead status data yet.</p>
@@ -1435,9 +1342,24 @@ export const DashboardPage: React.FC = () => {
         }
         return (
           <Card key={config.id} {...commonProps} title="Leads by status" description="Current pipeline" contentClassName="p-1">
-            <LeadStatusPieChart data={leadStatusCounts} />
+            <div className="h-full w-full min-h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={filteredStatuses} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
+                  <Bar dataKey="count" name="Leads" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                    {filteredStatuses.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </Card>
         );
+      }
       case 'inquiries-quotations-chart':
         if (reportSummary == null || !canViewReport) {
           return (
@@ -1663,10 +1585,129 @@ export const DashboardPage: React.FC = () => {
             </div>
           </Card>
         );
-      case 'custom_sql':
+      case 'custom_sql': {
         const widgetRuntime = sqlWidgetData[config.id];
+        const gridClass = `min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''} ${draggedOverIndex === layout.indexOf(config) ? 'ring-indigo-300' : ''}`;
+        if ((widgetRuntime?.chart_type || config.chart_type) === 'number-card') {
+          const data = Array.isArray(widgetRuntime?.data) ? widgetRuntime.data : [];
+          const row = data[0] as Record<string, unknown> | undefined;
+          const keys = row ? Object.keys(row) : [];
+          const labelCandidates = ['metric', 'label', 'name', 'title'];
+          const labelKey = keys.find((k) => labelCandidates.includes(k.toLowerCase()));
+          const valueKey = keys.find((k) => k.toLowerCase() === 'value') ?? keys.find((k) => k !== labelKey);
+          const labelText = labelKey && row ? String(row[labelKey] ?? '') : '';
+          const valueText = valueKey && row ? String(row[valueKey] ?? '—') : '—';
+          const hasData = row && valueText !== '—';
+          const hasDetail = row && keys.some(k => k.toLowerCase() === 'won');
+          const detailWon = hasDetail ? String(row[keys.find(k => k.toLowerCase() === 'won')!] ?? '—') : '';
+          const detailLost = hasDetail ? String(row[keys.find(k => k.toLowerCase() === 'lost')!] ?? '0') : '';
+          const detailTotal = hasDetail ? String(row[keys.find(k => k.toLowerCase() === 'total')!] ?? '—') : '';
+          const titleStr = config.title || labelText || 'Metric';
+          const t = titleStr.toLowerCase();
+          let accentColor = 'from-slate-100/60 to-slate-50 border-slate-300';
+          let iconColor = 'text-slate-600';
+          let valueColor = 'text-slate-800';
+          let IconComponent = Users;
+          if (t.includes('team') || t.includes('size') || t.includes('member')) {
+            accentColor = 'from-blue-100/60 to-blue-50 border-blue-200';
+            iconColor = 'text-blue-600';
+            valueColor = 'text-blue-700';
+            IconComponent = Users;
+          } else if (t.includes('achieved') || t.includes('revenue') || t.includes('won')) {
+            accentColor = 'from-emerald-100/60 to-emerald-50 border-emerald-200';
+            iconColor = 'text-emerald-600';
+            valueColor = 'text-emerald-700';
+            IconComponent = Trophy;
+          } else if (t.includes('open') || t.includes('lead')) {
+            accentColor = 'from-indigo-100/60 to-indigo-50 border-indigo-200';
+            iconColor = 'text-indigo-600';
+            valueColor = 'text-indigo-700';
+            IconComponent = Quote;
+          } else if (t.includes('conversion') || t.includes('rate')) {
+            accentColor = 'from-blue-100/60 to-blue-50 border-blue-200';
+            iconColor = 'text-blue-600';
+            valueColor = 'text-blue-700';
+            IconComponent = Target;
+          } else if (t.includes('hot') || t.includes('case')) {
+            accentColor = 'from-amber-100/60 to-amber-50 border-amber-200';
+            iconColor = 'text-amber-600';
+            valueColor = 'text-amber-700';
+            IconComponent = ShieldAlert;
+          } else if (t.includes('day') || t.includes('target') || t.includes('monthly')) {
+            accentColor = 'from-violet-100/60 to-violet-50 border-violet-200';
+            iconColor = 'text-violet-600';
+            valueColor = 'text-violet-700';
+            IconComponent = Target;
+          }
+          return (
+            <div
+              key={config.id}
+              className={`${gridClass} group relative h-full`}
+              draggable={isEditMode}
+              onDragStart={() => isEditMode && handleDragStart(layout.indexOf(config))}
+              onDragOver={(e) => handleDragOverIndex(e, layout.indexOf(config))}
+              onDragLeave={handleDragLeave}
+              onDrop={() => handleDrop(layout.indexOf(config))}
+              style={{ borderRadius: '1.25rem' }}
+            >
+              <div className={`flex items-center gap-2.5 p-3 rounded-xl transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 bg-gradient-to-br ${accentColor}`}>
+                <IconComponent size={18} className={`${iconColor} shrink-0`} />
+                <div className="min-w-0">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 truncate">{titleStr}</p>
+                  <p className={`text-xl font-black mt-0.5 ${hasData ? valueColor : 'text-slate-300'}`}>{hasData ? valueText : '—'}</p>
+                  <p className="text-[9px] text-slate-400">
+                    {hasData ? (
+                      t.includes('team') ? 'Active members' :
+                      t.includes('achieved') ? 'Won this month' :
+                      t.includes('open') ? 'In scope' :
+                      (t.includes('conversion') && hasDetail) ? `${detailWon} won · ${detailLost} lost · ${detailTotal} closed` :
+                      t.includes('conversion') ? 'Closed deals' :
+                      t.includes('hot') ? 'Requires action' :
+                      t.includes('day') ? 'Remaining' :
+                      t.includes('target') || t.includes('monthly') ? 'Monthly goal' :
+                      'Current value'
+                    ) : (
+                      widgetRuntime?.error ? 'Error loading' :
+                      data.length === 0 && !widgetRuntime?.data ? 'Loading…' :
+                      'No data'
+                    )}
+                  </p>
+                </div>
+              </div>
+              {isEditMode && (
+                <div className="absolute top-1 right-1 z-10 flex items-center gap-0.5 bg-white/90 border border-slate-200 shadow-sm rounded-md p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="p-1 cursor-move text-slate-400 hover:text-slate-600" title="Drag to reorder">
+                    <GripVertical size={14} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); toggleResize(config.id); }}
+                    className="p-1 rounded text-slate-400 hover:text-indigo-600 transition-colors"
+                    title="Toggle size"
+                  >
+                    <Maximize2 size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); openEditWidget(config); }}
+                    className="p-1 rounded text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <Edit3 size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removeWidget(config.id); }}
+                    className="p-1 rounded text-slate-400 hover:text-rose-600 transition-colors"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        }
         return (
-      <Card key={config.id} {...commonProps} title={config.title || 'Custom SQL'}>
+          <Card key={config.id} {...commonProps} title={config.title || 'Custom SQL'}>
             <CustomSqlWidgetContent
               code={config.code}
               chartType={widgetRuntime?.chart_type || config.chart_type || 'table'}
@@ -1677,45 +1718,74 @@ export const DashboardPage: React.FC = () => {
             />
           </Card>
         );
-      case 'performer-of-month':
+      }
+      case 'performer-of-month': {
+        const topPerformer = performerData?.performers[0];
+        const perfGridClass = `min-w-0 ${isEditMode ? 'ring-2 ring-dashed ring-slate-200' : ''} ${draggedOverIndex === layout.indexOf(config) ? 'ring-indigo-300' : ''}`;
         return (
-          <Card key={config.id} {...commonProps} title="Performer of the Month" description="Top 5 by achievement %" noPadding>
+          <div
+            key={config.id}
+            className={`${perfGridClass} group relative h-full`}
+            draggable={isEditMode}
+            onDragStart={() => isEditMode && handleDragStart(layout.indexOf(config))}
+            onDragOver={(e) => handleDragOverIndex(e, layout.indexOf(config))}
+            onDragLeave={handleDragLeave}
+            onDrop={() => handleDrop(layout.indexOf(config))}
+            style={{ borderRadius: '1.25rem' }}
+          >
             {performerLoading ? (
-              <div className="flex items-center gap-3 text-slate-500 p-6">
-                <RefreshCw size={16} className="animate-spin" />
-                <span className="text-xs font-medium">Loading performer data…</span>
+              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white border border-slate-200/50">
+                <RefreshCw size={16} className="animate-spin text-slate-400 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-300 truncate">Top Performer</p>
+                  <p className="text-xl font-black text-slate-300 mt-0.5">—</p>
+                  <p className="text-[9px] text-slate-400">Loading…</p>
+                </div>
               </div>
-            ) : performerData?.performers.length ? (
-              <div className="divide-y divide-slate-100">
-                {performerData.performers.map((p, i) => {
-                  const pct = Math.min(p.achievement_pct, 100);
-                  const barColor = i === 0
-                    ? (pct >= 100 ? 'bg-emerald-500' : pct >= 75 ? 'bg-indigo-500' : pct >= 50 ? 'bg-amber-500' : 'bg-slate-400')
-                    : (pct >= 100 ? 'bg-emerald-400' : 'bg-indigo-400');
-                  return (
-                    <div key={p.employee_id} className="px-5 py-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <span className="text-sm font-semibold text-slate-800 truncate block">{p.employee_name}</span>
-                          <span className="text-[10px] text-slate-400">{p.domain_name}{p.region_name ? ` / ${p.region_name}` : ''}</span>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="text-xs font-bold text-slate-700">{p.achievement_pct}%</span>
-                          <span className="text-[10px] text-slate-400 ml-1">{p.won_count} won</span>
-                        </div>
-                      </div>
-                      <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
+            ) : topPerformer ? (
+              <div className="flex items-center gap-2.5 p-3 rounded-xl transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 bg-gradient-to-br from-amber-100/60 to-amber-50 border border-amber-200">
+                <Trophy size={18} className="text-amber-600 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 truncate">Top Performer</p>
+                  <p className="text-xl font-black text-amber-700 mt-0.5 truncate">{topPerformer.employee_name}</p>
+                  <p className="text-[9px] text-slate-400">{topPerformer.achievement_pct}% · {topPerformer.won_count} won</p>
+                </div>
               </div>
             ) : (
-              <p className="text-sm text-slate-500 p-6">No performer data available.</p>
+              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white border border-slate-200/50">
+                <Trophy size={18} className="text-slate-300 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-300 truncate">Top Performer</p>
+                  <p className="text-xl font-black text-slate-300 mt-0.5">—</p>
+                  <p className="text-[9px] text-slate-400">No data</p>
+                </div>
+              </div>
             )}
-          </Card>
+            {isEditMode && (
+              <div className="absolute top-1 right-1 z-10 flex items-center gap-0.5 bg-white/90 border border-slate-200 shadow-sm rounded-md p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="p-1 cursor-move text-slate-400 hover:text-slate-600" title="Drag to reorder">
+                  <GripVertical size={14} />
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); toggleResize(config.id); }}
+                  className="p-1 rounded text-slate-400 hover:text-indigo-600 transition-colors"
+                  title="Toggle size"
+                >
+                  <Maximize2 size={12} />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); removeWidget(config.id); }}
+                  className="p-1 rounded text-slate-400 hover:text-rose-600 transition-colors"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            )}
+          </div>
         );
+      }
       default:
         return null;
     }
@@ -1885,19 +1955,29 @@ export const DashboardPage: React.FC = () => {
             New Dashboard
           </Button>
         )}
-        {canAssignDashboard && selectedDashboardId != null && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowAssignDashboardModal(true)}
-            className="h-9 px-6 border-slate-100 bg-slate-50 font-medium hover:bg-slate-100 transition-all rounded-xl text-slate-700 text-xs"
-          >
-            Assign
-          </Button>
-        )}
+          {canAssignDashboard && selectedDashboardId != null && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAssignDashboardModal(true)}
+              className="h-9 px-6 border-slate-100 bg-slate-50 font-medium hover:bg-slate-100 transition-all rounded-xl text-slate-700 text-xs"
+            >
+              Assign
+            </Button>
+          )}
+          {reportScope?.role === 'super_admin' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSettingsModal(true)}
+              className="h-9 w-9 p-0 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+            >
+              <Settings size={16} />
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
 
   const dashboardRole = reportScope?.role ?? 'self';
   const dashboardTitle =
@@ -1966,9 +2046,9 @@ export const DashboardPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" style={{ gap: 'var(--ui-gap)' }}>
-                {getGroupedLayout(layout).map((config) => (
-                  <div key={config.id} className="contents">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-stretch">
+                {layout.map((config) => (
+                  <div key={config.id} className={`col-span-${config.span ?? 1} min-w-0`}>
                     {renderWidget(config as any)}
                   </div>
                 ))}
@@ -2198,6 +2278,64 @@ export const DashboardPage: React.FC = () => {
             </Modal>
           )}
 
+          {/* Settings modal — super admin only */}
+          {showSettingsModal && (
+            <Modal
+              isOpen
+              onClose={() => setShowSettingsModal(false)}
+              title="Dashboard Settings"
+            >
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600">Manage all dashboards. <span className="font-semibold text-rose-600">Deletion is irreversible.</span></p>
+                <div className="max-h-96 overflow-y-auto space-y-2 pr-1">
+                  {savedDashboards.map((d) => (
+                    <div
+                      key={d.id}
+                      className="flex items-center justify-between rounded-lg border border-slate-200 p-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-800 truncate">{d.name}</p>
+                        <p className="text-xs text-slate-500">ID: {d.id}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-3">
+                        {savedDashboards.length > 1 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:border-rose-300 text-xs"
+                            disabled={settingsDeleting === d.id}
+                            onClick={async () => {
+                              if (!window.confirm(`Delete "${d.name}"? This cannot be undone.`)) return;
+                              setSettingsDeleting(d.id);
+                              try {
+                                await marketingAPI.deleteSavedDashboard(d.id);
+                                setSavedDashboards((prev) => prev.filter((x) => x.id !== d.id));
+                                if (selectedDashboardId === d.id) {
+                                  const remaining = savedDashboards.filter((x) => x.id !== d.id);
+                                  setSelectedDashboardId(remaining.length > 0 ? remaining[0].id : null);
+                                }
+                                showToast(`"${d.name}" deleted`, 'success');
+                              } catch (e: unknown) {
+                                showToast(e instanceof Error ? e.message : 'Failed to delete dashboard', 'error');
+                              } finally {
+                                setSettingsDeleting(null);
+                              }
+                            }}
+                          >
+                            {settingsDeleting === d.id ? 'Deleting...' : 'Delete'}
+                          </Button>
+                        )}
+                        {savedDashboards.length <= 1 && (
+                          <span className="text-xs text-slate-400 italic">Last dashboard — can't delete</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Modal>
+          )}
+
           {/* Add widget modal */}
           {showAddWidgetModal && (
             <Modal
@@ -2206,7 +2344,7 @@ export const DashboardPage: React.FC = () => {
               title={editingWidgetId ? 'Edit widget' : 'Add widget'}
             >
               <div className="space-y-4">
-                {/* 
+                {/*
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
                   <div className="flex items-center gap-2 text-emerald-800">
                     <Wand2 size={14} />

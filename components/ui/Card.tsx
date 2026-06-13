@@ -48,7 +48,7 @@ export const Card: React.FC<CardProps> = ({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       className={cn(
-        'bg-white border border-slate-200/50 transition-[box-shadow,border-color,background-color] duration-200 relative group/card flex flex-col min-h-[140px] shadow-[0_1px_3px_rgba(0,0,0,0.05),0_10px_40px_-15px_rgba(0,0,0,0.02)]',
+        'h-full bg-white border border-slate-200/50 transition-[box-shadow,border-color,background-color] duration-200 relative group/card flex flex-col min-h-[140px] shadow-[0_1px_3px_rgba(0,0,0,0.05),0_10px_40px_-15px_rgba(0,0,0,0.02)]',
         onClick && 'cursor-pointer hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.08)] hover:border-indigo-200/50 hover:-translate-y-1',
         isDraggable && 'cursor-move active:scale-[0.98] active:rotate-[0.5deg]',
         className

@@ -58,6 +58,19 @@ transitions, scale-on-click, slide-in reveals). Tone is **utilitarian-premium**.
 | `rose-600` | `#e11d48` | Danger button, error border, required asterisk |
 | `purple-600` | `#9333ea` | Orders count accent |
 
+### Dashboard Chart Palette
+| Index | Color | Hex | Usage |
+|---|---|---|---|
+| 1 | Indigo | `#6366f1` | Primary chart series |
+| 2 | Emerald | `#10b981` | Revenue, won, positive |
+| 3 | Amber | `#f59e0b` | Conversions, pending (not rose/red) |
+| 4 | Red | `#ef4444` | Lost, negatives |
+| 5 | Violet | `#8b5cf6` | Premium / won alternate |
+| 6 | Cyan | `#06b6d4` | Informational series |
+| 7 | Orange | `#f97316` | Urgent / warning series |
+
+Each palette entry includes gradient fill colors (`stroke`, `start`, `end`) — defined in `CHART_COLOR_PALETTES` in `DashboardPage.tsx`. Unified across all render paths: `getCardIcon`, `number-card` gradient, and standalone KPI cards.
+
 ### Surface
 | Value | Usage |
 |---|---|
@@ -290,7 +303,7 @@ Icon:  size={18}, no wrapper, color matches accent
 Accent color by keyword:
   Revenue/Achieved/Sales/Value     → emerald
   Conversion/Rate/Pct/Ratio        → blue
-  Hot/Alert/Cases/Urgent           → rose
+  Hot/Alert/Cases/Urgent           → amber
   Won/Deals                        → violet
   Leads/Count/Team/Size            → blue
   Fallback                         → slate
