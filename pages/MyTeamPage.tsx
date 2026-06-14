@@ -4,12 +4,13 @@ import { Card } from '../components/ui/Card';
 import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
 import { DatePicker } from '../components/ui/DatePicker';
-import { marketingAPI, ReportScopeResponse, DashboardTargetStats, ReportSummaryResponse, InquiriesByTypeItem, ExpectedOrderReportItem, ODPlanReportItem } from '../lib/marketing-api';
+import { marketingAPI, ReportScopeResponse, DashboardTargetStats, ReportSummaryResponse, InquiriesByTypeItem, ExpectedOrderReportItem, ODPlanReportItem, Domain, Region } from '../lib/marketing-api';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission, selectToken, selectEmployee } from '../store/slices/authSlice';
 import { getCached, setCache, getCacheKey, clearCache } from '../lib/api-cache';
 import { hrmsRBACClient, DSRTask } from '../lib/hrms-rbac';
+import { getStoredMarketingScope } from '../lib/marketing-scope';
 import { UserCheck, Target, Trophy, XCircle, Calendar, MapPin, FileText, TrendingUp, Users, MessageSquare, Building2, Phone, BarChart3, PieChart, Activity, ClipboardList, CheckCircle2, Clock, RefreshCw } from 'lucide-react';
 
 type DatePreset = 'today' | 'this_week' | 'this_month' | 'this_quarter' | 'this_year' | 'custom';
@@ -230,6 +231,12 @@ export const MyTeamPage: React.FC = () => {
   type ScopeFilter = { type: 'all' } | { type: 'domain'; domainId: number } | { type: 'region'; regionId: number };
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter | null>(null);
 
+  // Domains and regions for filter pills (fetched separately — not returned by reports scope API)
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [loadingDomains, setLoadingDomains] = useState(false);
+  const [loadingRegions, setLoadingRegions] = useState(false);
+
   // Filter employees based on active pill
   const filteredEmployees = useMemo(() => {
     if (!scopeFilter || !scope?.employees) return scope?.employees ?? [];
@@ -239,21 +246,37 @@ export const MyTeamPage: React.FC = () => {
     return scope.employees;
   }, [scope, scopeFilter]);
 
-  const scopeDomains = useMemo(() => {
-    if (!scope?.employees) return [];
-    const seen = new Set<number>();
-    return scope.employees.filter(e => e.domain_id != null && !seen.has(e.domain_id) && seen.add(e.domain_id))
-      .map(e => ({ id: e.domain_id!, name: e.domain_name || `Domain ${e.domain_id}` }));
-  }, [scope?.employees]);
+  // ── Pill domain/region lists (scoped to user's role, same pattern as DomainsPage) ──
+  const pillDomains = useMemo(() => {
+    const stored = getStoredMarketingScope();
+    if (!stored || stored.role === 'super_admin') return domains;
+    if (stored.role === 'domain_head') {
+      const allowedIds = stored.domain_id ? [stored.domain_id] : [];
+      return domains.filter(d => allowedIds.includes(d.id));
+    }
+    if (stored.role === 'region_head') {
+      const allowedRegionIds = stored.region_ids || (stored.region_id ? [stored.region_id] : []);
+      const allowedDomainIds = regions.filter(r => allowedRegionIds.includes(r.id)).map(r => r.domain_id);
+      return domains.filter(d => allowedDomainIds.includes(d.id));
+    }
+    return [];
+  }, [domains, regions]);
 
-  const scopeRegions = useMemo(() => {
-    if (!scope?.employees) return [];
-    const seen = new Set<number>();
-    return scope.employees.filter(e => e.region_id != null && !seen.has(e.region_id) && seen.add(e.region_id))
-      .map(e => ({ id: e.region_id!, name: e.region_name || `Region ${e.region_id}` }));
-  }, [scope?.employees]);
+  const pillRegions = useMemo(() => {
+    const stored = getStoredMarketingScope();
+    if (!stored || stored.role === 'super_admin') return regions;
+    if (stored.role === 'domain_head') {
+      const allowedDomainIds = stored.domain_id ? [stored.domain_id] : [];
+      return regions.filter(r => allowedDomainIds.includes(r.domain_id));
+    }
+    if (stored.role === 'region_head') {
+      const allowedIds = stored.region_ids || (stored.region_id ? [stored.region_id] : []);
+      return regions.filter(r => allowedIds.includes(r.id));
+    }
+    return [];
+  }, [domains, regions]);
 
-  // Per-section loading states
+  // ── Per-section loading states
   const [loadingTarget, setLoadingTarget] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [loadingExpected, setLoadingExpected] = useState(false);
@@ -305,6 +328,23 @@ export const MyTeamPage: React.FC = () => {
   useEffect(() => {
     if (canView) loadScope();
   }, [canView, loadScope]);
+
+  // Load domains/regions for filter pills (not cached — fetched fresh each time)
+  useEffect(() => {
+    if (!canView) return;
+    setLoadingDomains(true);
+    setLoadingRegions(true);
+    Promise.all([
+      marketingAPI.getDomains({ is_active: true, page: 1, page_size: 100 }),
+      marketingAPI.getRegions({ is_active: true, page: 1, page_size: 100 }),
+    ]).then(([domainsRes, regionsRes]) => {
+      setDomains(domainsRes.items);
+      setRegions(regionsRes.items);
+    }).catch(() => {}).finally(() => {
+      setLoadingDomains(false);
+      setLoadingRegions(false);
+    });
+  }, [canView]);
 
   const handleRefreshScope = useCallback(() => {
     clearCache(SCOPE_CACHE_KEY);
@@ -670,9 +710,10 @@ export const MyTeamPage: React.FC = () => {
               </div>
             )}
             {/* ── Scope filter pills ── */}
-             {!loadingScope && scope && (
-              (scope.role === 'super_admin' || scope.role === 'domain_head' || scope.role === 'region_head') &&
-              (scopeDomains.length > 0 || scopeRegions.length > 0)
+             {!loadingScope && scope && !loadingDomains && !loadingRegions && (
+              scope.role === 'super_admin' ||
+              (scope.role === 'domain_head' && pillDomains.length > 0) ||
+              (scope.role === 'region_head' && pillRegions.length > 0)
             ) && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <button
@@ -686,7 +727,7 @@ export const MyTeamPage: React.FC = () => {
                 >
                   All
                 </button>
-                {scopeDomains.map(d => {
+                {(scope.role === 'super_admin' || scope.role === 'domain_head') && pillDomains.map(d => {
                   const isActive = scopeFilter?.type === 'domain' && scopeFilter.domainId === d.id;
                   return (
                     <button
@@ -710,7 +751,7 @@ export const MyTeamPage: React.FC = () => {
                     </button>
                   );
                 })}
-                {scopeRegions.map(r => {
+                {(scope.role === 'super_admin' || scope.role === 'region_head') && pillRegions.map(r => {
                   const isActive = scopeFilter?.type === 'region' && scopeFilter.regionId === r.id;
                   return (
                     <button

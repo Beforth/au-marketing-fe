@@ -126,6 +126,7 @@ export const LeadFormPage: React.FC = () => {
   const [attachmentEntries, setAttachmentEntries] = useState<AttachmentEntry[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
   const [showAttachments, setShowAttachments] = useState(false);
   const [activitySubmitting, setActivitySubmitting] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState<'idle' | 'creating' | 'uploading'>('idle');
   const [addAttachmentActivityId, setAddAttachmentActivityId] = useState<number | null>(null);
   const [addAttachmentRows, setAddAttachmentRows] = useState<{ id: string; kind: 'quotation' | 'attachment'; file: File | null; quotationNumber: string; title: string; quoteValue: string }[]>([]);
   const [quotationSeriesCode, setQuotationSeriesCode] = useState('');
@@ -759,8 +760,10 @@ export const LeadFormPage: React.FC = () => {
       return;
     }
     setActivitySubmitting(true);
+    setUploadPhase('creating');
+    let created: LeadActivity | null = null;
     try {
-      const created = await marketingAPI.createLeadActivity(leadId, {
+      created = await marketingAPI.createLeadActivity(leadId, {
         activity_type: activityForm.activity_type,
         title: effectiveTitle,
         description: activityForm.description?.trim() || undefined,
@@ -773,6 +776,7 @@ export const LeadFormPage: React.FC = () => {
       });
       const toUpload = attachmentEntries.filter((e) => e.file);
       if (toUpload.length > 0) {
+        setUploadPhase('uploading');
         await marketingAPI.uploadLeadActivityAttachments(
           leadId,
           created.id,
@@ -793,18 +797,23 @@ export const LeadFormPage: React.FC = () => {
         contact_person_name_prefix: '',
         contact_person_name: '',
         contact_person_email: '',
-        contact_person_phone_code: '',
+        contact_person_phone_code: DEFAULT_COUNTRY_CODE,
         contact_person_phone: '',
         from_status_id: undefined,
         to_status_id: undefined,
       });
       setAttachmentEntries([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
+      setShowAttachments(false);
       setQuotationIsRevised(false);
       loadActivities();
     } catch (err: any) {
+      if (created) {
+        try { await marketingAPI.deleteLeadActivity(leadId, created.id); } catch {}
+      }
       showToast(err.message || 'Failed to add log', 'error');
     } finally {
       setActivitySubmitting(false);
+      setUploadPhase('idle');
     }
   };
 
@@ -2411,7 +2420,7 @@ export const LeadFormPage: React.FC = () => {
                       </div>
                     )}
                     <Button type="submit" size="sm" disabled={activitySubmitting} className="h-9 shrink-0 px-4">
-                      {activitySubmitting ? '…' : 'Add log'}
+                      {activitySubmitting ? (uploadPhase === 'uploading' ? 'Uploading file...' : 'Adding log...') : 'Add log'}
                     </Button>
                   </div>
 
