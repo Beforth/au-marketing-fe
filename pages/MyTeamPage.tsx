@@ -239,6 +239,20 @@ export const MyTeamPage: React.FC = () => {
     return scope.employees;
   }, [scope, scopeFilter]);
 
+  const scopeDomains = useMemo(() => {
+    if (!scope?.employees) return [];
+    const seen = new Set<number>();
+    return scope.employees.filter(e => e.domain_id != null && !seen.has(e.domain_id) && seen.add(e.domain_id))
+      .map(e => ({ id: e.domain_id!, name: e.domain_name || `Domain ${e.domain_id}` }));
+  }, [scope?.employees]);
+
+  const scopeRegions = useMemo(() => {
+    if (!scope?.employees) return [];
+    const seen = new Set<number>();
+    return scope.employees.filter(e => e.region_id != null && !seen.has(e.region_id) && seen.add(e.region_id))
+      .map(e => ({ id: e.region_id!, name: e.region_name || `Region ${e.region_id}` }));
+  }, [scope?.employees]);
+
   // Per-section loading states
   const [loadingTarget, setLoadingTarget] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(false);
@@ -656,10 +670,9 @@ export const MyTeamPage: React.FC = () => {
               </div>
             )}
             {/* ── Scope filter pills ── */}
-            {!loadingScope && scope && (
-              (scope.role === 'super_admin' && ((scope.domains?.length ?? 0) > 0 || (scope.regions?.length ?? 0) > 0)) ||
-              (scope.role === 'domain_head' && (scope.domains?.length ?? 0) > 0) ||
-              (scope.role === 'region_head' && (scope.regions?.length ?? 0) > 0)
+             {!loadingScope && scope && (
+              (scope.role === 'super_admin' || scope.role === 'domain_head' || scope.role === 'region_head') &&
+              (scopeDomains.length > 0 || scopeRegions.length > 0)
             ) && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <button
@@ -673,7 +686,7 @@ export const MyTeamPage: React.FC = () => {
                 >
                   All
                 </button>
-                {(scope.role === 'super_admin' || scope.role === 'domain_head') && scope.domains?.map(d => {
+                {scopeDomains.map(d => {
                   const isActive = scopeFilter?.type === 'domain' && scopeFilter.domainId === d.id;
                   return (
                     <button
@@ -697,7 +710,7 @@ export const MyTeamPage: React.FC = () => {
                     </button>
                   );
                 })}
-                {(scope.role === 'super_admin' || scope.role === 'region_head') && scope.regions?.map(r => {
+                {scopeRegions.map(r => {
                   const isActive = scopeFilter?.type === 'region' && scopeFilter.regionId === r.id;
                   return (
                     <button
