@@ -1519,10 +1519,17 @@ class MarketingAPIService {
   }
 
   /** Scope-wide target/achieved for dashboard. For heads returns aggregated team stats. */
-  async getScopeTargetStats(params?: { date_from?: string; date_to?: string }): Promise<ScopeTargetStats> {
+  async getScopeTargetStats(params?: {
+    date_from?: string;
+    date_to?: string;
+    domain_id?: number;
+    region_id?: number;
+  }): Promise<ScopeTargetStats> {
     const sp = new URLSearchParams();
     if (params?.date_from?.trim()) sp.set('date_from', params.date_from.trim());
     if (params?.date_to?.trim()) sp.set('date_to', params.date_to.trim());
+    if (params?.domain_id != null) sp.set('domain_id', String(params.domain_id));
+    if (params?.region_id != null) sp.set('region_id', String(params.region_id));
     const qs = sp.toString();
     return apiClient.get<ScopeTargetStats>(`/api/dashboard/scope-target-stats${qs ? `?${qs}` : ''}`);
   }
@@ -1791,12 +1798,18 @@ export interface ReportableEmployee {
   id: number;
   name: string;
   username?: string;
+  domain_id?: number;
+  domain_name?: string;
+  region_id?: number;
+  region_name?: string;
 }
 export interface ReportScopeResponse {
   can_select_employee: boolean;
   employees: ReportableEmployee[];
   role: 'self' | 'region_head' | 'domain_head' | 'super_admin';
   is_domain_coordinator?: boolean;
+  domains: { id: number; name: string }[];
+  regions: { id: number; name: string }[];
 }
 export interface InquiriesByTypeItem {
   activity_type: string;

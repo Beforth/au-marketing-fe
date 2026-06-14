@@ -4,18 +4,18 @@ import { Card } from '../components/ui/Card';
 import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
 import { DatePicker } from '../components/ui/DatePicker';
-import { marketingAPI, ReportScopeResponse, DashboardTargetStats, ReportSummaryResponse, ExpectedOrderReportItem, ODPlanReportItem } from '../lib/marketing-api';
+import { marketingAPI, ReportScopeResponse, DashboardTargetStats, ReportSummaryResponse, InquiriesByTypeItem, ExpectedOrderReportItem, ODPlanReportItem } from '../lib/marketing-api';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
-import { selectHasPermission } from '../store/slices/authSlice';
+import { selectHasPermission, selectToken, selectEmployee } from '../store/slices/authSlice';
 import { getCached, setCache, getCacheKey, clearCache } from '../lib/api-cache';
 import { hrmsRBACClient, DSRTask } from '../lib/hrms-rbac';
-import { selectToken } from '../store/slices/authSlice';
-import { UserCheck, Target, Trophy, XCircle, Calendar, MapPin, FileText, TrendingUp, Users, MessageSquare, Building2, Phone, BarChart3, PieChart, Activity, ClipboardList, CheckCircle2, Clock } from 'lucide-react';
+import { UserCheck, Target, Trophy, XCircle, Calendar, MapPin, FileText, TrendingUp, Users, MessageSquare, Building2, Phone, BarChart3, PieChart, Activity, ClipboardList, CheckCircle2, Clock, RefreshCw } from 'lucide-react';
 
-type DatePreset = 'today' | 'this_week' | 'this_month' | 'custom';
+type DatePreset = 'today' | 'this_week' | 'this_month' | 'this_quarter' | 'this_year' | 'custom';
 
 const SCOPE_CACHE_KEY = 'reports_scope';
+const ALL_ID = -1;
 
 interface EmployeeData {
   targetStats: DashboardTargetStats | null;
@@ -51,6 +51,17 @@ function getDateRange(preset: DatePreset): { dateFrom: string; dateTo: string } 
       const last = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
       return { dateFrom: first, dateTo: last };
     }
+    case 'this_quarter': {
+      const qStartMonth = Math.floor(m / 3) * 3;
+      const qStart = `${y}-${String(qStartMonth + 1).padStart(2, '0')}-01`;
+      const qEndMonth = qStartMonth + 2;
+      const qLastDay = new Date(y, qEndMonth + 1, 0).getDate();
+      const qEnd = `${y}-${String(qEndMonth + 1).padStart(2, '0')}-${String(qLastDay).padStart(2, '0')}`;
+      return { dateFrom: qStart, dateTo: qEnd };
+    }
+    case 'this_year': {
+      return { dateFrom: `${y}-01-01`, dateTo: `${y}-12-31` };
+    }
     default:
       return { dateFrom: '', dateTo: '' };
   }
@@ -79,10 +90,128 @@ function formatCurrency(amount: number): string {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
+function mergeSummaries(summaries: ReportSummaryResponse[]): ReportSummaryResponse | null {
+  if (summaries.length === 0) return null;
+  const merged: ReportSummaryResponse = {
+    ...summaries[0],
+    employee_id: undefined,
+    employee_name: undefined,
+    inquiries_count: 0,
+    inquiries_by_type: [],
+    quotations_sent_count: 0,
+    leads_total: 0,
+    leads_by_status: [],
+    leads_created_count: 0,
+    total_contacts: 0,
+    total_customers: 0,
+  };
+  const inquiriesMap = new Map<string, number>();
+  const leadsStatusMap = new Map<number, { status_id: number; status_code: string; status_label: string; count: number }>();
+  for (const s of summaries) {
+    merged.inquiries_count += s.inquiries_count;
+    merged.quotations_sent_count += s.quotations_sent_count;
+    merged.leads_total += s.leads_total;
+    merged.leads_created_count += s.leads_created_count;
+    merged.total_contacts += s.total_contacts;
+    merged.total_customers += s.total_customers;
+    for (const item of s.inquiries_by_type) {
+      inquiriesMap.set(item.activity_type, (inquiriesMap.get(item.activity_type) || 0) + item.count);
+    }
+    for (const item of s.leads_by_status) {
+      const existing = leadsStatusMap.get(item.status_id);
+      if (existing) {
+        existing.count += item.count;
+      } else {
+        leadsStatusMap.set(item.status_id, { ...item });
+      }
+    }
+  }
+  merged.inquiries_by_type = [...inquiriesMap.entries()]
+    .map(([activity_type, count]) => ({ activity_type, count }))
+    .sort((a, b) => b.count - a.count);
+  merged.leads_by_status = [...leadsStatusMap.values()].sort((a, b) => b.count - a.count);
+  return merged;
+}
+
+const SummaryContent: React.FC<{ loading: boolean; summary: ReportSummaryResponse | null }> = ({ loading, summary }) => {
+  if (loading) {
+    return (
+      <div className="animate-pulse">
+        <div className="grid grid-cols-5 gap-4 mb-4">
+          {[...Array(5)].map((_, i) => <div key={i} className="h-24 bg-slate-200 rounded-lg" />)}
+        </div>
+      </div>
+    );
+  }
+  if (!summary) {
+    return (
+      <div className="py-6 text-center text-slate-400">
+        <p className="text-sm">No summary data available.</p>
+      </div>
+    );
+  }
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
+        <div className="bg-slate-50 rounded-lg p-3 text-center">
+          <MessageSquare size={18} className="text-blue-500 mx-auto mb-1" />
+          <p className="text-lg font-bold text-slate-900">{summary.inquiries_count}</p>
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Inquiries</p>
+        </div>
+        <div className="bg-slate-50 rounded-lg p-3 text-center">
+          <FileText size={18} className="text-blue-500 mx-auto mb-1" />
+          <p className="text-lg font-bold text-slate-900">{summary.quotations_sent_count}</p>
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Quotations</p>
+        </div>
+        <div className="bg-slate-50 rounded-lg p-3 text-center">
+          <BarChart3 size={18} className="text-blue-500 mx-auto mb-1" />
+          <p className="text-lg font-bold text-slate-900">{summary.leads_total}</p>
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Total Leads</p>
+        </div>
+        <div className="bg-slate-50 rounded-lg p-3 text-center">
+          <Phone size={18} className="text-blue-500 mx-auto mb-1" />
+          <p className="text-lg font-bold text-slate-900">{summary.total_contacts}</p>
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Contacts</p>
+        </div>
+        <div className="bg-slate-50 rounded-lg p-3 text-center">
+          <Building2 size={18} className="text-blue-500 mx-auto mb-1" />
+          <p className="text-lg font-bold text-slate-900">{summary.total_customers}</p>
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Customers</p>
+        </div>
+      </div>
+      {summary.inquiries_by_type.length > 0 && (
+        <div className="border-t border-slate-100 pt-4">
+          <p className="text-xs font-semibold text-slate-600 mb-2">Inquiries by type</p>
+          <div className="flex flex-wrap gap-2">
+            {summary.inquiries_by_type.map(item => (
+              <span key={item.activity_type} className="inline-flex items-center gap-1.5 text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
+                <Activity size={11} /> {item.activity_type}: {item.count}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {summary.leads_by_status.length > 0 && (
+        <div className="border-t border-slate-100 pt-4 mt-4">
+          <p className="text-xs font-semibold text-slate-600 mb-2">Leads by status</p>
+          <div className="flex flex-wrap gap-2">
+            {summary.leads_by_status.map(item => (
+              <span key={item.status_id} className="inline-flex items-center gap-1.5 text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
+                <PieChart size={11} /> {item.status_label}: {item.count}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
 export const MyTeamPage: React.FC = () => {
   const { showToast } = useApp();
   const canView = useAppSelector(selectHasPermission('marketing.view_myteam'));
   const token = useAppSelector(selectToken);
+  const currentEmployee = useAppSelector(selectEmployee);
 
   const [datePreset, setDatePreset] = useState<DatePreset>('this_month');
   const [customFrom, setCustomFrom] = useState('');
@@ -97,15 +226,30 @@ export const MyTeamPage: React.FC = () => {
   const [loadingScope, setLoadingScope] = useState(true);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | undefined>(undefined);
 
+  // Scope filter pills
+  type ScopeFilter = { type: 'all' } | { type: 'domain'; domainId: number } | { type: 'region'; regionId: number };
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter | null>(null);
+
+  // Filter employees based on active pill
+  const filteredEmployees = useMemo(() => {
+    if (!scopeFilter || !scope?.employees) return scope?.employees ?? [];
+    if (scopeFilter.type === 'all') return scope.employees;
+    if (scopeFilter.type === 'domain') return scope.employees.filter(e => e.domain_id === scopeFilter.domainId);
+    if (scopeFilter.type === 'region') return scope.employees.filter(e => e.region_id === scopeFilter.regionId);
+    return scope.employees;
+  }, [scope, scopeFilter]);
+
   // Per-section loading states
   const [loadingTarget, setLoadingTarget] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [loadingExpected, setLoadingExpected] = useState(false);
   const [loadingOD, setLoadingOD] = useState(false);
   const [loadingDSR, setLoadingDSR] = useState(false);
+  const [loadingEmployeeStats, setLoadingEmployeeStats] = useState(true);
 
   const [targetStats, setTargetStats] = useState<DashboardTargetStats | null>(null);
   const [summary, setSummary] = useState<ReportSummaryResponse | null>(null);
+  const [employeeStats, setEmployeeStats] = useState<Map<number, DashboardTargetStats>>(new Map());
   const [expectedOrderReports, setExpectedOrderReports] = useState<ExpectedOrderReportItem[]>([]);
   const [odPlanReports, setODPlanReports] = useState<ODPlanReportItem[]>([]);
   const [dsrTasks, setDSRTasks] = useState<DSRTask[]>([]);
@@ -148,6 +292,11 @@ export const MyTeamPage: React.FC = () => {
     if (canView) loadScope();
   }, [canView, loadScope]);
 
+  const handleRefreshScope = useCallback(() => {
+    clearCache(SCOPE_CACHE_KEY);
+    loadScope();
+  }, [loadScope]);
+
   // ── Per-section data loading ──
   const loadSection = useCallback(async <T,>(
     key: string,
@@ -177,6 +326,7 @@ export const MyTeamPage: React.FC = () => {
     if (!selectedEmployeeId) {
       setTargetStats(null);
       setSummary(null);
+      setEmployeeStats(new Map());
       setExpectedOrderReports([]);
       setODPlanReports([]);
       setDSRTasks([]);
@@ -184,24 +334,119 @@ export const MyTeamPage: React.FC = () => {
     }
 
     const id = selectedEmployeeId;
-    const dateKey = `${dateFrom}|${dateTo}`;
-    const cacheKey = getCacheKey('employee_data', id);
+    const cacheKey = getCacheKey('employee_data', `${id}_${dateFrom}_${dateTo}`);
+    const months = getMonthsInRange(dateFrom, dateTo);
 
-    // Check cache first
-    const cached = dataCache.current.get(cacheKey);
-    if (cached) {
-      setTargetStats(cached.targetStats);
-      setSummary(cached.summary);
-      setExpectedOrderReports(cached.expectedOrderReports ?? []);
-      setODPlanReports(cached.odPlanReports ?? []);
-      setDSRTasks(cached.dsrTasks ?? []);
-      return;
+    // Check cache first (only for per-employee mode)
+    if (id !== ALL_ID) {
+      const cached = dataCache.current.get(cacheKey);
+      if (cached) {
+        setTargetStats(cached.targetStats);
+        setSummary(cached.summary);
+        setExpectedOrderReports(cached.expectedOrderReports ?? []);
+        setODPlanReports(cached.odPlanReports ?? []);
+        setDSRTasks(cached.dsrTasks ?? []);
+        return;
+      }
     }
 
     currentReqId.current += 1;
     const reqId = currentReqId.current;
-    const months = getMonthsInRange(dateFrom, dateTo);
 
+    // ── ALL mode: aggregate across all filtered employees ──
+    if (id === ALL_ID) {
+      setSummary(null);
+      setDSRTasks([]);
+
+      loadSection(
+        'target',
+        () => marketingAPI.getScopeTargetStats({
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+          domain_id: scopeFilter?.type === 'domain' ? scopeFilter.domainId : undefined,
+          region_id: scopeFilter?.type === 'region' ? scopeFilter.regionId : undefined,
+        }),
+        (data) => setTargetStats(data),
+        setLoadingTarget,
+        reqId,
+      );
+
+      // Expected orders: fetch for all filtered employees
+      const empIds = filteredEmployees.map(e => e.id);
+      loadSection(
+        'expected',
+        () => Promise.all(
+          empIds.map(eid =>
+            Promise.all(
+              months.map(m => marketingAPI.listExpectedOrderReports({
+                employee_id: eid, year: m.year, month: m.month,
+              }))
+            )
+          )
+        ).then(r => r.flat(2)),
+        (data) => setExpectedOrderReports(data),
+        setLoadingExpected,
+        reqId,
+      );
+
+      // OD plans: fetch for all filtered employees
+      loadSection(
+        'od',
+        () => Promise.all(
+          empIds.map(eid =>
+            Promise.all(
+              months.map(m => marketingAPI.listODPlanReports({
+                employee_id: eid, year: m.year, month: m.month,
+              }))
+            )
+          )
+        ).then(r => r.flat(2)),
+        (data) => setODPlanReports(data),
+        setLoadingOD,
+        reqId,
+      );
+
+      // Performance summary: fetch per employee and aggregate
+      loadSection(
+        'summary',
+        () => Promise.all(
+          empIds.map(eid =>
+            marketingAPI.getReportsSummary({
+              employee_id: eid,
+              date_from: dateFrom || undefined,
+              date_to: dateTo || undefined,
+            })
+          )
+        ).then(r => mergeSummaries(r)),
+        (data) => setSummary(data),
+        setLoadingSummary,
+        reqId,
+      );
+
+      // Employee breakdown stats: fetch per employee target stats
+      loadSection(
+        'employeeStats',
+        () => Promise.all(
+          empIds.map(eid =>
+            marketingAPI.getDashboardTargetStats({
+              employee_id: eid,
+              date_from: dateFrom || undefined,
+              date_to: dateTo || undefined,
+            }).then(stats => ({ employeeId: eid, stats }))
+          )
+        ).then(results => {
+          const map = new Map<number, DashboardTargetStats>();
+          results.forEach(r => map.set(r.employeeId, r.stats));
+          return map;
+        }),
+        (data) => setEmployeeStats(data),
+        setLoadingEmployeeStats,
+        reqId,
+      );
+      return;
+    }
+
+    // ── Per-employee mode ──
     // ── Target stats ──
     loadSection(
       'target',
@@ -283,7 +528,7 @@ export const MyTeamPage: React.FC = () => {
         reqId,
       );
     }
-  }, [selectedEmployeeId, dateFrom, dateTo, token, scope, loadSection]);
+  }, [selectedEmployeeId, dateFrom, dateTo, token, scope, loadSection, filteredEmployees]);
 
   function cachePartial(cacheKey: string, partial: Partial<EmployeeData>) {
     const existing = dataCache.current.get(cacheKey) || {} as EmployeeData;
@@ -302,10 +547,27 @@ export const MyTeamPage: React.FC = () => {
     return (targetStats.achieved_this_month / targetStats.monthly_target) * 100;
   }, [targetStats]);
 
+  const targetLabel = useMemo(() => {
+    if (datePreset === 'today') return "Today's Target";
+    if (datePreset === 'this_week') return "This Week's Target";
+    if (datePreset === 'this_month') return "Monthly Target";
+    if (datePreset === 'this_quarter') return "Quarterly Target";
+    if (datePreset === 'this_year') return "Yearly Target";
+    if (datePreset === 'custom' && customFrom && customTo) {
+      const f = new Date(customFrom);
+      const t = new Date(customTo);
+      if (f.getTime() === t.getTime()) return 'Target';
+      if (f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear()) return 'Monthly Target';
+    }
+    return 'Target';
+  }, [datePreset, customFrom, customTo]);
+
   const dateFilterOptions: { value: DatePreset; label: string }[] = [
     { value: 'today', label: 'Today' },
     { value: 'this_week', label: 'This Week' },
     { value: 'this_month', label: 'This Month' },
+    { value: 'this_quarter', label: 'This Quarter' },
+    { value: 'this_year', label: 'This Year' },
     { value: 'custom', label: 'Custom' },
   ];
 
@@ -362,13 +624,17 @@ export const MyTeamPage: React.FC = () => {
               </div>
             ) : (
               <div className="mt-4 flex flex-wrap items-end gap-4">
-                {scope?.can_select_employee && scope.employees.length > 0 ? (
+                {scope?.can_select_employee && filteredEmployees.length > 0 ? (
                   <div className="flex flex-col gap-1 min-w-[220px]">
                     <Select
                       label="Team member"
                       value={selectedEmployeeId ?? ''}
                       onChange={(val) => setSelectedEmployeeId(val !== undefined && val !== '' ? Number(val) : undefined)}
-                      options={scope.employees.map(emp => ({ value: emp.id, label: emp.name }))}
+                      options={[
+                        ...(currentEmployee?.id ? [{ value: currentEmployee.id, label: 'My Data' as const }] : []),
+                        { value: ALL_ID, label: 'All Team Members (Combined)' },
+                        ...filteredEmployees.map(emp => ({ value: emp.id, label: emp.name })),
+                      ]}
                       placeholder="Select employee..."
                     />
                   </div>
@@ -382,8 +648,88 @@ export const MyTeamPage: React.FC = () => {
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                     <UserCheck size={13} />
                     {scope.role === 'domain_head' ? 'Domain Head' : scope.role === 'region_head' ? 'Region Head' : scope.role === 'super_admin' ? 'Super Admin' : 'Team Lead'}
+                    {selectedEmployeeId === ALL_ID && scope.employees.length > 0 && (
+                      <> · {filteredEmployees.length} member{filteredEmployees.length !== 1 ? 's' : ''}</>
+                    )}
                   </span>
                 )}
+              </div>
+            )}
+            {/* ── Scope filter pills ── */}
+            {!loadingScope && scope && (
+              (scope.role === 'super_admin' && (scope.domains.length > 0 || scope.regions.length > 0)) ||
+              (scope.role === 'domain_head' && scope.domains.length > 0) ||
+              (scope.role === 'region_head' && scope.regions.length > 0)
+            ) && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => { setScopeFilter({ type: 'all' }); setSelectedEmployeeId(ALL_ID); }}
+                  className={`px-3 py-1 text-xs font-semibold rounded-full border transition-colors ${
+                    scopeFilter?.type === 'all'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  All
+                </button>
+                {(scope.role === 'super_admin' || scope.role === 'domain_head') && scope.domains.map(d => {
+                  const isActive = scopeFilter?.type === 'domain' && scopeFilter.domainId === d.id;
+                  return (
+                    <button
+                      key={`domain-${d.id}`}
+                      type="button"
+                      onClick={() => {
+                        if (isActive) {
+                          setScopeFilter(null);
+                        } else {
+                          setScopeFilter({ type: 'domain', domainId: d.id });
+                        }
+                        setSelectedEmployeeId(ALL_ID);
+                      }}
+                      className={`px-3 py-1 text-xs font-semibold rounded-full border transition-colors ${
+                        isActive
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      {d.name}
+                    </button>
+                  );
+                })}
+                {(scope.role === 'super_admin' || scope.role === 'region_head') && scope.regions.map(r => {
+                  const isActive = scopeFilter?.type === 'region' && scopeFilter.regionId === r.id;
+                  return (
+                    <button
+                      key={`region-${r.id}`}
+                      type="button"
+                      onClick={() => {
+                        if (isActive) {
+                          setScopeFilter(null);
+                        } else {
+                          setScopeFilter({ type: 'region', regionId: r.id });
+                        }
+                        setSelectedEmployeeId(ALL_ID);
+                      }}
+                      className={`px-3 py-1 text-xs font-semibold rounded-full border transition-colors ${
+                        isActive
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      {r.name}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={handleRefreshScope}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-full border border-slate-300 text-slate-500 hover:bg-slate-50 transition-colors flex items-center gap-1"
+                  title="Refresh team data"
+                >
+                  <RefreshCw size={12} />
+                  Sync
+                </button>
               </div>
             )}
           </Card>
@@ -397,7 +743,228 @@ export const MyTeamPage: React.FC = () => {
             </Card>
           )}
 
-          {selectedEmployeeId && (
+          {selectedEmployeeId === ALL_ID && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <Card noPadding>
+                <div className="p-4">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2">
+                    <Target size={14} /> {targetLabel}
+                  </div>
+                  {loadingTarget ? (
+                    <div className="animate-pulse space-y-2">
+                      <div className="h-6 w-20 bg-slate-200 rounded" />
+                      <div className="h-1.5 w-full bg-slate-200 rounded" />
+                    </div>
+                  ) : targetStats ? (
+                    <>
+                      <p className="text-xl font-bold text-slate-900">{formatCurrency(targetStats.monthly_target)}</p>
+                      {targetStats.monthly_target > 0 && (
+                        <div className="mt-2">
+                          <div className="w-full bg-slate-100 rounded-full h-1.5">
+                            <div className="bg-blue-600 h-1.5 rounded-full transition-all" style={{ width: `${Math.min((targetStats.achieved_this_month / targetStats.monthly_target) * 100, 100)}%` }} />
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-1">{Math.round((targetStats.achieved_this_month / targetStats.monthly_target) * 100)}% achieved</p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xl font-bold text-slate-400">—</p>
+                  )}
+                </div>
+              </Card>
+              <Card noPadding>
+                <div className="p-4">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2">
+                    <TrendingUp size={14} /> Achieved
+                  </div>
+                  {loadingTarget ? (
+                    <div className="animate-pulse">
+                      <div className="h-6 w-20 bg-slate-200 rounded" />
+                    </div>
+                  ) : targetStats ? (
+                    <>
+                      <p className="text-xl font-bold text-emerald-600">{formatCurrency(targetStats.achieved_this_month)}</p>
+                      <p className="text-[11px] text-slate-500 mt-1">vs target of {formatCurrency(targetStats.monthly_target)}</p>
+                    </>
+                  ) : (
+                    <p className="text-xl font-bold text-slate-400">—</p>
+                  )}
+                </div>
+              </Card>
+              <Card noPadding>
+                <div className="p-4">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2">
+                    <Trophy size={14} /> Won
+                  </div>
+                  {loadingTarget ? (
+                    <div className="animate-pulse">
+                      <div className="h-6 w-12 bg-slate-200 rounded" />
+                    </div>
+                  ) : (
+                    <p className="text-xl font-bold text-emerald-600">{targetStats?.won_leads_count_this_month ?? '—'}</p>
+                  )}
+                </div>
+              </Card>
+              <Card noPadding>
+                <div className="p-4">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2">
+                    <XCircle size={14} /> Lost
+                  </div>
+                  {loadingTarget ? (
+                    <div className="animate-pulse">
+                      <div className="h-6 w-12 bg-slate-200 rounded" />
+                    </div>
+                  ) : (
+                    <p className="text-xl font-bold text-rose-500">{targetStats?.lost_leads_count_this_month ?? '—'}</p>
+                  )}
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {selectedEmployeeId === ALL_ID && (
+            <>
+              {/* ── Expected Orders + OD Plans (aggregate) ── */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <Card title="Expected Orders" description="Leads expected to close across all team members.">
+                  {loadingExpected ? (
+                    <div className="animate-pulse space-y-3">
+                      <div className="h-20 bg-slate-200 rounded-lg" />
+                      <div className="h-20 bg-slate-200 rounded-lg" />
+                    </div>
+                  ) : expectedOrderReports.length === 0 ? (
+                    <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
+                      <Calendar size={28} />
+                      <p className="text-sm">No expected order reports.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {expectedOrderReports.map(r => {
+                        const won = r.leads.filter(l => l.lead_is_final && !l.lead_is_lost).length;
+                        const lost = r.leads.filter(l => l.lead_is_lost).length;
+                        const expected = r.leads.filter(l => !l.lead_is_final && !l.lead_is_lost).length;
+                        return (
+                          <div key={r.id} className="border border-slate-200 rounded-lg p-3">
+                            <div className="font-medium text-slate-800 text-sm">
+                              {new Date(r.year, r.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                            </div>
+                            <div className="text-xs text-slate-500 mt-1">{r.leads.length} lead{r.leads.length !== 1 ? 's' : ''}</div>
+                            <div className="flex flex-wrap gap-3 mt-2">
+                              {won > 0 && <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Won: {won}</span>}
+                              {lost > 0 && <span className="inline-flex items-center gap-1 text-[11px] text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Lost: {lost}</span>}
+                              {expected > 0 && <span className="inline-flex items-center gap-1 text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Expected: {expected}</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Card>
+
+                <Card title="Outdoor (OD) Plans" description="Visit and travel plans across all team members.">
+                  {loadingOD ? (
+                    <div className="animate-pulse space-y-3">
+                      <div className="h-20 bg-slate-200 rounded-lg" />
+                      <div className="h-20 bg-slate-200 rounded-lg" />
+                    </div>
+                  ) : odPlanReports.length === 0 ? (
+                    <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
+                      <MapPin size={28} />
+                      <p className="text-sm">No OD plans.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {odPlanReports.map(r => {
+                        const visits = r.entries.filter(e => e.entry_type === 'visit' || e.entry_type === 'field_visit').length;
+                        const meetings = r.entries.filter(e => e.entry_type === 'meeting').length;
+                        const other = r.entries.length - visits - meetings;
+                        return (
+                          <div key={r.id} className="border border-slate-200 rounded-lg p-3">
+                            <div className="font-medium text-slate-800 text-sm">
+                              {new Date(r.year, r.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                            </div>
+                            <div className="text-xs text-slate-500 mt-1">{r.entries.length} entr{r.entries.length !== 1 ? 'ies' : 'y'}</div>
+                            <div className="flex flex-wrap gap-3 mt-2">
+                              {visits > 0 && <span className="inline-flex items-center gap-1 text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full"><MapPin size={11} /> Visits: {visits}</span>}
+                              {meetings > 0 && <span className="inline-flex items-center gap-1 text-[11px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full"><Users size={11} /> Meetings: {meetings}</span>}
+                              {other > 0 && <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full"><Activity size={11} /> Other: {other}</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Card>
+              </div>
+
+              {/* ── Team breakdown table ── */}
+              {filteredEmployees.length > 0 && (
+                <Card className="mb-6" title="Team Breakdown" description="Per-employee performance for the selected filter.">
+                  {loadingEmployeeStats ? (
+                    <div className="animate-pulse space-y-2">
+                      {[...Array(3)].map((_, i) => <div key={i} className="h-10 bg-slate-200 rounded" />)}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-200 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                            <th className="py-2 pr-4">Employee</th>
+                            <th className="py-2 pr-4">Target</th>
+                            <th className="py-2 pr-4">Achieved</th>
+                            <th className="py-2 pr-4">%</th>
+                            <th className="py-2 pr-4">Won</th>
+                            <th className="py-2 pr-2">Lost</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredEmployees.map(emp => {
+                            const st = employeeStats.get(emp.id);
+                            const target = st?.monthly_target ?? 0;
+                            const achieved = st?.achieved_this_month ?? 0;
+                            const pct = target > 0 ? Math.round((achieved / target) * 100) : null;
+                            return (
+                              <tr key={emp.id} className="border-b border-slate-100 hover:bg-slate-50">
+                                <td className="py-2 pr-4 font-medium text-slate-800">{emp.name}</td>
+                                <td className="py-2 pr-4 text-slate-900">{formatCurrency(target)}</td>
+                                <td className="py-2 pr-4 text-emerald-600">{formatCurrency(achieved)}</td>
+                                <td className="py-2 pr-4">
+                                  {pct !== null ? (
+                                    <span className={`text-xs font-semibold ${pct >= 100 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-rose-500'}`}>
+                                      {pct}%
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400">—</span>
+                                  )}
+                                </td>
+                                <td className="py-2 pr-4 text-emerald-600">{st?.won_leads_count_this_month ?? 0}</td>
+                                <td className="py-2 pr-2 text-rose-500">{st?.lost_leads_count_this_month ?? 0}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Card>
+              )}
+
+              {/* ── DSR (not available in aggregate) ── */}
+              <Card className="mb-6">
+                <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
+                  <ClipboardList size={28} />
+                  <p className="text-sm">Select a specific employee to view their DSR tasks.</p>
+                </div>
+              </Card>
+
+              {/* ── Summary (aggregate) ── */}
+              <Card title="Performance Summary" description="Aggregated metrics for the selected filter and period.">
+                <SummaryContent loading={loadingSummary} summary={summary} />
+              </Card>
+            </>
+          )}
+
+          {selectedEmployeeId && selectedEmployeeId !== ALL_ID && (
             <>
               {/* ── KPI cards load independently ── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -624,71 +1191,7 @@ export const MyTeamPage: React.FC = () => {
 
               {/* ── Summary (loads independently) ── */}
               <Card title="Performance Summary" description="Aggregated metrics for the selected period and employee.">
-                {loadingSummary ? (
-                  <div className="animate-pulse">
-                    <div className="grid grid-cols-5 gap-4 mb-4">
-                      {[...Array(5)].map((_, i) => <div key={i} className="h-24 bg-slate-200 rounded-lg" />)}
-                    </div>
-                  </div>
-                ) : summary ? (
-                  <>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
-                      <div className="bg-slate-50 rounded-lg p-3 text-center">
-                        <MessageSquare size={18} className="text-blue-500 mx-auto mb-1" />
-                        <p className="text-lg font-bold text-slate-900">{summary.inquiries_count}</p>
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Inquiries</p>
-                      </div>
-                      <div className="bg-slate-50 rounded-lg p-3 text-center">
-                        <FileText size={18} className="text-blue-500 mx-auto mb-1" />
-                        <p className="text-lg font-bold text-slate-900">{summary.quotations_sent_count}</p>
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Quotations</p>
-                      </div>
-                      <div className="bg-slate-50 rounded-lg p-3 text-center">
-                        <BarChart3 size={18} className="text-blue-500 mx-auto mb-1" />
-                        <p className="text-lg font-bold text-slate-900">{summary.leads_total}</p>
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Total Leads</p>
-                      </div>
-                      <div className="bg-slate-50 rounded-lg p-3 text-center">
-                        <Phone size={18} className="text-blue-500 mx-auto mb-1" />
-                        <p className="text-lg font-bold text-slate-900">{summary.total_contacts}</p>
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Contacts</p>
-                      </div>
-                      <div className="bg-slate-50 rounded-lg p-3 text-center">
-                        <Building2 size={18} className="text-blue-500 mx-auto mb-1" />
-                        <p className="text-lg font-bold text-slate-900">{summary.total_customers}</p>
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Customers</p>
-                      </div>
-                    </div>
-                    {summary.inquiries_by_type.length > 0 && (
-                      <div className="border-t border-slate-100 pt-4">
-                        <p className="text-xs font-semibold text-slate-600 mb-2">Inquiries by type</p>
-                        <div className="flex flex-wrap gap-2">
-                          {summary.inquiries_by_type.map(item => (
-                            <span key={item.activity_type} className="inline-flex items-center gap-1.5 text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
-                              <Activity size={11} /> {item.activity_type}: {item.count}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {summary.leads_by_status.length > 0 && (
-                      <div className="border-t border-slate-100 pt-4 mt-4">
-                        <p className="text-xs font-semibold text-slate-600 mb-2">Leads by status</p>
-                        <div className="flex flex-wrap gap-2">
-                          {summary.leads_by_status.map(item => (
-                            <span key={item.status_id} className="inline-flex items-center gap-1.5 text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
-                              <PieChart size={11} /> {item.status_label}: {item.count}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="py-6 text-center text-slate-400">
-                    <p className="text-sm">No summary data available.</p>
-                  </div>
-                )}
+                <SummaryContent loading={loadingSummary} summary={summary} />
               </Card>
             </>
           )}

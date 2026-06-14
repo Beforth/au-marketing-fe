@@ -5,16 +5,26 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-06-14] — Double-Submit Guard, Submission Deadlines, Superuser Fix (v1.0.8)
+## [2026-06-14] — My Team Pills, Performance Summary, Date Filters, Sync Button (v1.0.8)
 
 ### 🖥️ Frontend
 
 #### Bug Fixes
 - **Double-Submit Guard**: Added `useRef` submission lock to Organization, Contact, Customer, and Lead form pages — prevents duplicate records from rapid double-clicks.
 - **Superuser Contact Delete**: `selectHasPermission` now returns `true` for superusers — fixes 403 on contact deletion for admin accounts.
+- **DSR Crash Fix**: Null guard on cached DSR tasks, Expected Orders, and OD Plan reports — fixes crash when switching date presets on My Team page.
+- **Employee Data Cache**: Cache key now includes date range — fixes stale per-employee data when switching date presets.
+- **Loading Flash Fix**: Employee breakdown no longer shows ₹0 briefly on initial load.
 
 #### Features
 - **Submission Deadline Enforcement**: Expected Order and OD Plan pages now show an amber/red countdown banner when past the monthly deadline (2 days before month-end, 8:30 PM). Submit buttons are disabled and handlers blocked when overdue.
+- **Scope Filter Pills**: My Team page now has All / Domain / Region scope pills with aggregate KPI cards — shows combined Expected Orders, OD Plans, Performance Summary, and employee breakdown table per scope.
+- **Performance Summary in Aggregate View**: Merges per-employee report summaries into a single aggregate Performance Summary card when a scope pill is active.
+- **Team Breakdown Table**: New table in aggregate mode showing Employee, Target, Achieved, %, Won, Lost for each team member.
+- **"This Quarter" / "This Year" Date Filters**: Added quarterly and yearly date range presets across the dashboard.
+- **"My Data" Dropdown Option**: Top option in My Team employee selector shows the logged-in user's own performance stats.
+- **Dynamic Target Label**: KPI target label changes based on selected date range (Today's Target / Weekly Target / Monthly Target / Quarterly Target / Yearly Target).
+- **Sync Button**: New Sync button next to scope pills clears scope cache and refreshes employee list.
 
 ## [2026-06-13] — Marketing Employee Cache, HRMS Sync, Role Fixes (v1.0.7)
 

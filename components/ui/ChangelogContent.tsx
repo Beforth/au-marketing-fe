@@ -25,6 +25,9 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
               <li><strong>Double-Submit Guard:</strong> Added <code>useRef</code> submission lock to Organization, Contact, Customer, and Lead form pages — prevents duplicate records from rapid double-clicks.</li>
               <li><strong>Superuser Contact Delete:</strong> <code>selectHasPermission</code> now returns <code>true</code> for superusers — fixes 403 on contact deletion for admin accounts.</li>
+              <li><strong>DSR Crash Fix:</strong> Null guard on cached DSR tasks, Expected Orders, and OD Plan reports — fixes crash when switching date presets on My Team page.</li>
+              <li><strong>Employee Data Cache:</strong> Cache key now includes date range — fixes stale per-employee data when switching date presets.</li>
+              <li><strong>Loading Flash Fix:</strong> Employee breakdown no longer shows ₹0 briefly on initial load.</li>
             </ul>
           </section>
 
@@ -32,6 +35,13 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
             <h4 className="text-sm font-bold text-slate-900">Features</h4>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
               <li><strong>Submission Deadline Enforcement:</strong> Expected Order and OD Plan pages now show an amber/red countdown banner when past the monthly deadline (2 days before month-end, 8:30 PM). Submit buttons are disabled and handlers blocked when overdue.</li>
+              <li><strong>Scope Filter Pills:</strong> My Team page now has All / Domain / Region scope pills with aggregate KPI cards — shows combined Expected Orders, OD Plans, Performance Summary, and employee breakdown table per scope.</li>
+              <li><strong>Performance Summary in Aggregate View:</strong> Merges per-employee report summaries into a single aggregate Performance Summary card when a scope pill is active.</li>
+              <li><strong>Team Breakdown Table:</strong> New table in aggregate mode showing Employee, Target, Achieved, %, Won, Lost for each team member.</li>
+              <li><strong>"This Quarter" / "This Year" Date Filters:</strong> Added quarterly and yearly date range presets across the dashboard.</li>
+              <li><strong>"My Data" Dropdown Option:</strong> Top option in My Team employee selector shows the logged-in user's own performance stats.</li>
+              <li><strong>Dynamic Target Label:</strong> KPI target label changes based on selected date range (Today's Target / Weekly Target / Monthly Target / Quarterly Target / Yearly Target).</li>
+              <li><strong>Sync Button:</strong> New Sync button next to scope pills clears scope cache and refreshes employee list.</li>
             </ul>
           </section>
         </div>
