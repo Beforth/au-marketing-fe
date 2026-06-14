@@ -1808,8 +1808,8 @@ export interface ReportScopeResponse {
   employees: ReportableEmployee[];
   role: 'self' | 'region_head' | 'domain_head' | 'super_admin';
   is_domain_coordinator?: boolean;
-  domains: { id: number; name: string }[];
-  regions: { id: number; name: string }[];
+  domains?: { id: number; name: string }[];
+  regions?: { id: number; name: string }[];
 }
 export interface InquiriesByTypeItem {
   activity_type: string;

@@ -657,9 +657,9 @@ export const MyTeamPage: React.FC = () => {
             )}
             {/* ── Scope filter pills ── */}
             {!loadingScope && scope && (
-              (scope.role === 'super_admin' && (scope.domains.length > 0 || scope.regions.length > 0)) ||
-              (scope.role === 'domain_head' && scope.domains.length > 0) ||
-              (scope.role === 'region_head' && scope.regions.length > 0)
+              (scope.role === 'super_admin' && ((scope.domains?.length ?? 0) > 0 || (scope.regions?.length ?? 0) > 0)) ||
+              (scope.role === 'domain_head' && (scope.domains?.length ?? 0) > 0) ||
+              (scope.role === 'region_head' && (scope.regions?.length ?? 0) > 0)
             ) && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <button
@@ -673,7 +673,7 @@ export const MyTeamPage: React.FC = () => {
                 >
                   All
                 </button>
-                {(scope.role === 'super_admin' || scope.role === 'domain_head') && scope.domains.map(d => {
+                {(scope.role === 'super_admin' || scope.role === 'domain_head') && scope.domains?.map(d => {
                   const isActive = scopeFilter?.type === 'domain' && scopeFilter.domainId === d.id;
                   return (
                     <button
@@ -697,7 +697,7 @@ export const MyTeamPage: React.FC = () => {
                     </button>
                   );
                 })}
-                {(scope.role === 'super_admin' || scope.role === 'region_head') && scope.regions.map(r => {
+                {(scope.role === 'super_admin' || scope.role === 'region_head') && scope.regions?.map(r => {
                   const isActive = scopeFilter?.type === 'region' && scopeFilter.regionId === r.id;
                   return (
                     <button
