@@ -96,6 +96,7 @@ export const LeadFormPage: React.FC = () => {
   };
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -1125,7 +1126,11 @@ export const LeadFormPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.domain_id) {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      if (!formData.domain_id) {
       showToast('Domain is required', 'error');
       return;
     }
@@ -1141,24 +1146,22 @@ export const LeadFormPage: React.FC = () => {
       const matched = regions.find(r => r.code.toUpperCase() === selectedCountryCode.toUpperCase());
       if (matched) {
         effectiveRegionId = matched.id;
-      } else {
-        setIsSubmitting(true);
-        try {
-          const countryOpt = countryOptions.find(o => o.value === selectedCountryCode);
-          const countryName = countryOpt ? countryOpt.name : selectedCountryCode;
-          const newRegion = await marketingAPI.createRegion({
-            domain_id: effectiveDomainId,
-            name: countryName,
-            code: selectedCountryCode.toUpperCase(),
-            is_active: true
-          });
-          setRegions(prev => [...prev, newRegion]);
-          effectiveRegionId = newRegion.id;
-        } catch (regionErr: any) {
-          showToast(regionErr.message || 'Failed to auto-create region for the selected country', 'error');
-          setIsSubmitting(false);
-          return;
-        }
+        } else {
+          try {
+            const countryOpt = countryOptions.find(o => o.value === selectedCountryCode);
+            const countryName = countryOpt ? countryOpt.name : selectedCountryCode;
+            const newRegion = await marketingAPI.createRegion({
+              domain_id: effectiveDomainId,
+              name: countryName,
+              code: selectedCountryCode.toUpperCase(),
+              is_active: true
+            });
+            setRegions(prev => [...prev, newRegion]);
+            effectiveRegionId = newRegion.id;
+          } catch (regionErr: any) {
+            showToast(regionErr.message || 'Failed to auto-create region for the selected country', 'error');
+            return;
+          }
       }
     }
     const referredByContactSubmit = referredByType === 'contact';
@@ -1172,7 +1175,6 @@ export const LeadFormPage: React.FC = () => {
         return;
       }
 
-      setIsSubmitting(true);
       try {
         let organization_id = selectedOrganization?.id || inlineContactForm.organization_id;
         let plant_id = formData.plant_id ?? inlineContactForm.plant_id;
@@ -1225,14 +1227,12 @@ export const LeadFormPage: React.FC = () => {
         effectiveRegionId = formData.region_id;
       } catch (err: any) {
         showToast(err?.message || 'Failed to create entities', 'error');
-        setIsSubmitting(false);
         return;
       }
     }
 
     // When Lead through = Through contact and user added a new referrer contact inline, create it before saving lead
     if (referredByContactSubmit && !effectiveThroughContactId && (inlineThroughContactForm.first_name?.trim() || inlineThroughContactForm.last_name?.trim()) && effectiveDomainId) {
-      setIsSubmitting(true);
       try {
         let throughOrgId = inlineThroughContactForm.organization_id ?? undefined;
         let throughPlantId = inlineThroughContactForm.plant_id ?? undefined;
@@ -1282,7 +1282,6 @@ export const LeadFormPage: React.FC = () => {
         effectiveThroughContactId = throughContact.id;
       } catch (err: any) {
         showToast(err?.message || 'Failed to create referrer contact', 'error');
-        setIsSubmitting(false);
         return;
       }
     }
@@ -1322,7 +1321,6 @@ export const LeadFormPage: React.FC = () => {
       (payload as any).initial_inquiry_at = initialInquiryIso;
     }
 
-    setIsSubmitting(true);
     try {
       if (isValidId) {
         await marketingAPI.updateLead(leadId, payload as UpdateLeadRequest);
@@ -1367,8 +1365,10 @@ export const LeadFormPage: React.FC = () => {
       }
     } catch (error: any) {
       showToast(error.message || `Failed to ${isEdit ? 'update' : 'create'} lead`, 'error');
+    }
     } finally {
       setIsSubmitting(false);
+      submittingRef.current = false;
     }
   };
 

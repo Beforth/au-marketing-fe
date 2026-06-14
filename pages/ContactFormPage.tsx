@@ -41,6 +41,7 @@ export const ContactFormPage: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [domainRegionCollapsed, setDomainRegionCollapsed] = useState(true);
@@ -257,23 +258,24 @@ export const ContactFormPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!formData.first_name?.trim() || !formData.last_name?.trim()) {
-      showToast('First name and last name are required', 'error');
-      return;
-    }
-    const fullPhone = serializePhoneWithCountryCode(contactPhoneCountryCode, contactPhonePart);
-    if (!fullPhone?.trim()) {
-      showToast('Phone number is required', 'error');
-      return;
-    }
-    if (!formData.domain_id) {
-      showToast('Domain is required', 'error');
-      return;
-    }
-
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
+      if (!formData.first_name?.trim() || !formData.last_name?.trim()) {
+        showToast('First name and last name are required', 'error');
+        return;
+      }
+      const fullPhone = serializePhoneWithCountryCode(contactPhoneCountryCode, contactPhonePart);
+      if (!fullPhone?.trim()) {
+        showToast('Phone number is required', 'error');
+        return;
+      }
+      if (!formData.domain_id) {
+        showToast('Domain is required', 'error');
+        return;
+      }
+
       let organization_id = formData.organization_id;
       let plant_id = formData.plant_id;
 
@@ -320,6 +322,7 @@ export const ContactFormPage: React.FC = () => {
       showToast(error.message || `Failed to ${isEdit ? 'update' : 'create'} contact`, 'error');
     } finally {
       setIsSubmitting(false);
+      submittingRef.current = false;
     }
   };
 

@@ -8,14 +8,43 @@ export const ChangelogContent: React.FC<ChangelogContentProps> = ({ appVersion }
   return (
     <div className="space-y-10 text-sm text-slate-700 max-h-[70vh] overflow-y-auto pr-3 scrollbar-thin">
       
-      {/* ==================== VERSION 1.0.7 (June 13, 2026) ==================== */}
+      {/* ==================== VERSION 1.0.8 (June 14, 2026) ==================== */}
       <div className="space-y-4">
         <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
           <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-blue-700 bg-blue-50 border border-blue-100 rounded-lg">
             Version {appVersion}
           </span>
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-            June 13, 2026 (Latest)
+            June 14, 2026 (Latest)
+          </span>
+        </div>
+
+        <div className="space-y-6 pl-4 border-l-2 border-blue-100">
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Bug Fixes</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Double-Submit Guard:</strong> Added <code>useRef</code> submission lock to Organization, Contact, Customer, and Lead form pages — prevents duplicate records from rapid double-clicks.</li>
+              <li><strong>Superuser Contact Delete:</strong> <code>selectHasPermission</code> now returns <code>true</code> for superusers — fixes 403 on contact deletion for admin accounts.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold text-slate-900">Features</h4>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+              <li><strong>Submission Deadline Enforcement:</strong> Expected Order and OD Plan pages now show an amber/red countdown banner when past the monthly deadline (2 days before month-end, 8:30 PM). Submit buttons are disabled and handlers blocked when overdue.</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+
+      {/* ==================== VERSION 1.0.7 (June 13, 2026) ==================== */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+          <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-blue-700 bg-blue-50 border border-blue-100 rounded-lg">
+            Version v1.0.7
+          </span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            June 13, 2026
           </span>
         </div>
 

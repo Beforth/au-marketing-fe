@@ -192,9 +192,9 @@ export const MyTeamPage: React.FC = () => {
     if (cached) {
       setTargetStats(cached.targetStats);
       setSummary(cached.summary);
-      setExpectedOrderReports(cached.expectedOrderReports);
-      setODPlanReports(cached.odPlanReports);
-      setDSRTasks(cached.dsrTasks);
+      setExpectedOrderReports(cached.expectedOrderReports ?? []);
+      setODPlanReports(cached.odPlanReports ?? []);
+      setDSRTasks(cached.dsrTasks ?? []);
       return;
     }
 

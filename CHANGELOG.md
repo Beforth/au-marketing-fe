@@ -5,6 +5,17 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-06-14] — Double-Submit Guard, Submission Deadlines, Superuser Fix (v1.0.8)
+
+### 🖥️ Frontend
+
+#### Bug Fixes
+- **Double-Submit Guard**: Added `useRef` submission lock to Organization, Contact, Customer, and Lead form pages — prevents duplicate records from rapid double-clicks.
+- **Superuser Contact Delete**: `selectHasPermission` now returns `true` for superusers — fixes 403 on contact deletion for admin accounts.
+
+#### Features
+- **Submission Deadline Enforcement**: Expected Order and OD Plan pages now show an amber/red countdown banner when past the monthly deadline (2 days before month-end, 8:30 PM). Submit buttons are disabled and handlers blocked when overdue.
+
 ## [2026-06-13] — Marketing Employee Cache, HRMS Sync, Role Fixes (v1.0.7)
 
 ### 🖥️ Frontend

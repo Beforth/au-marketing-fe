@@ -41,6 +41,7 @@ export const CustomerFormPage: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [primaryContactContactId, setPrimaryContactContactId] = useState<number | null>(null);
@@ -264,22 +265,25 @@ export const CustomerFormPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const companyOrOrgName = (formData.company_name || orgSearchQuery || newOrgForm.name || '').trim();
-    if (!companyOrOrgName && !formData.organization_id) {
-      showToast('Company / organization name is required', 'error');
-      return;
-    }
-    if (!formData.domain_id || !formData.region_id) {
-      showToast('Domain and region are required', 'error');
-      return;
-    }
-    const inlineContactFilled = createContactForm.first_name?.trim() && createContactForm.last_name?.trim() && serializePhoneWithCountryCode(createContactForm.phone_country_code, createContactForm.contact_phone)?.trim();
-    if (!primaryContactContactId && !inlineContactFilled) {
-      showToast('Please link an existing contact or fill the contact details below to create one on save', 'error');
-      return;
-    }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
+      const companyOrOrgName = (formData.company_name || orgSearchQuery || newOrgForm.name || '').trim();
+      if (!companyOrOrgName && !formData.organization_id) {
+        showToast('Company / organization name is required', 'error');
+        return;
+      }
+      if (!formData.domain_id || !formData.region_id) {
+        showToast('Domain and region are required', 'error');
+        return;
+      }
+      const inlineContactFilled = createContactForm.first_name?.trim() && createContactForm.last_name?.trim() && serializePhoneWithCountryCode(createContactForm.phone_country_code, createContactForm.contact_phone)?.trim();
+      if (!primaryContactContactId && !inlineContactFilled) {
+        showToast('Please link an existing contact or fill the contact details below to create one on save', 'error');
+        return;
+      }
+
       let organization_id = formData.organization_id;
       let plant_id = formData.plant_id;
       let company_name = formData.company_name?.trim() || '';
@@ -350,6 +354,7 @@ export const CustomerFormPage: React.FC = () => {
       showToast(error.message || `Failed to ${isEdit ? 'update' : 'create'} customer`, 'error');
     } finally {
       setIsSubmitting(false);
+      submittingRef.current = false;
     }
   };
 

@@ -1,7 +1,7 @@
 /**
  * Organization Form – Create or edit organization; when editing, list/add plants.
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -72,6 +72,7 @@ export const OrganizationFormPage: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [formData, setFormData] = useState<Partial<Organization>>({
     name: '',
     code: '',
@@ -144,12 +145,14 @@ export const OrganizationFormPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name?.trim()) {
-      showToast('Organization name is required', 'error');
-      return;
-    }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
+      if (!formData.name?.trim()) {
+        showToast('Organization name is required', 'error');
+        return;
+      }
       if (isEdit && id) {
         await marketingAPI.updateOrganization(parseInt(id), formData);
         showToast('Organization updated', 'success');
@@ -166,6 +169,7 @@ export const OrganizationFormPage: React.FC = () => {
       showToast(e.message || 'Failed to save organization', 'error');
     } finally {
       setIsSubmitting(false);
+      submittingRef.current = false;
     }
   };
 

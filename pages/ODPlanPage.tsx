@@ -11,12 +11,14 @@ import { Modal } from '../components/ui/Modal';
 import { marketingAPI } from '../lib/marketing-api';
 import type { ODPlanEntryItem, ODPlanEntryCreate, ODPlanReportItem, Contact, Plant } from '../lib/marketing-api';
 import { useApp } from '../App';
+import { getSubmissionDeadline } from '../lib/deadline-utils';
 import { Tooltip } from '../UI/Tooltip';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, INDUSTRY_OPTIONS } from '../constants';
 import { serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   Edit3,
@@ -64,6 +66,8 @@ export const ODPlanPage: React.FC = () => {
   }, []);
   const year = yearParam ? parseInt(yearParam, 10) : nextMonth.year;
   const month = monthParam ? parseInt(monthParam, 10) : nextMonth.month;
+
+  const deadline = getSubmissionDeadline();
 
   const [report, setReport] = useState<ODPlanReportItem | null>(null);
   const [entries, setEntries] = useState<ODPlanEntryItem[]>([]);
@@ -346,6 +350,10 @@ export const ODPlanPage: React.FC = () => {
   };
 
   const persistEntries = useCallback(async (updatedEntries: ODPlanEntryItem[]) => {
+    if (deadline.isPast) {
+      showToast(deadline.message, 'error');
+      return;
+    }
     setSaving(true);
     try {
       const payload: ODPlanEntryCreate[] = updatedEntries.map((e) => ({
@@ -465,7 +473,11 @@ export const ODPlanPage: React.FC = () => {
           </Card>
         ) : (
           <div className="space-y-4">
-            {/* Month navigation + daving indicator */}
+            <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm ${deadline.isPast ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
+              <AlertCircle size={16} className="shrink-0" />
+              <span>{deadline.message}</span>
+            </div>
+            {/* Month navigation + saving indicator */}
             <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-3">
               <button
                 type="button"

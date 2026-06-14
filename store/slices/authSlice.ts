@@ -374,6 +374,7 @@ export const selectUserInitials = (state: { auth: AuthState }) => {
 };
 
 export const selectHasPermission = (permissionCode: string) => (state: { auth: AuthState }) => {
+  if (state.auth.user?.is_superuser) return true;
   const code = permissionCode?.trim();
   if (!code) return false;
   return state.auth.permissions.includes(code);

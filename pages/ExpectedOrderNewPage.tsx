@@ -6,7 +6,8 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { marketingAPI, Lead, leadDisplayName, leadDisplayCompany } from '../lib/marketing-api';
 import { useApp } from '../App';
-import { ArrowLeft, Calendar, Check, Loader2, Search } from 'lucide-react';
+import { getSubmissionDeadline } from '../lib/deadline-utils';
+import { AlertCircle, ArrowLeft, Calendar, Check, Loader2, Search } from 'lucide-react';
 
 export const ExpectedOrderNewPage: React.FC = () => {
   const { showToast } = useApp();
@@ -22,6 +23,8 @@ export const ExpectedOrderNewPage: React.FC = () => {
     d.setMonth(d.getMonth() + 1);
     return { year: d.getFullYear(), month: d.getMonth() + 1 };
   })();
+
+  const deadline = getSubmissionDeadline();
 
   const loadLeads = useCallback(async () => {
     setLoading(true);
@@ -61,6 +64,10 @@ export const ExpectedOrderNewPage: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    if (deadline.isPast) {
+      showToast(deadline.message, 'error');
+      return;
+    }
     if (selectedIds.size === 0) {
       showToast('Select at least one lead', 'error');
       return;
@@ -97,6 +104,10 @@ export const ExpectedOrderNewPage: React.FC = () => {
         </Button>
       }
     >
+      <div className={`mb-4 flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm ${deadline.isPast ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
+        <AlertCircle size={16} className="shrink-0" />
+        <span>{deadline.message}</span>
+      </div>
       <Card>
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 text-slate-700">
@@ -176,7 +187,7 @@ export const ExpectedOrderNewPage: React.FC = () => {
               <Button
                 size="sm"
                 leftIcon={submitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                disabled={selectedIds.size === 0 || submitting}
+                disabled={selectedIds.size === 0 || submitting || deadline.isPast}
                 onClick={handleSubmit}
               >
                 {submitting ? 'Creating…' : `Create report with ${selectedIds.size} lead(s)`}
