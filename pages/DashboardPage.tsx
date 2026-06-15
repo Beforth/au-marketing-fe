@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../App';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { ChangelogModal } from '../components/ChangelogModal';
+import { VersionsModal } from '../components/VersionsModal';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { PageLayout } from '../components/layout/PageLayout';
@@ -1906,7 +1906,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
         className="text-[10px] font-medium text-slate-400 hover:text-blue-600 transition-colors cursor-pointer ml-1"
         title="View changelog"
       >
-        v1.0.6
+        v1.0.9
       </button>
     </div>
   );
@@ -2063,7 +2063,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
           </div>
         </div>
 
-          <ChangelogModal isOpen={showChangelog} onClose={() => setShowChangelog(false)} />
+          <VersionsModal isOpen={showChangelog} onClose={() => setShowChangelog(false)} />
 {/* Create saved dashboard modal */}
           {showCreateDashboardModal && (
             <Modal

@@ -119,9 +119,9 @@ export const ReportsPage: React.FC = () => {
       {/* Report-for filter */}
       {loadingScope ? (
         <Card className="mb-6">
-          <div className="animate-pulse space-y-3">
-            <div className="h-4 w-16 bg-slate-200 rounded" />
-            <div className="h-9 w-56 bg-slate-200 rounded" />
+          <div className="flex items-center gap-2.5 py-4">
+            <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest leading-none">Loading scope...</span>
           </div>
         </Card>
       ) : (
@@ -166,9 +166,9 @@ export const ReportsPage: React.FC = () => {
         {/* Expected order reports list */}
         <Card title="Expected order reports" description="Next month potential clients (selected leads).">
           {loadingExpected ? (
-            <div className="animate-pulse space-y-3">
-              <div className="h-24 bg-slate-200 rounded-lg" />
-              <div className="h-24 bg-slate-200 rounded-lg" />
+            <div className="py-12 text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+              <p className="mt-3 text-slate-500 text-sm font-medium">Loading expected order reports...</p>
             </div>
           ) : expectedOrderReports.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
@@ -210,9 +210,9 @@ export const ReportsPage: React.FC = () => {
         {/* OD plan reports list */}
         <Card title="Outdoor (OD) plans" description="Monthly visit / travel / return plans.">
           {loadingOD ? (
-            <div className="animate-pulse space-y-3">
-              <div className="h-24 bg-slate-200 rounded-lg" />
-              <div className="h-24 bg-slate-200 rounded-lg" />
+            <div className="py-12 text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+              <p className="mt-3 text-slate-500 text-sm font-medium">Loading outdoor plans...</p>
             </div>
           ) : odPlanReports.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-6 text-slate-400">

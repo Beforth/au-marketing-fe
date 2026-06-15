@@ -5,6 +5,38 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-06-15] — Dynamic Version Changelog System with Admin CRUD (v1.0.9)
+
+### 🖥️ Frontend
+
+#### Features
+- **Dynamic Versions Modal**: Replaced the static hardcoded modal with a dynamic overlay that fetches releases from the database. Shows the latest version by default with an inline button to expand historical releases.
+- **Markdown Text Parsing**: Compiles standard inline markdown syntax like `**bold text**` and `` `code blocks` `` into high-fidelity React DOM strong/code tags.
+- **Admin CRUD Interface**: Added a "Versions" tab under Settings (restricted to admins) to manage releases: adding, editing, and deleting versions, sections, and bullet points directly from the UI.
+- **Component Cleanup**: Deleted all deprecated static duplicates (`ChangelogContent.tsx`, `ChangelogModal.tsx`, `changelog.ts`).
+
+### ⚙️ Backend (API)
+
+#### Features
+- **Whats New Router**: Implemented endpoints `POST /`, `PUT /{id}`, and `DELETE /{id}` to enable versions CRUD operations. Guarded endpoints to admin role check.
+- **Model Unique Constraint**: Removed `unique=True` from `version` column and added a composite `UniqueConstraint` on `(version, release_date)` to support identical version codes released on different dates.
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `components/VersionsModal.tsx` | New — dynamic scrollable modal, parses markdown, paginates history |
+| `components/ui/VersionsSettings.tsx` | New — admin versions management panel |
+| `au-marketing-api/app/routers/whats_new.py` | Added CRUD REST API endpoints (POST, PUT, DELETE) |
+| `au-marketing-api/app/schemas.py` | Added Pydantic body validation schemas |
+| `au-marketing-api/app/models.py` | Updated constraints to support composite unique keys |
+| `lib/marketing-api.ts` | Added REST CRUD methods and return interfaces |
+| `pages/SettingsPage.tsx` | Integrated Versions management tab behind admin permission check |
+| `pages/DashboardPage.tsx` | Replaced legacy modal, bumped version tag |
+| `components/ui/Sidebar.tsx` | Replaced legacy modal, bumped version tag |
+| `.server-operator/populate_changelog.serop` | New — server operator instruction script |
+
+---
+
 ## [2026-06-14] — My Team Pills, Performance Summary, Date Filters, Sync Button (v1.0.8)
 
 ### 🖥️ Frontend

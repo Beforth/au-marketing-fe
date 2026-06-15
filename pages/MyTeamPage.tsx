@@ -137,10 +137,9 @@ function mergeSummaries(summaries: ReportSummaryResponse[]): ReportSummaryRespon
 const SummaryContent: React.FC<{ loading: boolean; summary: ReportSummaryResponse | null }> = ({ loading, summary }) => {
   if (loading) {
     return (
-      <div className="animate-pulse">
-        <div className="grid grid-cols-5 gap-4 mb-4">
-          {[...Array(5)].map((_, i) => <div key={i} className="h-24 bg-slate-200 rounded-lg" />)}
-        </div>
+      <div className="py-8 flex flex-col items-center justify-center">
+        <div className="inline-block animate-spin rounded-full h-7 w-7 border-2 border-blue-600 border-t-transparent" />
+        <p className="mt-2 text-xs text-slate-500 font-medium">Loading performance summary...</p>
       </div>
     );
   }
@@ -672,11 +671,11 @@ export const MyTeamPage: React.FC = () => {
             </div>
 
             {loadingScope ? (
-              <div className="animate-pulse mt-4">
-                <div className="h-4 w-16 bg-slate-200 rounded mb-2" />
-                <div className="h-9 w-56 bg-slate-200 rounded" />
-              </div>
-            ) : (
+            <div className="flex items-center gap-2.5 py-4 mt-2">
+              <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest leading-none">Loading team scope...</span>
+            </div>
+          ) : (
               <div className="mt-4 flex flex-wrap items-end gap-4">
                 {scope?.can_select_employee && filteredEmployees.length > 0 ? (
                   <div className="flex flex-col gap-1 min-w-[220px]">
@@ -805,9 +804,8 @@ export const MyTeamPage: React.FC = () => {
                     <Target size={14} /> {targetLabel}
                   </div>
                   {loadingTarget ? (
-                    <div className="animate-pulse space-y-2">
-                      <div className="h-6 w-20 bg-slate-200 rounded" />
-                      <div className="h-1.5 w-full bg-slate-200 rounded" />
+                    <div className="py-2 flex items-center justify-center">
+                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
                     </div>
                   ) : targetStats ? (
                     <>
@@ -832,8 +830,8 @@ export const MyTeamPage: React.FC = () => {
                     <TrendingUp size={14} /> Achieved
                   </div>
                   {loadingTarget ? (
-                    <div className="animate-pulse">
-                      <div className="h-6 w-20 bg-slate-200 rounded" />
+                    <div className="py-2 flex items-center justify-center">
+                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
                     </div>
                   ) : targetStats ? (
                     <>
@@ -851,8 +849,8 @@ export const MyTeamPage: React.FC = () => {
                     <Trophy size={14} /> Won
                   </div>
                   {loadingTarget ? (
-                    <div className="animate-pulse">
-                      <div className="h-6 w-12 bg-slate-200 rounded" />
+                    <div className="py-2 flex items-center justify-center">
+                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
                     </div>
                   ) : (
                     <p className="text-xl font-bold text-emerald-600">{targetStats?.won_leads_count_this_month ?? '—'}</p>
@@ -865,8 +863,8 @@ export const MyTeamPage: React.FC = () => {
                     <XCircle size={14} /> Lost
                   </div>
                   {loadingTarget ? (
-                    <div className="animate-pulse">
-                      <div className="h-6 w-12 bg-slate-200 rounded" />
+                    <div className="py-2 flex items-center justify-center">
+                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
                     </div>
                   ) : (
                     <p className="text-xl font-bold text-rose-500">{targetStats?.lost_leads_count_this_month ?? '—'}</p>
@@ -882,9 +880,9 @@ export const MyTeamPage: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <Card title="Expected Orders" description="Leads expected to close across all team members.">
                   {loadingExpected ? (
-                    <div className="animate-pulse space-y-3">
-                      <div className="h-20 bg-slate-200 rounded-lg" />
-                      <div className="h-20 bg-slate-200 rounded-lg" />
+                    <div className="py-12 flex flex-col items-center justify-center gap-2">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+                      <p className="text-xs text-slate-500 font-medium">Loading expected orders...</p>
                     </div>
                   ) : expectedOrderReports.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
@@ -917,9 +915,9 @@ export const MyTeamPage: React.FC = () => {
 
                 <Card title="Outdoor (OD) Plans" description="Visit and travel plans across all team members.">
                   {loadingOD ? (
-                    <div className="animate-pulse space-y-3">
-                      <div className="h-20 bg-slate-200 rounded-lg" />
-                      <div className="h-20 bg-slate-200 rounded-lg" />
+                    <div className="py-12 flex flex-col items-center justify-center gap-2">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+                      <p className="text-xs text-slate-500 font-medium">Loading outdoor plans...</p>
                     </div>
                   ) : odPlanReports.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
@@ -955,8 +953,9 @@ export const MyTeamPage: React.FC = () => {
               {filteredEmployees.length > 0 && (
                 <Card className="mb-6" title="Team Breakdown" description="Per-employee performance for the selected filter.">
                   {loadingEmployeeStats ? (
-                    <div className="animate-pulse space-y-2">
-                      {[...Array(3)].map((_, i) => <div key={i} className="h-10 bg-slate-200 rounded" />)}
+                    <div className="py-12 flex flex-col items-center justify-center gap-2">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+                      <p className="text-xs text-slate-500 font-medium">Loading team breakdown...</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -1028,9 +1027,8 @@ export const MyTeamPage: React.FC = () => {
                       <Target size={14} /> Target
                     </div>
                     {loadingTarget ? (
-                      <div className="animate-pulse space-y-2">
-                        <div className="h-6 w-20 bg-slate-200 rounded" />
-                        <div className="h-1.5 w-full bg-slate-200 rounded" />
+                      <div className="py-2 flex items-center justify-center">
+                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
                       </div>
                     ) : (
                       <>
@@ -1056,8 +1054,8 @@ export const MyTeamPage: React.FC = () => {
                       <TrendingUp size={14} /> Achieved
                     </div>
                     {loadingTarget ? (
-                      <div className="animate-pulse">
-                        <div className="h-6 w-20 bg-slate-200 rounded" />
+                      <div className="py-2 flex items-center justify-center">
+                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
                       </div>
                     ) : (
                       <>
@@ -1078,8 +1076,8 @@ export const MyTeamPage: React.FC = () => {
                       <Trophy size={14} /> Won
                     </div>
                     {loadingTarget ? (
-                      <div className="animate-pulse">
-                        <div className="h-6 w-12 bg-slate-200 rounded" />
+                      <div className="py-2 flex items-center justify-center">
+                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
                       </div>
                     ) : (
                       <>
@@ -1100,8 +1098,8 @@ export const MyTeamPage: React.FC = () => {
                       <XCircle size={14} /> Lost
                     </div>
                     {loadingTarget ? (
-                      <div className="animate-pulse">
-                        <div className="h-6 w-12 bg-slate-200 rounded" />
+                      <div className="py-2 flex items-center justify-center">
+                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
                       </div>
                     ) : (
                       <p className="text-xl font-bold text-rose-500">
@@ -1116,9 +1114,9 @@ export const MyTeamPage: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <Card title="Expected Orders" description="Leads expected to close in the selected period.">
                   {loadingExpected ? (
-                    <div className="animate-pulse space-y-3">
-                      <div className="h-20 bg-slate-200 rounded-lg" />
-                      <div className="h-20 bg-slate-200 rounded-lg" />
+                    <div className="py-12 flex flex-col items-center justify-center gap-2">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+                      <p className="text-xs text-slate-500 font-medium">Loading expected orders...</p>
                     </div>
                   ) : expectedOrderReports.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
@@ -1151,9 +1149,9 @@ export const MyTeamPage: React.FC = () => {
 
                 <Card title="Outdoor (OD) Plans" description="Visit and travel plans for the selected period.">
                   {loadingOD ? (
-                    <div className="animate-pulse space-y-3">
-                      <div className="h-20 bg-slate-200 rounded-lg" />
-                      <div className="h-20 bg-slate-200 rounded-lg" />
+                    <div className="py-12 flex flex-col items-center justify-center gap-2">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+                      <p className="text-xs text-slate-500 font-medium">Loading outdoor plans...</p>
                     </div>
                   ) : odPlanReports.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
@@ -1195,9 +1193,9 @@ export const MyTeamPage: React.FC = () => {
                   className={dsrSpan === 1 ? 'lg:col-span-1' : 'lg:col-span-2'}
                 >
                   {loadingDSR ? (
-                    <div className="animate-pulse space-y-3">
-                      <div className="h-16 bg-slate-200 rounded-lg" />
-                      <div className="h-16 bg-slate-200 rounded-lg" />
+                    <div className="py-12 flex flex-col items-center justify-center gap-2">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+                      <p className="text-xs text-slate-500 font-medium">Loading DSR tasks...</p>
                     </div>
                   ) : dsrTasks.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-6 text-slate-400">

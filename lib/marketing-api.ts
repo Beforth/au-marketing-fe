@@ -1772,6 +1772,36 @@ class MarketingAPIService {
   async updateMarketingSettings(payload: MarketingSettingsPayload): Promise<MarketingSettingsPayload> {
     return apiClient.put<MarketingSettingsPayload>('/api/marketing/settings', payload);
   }
+
+  // What's New / Versions CRUD
+  async getWhatsNew(): Promise<ChangelogVersionResponse[]> {
+    return apiClient.get<ChangelogVersionResponse[]>('/api/whats-new/');
+  }
+
+  async createWhatsNew(data: Omit<ChangelogVersionResponse, 'id' | 'created_at'>): Promise<ChangelogVersionResponse> {
+    return apiClient.post<ChangelogVersionResponse>('/api/whats-new/', data);
+  }
+
+  async updateWhatsNew(id: number, data: Omit<ChangelogVersionResponse, 'id' | 'created_at'>): Promise<ChangelogVersionResponse> {
+    return apiClient.put<ChangelogVersionResponse>(`/api/whats-new/${id}`, data);
+  }
+
+  async deleteWhatsNew(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/whats-new/${id}`);
+  }
+}
+
+export interface ChangelogSection {
+  title: string;
+  items: string[];
+}
+
+export interface ChangelogVersionResponse {
+  id: number;
+  version: string;
+  release_date: string;
+  sections: ChangelogSection[];
+  created_at: string;
 }
 
 export interface QuotationListItem {

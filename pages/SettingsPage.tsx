@@ -19,8 +19,10 @@ import {
   Fingerprint,
   Settings,
   Users,
+  Tag,
 } from 'lucide-react';
 import { useApp } from '../App';
+import { VersionsSettings } from '../components/ui/VersionsSettings';
 import { PageLayout } from '../components/layout/PageLayout';
 import {
   Button,
@@ -52,7 +54,7 @@ import { marketingAPI, AuditLog, MarketingEmployee } from '../lib/marketing-api'
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type SettingsTab = 'Profile' | 'Audit Logs';
+type SettingsTab = 'Profile' | 'Audit Logs' | 'Versions';
 
 export const SettingsPage: React.FC = () => {
   const { showToast } = useApp();
@@ -439,9 +441,14 @@ export const SettingsPage: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {logsLoading ? (
-                  Array.from({ length: 6 }).map((_, i) => (
-                    <TableRow key={i}><TableCell colSpan={4} className="py-2 px-3"><div className="h-4 w-full bg-slate-50 animate-pulse rounded-md" /></TableCell></TableRow>
-                  ))
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-12">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
+                        <p className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">Loading audit logs...</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : logs.length === 0 ? (
                   <TableRow><TableCell colSpan={4} className="h-40 text-center text-slate-300 text-xs font-semibold uppercase tracking-[0.2em] opacity-30">Null Result</TableCell></TableRow>
                 ) : (
@@ -495,6 +502,13 @@ export const SettingsPage: React.FC = () => {
           </div>
         );
 
+      case 'Versions':
+        return (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <VersionsSettings />
+          </div>
+        );
+
       default:
         return (
           <div className="py-20 flex flex-col items-center justify-center text-center opacity-40">
@@ -511,6 +525,7 @@ export const SettingsPage: React.FC = () => {
   const tabs: { label: SettingsTab; icon: any }[] = [
     { label: 'Profile', icon: User },
     { label: 'Audit Logs', icon: History },
+    { label: 'Versions', icon: Tag },
   ];
 
   const breadcrumbs: BreadcrumbItem[] = [
@@ -528,7 +543,7 @@ export const SettingsPage: React.FC = () => {
         {/* Horizontal Navigation Control */}
         <div className="flex items-center justify-between gap-4 py-1 border-b border-slate-100 mb-2">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth">
-            {tabs.filter(t => t.label !== 'Audit Logs' || canViewAuditLogs).map((item) => (
+            {tabs.filter(t => (t.label !== 'Audit Logs' || canViewAuditLogs) && (t.label !== 'Versions' || canSyncHRMS)).map((item) => (
               <button
                 key={item.label}
                 onClick={() => setActiveTab(item.label)}

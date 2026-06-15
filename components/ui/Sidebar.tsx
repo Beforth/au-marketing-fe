@@ -5,8 +5,7 @@ import { SIDEBAR_LINKS, SECONDARY_LINKS } from '../../constants';
 import { NavItem } from '../../types';
 import { useAppSelector } from '../../store/hooks';
 import { selectUserDisplayName, selectUserInitials, selectEmployee, selectUser, selectHasPermission } from '../../store/slices/authSlice';
-import { Modal } from './Modal';
-import { ChangelogContent } from './ChangelogContent';
+import { VersionsModal } from '../VersionsModal';
 import { ChevronDown, ShieldCheck, Hash, Users } from 'lucide-react';
 
 
@@ -17,7 +16,7 @@ export const Sidebar: React.FC = () => {
   const userInitials = useAppSelector(selectUserInitials);
   const employee = useAppSelector(selectEmployee);
   const user = useAppSelector(selectUser);
-  const appVersion = 'v1.0.8';
+  const appVersion = 'v1.0.9';
   const changelogSeenKey = useMemo(
     () => `marketing_changelog_seen_${appVersion}_${user?.id ?? 'anon'}`,
     [appVersion, user?.id]
@@ -235,23 +234,10 @@ export const Sidebar: React.FC = () => {
         </div>
       </div>
 
-      <Modal
+      <VersionsModal
         isOpen={showChangelog}
         onClose={closeChangelog}
-        title={`Changelog ${appVersion}`}
-        contentClassName="max-w-6xl"
-        footer={
-          <button
-            type="button"
-            onClick={closeChangelog}
-            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-700 active:scale-95 animate-pulse"
-          >
-            Looks good, close changelog
-          </button>
-        }
-      >
-        <ChangelogContent appVersion={appVersion} />
-      </Modal>
+      />
     </aside>
   );
 };

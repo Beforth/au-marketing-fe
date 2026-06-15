@@ -1031,21 +1031,17 @@ export const DomainsPage: React.FC = () => {
               View and manage the marketing hierarchy: domain heads, region heads, and region employees. Set employee targets (rolled up to region and domain), and optionally set explicit yearly goals per region or domain. Use 0 on a region/domain goal to clear it.
             </p>
             {targetSummaryLoading && (
-              <div className="flex items-center gap-2 text-xs text-slate-500 animate-pulse py-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
+              <div className="flex items-center gap-2 text-xs text-slate-500 py-1">
+                <div className="inline-block animate-spin rounded-full h-3 w-3 border border-blue-600 border-t-transparent" />
                 <span>Syncing target calculations…</span>
               </div>
             )}
 
             {/* Target Progress Card */}
             {scopeStatsLoading ? (
-              <Card className="p-3 animate-pulse border border-slate-100 bg-white shadow-sm mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <div className="h-4 bg-slate-200 rounded w-1/4" />
-                  <div className="h-4 bg-slate-200 rounded w-1/6" />
-                </div>
-                <div className="h-3 bg-slate-100 rounded-full w-full mb-2" />
-                <div className="h-3 bg-slate-50 rounded w-full" />
+              <Card className="p-6 border border-slate-100 bg-white shadow-sm mb-4 flex flex-col items-center justify-center gap-2">
+                <div className="inline-block animate-spin rounded-full h-7 w-7 border-2 border-blue-600 border-t-transparent" />
+                <p className="text-xs text-slate-500 font-medium">Loading target progress...</p>
               </Card>
             ) : scopeStats ? (() => {
               const targetVal = scopeStats.monthly_target;
@@ -1334,13 +1330,9 @@ export const DomainsPage: React.FC = () => {
 
             {/* Quotation Submitted Progress Card (4x stretch target) */}
             {scopeStatsLoading ? (
-              <Card className="p-3 animate-pulse border border-slate-100 bg-white shadow-sm mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <div className="h-4 bg-slate-200 rounded w-1/4" />
-                  <div className="h-4 bg-slate-200 rounded w-1/6" />
-                </div>
-                <div className="h-3 bg-slate-100 rounded-full w-full mb-2" />
-                <div className="h-3 bg-slate-50 rounded w-full" />
+              <Card className="p-6 border border-slate-100 bg-white shadow-sm mb-4 flex flex-col items-center justify-center gap-2">
+                <div className="inline-block animate-spin rounded-full h-7 w-7 border-2 border-blue-600 border-t-transparent" />
+                <p className="text-xs text-slate-500 font-medium">Loading quotation progress...</p>
               </Card>
             ) : scopeStats ? (() => {
               const qTarget = scopeStats.monthly_target;

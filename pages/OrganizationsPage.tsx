@@ -17,12 +17,14 @@ import { marketingAPI, Organization, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from
 import { NavLink } from 'react-router-dom';
 import { Users, UserCircle, Search, Plus, Edit, Trash2, Building2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { Tooltip } from '../UI/Tooltip';
 
 export const OrganizationsPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useApp();
   const underDatabase = location.pathname.startsWith('/database');
+  const canView = useAppSelector(selectHasPermission('marketing.view_organization'));
   const canCreate = useAppSelector(selectHasPermission('marketing.create_organization'));
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_organization'));
   const canDelete = useAppSelector(selectHasPermission('marketing.delete_organization'));
@@ -55,8 +57,9 @@ export const OrganizationsPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!canView) return;
     loadData();
-  }, [page, pageSize, searchTerm]);
+  }, [canView, page, pageSize, searchTerm]);
 
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
@@ -84,6 +87,24 @@ export const OrganizationsPage: React.FC = () => {
   const breadcrumbs = underDatabase
     ? [{ label: 'Database', href: '/database' }, { label: 'Organizations', href: '/database/organizations' }]
     : [{ label: 'Organizations', href: '/organizations' }];
+
+  if (!canView) {
+    return (
+      <PageLayout
+        title="Organizations"
+        breadcrumbs={breadcrumbs}
+        description="Manage organizations and their plants. Select an organization when adding a customer or contact."
+      >
+        <Card>
+          <div className="text-center py-12">
+            <p className="text-slate-600">You do not have permission to view organizations.</p>
+            <p className="text-sm text-slate-500 mt-2">Required permission: marketing.view_organization</p>
+          </div>
+        </Card>
+      </PageLayout>
+    );
+  }
+
   return (
     <PageLayout
       title="Organizations"
@@ -200,33 +221,35 @@ export const OrganizationsPage: React.FC = () => {
                   sortable: false,
                   align: 'right',
                   render: (o) => (
-                    <div className="flex items-center justify-end gap-1.5">
+                    <div className="flex items-center justify-end gap-1">
                       {canEdit && (
-                        <Button
-                          variant="outline"
-                          size="xxs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/organizations/${o.id}/edit`);
-                          }}
-                          title="Edit"
-                        >
-                          <Edit size={12} strokeWidth={2.5} />
-                        </Button>
+                        <Tooltip content="Edit Organization">
+                          <Button
+                            variant="ghost"
+                            size="xxs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/organizations/${o.id}/edit`);
+                            }}
+                          >
+                            <Edit size={12} />
+                          </Button>
+                        </Tooltip>
                       )}
                       {canDelete && (
-                        <Button
-                          variant="outline"
-                          size="xxs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteId(o.id);
-                          }}
-                          className="text-rose-600 hover:text-rose-700 hover:border-rose-300"
-                          title="Delete"
-                        >
-                          <Trash2 size={12} strokeWidth={2.5} />
-                        </Button>
+                        <Tooltip content="Delete Organization">
+                          <Button
+                            variant="ghost"
+                            size="xxs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteId(o.id);
+                            }}
+                            className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                          >
+                            <Trash2 size={12} />
+                          </Button>
+                        </Tooltip>
                       )}
                     </div>
                   ),

@@ -18,6 +18,7 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { NavLink } from 'react-router-dom';
 import { Database, Users, UserCircle, Search, UserPlus, Filter, Edit, Trash2, Eye, Building2, Mail, Phone, MapPin, X } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { Tooltip } from '../UI/Tooltip';
 import { DataTable } from '../components/ui/DataTable';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
@@ -352,31 +353,33 @@ export const ContactsPage: React.FC = () => {
                   render: (contact) => (
                     <div className="flex items-center justify-end gap-1">
                       {canEdit && (
-                        <Button
-                          variant="ghost"
-                          size="xxs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/contacts/${contact.id}/edit`);
-                          }}
-                          title="Edit Contact"
-                        >
-                          <Edit size={12} />
-                        </Button>
+                        <Tooltip content="Edit Contact">
+                          <Button
+                            variant="ghost"
+                            size="xxs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/contacts/${contact.id}/edit`);
+                            }}
+                          >
+                            <Edit size={12} />
+                          </Button>
+                        </Tooltip>
                       )}
                       {canDelete && !contact.is_converted && (
-                        <Button
-                          variant="ghost"
-                          size="xxs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openDeleteContactConfirm(contact.id);
-                          }}
-                          className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                          title="Delete Contact"
-                        >
-                          <Trash2 size={12} />
-                        </Button>
+                        <Tooltip content="Delete Contact">
+                          <Button
+                            variant="ghost"
+                            size="xxs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDeleteContactConfirm(contact.id);
+                            }}
+                            className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                          >
+                            <Trash2 size={12} />
+                          </Button>
+                        </Tooltip>
                       )}
                     </div>
                   ),

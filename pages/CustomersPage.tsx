@@ -14,6 +14,7 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { NavLink } from 'react-router-dom';
 import { Users, UserCircle, Search, UserPlus, Building2, Edit, Trash2, User, Mail, Filter, X } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { Tooltip } from '../UI/Tooltip';
 import { SearchInput } from '../components/ui/SearchInput';
 import { DataTable } from '../components/ui/DataTable';
 import { Pagination } from '../components/ui/Pagination';
@@ -255,16 +256,20 @@ export const CustomersPage: React.FC = () => {
                   align: 'right',
                   render: (c) =>
                     canEdit ? (
-                      <Button
-                        variant="outline"
-                        size="xxs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/customers/${c.id}/edit`);
-                        }}
-                      >
-                        <Edit size={12} />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Tooltip content="Edit Customer">
+                          <Button
+                            variant="ghost"
+                            size="xxs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/customers/${c.id}/edit`);
+                            }}
+                          >
+                            <Edit size={12} />
+                          </Button>
+                        </Tooltip>
+                      </div>
                     ) : null,
                 },
               ]}

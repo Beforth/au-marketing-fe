@@ -242,7 +242,6 @@ const AppMain: React.FC = () => {
               <Route index element={<DashboardPage />} />
               <Route path="employees" element={<EmployeesPage />} />
               <Route path="database" element={<DatabaseLayout />}>
-                <Route index element={<Navigate to="organizations" replace />} />
                 <Route path="organizations" element={<OrganizationsPage />} />
                 <Route path="customers" element={<CustomersPage />} />
                 <Route path="contacts" element={<ContactsPage />} />
