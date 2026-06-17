@@ -22,7 +22,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Edit3,
-  Loader2,
   Plus,
   Save,
   Trash2,
@@ -468,7 +467,7 @@ export const ODPlanPage: React.FC = () => {
         {loading ? (
           <Card>
             <div className="flex items-center gap-2 py-8 text-slate-500 justify-center">
-              <Loader2 size={20} className="animate-spin" /> Loading…
+              <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-1" /> Loading…
             </div>
           </Card>
         ) : (
@@ -491,7 +490,7 @@ export const ODPlanPage: React.FC = () => {
                   {new Date(year, month - 1).toLocaleString('default', { month: 'long' })} {year}
                 </span>
                 {saving && (
-                  <Loader2 size={14} className="animate-spin text-slate-400" />
+                  <div className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-slate-400" />
                 )}
               </div>
               <button

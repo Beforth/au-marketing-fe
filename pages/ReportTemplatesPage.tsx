@@ -416,7 +416,7 @@ export const ReportTemplatesPage: React.FC = () => {
         </div>
       ) : loading ? (
         <div className="flex items-center justify-center py-12">
-          <RefreshCw size={24} className="animate-spin text-slate-400" />
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
         </div>
       ) : (
         <div className="space-y-4">
@@ -503,7 +503,7 @@ export const ReportTemplatesPage: React.FC = () => {
             <Card title={selectedTemplate.name} description={selectedTemplate.description ?? undefined}>
               {detailLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <RefreshCw size={20} className="animate-spin text-slate-400" />
+                  <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
                 </div>
               ) : (
                 <div className="space-y-6">

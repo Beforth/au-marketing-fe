@@ -75,6 +75,9 @@ export const loadAuthFromStorage = createAsyncThunk(
         const userData = JSON.parse(savedUserData);
         const permissions = Array.isArray(userData.permissions) ? userData.permissions : [];
         await fetchAndStoreMarketingScope();
+        if (!localStorage.getItem('auth_token')) {
+          return null;
+        }
         return {
           token: savedToken,
           user: userData.user ?? null,
@@ -102,6 +105,9 @@ export const loadAuthFromStorage = createAsyncThunk(
         };
         localStorage.setItem('auth_user_data', JSON.stringify(freshData));
         await fetchAndStoreMarketingScope();
+        if (!localStorage.getItem('auth_token')) {
+          return null;
+        }
         return { token: savedToken, ...freshData };
       }
     } catch {
@@ -189,6 +195,9 @@ export const refreshUserInfo = createAsyncThunk(
         };
         localStorage.setItem('auth_user_data', JSON.stringify(freshData));
         await fetchAndStoreMarketingScope();
+        if (!localStorage.getItem('auth_token')) {
+          return null;
+        }
         return { token, ...freshData };
       }
     } catch {

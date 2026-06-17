@@ -10,7 +10,7 @@ import { hrmsRBACClient, DSRTask } from '../lib/hrms-rbac';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectToken } from '../store/slices/authSlice';
-import { ClipboardList, CheckCircle2, Clock, Users, Package, RefreshCw, Calendar, ArrowRight, FileText, Loader2 } from 'lucide-react';
+import { ClipboardList, CheckCircle2, Clock, Users, Package, RefreshCw, Calendar, ArrowRight, FileText } from 'lucide-react';
 
 type DatePreset = 'today' | 'this_week' | 'this_month' | 'custom';
 
@@ -262,8 +262,8 @@ export const DSRPage: React.FC = () => {
       {/* ── DSR Tasks ── */}
       <Card title="DSR Tasks" description={`${filteredDSR.length} task${filteredDSR.length !== 1 ? 's' : ''} in selected period.`} className="mb-6">
         {loadingDSR ? (
-          <div className="flex items-center gap-2 py-8 text-slate-500">
-            <Loader2 size={18} className="animate-spin" /> Loading…
+          <div className="flex items-center gap-2 py-8 text-slate-500 justify-center">
+            <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-1" /> Loading…
           </div>
         ) : filteredDSR.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-8 text-slate-400">
@@ -312,8 +312,8 @@ export const DSRPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card title="Inquiry Log — Leads" description="Leads created or updated in the selected period.">
           {loadingLeads ? (
-            <div className="flex items-center gap-2 py-8 text-slate-500">
-              <Loader2 size={18} className="animate-spin" /> Loading leads…
+            <div className="flex items-center gap-2 py-8 text-slate-500 justify-center">
+              <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-1" /> Loading leads…
             </div>
           ) : leads.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
@@ -366,8 +366,8 @@ export const DSRPage: React.FC = () => {
 
         <Card title="Inquiry Log — Orders" description="Recent orders from won leads.">
           {loadingOrders ? (
-            <div className="flex items-center gap-2 py-8 text-slate-500">
-              <Loader2 size={18} className="animate-spin" /> Loading orders…
+            <div className="flex items-center gap-2 py-8 text-slate-500 justify-center">
+              <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-1" /> Loading orders…
             </div>
           ) : orders.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-6 text-slate-400">

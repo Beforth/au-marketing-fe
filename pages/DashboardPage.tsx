@@ -111,27 +111,171 @@ function packLayout(layout: WidgetConfig[]): WidgetConfig[] {
   return result;
 }
 
+import { History, Tag, Sparkles, Bug } from 'lucide-react';
+
+function DashboardAuditLogsWidget() {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    marketingAPI.getAuditLogs({ page: 1, page_size: 5 })
+      .then(res => setLogs(res.items || []))
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-4 space-y-4">
+        {Array.from({ length: 3 }).map((_, idx) => (
+          <div key={idx} className="flex gap-3 animate-pulse">
+            <div className="size-8 rounded-full bg-slate-200 shrink-0" />
+            <div className="flex-1 space-y-1.5 py-1">
+              <div className="h-3 bg-slate-200 rounded w-1/3" />
+              <div className="h-2.5 bg-slate-100 rounded w-5/6" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (logs.length === 0) {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center text-slate-400 gap-1">
+        <History size={24} />
+        <p className="text-xs font-semibold">No recent logs found</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 space-y-4 max-h-[300px] overflow-y-auto customize-scrollbar">
+      {logs.map((log) => {
+        const action = log.action?.toLowerCase() || '';
+        const isDanger = action.includes('delete') || action.includes('remove');
+        const isSuccess = action.includes('create') || action.includes('add') || action.includes('won') || action.includes('convert');
+        return (
+          <div key={log.id} className="flex items-start gap-3 text-xs border-b border-slate-50 pb-3 last:border-0 last:pb-0">
+            <div className={cn(
+              "size-7 rounded-lg flex items-center justify-center font-bold text-[10px] shrink-0 border uppercase shadow-sm",
+              isDanger ? "bg-rose-50 text-rose-600 border-rose-100" :
+              isSuccess ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+              "bg-blue-50 text-blue-600 border-blue-100"
+            )}>
+              {log.action?.slice(0, 3)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-slate-800 truncate">{log.employee_name || 'System'}</span>
+                <span className="text-[10px] text-slate-400 whitespace-nowrap">{new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+              <p className="text-slate-600 text-[11px] mt-0.5 leading-normal truncate" title={log.details || ''}>
+                <span className="font-bold text-slate-900 uppercase text-[9px] mr-1 px-1 bg-slate-100 rounded border border-slate-200/50">{log.entity_type.split('_').join(' ')}</span>
+                {log.details || `ID: ${log.entity_id || 'n/a'}`}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DashboardChangelogWidget() {
+  const [versions, setVersions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    marketingAPI.getWhatsNew()
+      .then(res => setVersions(res || []))
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-4 space-y-4">
+        <div className="h-5 bg-slate-200 rounded w-24 mb-3 animate-pulse" />
+        {Array.from({ length: 3 }).map((_, idx) => (
+          <div key={idx} className="h-3 bg-slate-100 rounded w-4/5 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (versions.length === 0) {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center text-slate-400 gap-1">
+        <Tag size={24} />
+        <p className="text-xs font-semibold">No version updates found</p>
+      </div>
+    );
+  }
+
+  const latest = versions[0];
+  return (
+    <div className="p-4 space-y-3 max-h-[300px] overflow-y-auto customize-scrollbar">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+        <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-blue-700 bg-blue-50 border border-blue-100 rounded-md">
+          v{latest.version}
+        </span>
+        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
+          Released {latest.release_date}
+        </span>
+      </div>
+      <div className="space-y-3">
+        {latest.sections?.slice(0, 2).map((section: any) => (
+          <div key={section.title} className="space-y-1">
+            <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
+              {section.title.toLowerCase().includes('bug') ? (
+                <Bug size={11} className="text-rose-500" />
+              ) : (
+                <Sparkles size={11} className="text-amber-500" />
+              )}
+              {section.title}
+            </h4>
+            <ul className="list-disc pl-4 space-y-1 text-slate-600 text-[11px] leading-relaxed">
+              {section.items?.slice(0, 3).map((item: string, itemIdx: number) => {
+                const text = item.replace(/\*\*(.*?)\*\*/g, '$1').replace(/`(.*?)`/g, '$1');
+                return <li key={itemIdx}>{text}</li>;
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const WIDGET_TYPE_OPTIONS: { value: DashboardWidgetType; label: string }[] = [
-  { value: 'target-card', label: 'Target (this month)' },
-  { value: 'leads-by-region', label: 'Leads by region' },
-  { value: 'head-summary', label: 'Head summary' },
-  { value: 'quotation-submitted-chart', label: 'Quotations submitted (by region)' },
-  { value: 'target-achieved-chart', label: 'Chart: Target vs achieved' },
-  { value: 'won-lost-chart', label: 'Chart: Won vs lost' },
-  { value: 'leads-by-status-chart', label: 'Chart: Leads by status' },
-  { value: 'inquiries-quotations-chart', label: 'Chart: Inquiries & quotations' },
-  { value: 'revenue-chart', label: 'Chart: Revenue / overview' },
-  { value: 'goal-chart', label: 'Activity / goal' },
-  { value: 'activity-table', label: 'Table: Recent leads' },
-  { value: 'global-reach', label: 'Quick links' },
-  { value: 'bar_chart', label: 'Bar chart' },
-  { value: 'pie_chart', label: 'Pie chart' },
-  { value: 'area_chart', label: 'Area chart' },
-  { value: 'table', label: 'Table' },
-  { value: 'custom_code', label: 'Custom / code' },
-  { value: 'custom_sql', label: 'Custom SQL chart' },
-  { value: 'stat', label: 'Stat card' },
-  { value: 'performer-of-month', label: 'Performer of the month' },
+  // ── READY-MADE WIDGETS ──
+  { value: 'target-card', label: 'Ready-Made: Monthly Target Progress' },
+  { value: 'head-summary', label: 'Ready-Made: Regional Head Summary' },
+  { value: 'performer-of-month', label: 'Ready-Made: Performer of the Month' },
+  { value: 'activity-table', label: 'Ready-Made: Recent Leads (Table)' },
+  { value: 'global-reach', label: 'Ready-Made: Quick Links Navigation' },
+  { value: 'audit-logs', label: 'Ready-Made: Recent Audit Logs (Timeline)' },
+  { value: 'changelog', label: 'Ready-Made: What\'s New (Release Notes)' },
+  
+  // ── READY-MADE CHARTS ──
+  { value: 'leads-by-region', label: 'Chart: Leads by Region (Bar Chart)' },
+  { value: 'quotation-submitted-chart', label: 'Chart: Quotations Submitted (Bar Chart)' },
+  { value: 'target-achieved-chart', label: 'Chart: Target vs Achieved (Bar Chart)' },
+  { value: 'won-lost-chart', label: 'Chart: Won vs Lost Leads (Pie Chart)' },
+  { value: 'leads-by-status-chart', label: 'Chart: Leads by Status (Pie Chart)' },
+  { value: 'inquiries-quotations-chart', label: 'Chart: Inquiries & Quotations (Bar Chart)' },
+  { value: 'revenue-chart', label: 'Chart: Revenue Overview (Area Chart)' },
+  { value: 'goal-chart', label: 'Chart: Activity & Goal Tracking' },
+
+  // ── CUSTOM SQL / CODE BUILDERS ──
+  { value: 'bar_chart', label: 'Custom Builder: Bar Chart (SQL/Code)' },
+  { value: 'pie_chart', label: 'Custom Builder: Pie Chart (SQL/Code)' },
+  { value: 'area_chart', label: 'Custom Builder: Area Chart (SQL/Code)' },
+  { value: 'table', label: 'Custom Builder: Table (SQL/Code)' },
+  { value: 'stat', label: 'Custom Builder: Stat Card (SQL/Code)' },
+  { value: 'custom_code', label: 'Custom Builder: HTML/JS Card' },
+  { value: 'custom_sql', label: 'Custom Builder: SQL Query Chart' },
 ];
 
 const AI_SCOPE_OPTIONS = [
@@ -1141,6 +1285,18 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
 
     switch (widgetType) {
 
+      case 'audit-logs':
+        return (
+          <Card key={config.id} {...commonProps} title={config.title || "Recent Audit Logs"} description="Timeline of latest system actions.">
+            <DashboardAuditLogsWidget />
+          </Card>
+        );
+      case 'changelog':
+        return (
+          <Card key={config.id} {...commonProps} title={config.title || "What's New"} description="Latest version updates and release notes.">
+            <DashboardChangelogWidget />
+          </Card>
+        );
       case 'leads-by-region':
         if (!isHeadRole || !headSummary?.region_breakdown.length) {
           return (
@@ -1221,7 +1377,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
         return (
           <Card key={config.id} {...commonProps} title="Head summary" description={headSummary ? `Region-wise split and key metrics for ${new Date(headSummary.year, headSummary.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.` : 'Region-wise split and key metrics.'}>
             {headSummaryLoading ? (
-              <div className="p-6 flex items-center justify-center text-slate-500"><RefreshCw size={24} className="animate-spin" /></div>
+              <div className="p-6 flex items-center justify-center text-slate-500"><div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" /></div>
             ) : headSummary ? (
               <div className="p-4 space-y-4">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1740,7 +1896,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
           >
             {performerLoading ? (
               <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white border border-slate-200/50">
-                <RefreshCw size={16} className="animate-spin text-slate-400 shrink-0" />
+                <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-slate-400 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[9px] font-black uppercase tracking-widest text-slate-300 truncate">Top Performer</p>
                   <p className="text-xl font-black text-slate-300 mt-0.5">—</p>
@@ -1877,7 +2033,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
         className="p-1.5 text-slate-300 hover:text-blue-500 transition-all active:rotate-180 duration-500"
         title="Refresh"
       >
-        <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+        {loading ? <div className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-blue-600" /> : <RefreshCw size={15} />}
       </button>
 
       <Button
@@ -2011,7 +2167,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
         </div>
       ) : loading ? (
         <div className="flex items-center justify-center py-16">
-          <RefreshCw size={24} className="animate-spin text-slate-400" />
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
         </div>
       ) : (
         <>
@@ -2243,7 +2399,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                 <div className="border-t border-slate-200 pt-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Current assignments</p>
                   {assignmentsLoading ? (
-                    <div className="text-sm text-slate-500 flex items-center gap-2"><RefreshCw size={14} className="animate-spin" /> Loading...</div>
+                    <div className="text-sm text-slate-500 flex items-center gap-2"><div className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-blue-600" /> Loading...</div>
                   ) : savedDashboardAssignments.length === 0 ? (
                     <p className="text-sm text-slate-500">No assignments yet.</p>
                   ) : (
@@ -2484,7 +2640,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                     {(sqlPreviewLoading || sqlPreviewError || sqlPreviewData.length > 0) && (
                       <div className="mt-3 rounded-lg border border-slate-200 bg-white">
                         {sqlPreviewLoading ? (
-                          <div className="p-3 text-sm text-slate-500 flex items-center gap-2"><RefreshCw size={14} className="animate-spin" /> Loading preview...</div>
+                          <div className="p-3 text-sm text-slate-500 flex items-center gap-2"><div className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-blue-600" /> Loading preview...</div>
                         ) : (
                           <>
                             {sqlPreviewCompiledSql && (

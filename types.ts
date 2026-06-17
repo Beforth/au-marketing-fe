@@ -75,7 +75,9 @@ export type DashboardWidgetType =
   | 'activity-table'
   | 'global-reach'
   | 'custom_sql'
-  | 'performer-of-month';
+  | 'performer-of-month'
+  | 'audit-logs'
+  | 'changelog';
 
 export interface WidgetConfig {
   id: string;

@@ -5,7 +5,7 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { Button } from '../components/ui/Button';
 import { marketingAPI } from '../lib/marketing-api';
 import type { SchemaResponse } from '../lib/marketing-api';
-import { Database, Table2, Copy, Check, Loader2, ExternalLink, LayoutDashboard } from 'lucide-react';
+import { Database, Table2, Copy, Check, ExternalLink, LayoutDashboard } from 'lucide-react';
 import { useApp } from '../App';
 
 type Tab = 'tables' | 'er';
@@ -68,7 +68,7 @@ export const SchemaPage: React.FC = () => {
     return (
       <PageLayout title="Database schema" description="Tables and columns for Custom SQL widgets.">
         <div className="flex items-center gap-2 text-slate-500">
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
           Loading schema…
         </div>
       </PageLayout>

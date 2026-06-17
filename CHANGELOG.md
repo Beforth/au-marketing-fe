@@ -5,7 +5,7 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-06-15] — Dynamic Version Changelog System with Admin CRUD (v1.0.9)
+## [2026-06-15] — Dynamic Version Changelog System with Admin CRUD, System-Wide Audit Logging & Dashboard Widgets (v1.0.9)
 
 ### 🖥️ Frontend
 
@@ -13,6 +13,10 @@ Format: `[Date] — Category: Description`
 - **Dynamic Versions Modal**: Replaced the static hardcoded modal with a dynamic overlay that fetches releases from the database. Shows the latest version by default with an inline button to expand historical releases.
 - **Markdown Text Parsing**: Compiles standard inline markdown syntax like `**bold text**` and `` `code blocks` `` into high-fidelity React DOM strong/code tags.
 - **Admin CRUD Interface**: Added a "Versions" tab under Settings (restricted to admins) to manage releases: adding, editing, and deleting versions, sections, and bullet points directly from the UI.
+- **Audit Logs Tab in Settings**: Added a new "Audit Logs" tab displaying a timeline of all user actions across the app. Redesigned with custom table-row skeletons (`animate-pulse`), a Lucide-history empty state, font-black uppercase headers, and active click scaling.
+- **Versions Modal Shimmer**: Replaced the versions modal spinning loader with a premium, brand-colored shimmer sweep animation (`#eff6ff` and `#dbeafe`).
+- **My Team Localized Shimmer Loader**: Replaced page-wide loaders and card spinners with localized, inline brand shimmers on target metrics, summary items, list blocks, and dropdown selectors to keep the layout visible during loading.
+- **Dashboard Widget Improvements**: Restructured the Add Widget dropdown to group and separate Ready-Made widgets from custom Builders. Exposed the new **Recent Audit Logs (Timeline)** and **What's New (Release Notes)** directly as dashboard widgets with custom skeleton loaders.
 - **Component Cleanup**: Deleted all deprecated static duplicates (`ChangelogContent.tsx`, `ChangelogModal.tsx`, `changelog.ts`).
 
 ### ⚙️ Backend (API)
@@ -20,19 +24,27 @@ Format: `[Date] — Category: Description`
 #### Features
 - **Whats New Router**: Implemented endpoints `POST /`, `PUT /{id}`, and `DELETE /{id}` to enable versions CRUD operations. Guarded endpoints to admin role check.
 - **Model Unique Constraint**: Removed `unique=True` from `version` column and added a composite `UniqueConstraint` on `(version, release_date)` to support identical version codes released on different dates.
+- **Audit Logs API Router**: Created the `AuditLog` model, Pydantic schemas, and endpoints `GET /api/audit-logs/` with pagination and filters (entity type, actor, action, date range). Guarded behind permissions.
+- **Isolated Thread-Safe Logging Utility**: Implemented `log_action` helper working with isolated database connections (`SessionLocal`) to log events without affecting primary transactions.
+- **System-Wide Logging Triggers**: Integrated audit triggers in settings, leads, orders, campaigns, customers, and contacts write operations (CRUD and conversions).
 
 ### 📁 Files Changed
 | File | Change |
 |------|--------|
-| `components/VersionsModal.tsx` | New — dynamic scrollable modal, parses markdown, paginates history |
+| `components/VersionsModal.tsx` | New — dynamic scrollable modal, parses markdown, paginates history, shimmer sweep loading |
 | `components/ui/VersionsSettings.tsx` | New — admin versions management panel |
 | `au-marketing-api/app/routers/whats_new.py` | Added CRUD REST API endpoints (POST, PUT, DELETE) |
 | `au-marketing-api/app/schemas.py` | Added Pydantic body validation schemas |
-| `au-marketing-api/app/models.py` | Updated constraints to support composite unique keys |
-| `lib/marketing-api.ts` | Added REST CRUD methods and return interfaces |
-| `pages/SettingsPage.tsx` | Integrated Versions management tab behind admin permission check |
-| `pages/DashboardPage.tsx` | Replaced legacy modal, bumped version tag |
-| `components/ui/Sidebar.tsx` | Replaced legacy modal, bumped version tag |
+| `au-marketing-api/app/models.py` | Updated constraints to support composite unique keys, added `AuditLog` model |
+| `au-marketing-api/app/audit_utils.py` | New — isolated db helper for log_action event tracking |
+| `au-marketing-api/app/routers/audit_logs.py` | New — audit log paginated filtering endpoints |
+| `au-marketing-api/app/routers/customers.py` | Hooked CRUD trigger audits |
+| `au-marketing-api/app/routers/contacts.py` | Hooked CRUD + conversion trigger audits |
+| `lib/marketing-api.ts` | Added REST CRUD methods and return interfaces for changelog and audit logs |
+| `pages/SettingsPage.tsx` | Integrated Versions management tab & aligned Audit Logs tab with skeletons/animations |
+| `pages/DashboardPage.tsx` | Bumped version, restructured widget dropdown, added Audit Logs & What's New widgets |
+| `pages/MyTeamPage.tsx` | Replaced page-wide loaders and card spinners with localized brand shimmers |
+| `components/ui/Sidebar.tsx` | Bumped version tag |
 | `.server-operator/populate_changelog.serop` | New — server operator instruction script |
 
 ---

@@ -10,7 +10,7 @@ import { Select } from '../components/ui/Select';
 import { marketingAPI, QuotationListItem, QuotationLeadOption } from '../lib/marketing-api';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { Download, ExternalLink, Loader2, Search, X } from 'lucide-react';
+import { Download, ExternalLink, Search, X } from 'lucide-react';
 import { Tooltip } from '../UI/Tooltip';
 import { SearchInput } from '../components/ui/SearchInput';
 
@@ -87,7 +87,7 @@ export const EnquiryQuotationsPage: React.FC = () => {
       <Card>
         {loading ? (
           <div className="flex items-center gap-2 py-8 text-slate-500">
-            <Loader2 size={18} className="animate-spin" /> Loading…
+            <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-1" /> Loading…
           </div>
         ) : quotations.length === 0 ? (
           <p className="py-8 text-sm text-slate-500">No quotations yet. Add quotations in a lead’s History tab (enquiry log).</p>

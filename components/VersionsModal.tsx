@@ -82,9 +82,47 @@ export const VersionsModal: React.FC<VersionsModalProps> = ({ isOpen, onClose })
     >
       <div className="space-y-6 text-sm text-slate-700 max-h-[65vh] overflow-y-auto pr-3 scrollbar-thin">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <RefreshCw size={24} className="animate-spin text-blue-500" />
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Loading version logs…</p>
+          <div className="space-y-6">
+            <style>{`
+              @keyframes shimmer-sweep {
+                0% {
+                  background-position: -200% 0;
+                }
+                100% {
+                  background-position: 200% 0;
+                }
+              }
+              .shimmer-block {
+                background: linear-gradient(90deg, #eff6ff 25%, #dbeafe 50%, #eff6ff 75%);
+                background-size: 200% 100%;
+                animation: shimmer-sweep 1.5s infinite linear;
+              }
+            `}</style>
+            
+            {/* Version & Date Header Skeleton */}
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-2">
+              <div className="h-6 rounded-lg w-28 shimmer-block" />
+              <div className="h-4 rounded-lg w-36 shimmer-block" />
+            </div>
+
+            {/* Section Lists Skeleton */}
+            <div className="space-y-6 pl-4 border-l-2 border-slate-100/80">
+              <div className="space-y-3">
+                <div className="h-4 rounded-md w-32 shimmer-block" />
+                <div className="space-y-2">
+                  <div className="h-3 rounded-md w-5/6 shimmer-block" />
+                  <div className="h-3 rounded-md w-4/6 shimmer-block" />
+                  <div className="h-3 rounded-md w-3/4 shimmer-block" />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="h-4 rounded-md w-24 shimmer-block" />
+                <div className="space-y-2">
+                  <div className="h-3 rounded-md w-4/5 shimmer-block" />
+                  <div className="h-3 rounded-md w-2/3 shimmer-block" />
+                </div>
+              </div>
+            </div>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-16 px-4 rounded-2xl border border-red-100 bg-red-50/50 gap-4 text-center">

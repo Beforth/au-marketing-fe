@@ -565,6 +565,8 @@ export const DomainsPage: React.FC = () => {
   const [q3Stats, setQ3Stats] = useState<ScopeTargetStats | null>(null);
   const [q4Stats, setQ4Stats] = useState<ScopeTargetStats | null>(null);
 
+  const isLoading = reviewLoading || scopeStatsLoading || targetSummaryLoading;
+
   useEffect(() => {
     if (!canView) {
       showToast('You do not have permission to view domains', 'error');
@@ -1005,7 +1007,6 @@ export const DomainsPage: React.FC = () => {
   const breadcrumbs = [
     { label: 'Domains' },
   ];
-
   const actions = (
     <div className="flex items-center gap-2">
       {canCreate && (
@@ -1023,27 +1024,14 @@ export const DomainsPage: React.FC = () => {
   return (
     <PageLayout title="Domains" actions={actions} breadcrumbs={breadcrumbs}>
       <div className="w-full space-y-4">
-
-
-                {/* ——— Review: hierarchy (domain heads → region heads → region employees) + target amounts ——— */}
-          <div className="space-y-4">
-            <p className="text-sm text-slate-600">
-              View and manage the marketing hierarchy: domain heads, region heads, and region employees. Set employee targets (rolled up to region and domain), and optionally set explicit yearly goals per region or domain. Use 0 on a region/domain goal to clear it.
-            </p>
-            {targetSummaryLoading && (
-              <div className="flex items-center gap-2 text-xs text-slate-500 py-1">
-                <div className="inline-block animate-spin rounded-full h-3 w-3 border border-blue-600 border-t-transparent" />
-                <span>Syncing target calculations…</span>
-              </div>
-            )}
+        {/* ——— Review: hierarchy (domain heads → region heads → region employees) + target amounts ——— */}
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            View and manage the marketing hierarchy: domain heads, region heads, and region employees. Set employee targets (rolled up to region and domain), and optionally set explicit yearly goals per region or domain. Use 0 on a region/domain goal to clear it.
+          </p>
 
             {/* Target Progress Card */}
-            {scopeStatsLoading ? (
-              <Card className="p-6 border border-slate-100 bg-white shadow-sm mb-4 flex flex-col items-center justify-center gap-2">
-                <div className="inline-block animate-spin rounded-full h-7 w-7 border-2 border-blue-600 border-t-transparent" />
-                <p className="text-xs text-slate-500 font-medium">Loading target progress...</p>
-              </Card>
-            ) : scopeStats ? (() => {
+            {scopeStats ? (() => {
               const targetVal = scopeStats.monthly_target;
               const achievedVal = scopeStats.achieved_this_month;
               const roleLabel = scopeStats.scope_label;
@@ -1329,12 +1317,7 @@ export const DomainsPage: React.FC = () => {
             })() : null}
 
             {/* Quotation Submitted Progress Card (4x stretch target) */}
-            {scopeStatsLoading ? (
-              <Card className="p-6 border border-slate-100 bg-white shadow-sm mb-4 flex flex-col items-center justify-center gap-2">
-                <div className="inline-block animate-spin rounded-full h-7 w-7 border-2 border-blue-600 border-t-transparent" />
-                <p className="text-xs text-slate-500 font-medium">Loading quotation progress...</p>
-              </Card>
-            ) : scopeStats ? (() => {
+            {scopeStats ? (() => {
               const qTarget = scopeStats.monthly_target;
               const qRoleLabel = scopeStats.scope_label;
               const q1QuoteVal = q1Stats?.quotation_submitted_value ?? 0;
@@ -1486,14 +1469,6 @@ export const DomainsPage: React.FC = () => {
               );
             })() : null}
 
-          {reviewLoading ? (
-            <Card>
-              <div className="flex items-center justify-center py-16">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-                <span className="ml-3 text-slate-600">Loading hierarchy...</span>
-              </div>
-            </Card>
-          ) : (
             <div className="space-y-2">
               {filteredDomains.length === 0 ? (
                 <Card>
@@ -1841,9 +1816,8 @@ export const DomainsPage: React.FC = () => {
                 </Card>
               )}
             </div>
-          )}
+          </div>
         </div>
-    </div>
 
       {/* Set employee / region / domain target */}
       <Modal

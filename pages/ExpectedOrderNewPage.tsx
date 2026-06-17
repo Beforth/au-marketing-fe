@@ -7,7 +7,7 @@ import { Input } from '../components/ui/Input';
 import { marketingAPI, Lead, leadDisplayName, leadDisplayCompany } from '../lib/marketing-api';
 import { useApp } from '../App';
 import { getSubmissionDeadline } from '../lib/deadline-utils';
-import { AlertCircle, ArrowLeft, Calendar, Check, Loader2, Search } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Calendar, Check, Search } from 'lucide-react';
 
 export const ExpectedOrderNewPage: React.FC = () => {
   const { showToast } = useApp();
@@ -130,7 +130,7 @@ export const ExpectedOrderNewPage: React.FC = () => {
 
         {loading ? (
           <div className="flex items-center gap-2 py-8 text-slate-500">
-            <Loader2 size={20} className="animate-spin" /> Loading leads…
+            <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-1" /> Loading leads…
           </div>
         ) : leads.length === 0 ? (
           <p className="py-8 text-slate-500">No leads found. Add leads first or adjust the search.</p>
@@ -186,7 +186,7 @@ export const ExpectedOrderNewPage: React.FC = () => {
             <div className="mt-4 flex items-center gap-3">
               <Button
                 size="sm"
-                leftIcon={submitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                leftIcon={submitting ? <div className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white" /> : <Check size={14} />}
                 disabled={selectedIds.size === 0 || submitting || deadline.isPast}
                 onClick={handleSubmit}
               >

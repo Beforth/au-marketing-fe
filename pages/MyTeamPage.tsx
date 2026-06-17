@@ -135,18 +135,22 @@ function mergeSummaries(summaries: ReportSummaryResponse[]): ReportSummaryRespon
 }
 
 const SummaryContent: React.FC<{ loading: boolean; summary: ReportSummaryResponse | null }> = ({ loading, summary }) => {
-  if (loading) {
+  if (loading || !summary) {
     return (
-      <div className="py-8 flex flex-col items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-7 w-7 border-2 border-blue-600 border-t-transparent" />
-        <p className="mt-2 text-xs text-slate-500 font-medium">Loading performance summary...</p>
-      </div>
-    );
-  }
-  if (!summary) {
-    return (
-      <div className="py-6 text-center text-slate-400">
-        <p className="text-sm">No summary data available.</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
+        {[
+          { icon: MessageSquare, label: 'Inquiries' },
+          { icon: FileText, label: 'Quotations' },
+          { icon: BarChart3, label: 'Total Leads' },
+          { icon: Phone, label: 'Contacts' },
+          { icon: Building2, label: 'Customers' }
+        ].map((item, idx) => (
+          <div key={idx} className="bg-slate-50 rounded-lg p-3 text-center">
+            <item.icon size={18} className="text-blue-400 mx-auto mb-1 opacity-60" />
+            <div className="h-6 w-12 mx-auto rounded shimmer-block mb-1.5 mt-0.5" />
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{item.label}</p>
+          </div>
+        ))}
       </div>
     );
   }
@@ -641,6 +645,21 @@ export const MyTeamPage: React.FC = () => {
 
       {canView && (
         <>
+          <style>{`
+            @keyframes shimmer-sweep {
+              0% {
+                background-position: -200% 0;
+              }
+              100% {
+                background-position: 200% 0;
+              }
+            }
+            .shimmer-block {
+              background: linear-gradient(90deg, #eff6ff 25%, #dbeafe 50%, #eff6ff 75%);
+              background-size: 200% 100%;
+              animation: shimmer-sweep 1.5s infinite linear;
+            }
+          `}</style>
           <Card className="mb-6">
             <div className="flex flex-wrap items-end gap-3">
               <div className="flex flex-col gap-1">
@@ -671,11 +690,13 @@ export const MyTeamPage: React.FC = () => {
             </div>
 
             {loadingScope ? (
-            <div className="flex items-center gap-2.5 py-4 mt-2">
-              <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest leading-none">Loading team scope...</span>
-            </div>
-          ) : (
+              <div className="mt-4 flex flex-wrap items-end gap-4">
+                <div className="flex flex-col gap-1 min-w-[220px]">
+                  <div className="h-3 bg-slate-100 rounded-md w-20 shimmer-block" />
+                  <div className="h-11 rounded-xl w-full border border-slate-100 shimmer-block" />
+                </div>
+              </div>
+            ) : (
               <div className="mt-4 flex flex-wrap items-end gap-4">
                 {scope?.can_select_employee && filteredEmployees.length > 0 ? (
                   <div className="flex flex-col gap-1 min-w-[220px]">
@@ -804,9 +825,7 @@ export const MyTeamPage: React.FC = () => {
                     <Target size={14} /> {targetLabel}
                   </div>
                   {loadingTarget ? (
-                    <div className="py-2 flex items-center justify-center">
-                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
-                    </div>
+                    <div className="h-7 w-28 rounded shimmer-block mt-0.5 mb-1" />
                   ) : targetStats ? (
                     <>
                       <p className="text-xl font-bold text-slate-900">{formatCurrency(targetStats.monthly_target)}</p>
@@ -830,9 +849,7 @@ export const MyTeamPage: React.FC = () => {
                     <TrendingUp size={14} /> Achieved
                   </div>
                   {loadingTarget ? (
-                    <div className="py-2 flex items-center justify-center">
-                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
-                    </div>
+                    <div className="h-7 w-28 rounded shimmer-block mt-0.5 mb-1" />
                   ) : targetStats ? (
                     <>
                       <p className="text-xl font-bold text-emerald-600">{formatCurrency(targetStats.achieved_this_month)}</p>
@@ -849,9 +866,7 @@ export const MyTeamPage: React.FC = () => {
                     <Trophy size={14} /> Won
                   </div>
                   {loadingTarget ? (
-                    <div className="py-2 flex items-center justify-center">
-                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
-                    </div>
+                    <div className="h-7 w-12 rounded shimmer-block mt-0.5 mb-1" />
                   ) : (
                     <p className="text-xl font-bold text-emerald-600">{targetStats?.won_leads_count_this_month ?? '—'}</p>
                   )}
@@ -863,9 +878,7 @@ export const MyTeamPage: React.FC = () => {
                     <XCircle size={14} /> Lost
                   </div>
                   {loadingTarget ? (
-                    <div className="py-2 flex items-center justify-center">
-                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
-                    </div>
+                    <div className="h-7 w-12 rounded shimmer-block mt-0.5 mb-1" />
                   ) : (
                     <p className="text-xl font-bold text-rose-500">{targetStats?.lost_leads_count_this_month ?? '—'}</p>
                   )}
@@ -880,9 +893,17 @@ export const MyTeamPage: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <Card title="Expected Orders" description="Leads expected to close across all team members.">
                   {loadingExpected ? (
-                    <div className="py-12 flex flex-col items-center justify-center gap-2">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
-                      <p className="text-xs text-slate-500 font-medium">Loading expected orders...</p>
+                    <div className="space-y-3">
+                      <div className="border border-slate-100 rounded-lg p-3 space-y-2">
+                        <div className="h-4 rounded w-28 shimmer-block" />
+                        <div className="h-3 rounded w-16 shimmer-block" />
+                        <div className="h-4 rounded w-48 shimmer-block mt-1" />
+                      </div>
+                      <div className="border border-slate-100 rounded-lg p-3 space-y-2">
+                        <div className="h-4 rounded w-24 shimmer-block" />
+                        <div className="h-3 rounded w-20 shimmer-block" />
+                        <div className="h-4 rounded w-36 shimmer-block mt-1" />
+                      </div>
                     </div>
                   ) : expectedOrderReports.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
@@ -915,9 +936,17 @@ export const MyTeamPage: React.FC = () => {
 
                 <Card title="Outdoor (OD) Plans" description="Visit and travel plans across all team members.">
                   {loadingOD ? (
-                    <div className="py-12 flex flex-col items-center justify-center gap-2">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
-                      <p className="text-xs text-slate-500 font-medium">Loading outdoor plans...</p>
+                    <div className="space-y-3">
+                      <div className="border border-slate-200 rounded-lg p-3 space-y-2">
+                        <div className="h-4 rounded w-28 shimmer-block" />
+                        <div className="h-3 rounded w-16 shimmer-block" />
+                        <div className="h-4 rounded w-48 shimmer-block mt-1" />
+                      </div>
+                      <div className="border border-slate-200 rounded-lg p-3 space-y-2">
+                        <div className="h-4 rounded w-24 shimmer-block" />
+                        <div className="h-3 rounded w-20 shimmer-block" />
+                        <div className="h-4 rounded w-36 shimmer-block mt-1" />
+                      </div>
                     </div>
                   ) : odPlanReports.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
@@ -954,7 +983,7 @@ export const MyTeamPage: React.FC = () => {
                 <Card className="mb-6" title="Team Breakdown" description="Per-employee performance for the selected filter.">
                   {loadingEmployeeStats ? (
                     <div className="py-12 flex flex-col items-center justify-center gap-2">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
                       <p className="text-xs text-slate-500 font-medium">Loading team breakdown...</p>
                     </div>
                   ) : (
@@ -1027,9 +1056,7 @@ export const MyTeamPage: React.FC = () => {
                       <Target size={14} /> Target
                     </div>
                     {loadingTarget ? (
-                      <div className="py-2 flex items-center justify-center">
-                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
-                      </div>
+                      <div className="h-7 w-28 rounded shimmer-block mt-0.5 mb-1" />
                     ) : (
                       <>
                         <p className="text-xl font-bold text-slate-900">
@@ -1054,9 +1081,7 @@ export const MyTeamPage: React.FC = () => {
                       <TrendingUp size={14} /> Achieved
                     </div>
                     {loadingTarget ? (
-                      <div className="py-2 flex items-center justify-center">
-                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
-                      </div>
+                      <div className="h-7 w-28 rounded shimmer-block mt-0.5 mb-1" />
                     ) : (
                       <>
                         <p className="text-xl font-bold text-emerald-600">
@@ -1076,9 +1101,7 @@ export const MyTeamPage: React.FC = () => {
                       <Trophy size={14} /> Won
                     </div>
                     {loadingTarget ? (
-                      <div className="py-2 flex items-center justify-center">
-                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
-                      </div>
+                      <div className="h-7 w-12 rounded shimmer-block mt-0.5 mb-1" />
                     ) : (
                       <>
                         <p className="text-xl font-bold text-emerald-600">
@@ -1098,9 +1121,7 @@ export const MyTeamPage: React.FC = () => {
                       <XCircle size={14} /> Lost
                     </div>
                     {loadingTarget ? (
-                      <div className="py-2 flex items-center justify-center">
-                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
-                      </div>
+                      <div className="h-7 w-12 rounded shimmer-block mt-0.5 mb-1" />
                     ) : (
                       <p className="text-xl font-bold text-rose-500">
                         {targetStats?.lost_leads_count_this_month ?? '—'}
@@ -1114,9 +1135,17 @@ export const MyTeamPage: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <Card title="Expected Orders" description="Leads expected to close in the selected period.">
                   {loadingExpected ? (
-                    <div className="py-12 flex flex-col items-center justify-center gap-2">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
-                      <p className="text-xs text-slate-500 font-medium">Loading expected orders...</p>
+                    <div className="space-y-3">
+                      <div className="border border-slate-200 rounded-lg p-3 space-y-2">
+                        <div className="h-4 rounded w-28 shimmer-block" />
+                        <div className="h-3 rounded w-16 shimmer-block" />
+                        <div className="h-4 rounded w-48 shimmer-block mt-1" />
+                      </div>
+                      <div className="border border-slate-200 rounded-lg p-3 space-y-2">
+                        <div className="h-4 rounded w-24 shimmer-block" />
+                        <div className="h-3 rounded w-20 shimmer-block" />
+                        <div className="h-4 rounded w-36 shimmer-block mt-1" />
+                      </div>
                     </div>
                   ) : expectedOrderReports.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
@@ -1149,9 +1178,17 @@ export const MyTeamPage: React.FC = () => {
 
                 <Card title="Outdoor (OD) Plans" description="Visit and travel plans for the selected period.">
                   {loadingOD ? (
-                    <div className="py-12 flex flex-col items-center justify-center gap-2">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
-                      <p className="text-xs text-slate-500 font-medium">Loading outdoor plans...</p>
+                    <div className="space-y-3">
+                      <div className="border border-slate-200 rounded-lg p-3 space-y-2">
+                        <div className="h-4 rounded w-28 shimmer-block" />
+                        <div className="h-3 rounded w-16 shimmer-block" />
+                        <div className="h-4 rounded w-48 shimmer-block mt-1" />
+                      </div>
+                      <div className="border border-slate-200 rounded-lg p-3 space-y-2">
+                        <div className="h-4 rounded w-24 shimmer-block" />
+                        <div className="h-3 rounded w-20 shimmer-block" />
+                        <div className="h-4 rounded w-36 shimmer-block mt-1" />
+                      </div>
                     </div>
                   ) : odPlanReports.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
@@ -1194,7 +1231,7 @@ export const MyTeamPage: React.FC = () => {
                 >
                   {loadingDSR ? (
                     <div className="py-12 flex flex-col items-center justify-center gap-2">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
                       <p className="text-xs text-slate-500 font-medium">Loading DSR tasks...</p>
                     </div>
                   ) : dsrTasks.length === 0 ? (

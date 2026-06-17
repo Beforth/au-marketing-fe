@@ -7,7 +7,6 @@ import {
   Globe,
   Monitor,
   Mail,
-  Loader2,
   RefreshCw,
   Link2,
   Unlink,
@@ -256,7 +255,7 @@ export const SettingsPage: React.FC = () => {
                 </div>
                 
                 {emailConnectionLoading ? (
-                  <Loader2 className="animate-spin text-slate-300" size={18} />
+                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-slate-300" />
                 ) : emailConnection?.connected ? (
                   <div className="flex items-center gap-4">
                     <div className="text-right">
@@ -309,7 +308,7 @@ export const SettingsPage: React.FC = () => {
                       }
                     }}
                     isLoading={isSyncingHRMS}
-                    leftIcon={<RefreshCw size={14} className={isSyncingHRMS ? 'animate-spin' : ''} />}
+                    leftIcon={<RefreshCw size={14} />}
                   >
                     Sync Employees
                   </Button>
@@ -392,7 +391,7 @@ export const SettingsPage: React.FC = () => {
                    }
                 }}
                 isLoading={isRefreshingPermissions}
-                leftIcon={<RefreshCw size={14} className={isRefreshingPermissions ? "animate-spin" : ""} />}
+                leftIcon={<RefreshCw size={14} />}
               >
                 Clear Cache
               </Button>
@@ -433,24 +432,44 @@ export const SettingsPage: React.FC = () => {
             <Table containerClassName="border-slate-100/50 shadow-none rounded-2xl">
               <TableHeader className="bg-slate-50/50">
                 <TableRow>
-                  <TableHead className="h-9 px-3 text-[10px] font-semibold">Meta / Time</TableHead>
-                  <TableHead className="h-9 px-3 text-[10px] font-semibold">Actor</TableHead>
-                  <TableHead className="h-9 px-3 text-[10px] font-semibold text-center">Protocol</TableHead>
-                  <TableHead className="h-9 px-3 text-[10px] font-semibold">Entity Pointer</TableHead>
+                  <TableHead className="h-9 px-3 text-[11px] font-black uppercase tracking-widest text-slate-500">Meta / Time</TableHead>
+                  <TableHead className="h-9 px-3 text-[11px] font-black uppercase tracking-widest text-slate-500">Actor</TableHead>
+                  <TableHead className="h-9 px-3 text-[11px] font-black uppercase tracking-widest text-slate-500 text-center">Protocol</TableHead>
+                  <TableHead className="h-9 px-3 text-[11px] font-black uppercase tracking-widest text-slate-500">Entity Pointer</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {logsLoading ? (
+                  Array.from({ length: 5 }).map((_, idx) => (
+                    <TableRow key={idx} className="animate-pulse">
+                      <TableCell className="px-3 py-4">
+                        <div className="h-2.5 bg-slate-200 rounded-full w-14 mb-2" />
+                        <div className="h-2 bg-slate-100 rounded-full w-10" />
+                      </TableCell>
+                      <TableCell className="px-3 py-4">
+                        <div className="flex items-center gap-1.5">
+                          <div className="size-4 rounded-sm bg-slate-200" />
+                          <div className="h-2.5 bg-slate-200 rounded-full w-16" />
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-3 py-4 text-center">
+                        <div className="h-4 bg-slate-200 rounded-[4px] w-12 mx-auto" />
+                      </TableCell>
+                      <TableCell className="px-3 py-4">
+                        <div className="h-2.5 bg-slate-200 rounded-full w-20 mb-2" />
+                        <div className="h-2 bg-slate-100 rounded-full w-28" />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : logs.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="py-12">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
-                        <p className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">Loading audit logs...</p>
+                      <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
+                        <History size={28} className="text-slate-400 mb-2" />
+                        <p className="text-sm">No audit logs found.</p>
                       </div>
                     </TableCell>
                   </TableRow>
-                ) : logs.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="h-40 text-center text-slate-300 text-xs font-semibold uppercase tracking-[0.2em] opacity-30">Null Result</TableCell></TableRow>
                 ) : (
                   logs.filter((l: AuditLog) => 
                     !logsSearch || 
@@ -461,10 +480,10 @@ export const SettingsPage: React.FC = () => {
                   ).map((log: AuditLog) => {
                     const action = log.action?.toLowerCase() || '';
                     const isDanger = action.includes('delete') || action.includes('remove');
-                    const isSuccess = action.includes('create') || action.includes('add') || action.includes('won');
+                    const isSuccess = action.includes('create') || action.includes('add') || action.includes('won') || action.includes('convert');
                     
                     return (
-                      <TableRow key={log.id} className="hover:bg-slate-50/30">
+                      <TableRow key={log.id} className="hover:bg-slate-50/30 active:scale-[0.98] transition-all duration-300 cursor-pointer">
                         <TableCell className="px-3 py-2">
                            <div className="text-[10px] font-mono text-slate-400 tracking-tighter uppercase leading-none mb-1">
                              {new Date(log.created_at).toLocaleDateString('en-GB')}
@@ -481,7 +500,7 @@ export const SettingsPage: React.FC = () => {
                         </TableCell>
                         <TableCell className="px-3 py-2 text-center">
                            <span className={cn(
-                             "inline-block px-1.5 py-0.5 rounded-[4px] text-[8px] font-semibold uppercase tracking-wide ring-1 ring-inset",
+                             "inline-block px-1.5 py-0.5 rounded-[4px] text-[9px] font-black uppercase tracking-widest ring-1 ring-inset",
                              isDanger ? "bg-rose-50 text-rose-600 ring-rose-100" :
                              isSuccess ? "bg-emerald-50 text-emerald-600 ring-emerald-100" :
                              "bg-blue-50 text-blue-600 ring-blue-100"

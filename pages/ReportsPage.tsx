@@ -120,7 +120,7 @@ export const ReportsPage: React.FC = () => {
       {loadingScope ? (
         <Card className="mb-6">
           <div className="flex items-center gap-2.5 py-4">
-            <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
+            <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest leading-none">Loading scope...</span>
           </div>
         </Card>
@@ -167,7 +167,7 @@ export const ReportsPage: React.FC = () => {
         <Card title="Expected order reports" description="Next month potential clients (selected leads).">
           {loadingExpected ? (
             <div className="py-12 text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
               <p className="mt-3 text-slate-500 text-sm font-medium">Loading expected order reports...</p>
             </div>
           ) : expectedOrderReports.length === 0 ? (
@@ -211,7 +211,7 @@ export const ReportsPage: React.FC = () => {
         <Card title="Outdoor (OD) plans" description="Monthly visit / travel / return plans.">
           {loadingOD ? (
             <div className="py-12 text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
               <p className="mt-3 text-slate-500 text-sm font-medium">Loading outdoor plans...</p>
             </div>
           ) : odPlanReports.length === 0 ? (
