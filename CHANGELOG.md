@@ -5,7 +5,7 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-06-15] — Dynamic Version Changelog System with Admin CRUD, System-Wide Audit Logging & Dashboard Widgets (v1.0.9)
+## [2026-06-15] — Dynamic Version Changelog System, Unified Loaders & Auth Session Fix (v1.0.9)
 
 ### 🖥️ Frontend
 
@@ -18,6 +18,15 @@ Format: `[Date] — Category: Description`
 - **My Team Localized Shimmer Loader**: Replaced page-wide loaders and card spinners with localized, inline brand shimmers on target metrics, summary items, list blocks, and dropdown selectors to keep the layout visible during loading.
 - **Dashboard Widget Improvements**: Restructured the Add Widget dropdown to group and separate Ready-Made widgets from custom Builders. Exposed the new **Recent Audit Logs (Timeline)** and **What's New (Release Notes)** directly as dashboard widgets with custom skeleton loaders.
 - **Component Cleanup**: Deleted all deprecated static duplicates (`ChangelogContent.tsx`, `ChangelogModal.tsx`, `changelog.ts`).
+
+#### Improvements
+- **Unified Spinner Design**: Replaced all inconsistent loading indicators (Lucide `Loader2`, `RefreshCw` spinners, `border-t-transparent` CSS) with a single blue arc spinner (`border-b-2 border-blue-600`) across all 15 pages and `Button.tsx`.
+- **Button Loader**: `Button.tsx` spinner now uses `border-current` to auto-inherit button text color (white for primary/danger, slate for outline/ghost).
+- **Domains Page — No Loader**: Removed all loading spinners and skeleton from the Domains page entirely — renders instantly.
+
+#### Bug Fixes
+- **Auth Session Reload Flash**: Fixed a race condition in `authSlice.ts` where refreshing with an expired token would briefly flash the dashboard, fire multiple API calls, and show error toasts before redirecting to login.
+- **Invalid Tailwind Class**: Fixed `h-4.5 w-4.5` (non-existent class) on the Gmail connection spinner in `SettingsPage.tsx` → `h-4 w-4`.
 
 ### ⚙️ Backend (API)
 
@@ -33,21 +42,28 @@ Format: `[Date] — Category: Description`
 |------|--------|
 | `components/VersionsModal.tsx` | New — dynamic scrollable modal, parses markdown, paginates history, shimmer sweep loading |
 | `components/ui/VersionsSettings.tsx` | New — admin versions management panel |
+| `components/ui/Button.tsx` | Unified `border-current` arc spinner |
 | `au-marketing-api/app/routers/whats_new.py` | Added CRUD REST API endpoints (POST, PUT, DELETE) |
 | `au-marketing-api/app/schemas.py` | Added Pydantic body validation schemas |
-| `au-marketing-api/app/models.py` | Updated constraints to support composite unique keys, added `AuditLog` model |
+| `au-marketing-api/app/models.py` | Updated constraints, added `AuditLog` model |
 | `au-marketing-api/app/audit_utils.py` | New — isolated db helper for log_action event tracking |
 | `au-marketing-api/app/routers/audit_logs.py` | New — audit log paginated filtering endpoints |
 | `au-marketing-api/app/routers/customers.py` | Hooked CRUD trigger audits |
 | `au-marketing-api/app/routers/contacts.py` | Hooked CRUD + conversion trigger audits |
 | `lib/marketing-api.ts` | Added REST CRUD methods and return interfaces for changelog and audit logs |
-| `pages/SettingsPage.tsx` | Integrated Versions management tab & aligned Audit Logs tab with skeletons/animations |
-| `pages/DashboardPage.tsx` | Bumped version, restructured widget dropdown, added Audit Logs & What's New widgets |
-| `pages/MyTeamPage.tsx` | Replaced page-wide loaders and card spinners with localized brand shimmers |
+| `pages/SettingsPage.tsx` | Versions management tab, Audit Logs tab, replaced `Loader2` spinner, fixed `h-4.5` |
+| `pages/DashboardPage.tsx` | Bumped version, widget dropdown, Audit Logs & What's New widgets, replaced 6× spinners |
+| `pages/DomainsPage.tsx` | Removed all loading states — renders instantly |
+| `pages/MyTeamPage.tsx` | Replaced page-wide loaders with localized brand shimmers |
+| `pages/SchemaPage.tsx`, `ReportsPage.tsx` | Replaced `Loader2` / `border-t-transparent` spinners |
+| `pages/EnquiryQuotationsPage.tsx`, `RolesPage.tsx`, `ODPlanPage.tsx`, `ReportTemplatesPage.tsx` | Replaced spinners |
+| `pages/CustomersPage.tsx`, `OrganizationsPage.tsx`, `ExpectedOrderNewPage.tsx`, `DSRPage.tsx` | Replaced spinners |
+| `store/slices/authSlice.ts` | Token validity guard after scope fetch — prevents auth flash on reload |
 | `components/ui/Sidebar.tsx` | Bumped version tag |
 | `.server-operator/populate_changelog.serop` | New — server operator instruction script |
 
 ---
+
 
 ## [2026-06-14] — My Team Pills, Performance Summary, Date Filters, Sync Button (v1.0.8)
 
