@@ -272,6 +272,7 @@ export interface Lead {
   through_contact_id?: number | null;
   referred_by_customer_id?: number | null;
   potential_value?: number;
+  quote_value?: number | null;
   notes?: string;
   closed_value?: number | null;
   closed_at?: string | null;
@@ -725,6 +726,7 @@ class MarketingAPIService {
     seriesCode?: string,
     isRevised?: boolean,
     quoteValues?: (number | undefined)[],
+    onProgress?: (percent: number) => void,
   ): Promise<LeadActivityAttachment[]> {
     const formData = new FormData();
     files.forEach((f) => formData.append('files', f));
@@ -744,9 +746,10 @@ class MarketingAPIService {
     if (quoteValues && quoteValues.length > 0) {
       formData.append('quote_values', JSON.stringify(quoteValues));
     }
-    return apiClient.postFormData<LeadActivityAttachment[]>(
+    return apiClient.postFormDataWithProgress<LeadActivityAttachment[]>(
       `/api/leads/${leadId}/activities/${activityId}/attachments`,
-      formData
+      formData,
+      onProgress
     );
   }
 

@@ -150,6 +150,10 @@ export const LeadFormPage: React.FC = () => {
   const [editActivitySubmitting, setEditActivitySubmitting] = useState(false);
   const [deleteActivityId, setDeleteActivityId] = useState<number | null>(null);
   const [uploadingAttachmentsForActivityId, setUploadingAttachmentsForActivityId] = useState<number | null>(null);
+  const [createLeadUploadProgress, setCreateLeadUploadProgress] = useState<number | null>(null);
+  const [logUploadProgress, setLogUploadProgress] = useState<number | null>(null);
+  const [quickAddUploadProgress, setQuickAddUploadProgress] = useState<number | null>(null);
+  const [attachmentUploadProgress, setAttachmentUploadProgress] = useState<number | null>(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<number | null>(null);
   /** When creating lead: optional quotation file; adds one enquiry with title "Added quotation" and no description. */
   const [initialQuotationFile, setInitialQuotationFile] = useState<File | null>(null);
@@ -777,6 +781,7 @@ export const LeadFormPage: React.FC = () => {
       const toUpload = attachmentEntries.filter((e) => e.file);
       if (toUpload.length > 0) {
         setUploadPhase('uploading');
+        setLogUploadProgress(0);
         await marketingAPI.uploadLeadActivityAttachments(
           leadId,
           created.id,
@@ -786,7 +791,8 @@ export const LeadFormPage: React.FC = () => {
           toUpload.map((e) => (e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined)),
           toUpload.some((e) => e.kind === 'quotation') ? (quotationSeriesCode.trim() || undefined) : undefined,
           toUpload.some((e) => e.kind === 'quotation') ? quotationIsRevised : undefined,
-          toUpload.map((e) => (e.kind === 'quotation' && e.quoteValue ? Number(e.quoteValue) : undefined))
+          toUpload.map((e) => (e.kind === 'quotation' && e.quoteValue ? Number(e.quoteValue) : undefined)),
+          setLogUploadProgress
         );
       }
       showToast('Log added', 'success');
@@ -808,24 +814,27 @@ export const LeadFormPage: React.FC = () => {
       loadActivities();
     } catch (err: any) {
       if (created) {
-        try { await marketingAPI.deleteLeadActivity(leadId, created.id); } catch {}
+        try { await marketingAPI.deleteLeadActivity(leadId, created.id); } catch { }
       }
       showToast(err.message || 'Failed to add log', 'error');
     } finally {
       setActivitySubmitting(false);
       setUploadPhase('idle');
+      setLogUploadProgress(null);
     }
   };
 
   const handleQuickAddQuotation = async () => {
     if (!isValidId || !quickAddQuotationFile) return;
     setQuickAddQuotationSubmitting(true);
+    let created: LeadActivity | null = null;
     try {
-      const created = await marketingAPI.createLeadActivity(leadId, {
+      created = await marketingAPI.createLeadActivity(leadId, {
         activity_type: 'qtn_submitted',
         title: 'Added quotation',
         description: undefined,
       });
+      setQuickAddUploadProgress(0);
       await marketingAPI.uploadLeadActivityAttachments(
         leadId,
         created.id,
@@ -835,7 +844,8 @@ export const LeadFormPage: React.FC = () => {
         undefined,
         quotationSeriesCode.trim() || undefined,
         quotationIsRevised,
-        [quickAddQuotationValue ? Number(quickAddQuotationValue) : undefined]
+        [quickAddQuotationValue ? Number(quickAddQuotationValue) : undefined],
+        setQuickAddUploadProgress
       );
       showToast('Quotation added', 'success');
       setQuickAddQuotationFile(null);
@@ -843,9 +853,13 @@ export const LeadFormPage: React.FC = () => {
       setQuickAddQuotationValue('');
       loadActivities();
     } catch (err: any) {
+      if (created) {
+        try { await marketingAPI.deleteLeadActivity(leadId, created.id); } catch { }
+      }
       showToast(err?.message || 'Failed to add quotation', 'error');
     } finally {
       setQuickAddQuotationSubmitting(false);
+      setQuickAddUploadProgress(null);
     }
   };
 
@@ -1140,21 +1154,21 @@ export const LeadFormPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       if (!formData.domain_id) {
-      showToast('Domain is required', 'error');
-      return;
-    }
-    let effectiveContactId = formData.contact_id ?? undefined;
-    let effectiveCustomerId = formData.customer_id ?? undefined;
-    let effectiveThroughContactId = formData.through_contact_id ?? undefined;
-    const selectedLeadDomainId = formData.domain_id;
-    const selectedLeadRegionId = formData.region_id ?? undefined;
-    let effectiveDomainId = selectedLeadDomainId;
-    let effectiveRegionId = selectedLeadRegionId;
+        showToast('Domain is required', 'error');
+        return;
+      }
+      let effectiveContactId = formData.contact_id ?? undefined;
+      let effectiveCustomerId = formData.customer_id ?? undefined;
+      let effectiveThroughContactId = formData.through_contact_id ?? undefined;
+      const selectedLeadDomainId = formData.domain_id;
+      const selectedLeadRegionId = formData.region_id ?? undefined;
+      let effectiveDomainId = selectedLeadDomainId;
+      let effectiveRegionId = selectedLeadRegionId;
 
-    if (isExportDomain && selectedCountryCode) {
-      const matched = regions.find(r => r.code.toUpperCase() === selectedCountryCode.toUpperCase());
-      if (matched) {
-        effectiveRegionId = matched.id;
+      if (isExportDomain && selectedCountryCode) {
+        const matched = regions.find(r => r.code.toUpperCase() === selectedCountryCode.toUpperCase());
+        if (matched) {
+          effectiveRegionId = matched.id;
         } else {
           try {
             const countryOpt = countryOptions.find(o => o.value === selectedCountryCode);
@@ -1171,213 +1185,237 @@ export const LeadFormPage: React.FC = () => {
             showToast(regionErr.message || 'Failed to auto-create region for the selected country', 'error');
             return;
           }
+        }
       }
-    }
-    const referredByContactSubmit = referredByType === 'contact';
+      const referredByContactSubmit = referredByType === 'contact';
 
-    if (!isEdit && !effectiveContactId && !effectiveCustomerId) {
-      const inlineContactFilled = inlineContactForm.first_name?.trim() && inlineContactForm.last_name?.trim() && serializePhoneWithCountryCode(inlineContactForm.contact_phone_code, inlineContactForm.contact_phone)?.trim();
-      const companyOrOrgName = (formData.company || inlineContactOrgQuery || newOrgForm.name || '').trim();
+      if (!isEdit && !effectiveContactId && !effectiveCustomerId) {
+        const inlineContactFilled = inlineContactForm.first_name?.trim() && inlineContactForm.last_name?.trim() && serializePhoneWithCountryCode(inlineContactForm.contact_phone_code, inlineContactForm.contact_phone)?.trim();
+        const companyOrOrgName = (formData.company || inlineContactOrgQuery || newOrgForm.name || '').trim();
 
-      if (!primaryContactContactId && !inlineContactFilled) {
-        showToast('Please link an existing contact or fill the details below to create one on save', 'error');
-        return;
-      }
-
-      try {
-        let organization_id = selectedOrganization?.id || inlineContactForm.organization_id;
-        let plant_id = formData.plant_id ?? inlineContactForm.plant_id;
-        let company_name = selectedOrganization?.name || formData.company;
-
-        // 1. Create organization first if needed
-        if (!organization_id && companyOrOrgName && canCreateOrg) {
-          const plantsToCreate = inlineNewPlantForm.plant_name?.trim()
-            ? [{ plant_name: inlineNewPlantForm.plant_name.trim(), address_line1: inlineNewPlantForm.address_line1?.trim() || undefined, address_line2: inlineNewPlantForm.address_line2?.trim() || undefined, city: inlineNewPlantForm.city?.trim() || undefined, state: inlineNewPlantForm.state?.trim() || undefined, country: inlineNewPlantForm.country?.trim() || undefined, postal_code: inlineNewPlantForm.postal_code?.trim() || undefined }]
-            : undefined;
-          const org = await marketingAPI.createOrganization({
-            name: newOrgForm.name.trim() || companyOrOrgName,
-            code: newOrgForm.code.trim() || undefined,
-            description: newOrgForm.description.trim() || undefined,
-            website: newOrgForm.website.trim() || undefined,
-            industry: newOrgForm.industry.trim() || undefined,
-            organization_size: newOrgForm.organization_size?.trim() || undefined,
-            is_active: true,
-            plants: plantsToCreate,
-          });
-          organization_id = org.id;
-          company_name = org.name;
-          if (plantsToCreate?.length) {
-            const plantsList = await marketingAPI.getOrganizationPlants(org.id).catch(() => []);
-            plant_id = plantsList?.[0]?.id;
-          }
+        if (!primaryContactContactId && !inlineContactFilled) {
+          showToast('Please link an existing contact or fill the details below to create one on save', 'error');
+          return;
         }
 
-        // 2. Create contact if needed
-        if (!primaryContactContactId && inlineContactFilled && canCreateContact) {
-          const fullPhone = serializePhoneWithCountryCode(inlineContactForm.contact_phone_code, inlineContactForm.contact_phone);
-          const contact = await marketingAPI.createContact({
-            domain_id: effectiveDomainId!,
-            region_id: effectiveRegionId,
-            organization_id: organization_id,
-            plant_id: plant_id,
-            title: inlineContactForm.title?.trim() || undefined,
-            first_name: inlineContactForm.first_name.trim(),
-            last_name: inlineContactForm.last_name.trim(),
-            contact_job_title: inlineContactForm.contact_job_title?.trim() || undefined,
-            contact_email: inlineContactForm.contact_email?.trim() || undefined,
-            contact_phone: fullPhone?.trim() || undefined,
-          });
-          effectiveContactId = contact.id;
-        } else {
-          effectiveContactId = primaryContactContactId ?? undefined;
-        }
-        
-        effectiveDomainId = formData.domain_id!;
-        effectiveRegionId = formData.region_id;
-      } catch (err: any) {
-        showToast(err?.message || 'Failed to create entities', 'error');
-        return;
-      }
-    }
+        try {
+          let organization_id = selectedOrganization?.id || inlineContactForm.organization_id;
+          let plant_id = formData.plant_id ?? inlineContactForm.plant_id;
+          let company_name = selectedOrganization?.name || formData.company;
 
-    // When Lead through = Through contact and user added a new referrer contact inline, create it before saving lead
-    if (referredByContactSubmit && !effectiveThroughContactId && (inlineThroughContactForm.first_name?.trim() || inlineThroughContactForm.last_name?.trim()) && effectiveDomainId) {
-      try {
-        let throughOrgId = inlineThroughContactForm.organization_id ?? undefined;
-        let throughPlantId = inlineThroughContactForm.plant_id ?? undefined;
-        const throughTypedOrgName = inlineThroughContactOrgQuery.trim();
-        if (!throughOrgId && throughTypedOrgName.length >= 2) {
-          const orgSearch = await marketingAPI.getOrganizations({ page: 1, page_size: 25, search: throughTypedOrgName, is_active: true });
-          const exact = (orgSearch.items || []).find((o) => o.name.trim().toLowerCase() === throughTypedOrgName.toLowerCase());
-          if (exact) {
-            throughOrgId = exact.id;
-          } else if (canCreateOrg) {
-            const createdOrg = await marketingAPI.createOrganization({
-              name: throughTypedOrgName,
-              code: inlineThroughNewOrgForm.code.trim() || undefined,
-              website: inlineThroughNewOrgForm.website.trim() || undefined,
-              industry: inlineThroughNewOrgForm.industry.trim() || undefined,
-              organization_size: inlineThroughNewOrgForm.organization_size.trim() || undefined,
+          // 1. Create organization first if needed
+          if (!organization_id && companyOrOrgName && canCreateOrg) {
+            const plantsToCreate = inlineNewPlantForm.plant_name?.trim()
+              ? [{ plant_name: inlineNewPlantForm.plant_name.trim(), address_line1: inlineNewPlantForm.address_line1?.trim() || undefined, address_line2: inlineNewPlantForm.address_line2?.trim() || undefined, city: inlineNewPlantForm.city?.trim() || undefined, state: inlineNewPlantForm.state?.trim() || undefined, country: inlineNewPlantForm.country?.trim() || undefined, postal_code: inlineNewPlantForm.postal_code?.trim() || undefined }]
+              : undefined;
+            const org = await marketingAPI.createOrganization({
+              name: newOrgForm.name.trim() || companyOrOrgName,
+              code: newOrgForm.code.trim() || undefined,
+              description: newOrgForm.description.trim() || undefined,
+              website: newOrgForm.website.trim() || undefined,
+              industry: newOrgForm.industry.trim() || undefined,
+              organization_size: newOrgForm.organization_size?.trim() || undefined,
               is_active: true,
+              plants: plantsToCreate,
             });
-            throughOrgId = createdOrg.id;
+            organization_id = org.id;
+            company_name = org.name;
+            setSelectedOrganization(org);
+            if (plantsToCreate?.length) {
+              const plantsList = await marketingAPI.getOrganizationPlants(org.id).catch(() => []);
+              plant_id = plantsList?.[0]?.id;
+            }
+            setInlineContactForm(prev => ({
+              ...prev,
+              organization_id: org.id,
+              plant_id: plant_id
+            }));
           }
+
+          // 2. Create contact if needed
+          if (!primaryContactContactId && inlineContactFilled && canCreateContact) {
+            const fullPhone = serializePhoneWithCountryCode(inlineContactForm.contact_phone_code, inlineContactForm.contact_phone);
+            const contact = await marketingAPI.createContact({
+              domain_id: effectiveDomainId!,
+              region_id: effectiveRegionId,
+              organization_id: organization_id,
+              plant_id: plant_id,
+              title: inlineContactForm.title?.trim() || undefined,
+              first_name: inlineContactForm.first_name.trim(),
+              last_name: inlineContactForm.last_name.trim(),
+              contact_job_title: inlineContactForm.contact_job_title?.trim() || undefined,
+              contact_email: inlineContactForm.contact_email?.trim() || undefined,
+              contact_phone: fullPhone?.trim() || undefined,
+            });
+            effectiveContactId = contact.id;
+            setPrimaryContactContactId(contact.id);
+            setSelectedPrimaryContact(contact);
+          } else {
+            effectiveContactId = primaryContactContactId ?? undefined;
+          }
+
+          effectiveDomainId = formData.domain_id!;
+          effectiveRegionId = formData.region_id;
+        } catch (err: any) {
+          showToast(err?.message || 'Failed to create entities', 'error');
+          return;
         }
-        if (throughOrgId && !throughPlantId && inlineThroughNewPlantForm.plant_name.trim() && canCreatePlant) {
-          const createdPlant = await marketingAPI.createOrganizationPlant(throughOrgId, {
-            plant_name: inlineThroughNewPlantForm.plant_name.trim(),
-            address_line1: inlineThroughNewPlantForm.address_line1.trim() || undefined,
-            address_line2: inlineThroughNewPlantForm.address_line2.trim() || undefined,
-            city: inlineThroughNewPlantForm.city.trim() || undefined,
-            state: inlineThroughNewPlantForm.state.trim() || undefined,
-            country: inlineThroughNewPlantForm.country.trim() || undefined,
-            postal_code: inlineThroughNewPlantForm.postal_code.trim() || undefined,
+      }
+
+      // When Lead through = Through contact and user added a new referrer contact inline, create it before saving lead
+      if (referredByContactSubmit && !effectiveThroughContactId && (inlineThroughContactForm.first_name?.trim() || inlineThroughContactForm.last_name?.trim()) && effectiveDomainId) {
+        try {
+          let throughOrgId = inlineThroughContactForm.organization_id ?? undefined;
+          let throughPlantId = inlineThroughContactForm.plant_id ?? undefined;
+          const throughTypedOrgName = inlineThroughContactOrgQuery.trim();
+          if (!throughOrgId && throughTypedOrgName.length >= 2) {
+            const orgSearch = await marketingAPI.getOrganizations({ page: 1, page_size: 25, search: throughTypedOrgName, is_active: true });
+            const exact = (orgSearch.items || []).find((o) => o.name.trim().toLowerCase() === throughTypedOrgName.toLowerCase());
+            if (exact) {
+              throughOrgId = exact.id;
+            } else if (canCreateOrg) {
+              const createdOrg = await marketingAPI.createOrganization({
+                name: throughTypedOrgName,
+                code: inlineThroughNewOrgForm.code.trim() || undefined,
+                website: inlineThroughNewOrgForm.website.trim() || undefined,
+                industry: inlineThroughNewOrgForm.industry.trim() || undefined,
+                organization_size: inlineThroughNewOrgForm.organization_size.trim() || undefined,
+                is_active: true,
+              });
+              throughOrgId = createdOrg.id;
+            }
+          }
+          if (throughOrgId && !throughPlantId && inlineThroughNewPlantForm.plant_name.trim() && canCreatePlant) {
+            const createdPlant = await marketingAPI.createOrganizationPlant(throughOrgId, {
+              plant_name: inlineThroughNewPlantForm.plant_name.trim(),
+              address_line1: inlineThroughNewPlantForm.address_line1.trim() || undefined,
+              address_line2: inlineThroughNewPlantForm.address_line2.trim() || undefined,
+              city: inlineThroughNewPlantForm.city.trim() || undefined,
+              state: inlineThroughNewPlantForm.state.trim() || undefined,
+              country: inlineThroughNewPlantForm.country.trim() || undefined,
+              postal_code: inlineThroughNewPlantForm.postal_code.trim() || undefined,
+            });
+            throughPlantId = createdPlant.id;
+          }
+
+          setInlineThroughContactForm(prev => ({
+            ...prev,
+            organization_id: throughOrgId,
+            plant_id: throughPlantId
+          }));
+
+          const resolvedThroughPhone = serializePhoneWithCountryCode(inlineThroughContactForm.contact_phone_code, inlineThroughContactForm.contact_phone)?.trim() || undefined;
+          const throughContact = await marketingAPI.createContact({
+            domain_id: effectiveDomainId,
+            region_id: effectiveRegionId ?? undefined,
+            organization_id: throughOrgId,
+            plant_id: throughPlantId,
+            title: inlineThroughContactForm.title?.trim() || undefined,
+            first_name: inlineThroughContactForm.first_name?.trim() || undefined,
+            last_name: inlineThroughContactForm.last_name?.trim() || undefined,
+            contact_job_title: inlineThroughContactForm.contact_job_title?.trim() || undefined,
+            contact_email: inlineThroughContactForm.contact_email?.trim() || undefined,
+            contact_phone: resolvedThroughPhone,
           });
-          throughPlantId = createdPlant.id;
+          effectiveThroughContactId = throughContact.id;
+          setFormData(prev => ({ ...prev, through_contact_id: throughContact.id }));
+          setSelectedThroughContactForDisplay(throughContact);
+        } catch (err: any) {
+          showToast(err?.message || 'Failed to create referrer contact', 'error');
+          return;
         }
-        const resolvedThroughPhone = serializePhoneWithCountryCode(inlineThroughContactForm.contact_phone_code, inlineThroughContactForm.contact_phone)?.trim() || undefined;
-        const throughContact = await marketingAPI.createContact({
-          domain_id: effectiveDomainId,
-          region_id: effectiveRegionId ?? undefined,
-          organization_id: throughOrgId,
-          plant_id: throughPlantId,
-          title: inlineThroughContactForm.title?.trim() || undefined,
-          first_name: inlineThroughContactForm.first_name?.trim() || undefined,
-          last_name: inlineThroughContactForm.last_name?.trim() || undefined,
-          contact_job_title: inlineThroughContactForm.contact_job_title?.trim() || undefined,
-          contact_email: inlineThroughContactForm.contact_email?.trim() || undefined,
-          contact_phone: resolvedThroughPhone,
-        });
-        effectiveThroughContactId = throughContact.id;
-      } catch (err: any) {
-        showToast(err?.message || 'Failed to create referrer contact', 'error');
-        return;
       }
-    }
 
-    const payload: Record<string, unknown> = {
-      ...formData,
-      contact_id: effectiveContactId,
-      customer_id: effectiveCustomerId,
-      through_contact_id: effectiveThroughContactId,
-      plant_id: formData.plant_id ?? undefined,
-      domain_id: effectiveDomainId,
-      region_id: effectiveRegionId,
-      created_by_employee_id: !isEdit ? formData.created_by_employee_id : undefined,
-    };
-    if (!(payload as any).expected_closing_date) {
-      (payload as any).expected_closing_date = undefined;
-    }
-    if (!isEdit && typeof window !== 'undefined') {
-      const assigned = (window.localStorage.getItem(DEFAULT_LEAD_SERIES_STORAGE_KEY) || '').trim();
-      if (assigned) (payload as any).series_code = assigned;
-    }
-    // Quote number (separate from lead number): generated (series + number) or manual text only
-    if (!isEdit && generatedQuoteSeriesCode && generatedQuoteNumber) {
-      (payload as any).quote_series_code = generatedQuoteSeriesCode;
-      (payload as any).quote_number = generatedQuoteNumber;
-    } else if (!isEdit && customCreateQuoteNumber.trim()) {
-      (payload as any).quote_number = customCreateQuoteNumber.trim();
-    }
+      const payload: Record<string, unknown> = {
+        ...formData,
+        contact_id: effectiveContactId,
+        customer_id: effectiveCustomerId,
+        through_contact_id: effectiveThroughContactId,
+        plant_id: formData.plant_id ?? undefined,
+        domain_id: effectiveDomainId,
+        region_id: effectiveRegionId,
+        created_by_employee_id: !isEdit ? formData.created_by_employee_id : undefined,
+      };
+      if (!(payload as any).expected_closing_date) {
+        (payload as any).expected_closing_date = undefined;
+      }
+      if (!isEdit && typeof window !== 'undefined') {
+        const assigned = (window.localStorage.getItem(DEFAULT_LEAD_SERIES_STORAGE_KEY) || '').trim();
+        if (assigned) (payload as any).series_code = assigned;
+      }
+      // Quote number (separate from lead number): generated (series + number) or manual text only
+      if (!isEdit && generatedQuoteSeriesCode && generatedQuoteNumber) {
+        (payload as any).quote_series_code = generatedQuoteSeriesCode;
+        (payload as any).quote_number = generatedQuoteNumber;
+      } else if (!isEdit && customCreateQuoteNumber.trim()) {
+        (payload as any).quote_number = customCreateQuoteNumber.trim();
+      }
 
-    const initialInquiryIso =
-      !isEdit &&
-      initialInquiryReceivedAtLocal.trim() &&
-      !Number.isNaN(new Date(initialInquiryReceivedAtLocal).getTime())
-        ? new Date(initialInquiryReceivedAtLocal).toISOString()
-        : undefined;
-    if (!isEdit && initialInquiryIso && !initialQuotationFile) {
-      (payload as any).initial_inquiry_at = initialInquiryIso;
-    }
+      const initialInquiryIso =
+        !isEdit &&
+          initialInquiryReceivedAtLocal.trim() &&
+          !Number.isNaN(new Date(initialInquiryReceivedAtLocal).getTime())
+          ? new Date(initialInquiryReceivedAtLocal).toISOString()
+          : undefined;
+      if (!isEdit && initialInquiryIso && !initialQuotationFile) {
+        (payload as any).initial_inquiry_at = initialInquiryIso;
+      }
 
-    try {
-      if (isValidId) {
-        await marketingAPI.updateLead(leadId, payload as UpdateLeadRequest);
-        showToast('Lead updated successfully', 'success');
-        setShowEditModal(false);
-        loadLead();
-        loadActivities();
-      } else {
-        const lead = await marketingAPI.createLead(payload as any);
-        if (initialQuotationFile) {
-          try {
-            const createdActivity = await marketingAPI.createLeadActivity(lead.id, {
-              activity_type: 'call',
-              title: 'Added quotation',
-              description: undefined,
-              ...(initialInquiryIso ? { activity_date: initialInquiryIso } : {}),
-            });
-            const qNum = (generatedQuoteNumber || customCreateQuoteNumber.trim() || '').trim() || undefined;
-            await marketingAPI.uploadLeadActivityAttachments(
-              lead.id,
-              createdActivity.id,
-              [initialQuotationFile],
-              ['quotation'],
-              qNum ? [qNum] : undefined,
-              undefined,
-              // When no explicit quote number, use quotation series to generate on upload
-              qNum ? undefined : (createFormQuoteSeriesCode.trim() || undefined),
-              false,
-              [initialQuotationValue ? Number(initialQuotationValue) : undefined]
-            );
-            showToast('Lead and enquiry created successfully', 'success');
-            navigate(`/leads/${lead.id}/edit`);
-            return;
-          } catch (err: any) {
-            showToast('Lead created but enquiry failed: ' + (err?.message || 'unknown error'), 'error');
-            navigate(`/leads/${lead.id}/edit`);
-            return;
+      try {
+        if (isValidId) {
+          await marketingAPI.updateLead(leadId, payload as UpdateLeadRequest);
+          showToast('Lead updated successfully', 'success');
+          setShowEditModal(false);
+          loadLead();
+          loadActivities();
+        } else {
+          const lead = await marketingAPI.createLead(payload as any);
+          if (initialQuotationFile) {
+            let createdActivity: LeadActivity | null = null;
+            try {
+              createdActivity = await marketingAPI.createLeadActivity(lead.id, {
+                activity_type: 'call',
+                title: 'Added quotation',
+                description: undefined,
+                ...(initialInquiryIso ? { activity_date: initialInquiryIso } : {}),
+              });
+              const qNum = (generatedQuoteNumber || customCreateQuoteNumber.trim() || '').trim() || undefined;
+              setCreateLeadUploadProgress(0);
+              await marketingAPI.uploadLeadActivityAttachments(
+                lead.id,
+                createdActivity.id,
+                [initialQuotationFile],
+                ['quotation'],
+                qNum ? [qNum] : undefined,
+                undefined,
+                // When no explicit quote number, use quotation series to generate on upload
+                qNum ? undefined : (createFormQuoteSeriesCode.trim() || undefined),
+                false,
+                [initialQuotationValue ? Number(initialQuotationValue) : undefined],
+                setCreateLeadUploadProgress
+              );
+              showToast('Lead and enquiry created successfully', 'success');
+              navigate(`/leads/${lead.id}/edit`);
+              return;
+            } catch (err: any) {
+              if (createdActivity) {
+                try { await marketingAPI.deleteLeadActivity(lead.id, createdActivity.id); } catch { }
+              }
+              showToast('Lead created but enquiry failed: ' + (err?.message || 'unknown error'), 'error');
+              navigate(`/leads/${lead.id}/edit`);
+              return;
+            }
           }
+          showToast('Lead created successfully', 'success');
+          navigate('/leads');
         }
-        showToast('Lead created successfully', 'success');
-        navigate('/leads');
+      } catch (error: any) {
+        showToast(error.message || `Failed to ${isEdit ? 'update' : 'create'} lead`, 'error');
       }
-    } catch (error: any) {
-      showToast(error.message || `Failed to ${isEdit ? 'update' : 'create'} lead`, 'error');
-    }
     } finally {
       setIsSubmitting(false);
       submittingRef.current = false;
+      setCreateLeadUploadProgress(null);
     }
   };
 
@@ -1691,8 +1729,8 @@ export const LeadFormPage: React.FC = () => {
                 <User size={18} /> Primary contact
               </h3>
               <p className="text-sm text-slate-500 font-medium">Search existing contacts or fill in details below to create a new one.</p>
-              
-            {primaryContactContactId != null ? (
+
+              {primaryContactContactId != null ? (
                 <div className="p-4 bg-gradient-to-br from-blue-50/50 to-white rounded-xl border border-blue-100/80 flex items-start justify-between gap-4 animate-in zoom-in-95 duration-200">
                   <div className="flex items-start gap-3">
                     <div className="h-10 w-10 shrink-0 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 border border-blue-200 shadow-sm">
@@ -1703,8 +1741,8 @@ export const LeadFormPage: React.FC = () => {
                         <>
                           <p className="font-bold text-slate-900 truncate tracking-tight">{contactDisplayName(selectedPrimaryContact) || contactCompanyName(selectedPrimaryContact) || 'Contact'}</p>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-slate-500 text-xs">
-                             {selectedPrimaryContact.contact_email && <span className="flex items-center gap-1"><Mail size={12} className="text-slate-400" />{selectedPrimaryContact.contact_email}</span>}
-                             {selectedPrimaryContact.contact_phone && <span className="flex items-center gap-1"><Info size={12} className="text-slate-400" />{selectedPrimaryContact.contact_phone}</span>}
+                            {selectedPrimaryContact.contact_email && <span className="flex items-center gap-1"><Mail size={12} className="text-slate-400" />{selectedPrimaryContact.contact_email}</span>}
+                            {selectedPrimaryContact.contact_phone && <span className="flex items-center gap-1"><Info size={12} className="text-slate-400" />{selectedPrimaryContact.contact_phone}</span>}
                           </div>
                         </>
                       ) : (
@@ -1715,18 +1753,18 @@ export const LeadFormPage: React.FC = () => {
                   <div className="flex items-center gap-2 pt-0.5">
                     <button
                       type="button"
-                      onClick={() => { 
-                        setPrimaryContactContactId(null); 
-                        setSelectedPrimaryContact(null); 
-                        setPrimaryContactSearchQuery(''); 
-                        setContactSuggestions([]); 
+                      onClick={() => {
+                        setPrimaryContactContactId(null);
+                        setSelectedPrimaryContact(null);
+                        setPrimaryContactSearchQuery('');
+                        setContactSuggestions([]);
                         // Clear organization when changing contact
                         setSelectedOrganization(null);
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          contact_id: undefined, 
-                          organization_id: undefined, 
-                          plant_id: undefined 
+                        setFormData(prev => ({
+                          ...prev,
+                          contact_id: undefined,
+                          organization_id: undefined,
+                          plant_id: undefined
                         }));
                         setPlants([]);
                         setOrgSearchQuery('');
@@ -1752,15 +1790,15 @@ export const LeadFormPage: React.FC = () => {
                   <div className="grid grid-cols-12 gap-x-4 gap-y-4">
                     {/* Row 1: Name Fields */}
                     <div className="col-span-12 lg:col-span-2">
-                       <Select 
-                         label="Title" 
-                         options={NAME_PREFIXES} 
-                         value={inlineContactForm.title} 
-                         onChange={(v) => setInlineContactForm(prev => ({ ...prev, title: (v ?? '') as string }))} 
-                         placeholder="—" 
-                         searchable={false} 
-                         inputSize="md"
-                       />
+                      <Select
+                        label="Title"
+                        options={NAME_PREFIXES}
+                        value={inlineContactForm.title}
+                        onChange={(v) => setInlineContactForm(prev => ({ ...prev, title: (v ?? '') as string }))}
+                        placeholder="—"
+                        searchable={false}
+                        inputSize="md"
+                      />
                     </div>
                     <div className="col-span-12 md:col-span-6 lg:col-span-5">
                       <Input
@@ -1802,46 +1840,46 @@ export const LeadFormPage: React.FC = () => {
 
                     {/* Row 2: Phone Fields */}
                     <div className="col-span-12 md:col-span-4 lg:col-span-3">
-                      <Select 
-                        label="Country Code" 
-                        options={COUNTRY_CODES} 
-                        value={inlineContactForm.contact_phone_code} 
-                        onChange={(v) => setInlineContactForm(prev => ({ ...prev, contact_phone_code: (v ?? '') as string }))} 
-                        placeholder="Code" 
-                        searchable 
-                        getSearchText={getCountryCodeSearchText} 
+                      <Select
+                        label="Country Code"
+                        options={COUNTRY_CODES}
+                        value={inlineContactForm.contact_phone_code}
+                        onChange={(v) => setInlineContactForm(prev => ({ ...prev, contact_phone_code: (v ?? '') as string }))}
+                        placeholder="Code"
+                        searchable
+                        getSearchText={getCountryCodeSearchText}
                         inputSize="md"
                         clearable={false}
                       />
                     </div>
                     <div className="col-span-12 md:col-span-8 lg:col-span-9">
-                      <Input 
-                        label="Phone number" 
-                        type="tel" 
-                        value={inlineContactForm.contact_phone} 
-                        onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_phone: e.target.value }))} 
-                        placeholder="Number" 
+                      <Input
+                        label="Phone number"
+                        type="tel"
+                        value={inlineContactForm.contact_phone}
+                        onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_phone: e.target.value }))}
+                        placeholder="Number"
                         className="h-10"
                       />
                     </div>
 
                     {/* Row 3: Details */}
                     <div className="col-span-12 md:col-span-6">
-                      <Input 
-                        label="Email address" 
-                        type="email" 
-                        value={inlineContactForm.contact_email} 
-                        onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_email: e.target.value }))} 
-                        placeholder="email@example.com" 
+                      <Input
+                        label="Email address"
+                        type="email"
+                        value={inlineContactForm.contact_email}
+                        onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_email: e.target.value }))}
+                        placeholder="email@example.com"
                         className="h-10"
                       />
                     </div>
                     <div className="col-span-12 md:col-span-6">
-                      <Input 
-                        label="Designation / Job title" 
-                        value={inlineContactForm.contact_job_title} 
-                        onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))} 
-                        placeholder="e.g. Director" 
+                      <Input
+                        label="Designation / Job title"
+                        value={inlineContactForm.contact_job_title}
+                        onChange={(e) => setInlineContactForm(prev => ({ ...prev, contact_job_title: e.target.value }))}
+                        placeholder="e.g. Director"
                         className="h-10"
                       />
                     </div>
@@ -1856,7 +1894,7 @@ export const LeadFormPage: React.FC = () => {
                 <Building2 size={18} /> Organization
               </h3>
               <p className="text-sm text-slate-500 font-medium">Link an existing organization or enter details below to create a new one.</p>
-              
+
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-slate-700">Company / Organization name</label>
                 <div className="relative">
@@ -1895,36 +1933,36 @@ export const LeadFormPage: React.FC = () => {
                       ) : undefined
                     }
                   />
-                  
-                    <SearchSuggestion
-                      items={orgSuggestions}
-                      onSelect={(org) => {
-                        setSelectedOrganization(org);
-                        setOrgSuggestions([]);
-                        setOrgSearchQuery('');
-                        marketingAPI.getOrganizationPlants(org.id).then((plantsList) => {
-                          const firstPlant = plantsList?.[0];
-                          setPlants(plantsList ?? []);
-                          setFormData(prev => ({
-                            ...prev,
-                            organization_id: org.id,
-                            company: org.name,
-                            plant_id: firstPlant?.id,
-                          }));
-                        }).catch(() => {
-                          setPlants([]);
-                          setFormData(prev => ({ ...prev, organization_id: org.id, company: org.name, plant_id: undefined }));
-                        });
-                      }}
-                      title="Link to existing organization:"
-                      icon={Building2}
-                      renderItem={(org) => ({
-                        id: org.id,
-                        title: org.name,
-                        subtitle: [org.industry, org.website].filter(Boolean).join(' · '),
-                        rightText: isEdit ? org.code : undefined,
-                      })}
-                    />
+
+                  <SearchSuggestion
+                    items={orgSuggestions}
+                    onSelect={(org) => {
+                      setSelectedOrganization(org);
+                      setOrgSuggestions([]);
+                      setOrgSearchQuery('');
+                      marketingAPI.getOrganizationPlants(org.id).then((plantsList) => {
+                        const firstPlant = plantsList?.[0];
+                        setPlants(plantsList ?? []);
+                        setFormData(prev => ({
+                          ...prev,
+                          organization_id: org.id,
+                          company: org.name,
+                          plant_id: firstPlant?.id,
+                        }));
+                      }).catch(() => {
+                        setPlants([]);
+                        setFormData(prev => ({ ...prev, organization_id: org.id, company: org.name, plant_id: undefined }));
+                      });
+                    }}
+                    title="Link to existing organization:"
+                    icon={Building2}
+                    renderItem={(org) => ({
+                      id: org.id,
+                      title: org.name,
+                      subtitle: [org.industry, org.website].filter(Boolean).join(' · '),
+                      rightText: isEdit ? org.code : undefined,
+                    })}
+                  />
                 </div>
 
                 {selectedOrganization ? (
@@ -2048,7 +2086,7 @@ export const LeadFormPage: React.FC = () => {
                 <FileText size={18} /> Enquiry Details
               </h3>
               <p className="text-sm text-slate-500 font-medium">Categorize the lead and specify how they discovered us.</p>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2 p-4 bg-slate-50/50 rounded-xl border border-slate-200">
                   <div className="max-w-xs mb-4">
@@ -2066,7 +2104,7 @@ export const LeadFormPage: React.FC = () => {
                       triggerClassName="font-bold tracking-tight"
                     />
                   </div>
-                  
+
                   {referredByType === 'employee' && (
                     <AsyncSelect
                       loadOptions={async (search) => {
@@ -2357,8 +2395,8 @@ export const LeadFormPage: React.FC = () => {
             {/* 5. Additional Context */}
             <div className="border-t border-slate-200 pt-4 space-y-4">
               <div className="flex items-center gap-2">
-                 <FileText size={18} className="text-slate-400" />
-                 <span className="text-lg font-bold text-slate-900 tracking-tight">Additional Notes</span>
+                <FileText size={18} className="text-slate-400" />
+                <span className="text-lg font-bold text-slate-900 tracking-tight">Additional Notes</span>
               </div>
               <textarea
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] bg-slate-50/30 focus:bg-white transition-all"
@@ -2369,11 +2407,18 @@ export const LeadFormPage: React.FC = () => {
             </div>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-6">
-              <Button variant="ghost" type="button" onClick={() => navigate('/leads')} className="text-slate-500 font-bold px-4">Cancel</Button>
-              <Button type="submit" disabled={isSubmitting} leftIcon={<Plus size={16} />} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100">
-                {isSubmitting ? 'Creating...' : 'Create Lead'}
-              </Button>
+            <div className="flex flex-col gap-3 border-t border-slate-200 pt-6">
+              {isSubmitting && createLeadUploadProgress !== null && (
+                <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
+                  <div className="bg-blue-600 h-1 rounded-full transition-all duration-300 ease-out" style={{ width: `${createLeadUploadProgress}%` }}></div>
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-3">
+                <Button variant="ghost" type="button" onClick={() => navigate('/leads')} className="text-slate-500 font-bold px-4">Cancel</Button>
+                <Button type="submit" disabled={isSubmitting} leftIcon={<Plus size={16} />} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100">
+                  {isSubmitting ? (createLeadUploadProgress !== null ? `Uploading (${createLeadUploadProgress}%)...` : 'Creating...') : 'Create Lead'}
+                </Button>
+              </div>
             </div>
           </form>
         </Card>
@@ -2420,9 +2465,15 @@ export const LeadFormPage: React.FC = () => {
                       </div>
                     )}
                     <Button type="submit" size="sm" disabled={activitySubmitting} className="h-9 shrink-0 px-4">
-                      {activitySubmitting ? (uploadPhase === 'uploading' ? 'Uploading file...' : 'Adding log...') : 'Add log'}
+                      {activitySubmitting ? (uploadPhase === 'uploading' ? `Uploading (${logUploadProgress ?? 0}%)...` : 'Adding log...') : 'Add log'}
                     </Button>
                   </div>
+
+                  {activitySubmitting && uploadPhase === 'uploading' && logUploadProgress !== null && (
+                    <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
+                      <div className="bg-blue-600 h-1 rounded-full transition-all duration-300 ease-out" style={{ width: `${logUploadProgress}%` }}></div>
+                    </div>
+                  )}
 
                   {/* Notes */}
                   <div className="!space-y-1">
@@ -2516,15 +2567,15 @@ export const LeadFormPage: React.FC = () => {
                                       );
                                     } else {
                                       const newRows = files.map((file) => ({
-                                            id: crypto.randomUUID(),
-                                            kind: 'attachment' as const,
-                                            file: file as File,
-                                            quotationNumber: '',
-                                            title: '',
-                                            quoteValue: '',
-                                          }));
-                                          setAttachmentEntries((prev) =>
-                                            prev.map((r) => (r.id === row.id ? { ...r, file: files[0] } : r)).concat(newRows.slice(1))
+                                        id: crypto.randomUUID(),
+                                        kind: 'attachment' as const,
+                                        file: file as File,
+                                        quotationNumber: '',
+                                        title: '',
+                                        quoteValue: '',
+                                      }));
+                                      setAttachmentEntries((prev) =>
+                                        prev.map((r) => (r.id === row.id ? { ...r, file: files[0] } : r)).concat(newRows.slice(1))
                                       );
                                     }
                                     e.target.value = '';
@@ -2547,33 +2598,33 @@ export const LeadFormPage: React.FC = () => {
                                   searchable={false}
                                 />
                               </div>
-      {row.kind === 'quotation' ? (
-        <Input
-          placeholder="Quote Value (₹) *"
-          type="text"
-          value={row.quoteValue}
-          onChange={(e) => {
-            const val = e.target.value.replace(/\D/g, '');
-            setAttachmentEntries((prev) =>
-              prev.map((r) => (r.id === row.id ? { ...r, quoteValue: val } : r))
-            );
-          }}
-          inputSize="md"
-          containerClassName="min-w-[160px] flex-1 !space-y-0"
-        />
-      ) : (
-        <Input
-          placeholder="File title"
-          value={row.title}
-          onChange={(e) =>
-            setAttachmentEntries((prev) =>
-              prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r))
-            )
-          }
-          inputSize="md"
-          containerClassName="min-w-[160px] flex-1 !space-y-0"
-        />
-      )}
+                              {row.kind === 'quotation' ? (
+                                <Input
+                                  placeholder="Quote Value (₹) *"
+                                  type="text"
+                                  value={row.quoteValue}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, '');
+                                    setAttachmentEntries((prev) =>
+                                      prev.map((r) => (r.id === row.id ? { ...r, quoteValue: val } : r))
+                                    );
+                                  }}
+                                  inputSize="md"
+                                  containerClassName="min-w-[160px] flex-1 !space-y-0"
+                                />
+                              ) : (
+                                <Input
+                                  placeholder="File title"
+                                  value={row.title}
+                                  onChange={(e) =>
+                                    setAttachmentEntries((prev) =>
+                                      prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r))
+                                    )
+                                  }
+                                  inputSize="md"
+                                  containerClassName="min-w-[160px] flex-1 !space-y-0"
+                                />
+                              )}
                               <div className="ml-auto flex items-center gap-1 shrink-0">
                                 <Tooltip content="Remove">
                                   <button
@@ -2923,7 +2974,7 @@ export const LeadFormPage: React.FC = () => {
                                 type="button"
                                 onClick={() => {
                                   setAddAttachmentActivityId(a.id);
-                                        setAddAttachmentRows([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
+                                  setAddAttachmentRows([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
                                 }}
                                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 border border-dashed border-blue-300 rounded-lg px-3 py-1.5 hover:bg-blue-50"
                               >
@@ -3058,6 +3109,11 @@ export const LeadFormPage: React.FC = () => {
                                   </div>
                                 ))}
                                 <div className="flex flex-wrap items-center gap-2 pt-1">
+                                  {uploadingAttachmentsForActivityId === a.id && attachmentUploadProgress !== null && (
+                                    <div className="w-full mb-1.5 bg-slate-100 rounded-full h-1 overflow-hidden">
+                                      <div className="bg-blue-600 h-1 rounded-full transition-all duration-300 ease-out" style={{ width: `${attachmentUploadProgress}%` }}></div>
+                                    </div>
+                                  )}
                                   {addAttachmentRows.some((r) => r.kind === 'quotation') && (
                                     <div className="w-full mb-2">
                                       {hasExistingQuotation ? (
@@ -3104,6 +3160,7 @@ export const LeadFormPage: React.FC = () => {
                                       const toUpload = addAttachmentRows.filter((r) => r.file);
                                       if (!isValidId || toUpload.length === 0) return;
                                       setUploadingAttachmentsForActivityId(a.id);
+                                      setAttachmentUploadProgress(0);
                                       try {
                                         await marketingAPI.uploadLeadActivityAttachments(
                                           leadId,
@@ -3114,21 +3171,23 @@ export const LeadFormPage: React.FC = () => {
                                           toUpload.map((r) => (r.kind === 'attachment' ? (r.title.trim() || undefined) : undefined)),
                                           toUpload.some((r) => r.kind === 'quotation') ? (addAttachmentQuotationSeriesCode.trim() || undefined) : undefined,
                                           toUpload.some((r) => r.kind === 'quotation') ? addAttachmentIsRevised : undefined,
-                                          toUpload.map((r) => (r.kind === 'quotation' && r.quoteValue ? Number(r.quoteValue) : undefined))
+                                          toUpload.map((r) => (r.kind === 'quotation' && r.quoteValue ? Number(r.quoteValue) : undefined)),
+                                          setAttachmentUploadProgress
                                         );
                                         showToast('Added', 'success');
                                         setAddAttachmentActivityId(null);
-                                  setAddAttachmentRows([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
+                                        setAddAttachmentRows([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
                                         setAddAttachmentQuotationSeriesCode('');
                                         loadActivities();
                                       } catch (err: any) {
                                         showToast(err.message || 'Upload failed', 'error');
                                       } finally {
                                         setUploadingAttachmentsForActivityId(null);
+                                        setAttachmentUploadProgress(null);
                                       }
                                     }}
                                   >
-                                    {uploadingAttachmentsForActivityId === a.id ? 'Uploading…' : 'Upload'}
+                                    {uploadingAttachmentsForActivityId === a.id ? (attachmentUploadProgress !== null ? `Uploading (${attachmentUploadProgress}%)...` : 'Uploading…') : 'Upload'}
                                   </Button>
                                 </div>
                               </div>

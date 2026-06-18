@@ -5,6 +5,36 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-06-18] — Visual Upload Progress Bars, Kanban Card Quote Values & Seed Script (v1.0.10)
+
+### 🖥️ Frontend
+
+#### Features
+- **Visual File Upload Progress Bars**: Implemented clean, non-distracting 4px horizontal progress bars in the modal footers and form actions for a high-fidelity visual indication of uploading files (initial quotation uploads, logs, attachments, status changes, and Won PO files).
+- **Live Upload Percentages**: Upload buttons now render dynamic percentages (e.g. `Uploading (45%)...`) based on standard progress events.
+- **Kanban Card Quote Values**: Upgraded the Kanban board to dynamically fetch and prioritize a lead's quotation-derived `quote_value` (stamped with a blue `Quote` badge), falling back to the Estimated potential value with an `Est` badge when no quotations exist.
+
+### ⚙️ Backend (API)
+
+#### Features
+- **Computed Lead Quote Value**: Updated the backend Pydantic schemas and endpoints (`get_leads`, `get_lead`, and `update_lead`) to query the total sum of `ActivityAttachment.quote_value` for each lead and populate the new `quote_value` field dynamically.
+- **Detailed DB Constraint Errors**: Enhanced the global exception handler to extract and append specific PostgreSQL constraint `DETAIL` blocks to client-facing error messages for unique and foreign key violations.
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `lib/api.ts` | Added `postFormDataWithProgress` using `XMLHttpRequest` |
+| `lib/marketing-api.ts` | Added `onProgress` callback to `uploadLeadActivityAttachments` and added `quote_value` to `Lead` type |
+| `pages/LeadFormPage.tsx` | Integrated progress bars for initial quotes, logs, and attachments |
+| `pages/LeadsPage.tsx` | Added progress bars to Kanban changes & Won PO modals; updated Kanban card value rendering |
+| `au-marketing-api/app/config.py` | Bumped API version to `1.0.10` |
+| `au-marketing-api/app/main.py` | Parsed PostgreSQL constraint detail blocks for clearer client errors |
+| `au-marketing-api/app/schemas.py` | Added `quote_value` to `LeadResponse` schema |
+| `au-marketing-api/app/routers/leads.py` | Query and populate `quote_value` in lead responses |
+| `au-marketing-api/.server-operator/seed_dashboards.serop` | Added dashboard seed command script |
+
+---
+
 ## [2026-06-15] — Dynamic Version Changelog System, Unified Loaders & Auth Session Fix (v1.0.9)
 
 ### 🖥️ Frontend

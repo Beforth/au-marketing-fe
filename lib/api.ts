@@ -188,6 +188,82 @@ class APIClient {
     });
   }
 
+  async postFormDataWithProgress<T>(
+    endpoint: string,
+    formData: FormData,
+    onProgress?: (progress: number) => void
+  ): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const url = `${this.baseURL}${endpoint}`;
+
+      xhr.open('POST', url);
+
+      const currentToken = this.token || localStorage.getItem('auth_token');
+      if (currentToken) {
+        xhr.setRequestHeader('Authorization', `Bearer ${currentToken}`);
+      }
+      xhr.setRequestHeader('Accept', 'application/json');
+
+      if (onProgress && xhr.upload) {
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            onProgress(percentComplete);
+          }
+        });
+      }
+
+      xhr.onload = () => {
+        if (xhr.status === 401) {
+          this.setToken(null);
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth_user_data');
+          localStorage.removeItem('auth_login_time');
+          window.dispatchEvent(new CustomEvent('auth:token-expired'));
+          reject(new Error('Session expired. Please login again.'));
+          return;
+        }
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (xhr.status === 204) {
+            resolve(undefined as T);
+            return;
+          }
+          try {
+            const responseText = xhr.responseText;
+            if (!responseText || responseText.trim() === '') {
+              resolve(undefined as T);
+            } else {
+              resolve(JSON.parse(responseText) as T);
+            }
+          } catch (e) {
+            reject(new Error('Failed to parse response'));
+          }
+        } else {
+          let body;
+          try {
+            body = JSON.parse(xhr.responseText);
+          } catch (e) {
+            body = { detail: xhr.statusText };
+          }
+          const message = formatApiError(body, xhr.status);
+          reject(new ApiError(xhr.status, message, body));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(
+          new Error(
+            `API connection failed (CORS block or server offline). The request to ${url} failed.`
+          )
+        );
+      };
+
+      xhr.send(formData);
+    });
+  }
+
   async put<T>(endpoint: string, data?: any): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',

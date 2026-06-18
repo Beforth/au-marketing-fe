@@ -16,7 +16,7 @@ export const Sidebar: React.FC = () => {
   const userInitials = useAppSelector(selectUserInitials);
   const employee = useAppSelector(selectEmployee);
   const user = useAppSelector(selectUser);
-  const appVersion = 'v1.0.9';
+  const appVersion = 'v1.0.10';
   const changelogSeenKey = useMemo(
     () => `marketing_changelog_seen_${appVersion}_${user?.id ?? 'anon'}`,
     [appVersion, user?.id]

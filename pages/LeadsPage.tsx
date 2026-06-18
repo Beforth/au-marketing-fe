@@ -118,6 +118,8 @@ export const LeadsPage: React.FC = () => {
   const [statusChangeForm, setStatusChangeForm] = useState({ title: '', description: '' });
   const [statusChangeAttachments, setStatusChangeAttachments] = useState<{ id: string; kind: 'quotation' | 'attachment'; file: File | null; title: string }[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '' }]);
   const [statusChangeSubmitting, setStatusChangeSubmitting] = useState(false);
+  const [statusChangeUploadProgress, setStatusChangeUploadProgress] = useState<number | null>(null);
+  const [wonPoUploadProgress, setWonPoUploadProgress] = useState<number | null>(null);
   const [seriesList, setSeriesList] = useState<Series[]>([]);
   const [statusChangeSeriesCode, setStatusChangeSeriesCode] = useState('');
   const [statusChangeGeneratingQuote, setStatusChangeGeneratingQuote] = useState(false);
@@ -731,6 +733,9 @@ export const LeadsPage: React.FC = () => {
       return;
     }
     setStatusChangeSubmitting(true);
+    if (toUpload.length > 0) {
+      setStatusChangeUploadProgress(0);
+    }
     try {
       const created = await marketingAPI.createLeadActivity(leadId, {
         activity_type: 'lead_status_change',
@@ -739,14 +744,20 @@ export const LeadsPage: React.FC = () => {
         from_status_id: currentStatusId ?? undefined,
         to_status_id: newStatusId,
       });
-      await marketingAPI.uploadLeadActivityAttachments(
-        leadId,
-        created.id,
-        toUpload.map((e) => e.file!),
-        toUpload.map((e) => e.kind),
-        undefined,
-        toUpload.map((e) => (e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined))
-      );
+      if (toUpload.length > 0) {
+        await marketingAPI.uploadLeadActivityAttachments(
+          leadId,
+          created.id,
+          toUpload.map((e) => e.file!),
+          toUpload.map((e) => e.kind),
+          undefined,
+          toUpload.map((e) => (e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined)),
+          undefined,
+          undefined,
+          undefined,
+          setStatusChangeUploadProgress
+        );
+      }
       await marketingAPI.updateLead(leadId, { status_id: newStatusId });
       showToast('Status updated and log saved', 'success');
       setLeads((prev) =>
@@ -762,6 +773,7 @@ export const LeadsPage: React.FC = () => {
       showToast(err?.message || 'Failed to update lead status', 'error');
     } finally {
       setStatusChangeSubmitting(false);
+      setStatusChangeUploadProgress(null);
     }
   };
 
@@ -798,6 +810,7 @@ export const LeadsPage: React.FC = () => {
       return;
     }
     setUpdatingLeadId(pendingWonLeadId);
+    setWonPoUploadProgress(0);
     try {
       const fromStatusId = leads.find((l) => l.id === pendingWonLeadId)?.status_id;
       const created = await marketingAPI.createLeadActivity(pendingWonLeadId, {
@@ -813,7 +826,11 @@ export const LeadsPage: React.FC = () => {
         [wonPoFile],
         ['attachment'],
         undefined,
-        ['PO File']
+        ['PO File'],
+        undefined,
+        undefined,
+        undefined,
+        setWonPoUploadProgress
       );
       await marketingAPI.updateLead(pendingWonLeadId, { status_id: pendingWonStatusId, closed_value: value } as UpdateLeadRequest);
       showToast('Lead marked as Won with closed value and PO file', 'success');
@@ -834,6 +851,7 @@ export const LeadsPage: React.FC = () => {
       showToast(err.message || 'Failed to update lead', 'error');
     } finally {
       setUpdatingLeadId(null);
+      setWonPoUploadProgress(null);
       setShowWonClosedValueModal(false);
       setPendingWonLeadId(null);
       setPendingWonStatusId(null);
@@ -1572,11 +1590,17 @@ export const LeadsPage: React.FC = () => {
                                           Last inquiry: {new Date(lead.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}
                                         </div>
                                       )}
-                                      {lead.potential_value != null && (
-                                        <div className="text-xs font-medium text-slate-700 mt-1.5">
+                                      {lead.quote_value != null && lead.quote_value > 0 ? (
+                                        <div className="text-xs font-semibold text-blue-700 mt-1.5 inline-flex items-center">
+                                          <span className="text-[9px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 px-1 py-0.5 rounded mr-1">Quote</span>
+                                          ₹{Number(lead.quote_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </div>
+                                      ) : lead.potential_value != null ? (
+                                        <div className="text-xs font-medium text-slate-600 mt-1.5 inline-flex items-center">
+                                          <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-1 py-0.5 rounded mr-1">Est</span>
                                           ₹{Number(lead.potential_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </div>
-                                      )}
+                                      ) : null}
                                       <div className="flex items-center gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                                         {canEdit && wonStatusId && lead.status_id !== wonStatusId && !lead.status_option?.is_lost && (
                                           <Tooltip content="Mark as Won">
@@ -1746,26 +1770,33 @@ export const LeadsPage: React.FC = () => {
         }}
         title="Change lead status"
         footer={
-          <div className="flex justify-end gap-2 w-full">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { setStatusChangePending(null); setStatusChangeForm({ title: '', description: '' }); setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '' }]); setStatusChangeSeriesCode(''); }}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleStatusChangeModalSubmit}
-              disabled={
-                statusChangeSubmitting ||
-                !statusChangeForm.title.trim() ||
-                !statusChangeForm.description.trim() ||
-                (pendingStatusRequiresAttachment && !statusChangeAttachments.some((a) => a.file))
-              }
-            >
-              {statusChangeSubmitting ? 'Updating…' : 'Confirm & change status'}
-            </Button>
+          <div className="flex flex-col gap-2 w-full">
+            {statusChangeSubmitting && statusChangeUploadProgress !== null && (
+              <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
+                <div className="bg-blue-600 h-1 rounded-full transition-all duration-300 ease-out" style={{ width: `${statusChangeUploadProgress}%` }}></div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setStatusChangePending(null); setStatusChangeForm({ title: '', description: '' }); setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '' }]); setStatusChangeSeriesCode(''); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleStatusChangeModalSubmit}
+                disabled={
+                  statusChangeSubmitting ||
+                  !statusChangeForm.title.trim() ||
+                  !statusChangeForm.description.trim() ||
+                  (pendingStatusRequiresAttachment && !statusChangeAttachments.some((a) => a.file))
+                }
+              >
+                {statusChangeSubmitting ? (statusChangeUploadProgress !== null ? `Uploading (${statusChangeUploadProgress}%)...` : 'Updating…') : 'Confirm & change status'}
+              </Button>
+            </div>
           </div>
         }
       >
@@ -1911,23 +1942,34 @@ export const LeadsPage: React.FC = () => {
         }}
         title="Closed value (required)"
         footer={
-          <div className="flex justify-end gap-2 w-full">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setShowWonClosedValueModal(false);
-                setPendingWonLeadId(null);
-                setPendingWonStatusId(null);
-                setClosedValueInput('');
-                setWonPoFile(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleWonClosedValueSubmit} disabled={!closedValueInput.trim() || !wonPoFile}>
-              Submit
-            </Button>
+          <div className="flex flex-col gap-2 w-full">
+            {updatingLeadId !== null && wonPoUploadProgress !== null && (
+              <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
+                <div className="bg-blue-600 h-1 rounded-full transition-all duration-300 ease-out" style={{ width: `${wonPoUploadProgress}%` }}></div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowWonClosedValueModal(false);
+                  setPendingWonLeadId(null);
+                  setPendingWonStatusId(null);
+                  setClosedValueInput('');
+                  setWonPoFile(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                size="sm" 
+                onClick={handleWonClosedValueSubmit} 
+                disabled={updatingLeadId !== null || !closedValueInput.trim() || !wonPoFile}
+              >
+                {updatingLeadId !== null ? (wonPoUploadProgress !== null ? `Uploading (${wonPoUploadProgress}%)...` : 'Submitting...') : 'Submit'}
+              </Button>
+            </div>
           </div>
         }
       >
