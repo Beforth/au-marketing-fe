@@ -13,6 +13,7 @@ import { Pagination } from '../components/ui/Pagination';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
+import { Tooltip } from '../UI/Tooltip';
 import { Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, FileText, Upload, Eye, Trophy, XCircle } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
@@ -531,20 +532,23 @@ export const OrdersPage: React.FC = () => {
       sortable: false,
       align: 'right',
       render: (o) => (
-        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <Button variant="outline" size="xxs" onClick={() => navigate(`/orders/${o.id}`)} title="View details">
-            <Eye size={12} strokeWidth={2.5} />
-          </Button>
-          {canDelete && (
-            <Button
-              variant="outline"
-              size="xxs"
-              className="text-slate-400 hover:text-rose-600 hover:border-rose-300"
-              onClick={() => setDeleteOrderId(o.id)}
-              title="Delete order"
-            >
-              <Trash2 size={12} strokeWidth={2.5} />
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Tooltip content="View details">
+            <Button variant="ghost" size="xs" className="w-8 h-8 p-0 text-blue-500 hover:text-blue-600 hover:bg-transparent transition-colors" onClick={() => navigate(`/orders/${o.id}`)}>
+              <Eye size={15} strokeWidth={2} />
             </Button>
+          </Tooltip>
+          {canDelete && (
+            <Tooltip content="Delete order">
+              <Button
+                variant="ghost"
+                size="xs"
+                className="w-8 h-8 p-0 text-rose-500 hover:text-rose-600 hover:bg-transparent transition-colors"
+                onClick={() => setDeleteOrderId(o.id)}
+              >
+                <Trash2 size={15} strokeWidth={2} />
+              </Button>
+            </Tooltip>
           )}
         </div>
       ),
@@ -617,7 +621,7 @@ export const OrdersPage: React.FC = () => {
         </div>
 
         {ordersTab === 'lost' ? (
-          <Card noPadding contentClassName="py-0">
+          <Card noPadding contentClassName="py-0" className="overflow-hidden">
             {lostLeadsLoading ? (
               <div className="py-12 text-center text-slate-500">Loading lost leads...</div>
             ) : lostLeads.length === 0 ? (
@@ -659,15 +663,16 @@ export const OrdersPage: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
-                              title="View lead & enquiry log"
-                              onClick={() => navigate(`/leads/${lead.id}/edit?view=1`)}
-                            >
-                              <FileText size={18} strokeWidth={2.5} />
-                            </Button>
+                            <Tooltip content="View lead & enquiry log">
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent transition-colors"
+                                onClick={() => navigate(`/leads/${lead.id}/edit?view=1`)}
+                              >
+                                <FileText size={16} />
+                              </Button>
+                            </Tooltip>
                           </td>
                         </tr>
                       ))}
@@ -952,7 +957,7 @@ export const OrdersPage: React.FC = () => {
             )}
           </>
         ) : (
-          <Card noPadding contentClassName="py-0">
+          <Card noPadding contentClassName="py-0" className="overflow-hidden">
             {loading ? (
               <div className="py-12 text-center text-slate-500">Loading orders...</div>
             ) : displayOrders.length === 0 ? (
@@ -968,6 +973,7 @@ export const OrdersPage: React.FC = () => {
             ) : (
               <>
                 <DataTable
+                  bordered={false}
                   data={displayOrders}
                   columns={columns}
                   rowKey={(o) => String(o.id)}

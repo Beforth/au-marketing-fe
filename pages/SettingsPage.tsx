@@ -23,6 +23,9 @@ import {
 import { useApp } from '../App';
 import { VersionsSettings } from '../components/ui/VersionsSettings';
 import { PageLayout } from '../components/layout/PageLayout';
+import { DataTable, Column } from '../components/ui/DataTable';
+import { Pagination } from '../components/ui/Pagination';
+import { SearchInput } from '../components/ui/SearchInput';
 import {
   Button,
   Card,
@@ -61,7 +64,7 @@ export const SettingsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const user = useAppSelector(selectUser);
   const employee = useAppSelector(selectEmployee);
-  const { density, setDensity } = useTheme();
+  const { color, setColor, density, setDensity } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>('Profile');
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshingPermissions, setIsRefreshingPermissions] = useState(false);
@@ -85,8 +88,88 @@ export const SettingsPage: React.FC = () => {
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsTotal, setLogsTotal] = useState(0);
   const [logsPage, setLogsPage] = useState(1);
+  const [logsPageSize, setLogsPageSize] = useState(25);
   const [logsSearch, setLogsSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const canViewAuditLogs = useAppSelector(selectHasPermission('marketing.admin')) || useAppSelector(selectHasPermission('marketing.view_reports'));
+
+  const auditLogColumns = React.useMemo<Column<AuditLog>[]>(() => [
+    {
+      key: 'created_at',
+      label: 'Date & Time',
+      width: 140,
+      render: (log) => (
+        <div>
+          <div className="text-[10px] font-mono text-slate-400 tracking-tighter uppercase leading-none mb-1">
+            {new Date(log.created_at).toLocaleDateString('en-GB')}
+          </div>
+          <div className="text-xs font-semibold text-slate-700 leading-none">
+            {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'employee_name',
+      label: 'User',
+      width: 200,
+      render: (log) => {
+        const name = log.employee_name || 'System';
+        const initial = name.slice(0, 1).toUpperCase();
+        return (
+          <div className="flex items-center gap-2">
+            <div className="size-6 rounded-full bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center font-bold text-[10px] uppercase shrink-0">
+              {initial}
+            </div>
+            <span className="text-xs font-semibold text-slate-800 truncate max-w-[150px] leading-tight" title={name}>
+              {name}
+            </span>
+          </div>
+        );
+      }
+    },
+    {
+      key: 'action',
+      label: 'Action',
+      width: 100,
+      align: 'center',
+      render: (log) => {
+        const action = log.action?.toLowerCase() || '';
+        const isDanger = action.includes('delete') || action.includes('remove');
+        const isSuccess = action.includes('create') || action.includes('add') || action.includes('won') || action.includes('convert');
+        return (
+          <span className={cn(
+            "inline-flex items-center justify-center px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider border",
+            isDanger ? "bg-rose-50 text-rose-700 border-rose-200" :
+            isSuccess ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+            "bg-blue-50 text-blue-700 border-blue-200"
+          )}>
+            {log.action}
+          </span>
+        );
+      }
+    },
+    {
+      key: 'details',
+      label: 'Log Details',
+      render: (log) => {
+        const entityLabel = log.entity_type ? log.entity_type.split('_').join(' ') : 'System';
+        return (
+          <div className="flex items-start gap-2 max-w-full">
+            <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[9px] font-bold uppercase tracking-wider mt-0.5">
+              {entityLabel}
+            </span>
+            <span 
+              className="text-xs text-slate-600 font-medium leading-normal break-words whitespace-normal" 
+              title={log.details || ''}
+            >
+              {log.details || `ID: ${log.entity_id || 'n/a'}`}
+            </span>
+          </div>
+        );
+      }
+    }
+  ], []);
 
   // Profile display from cached auth (no profile API call for basic info)
   const displayName = employee
@@ -142,21 +225,37 @@ export const SettingsPage: React.FC = () => {
 
 
 
-  // Load audit logs when tab is active
+  // Debounce search term to prevent excessive API requests
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(logsSearch);
+      setLogsPage(1);
+    }, 450);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [logsSearch]);
+
+  // Load audit logs when tab is active or pagination/search changes
   useEffect(() => {
     if (activeTab !== 'Audit Logs') return;
     setLogsLoading(true);
-    marketingAPI.getAuditLogs({ page: logsPage, page_size: 20 })
+    marketingAPI.getAuditLogs({ 
+      page: logsPage, 
+      page_size: logsPageSize,
+      search: debouncedSearch || undefined
+    })
       .then(res => {
-        setLogs(res.items);
-        setLogsTotal(res.total);
+        setLogs(res.items || []);
+        setLogsTotal(res.total || 0);
       })
       .catch(() => {
         setLogs([]);
         setLogsTotal(0);
       })
       .finally(() => setLogsLoading(false));
-  }, [activeTab, logsPage]);
+  }, [activeTab, logsPage, logsPageSize, debouncedSearch]);
 
   const handleSave = () => {
     setIsSaving(true);
@@ -371,6 +470,82 @@ export const SettingsPage: React.FC = () => {
 
             <div className="border-t border-slate-200 -mx-4 md:-mx-6 lg:-mx-8" />
 
+            {/* Theme & Customization Section */}
+            <div className="space-y-5 pt-2">
+              <h4 className="text-[11px] font-black uppercase tracking-tight text-slate-900">Interface Customization</h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Theme Color Picker */}
+                <div className="space-y-3">
+                  <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Theme Color</Label>
+                  <p className="text-xs text-slate-400 mt-0.5">Select a brand accent color for active elements, buttons, and badges.</p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {[
+                      { id: 'blue', name: 'Royal Blue', bg: '#2563eb', border: '#1d4ed8' },
+                      { id: 'sky', name: 'Sky Blue', bg: '#0ea5e9', border: '#0284c7' },
+                      { id: 'emerald', name: 'Emerald', bg: '#10b981', border: '#059669' },
+                      { id: 'rose', name: 'Rose', bg: '#f43f5e', border: '#e11d48' },
+                      { id: 'violet', name: 'Violet', bg: '#8b5cf6', border: '#7c3aed' },
+                      { id: 'slate', name: 'Zinc (Slate)', bg: '#18181b', border: '#27272a' },
+                    ].map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setColor(t.id as any);
+                          showToast(`Theme changed to ${t.name}`, 'success');
+                        }}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-all duration-200 active:scale-95",
+                          color === t.id
+                            ? "bg-blue-50 border-blue-500 text-blue-700 shadow-xs"
+                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                        )}
+                      >
+                        <span 
+                          className="size-3 rounded-full border shrink-0" 
+                          style={{ backgroundColor: t.bg, borderColor: t.border }}
+                        />
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Density Settings */}
+                <div className="space-y-3">
+                  <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Layout Density</Label>
+                  <p className="text-xs text-slate-400 mt-0.5">Adjust padding and sizes to fit more information on screen.</p>
+                  <div className="flex gap-2 pt-1">
+                    {[
+                      { id: 'compact', name: 'Compact (HRMS)' },
+                      { id: 'default', name: 'Default' },
+                      { id: 'relaxed', name: 'Relaxed' },
+                    ].map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => {
+                          setDensity(d.id as Density);
+                          showToast(`Density set to ${d.name}`, 'success');
+                        }}
+                        className={cn(
+                          "flex-1 px-3 py-1.5 rounded-lg border text-xs font-semibold uppercase tracking-wider text-center transition-all duration-200 active:scale-95",
+                          density === d.id
+                            ? "bg-blue-50 border-blue-500 text-blue-700 shadow-xs"
+                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                        )}
+                      >
+                        {d.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 -mx-4 md:-mx-6 lg:-mx-8" />
+
             {/* Sync Section */}
             <div className="flex items-center justify-between pt-2">
               <div>
@@ -407,117 +582,40 @@ export const SettingsPage: React.FC = () => {
       case 'Audit Logs':
         return (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-center gap-2 mb-2">
-               <div className="flex-1 relative">
-                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-300" size={13} />
-                 <input 
-                    type="text" 
-                    placeholder="Specification filter..." 
-                    className="w-full h-8 pl-8 pr-3 text-xs font-semibold uppercase tracking-wide bg-slate-50 border-none rounded-lg focus:ring-1 focus:ring-blue-500/20 outline-none placeholder:text-slate-300 placeholder:font-normal"
-                    value={logsSearch}
-                    onChange={(e) => setLogsSearch(e.target.value)}
-                 />
-               </div>
-               <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg">
-                  <button onClick={() => setLogsPage(p => Math.max(1, p - 1))} className="h-6 w-6 flex items-center justify-center rounded hover:bg-white transition-all text-slate-400 disabled:opacity-20" disabled={logsPage <= 1 || logsLoading}>
-                    <ChevronDown className="rotate-90" size={12} />
-                  </button>
-                  <span className="text-[10px] font-semibold tabular-nums text-slate-400 px-1 min-w-[40px] text-center">{logsPage}</span>
-                  <button onClick={() => setLogsPage(p => p + 1)} className="h-6 w-6 flex items-center justify-center rounded hover:bg-white transition-all text-slate-400 disabled:opacity-20" disabled={logsLoading}>
-                    <ChevronDown className="-rotate-90" size={12} />
-                  </button>
-               </div>
+            <div className="flex items-center gap-3">
+              <SearchInput
+                placeholder="Filter by user, action, entity or details..."
+                value={logsSearch}
+                onChange={(e) => setLogsSearch(e.target.value)}
+                onClear={() => setLogsSearch('')}
+                containerClassName="max-w-md shadow-none"
+                inputSize="sm"
+              />
             </div>
 
-            <Table containerClassName="border-slate-100/50 shadow-none rounded-2xl">
-              <TableHeader className="bg-slate-50/50">
-                <TableRow>
-                  <TableHead className="h-9 px-3 text-[11px] font-black uppercase tracking-widest text-slate-500">Meta / Time</TableHead>
-                  <TableHead className="h-9 px-3 text-[11px] font-black uppercase tracking-widest text-slate-500">Actor</TableHead>
-                  <TableHead className="h-9 px-3 text-[11px] font-black uppercase tracking-widest text-slate-500 text-center">Protocol</TableHead>
-                  <TableHead className="h-9 px-3 text-[11px] font-black uppercase tracking-widest text-slate-500">Entity Pointer</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {logsLoading ? (
-                  Array.from({ length: 5 }).map((_, idx) => (
-                    <TableRow key={idx} className="animate-pulse">
-                      <TableCell className="px-3 py-4">
-                        <div className="h-2.5 bg-slate-200 rounded-full w-14 mb-2" />
-                        <div className="h-2 bg-slate-100 rounded-full w-10" />
-                      </TableCell>
-                      <TableCell className="px-3 py-4">
-                        <div className="flex items-center gap-1.5">
-                          <div className="size-4 rounded-sm bg-slate-200" />
-                          <div className="h-2.5 bg-slate-200 rounded-full w-16" />
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-3 py-4 text-center">
-                        <div className="h-4 bg-slate-200 rounded-[4px] w-12 mx-auto" />
-                      </TableCell>
-                      <TableCell className="px-3 py-4">
-                        <div className="h-2.5 bg-slate-200 rounded-full w-20 mb-2" />
-                        <div className="h-2 bg-slate-100 rounded-full w-28" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : logs.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="py-12">
-                      <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
-                        <History size={28} className="text-slate-400 mb-2" />
-                        <p className="text-sm">No audit logs found.</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  logs.filter((l: AuditLog) => 
-                    !logsSearch || 
-                    l.action?.toLowerCase().includes(logsSearch.toLowerCase()) ||
-                    l.entity_type?.toLowerCase().includes(logsSearch.toLowerCase()) ||
-                    l.employee_name?.toLowerCase().includes(logsSearch.toLowerCase()) ||
-                    l.details?.toLowerCase().includes(logsSearch.toLowerCase())
-                  ).map((log: AuditLog) => {
-                    const action = log.action?.toLowerCase() || '';
-                    const isDanger = action.includes('delete') || action.includes('remove');
-                    const isSuccess = action.includes('create') || action.includes('add') || action.includes('won') || action.includes('convert');
-                    
-                    return (
-                      <TableRow key={log.id} className="hover:bg-slate-50/30 active:scale-[0.98] transition-all duration-300 cursor-pointer">
-                        <TableCell className="px-3 py-2">
-                           <div className="text-[10px] font-mono text-slate-400 tracking-tighter uppercase leading-none mb-1">
-                             {new Date(log.created_at).toLocaleDateString('en-GB')}
-                           </div>
-                           <div className="text-xs font-semibold text-slate-300 leading-none">
-                             {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                           </div>
-                        </TableCell>
-                        <TableCell className="px-3 py-2">
-                           <div className="flex items-center gap-1.5">
-                              <div className="size-4 rounded-sm bg-slate-200 text-slate-500 font-semibold text-[8px] flex items-center justify-center uppercase">{log.employee_name?.slice(0, 1) || 'S'}</div>
-                              <span className="text-xs font-semibold text-slate-800 truncate max-w-[80px] leading-tight">{log.employee_name || 'System'}</span>
-                           </div>
-                        </TableCell>
-                        <TableCell className="px-3 py-2 text-center">
-                           <span className={cn(
-                             "inline-block px-1.5 py-0.5 rounded-[4px] text-[9px] font-black uppercase tracking-widest ring-1 ring-inset",
-                             isDanger ? "bg-rose-50 text-rose-600 ring-rose-100" :
-                             isSuccess ? "bg-emerald-50 text-emerald-600 ring-emerald-100" :
-                             "bg-blue-50 text-blue-600 ring-blue-100"
-                           )}>
-                             {log.action}
-                           </span>
-                        </TableCell>
-                        <TableCell className="px-3 py-2">
-                           <div className="text-xs font-semibold text-slate-900 uppercase tracking-tight mb-0.5">{log.entity_type.split('_').join(' ')}</div>
-                           <div className="text-[10px] text-slate-400 font-mono italic truncate max-w-[120px]" title={log.details || ''}>{log.details || 'ID: ' + (log.entity_id || 'n/a')}</div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+            <DataTable<AuditLog>
+              bordered={true}
+              data={logs}
+              rowKey={(l) => l.id}
+              dense={true}
+              isLoading={logsLoading}
+              columns={auditLogColumns}
+            />
+
+            <div className="border-t border-slate-100 pt-3">
+              <Pagination
+                page={logsPage}
+                pageSize={logsPageSize}
+                total={logsTotal}
+                totalPages={Math.ceil(logsTotal / logsPageSize)}
+                onPageChange={setLogsPage}
+                onPageSizeChange={(sz) => {
+                  setLogsPageSize(sz);
+                  setLogsPage(1);
+                }}
+                pageSizeOptions={[10, 20, 25, 50, 100]}
+              />
+            </div>
           </div>
         );
 

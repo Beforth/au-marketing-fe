@@ -1,5 +1,5 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import React from 'react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Database } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export interface Column<T> {
@@ -28,6 +28,22 @@ interface DataTableProps<T> {
   showVerticalLines?: boolean;
   hideHeader?: boolean;
   className?: string;
+  bordered?: boolean;
+}
+
+function SkeletonRow({ cols }: { cols: number }) {
+  return (
+    <tr>
+      {Array.from({ length: cols }).map((_, i) => (
+        <td key={i} className={cn('px-4 py-3', i === 0 && 'pl-6')}>
+          <div
+            className="h-3 rounded bg-slate-100 animate-pulse"
+            style={{ width: `${55 + (i * 17) % 35}%` }}
+          />
+        </td>
+      ))}
+    </tr>
+  );
 }
 
 export function DataTable<T>({
@@ -43,6 +59,7 @@ export function DataTable<T>({
   showVerticalLines = false,
   hideHeader = false,
   className,
+  bordered = false,
 }: DataTableProps<T>) {
 
   const handleSort = (key: string) => {
@@ -51,15 +68,27 @@ export function DataTable<T>({
     onSort?.(key, direction);
   };
 
+  const cellPy = dense ? 'py-2' : 'py-3';
+
   return (
-    <div className={cn("relative w-full overflow-auto customize-scrollbar border border-slate-200 rounded-xl bg-white", className)}>
-      <table className={cn("w-full border-separate border-spacing-0 text-sm")}>
+    <div
+      className={cn(
+        'relative w-full overflow-auto customize-scrollbar',
+        bordered && 'border border-slate-200 rounded-2xl bg-white shadow-xs',
+        className
+      )}
+    >
+      <table className="w-full border-separate border-spacing-0 text-left">
+
+        {/* ── Header ───────────────────────────────────────────────── */}
         {!hideHeader && (
           <thead className="sticky top-0 z-20">
             <tr>
               {columns.map((col, idx) => {
                 const colKey = String(col.key);
                 const isSortable = col.sortable !== false && !!onSort;
+                const isActive = sortConfig?.key === colKey;
+                const isFirst = idx === 0;
                 const isLast = idx === columns.length - 1;
 
                 return (
@@ -67,24 +96,46 @@ export function DataTable<T>({
                     key={colKey}
                     id={`th-${colKey}`}
                     className={cn(
-                      'h-10 px-4 text-left font-semibold text-slate-600 bg-[#F8FAFC] border-b border-slate-200 transition-colors relative select-none uppercase tracking-wider text-[11px]',
-                      isSortable && "cursor-pointer hover:bg-slate-100/80 hover:text-blue-600",
-                      col.align === 'center' && "text-center",
-                      col.align === 'right' && "text-right",
-                      idx === 0 && "pl-6",
-                      showVerticalLines && !isLast && "border-r border-slate-200/50",
+                      // base: high-density gray header from HRMS specs
+                      'h-10 px-4 text-left select-none relative bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-bold',
+                      // divider below header
+                      'border-b border-slate-200',
+                      // first/last col border styling (if table is bordered)
+                      isFirst && 'pl-6',
+                      // sortable
+                      isSortable && 'cursor-pointer hover:bg-slate-100/70 transition-colors duration-150 group',
                       col.headerClassName
                     )}
-                    style={{ width: col.width ? (typeof col.width === 'number' ? `${col.width}px` : col.width) : 'auto' }}
+                    style={{
+                      width: col.width
+                        ? typeof col.width === 'number' ? `${col.width}px` : col.width
+                        : 'auto',
+                    }}
                     onClick={() => isSortable && handleSort(colKey)}
                   >
-                    <div className={cn("flex items-center gap-1.5", col.align === 'center' && "justify-center", col.align === 'right' && "justify-end")}>
+                    <div
+                      className={cn(
+                        'inline-flex items-center gap-1.5 transition-colors duration-150',
+                        col.align === 'center' && 'justify-center w-full',
+                        col.align === 'right' && 'justify-end w-full',
+                      )}
+                    >
                       <span className="truncate">{col.label}</span>
+
                       {isSortable && (
-                        <div className="flex flex-col text-slate-300">
-                          <ChevronUp size={10} className={cn(sortConfig?.key === colKey && sortConfig.direction === 'asc' && "text-blue-600")} />
-                          <ChevronDown size={10} className={cn(sortConfig?.key === colKey && sortConfig.direction === 'desc' && "text-blue-600")} />
-                        </div>
+                        <span className="shrink-0 transition-opacity duration-150">
+                          {isActive ? (
+                            sortConfig?.direction === 'asc'
+                              ? <ArrowUp size={10} className="text-blue-600" strokeWidth={2.5} />
+                              : <ArrowDown size={10} className="text-blue-600" strokeWidth={2.5} />
+                          ) : (
+                            <ArrowUpDown
+                              size={10}
+                              className="text-slate-300 group-hover:text-slate-400"
+                              strokeWidth={2}
+                            />
+                          )}
+                        </span>
                       )}
                     </div>
                   </th>
@@ -93,55 +144,80 @@ export function DataTable<T>({
             </tr>
           </thead>
         )}
-        <tbody className="divide-y divide-slate-100 relative">
+
+        {/* ── Body ─────────────────────────────────────────────────── */}
+        <tbody className="relative bg-white">
+
+          {/* Loading skeleton — shown when no data yet */}
           {isLoading && data.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length} className="py-20 text-center">
-                <div className="inline-block w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              </td>
-            </tr>
+            <>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonRow key={i} cols={columns.length} />
+              ))}
+            </>
           ) : data.length === 0 ? (
+            /* Empty state */
             <tr>
-              <td colSpan={columns.length} className="py-20 text-center text-slate-400 uppercase tracking-widest text-xs font-bold opacity-30">
-                No Data Found
+              <td colSpan={columns.length} className="py-16 text-center bg-white">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-200/50">
+                    <Database size={15} className="text-slate-400" />
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    No data found
+                  </p>
+                </div>
               </td>
             </tr>
           ) : (
             <>
+              {/* Overlay spinner when refreshing existing data */}
               {isLoading && (
-                <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-30 flex items-center justify-center transition-all duration-300">
-                  <div className="w-6 h-6 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
-                </div>
-              )}
-              {data.map((item) => (
-                <tr
-                  key={String(rowKey(item))}
-                  onClick={() => onRowClick?.(item)}
-                  className={cn(
-                    "group transition-colors",
-                    onRowClick ? "cursor-pointer hover:bg-slate-50/80 active:bg-slate-100/50" : "hover:bg-slate-50/30",
-                    getRowClassName?.(item)
-                  )}
-                >
-                  {columns.map((col, idx) => (
-                    <td
-                      key={String(col.key)}
-                      className={cn(
-                        "px-4 py-2.5 text-slate-600 truncate transition-colors",
-                        col.align === 'center' && "text-center",
-                        col.align === 'right' && "text-right",
-                        idx === 0 && "pl-6",
-                        showVerticalLines && idx < columns.length - 1 && "border-r border-slate-100",
-                        col.cellClassName
-                      )}
-                    >
-                      {col.render
-                        ? col.render(item, (item as any)[col.key])
-                        : String((item as any)[col.key] ?? '')}
-                    </td>
-                  ))}
+                <tr className="absolute inset-0 z-30 pointer-events-none">
+                  <td>
+                    <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center">
+                      <div className="w-5 h-5 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
+                    </div>
+                  </td>
                 </tr>
-              ))}
+              )}
+
+              {data.map((item, rowIndex) => {
+                const isLastRow = rowIndex === data.length - 1;
+                return (
+                  <tr
+                    key={String(rowKey(item))}
+                    onClick={() => onRowClick?.(item)}
+                    className={cn(
+                      // row interaction & hover (transition duration from HRMS specifications)
+                      'transition-colors duration-200',
+                      onRowClick
+                        ? 'cursor-pointer hover:bg-slate-50/60 active:bg-slate-50/90'
+                        : 'hover:bg-slate-50/40',
+                      getRowClassName?.(item)
+                    )}
+                  >
+                    {columns.map((col, idx) => (
+                      <td
+                        key={String(col.key)}
+                        className={cn(
+                          'px-4 align-middle text-xs font-normal text-slate-800 truncate transition-colors duration-100',
+                          cellPy,
+                          idx === 0 && 'pl-6',
+                          col.align === 'center' && 'text-center',
+                          col.align === 'right' && 'text-right',
+                          !isLastRow && 'border-b border-slate-200/60',
+                          col.cellClassName
+                        )}
+                      >
+                        {col.render
+                          ? col.render(item, (item as any)[col.key])
+                          : String((item as any)[col.key] ?? '')}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
             </>
           )}
         </tbody>

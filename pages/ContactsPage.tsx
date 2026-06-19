@@ -119,7 +119,11 @@ export const ContactsPage: React.FC = () => {
 
   if (!canView) {
     return (
-      <PageLayout title="Contacts" breadcrumbs={breadcrumbsBase}>
+      <PageLayout
+        title="Contacts"
+        description="Manage individual contacts. Link contacts to organizations and plants, and convert them to leads."
+        breadcrumbs={breadcrumbsBase}
+      >
         <Card>
           <div className="text-center py-12">
             <p className="text-slate-600">You do not have permission to view contacts.</p>
@@ -143,13 +147,18 @@ export const ContactsPage: React.FC = () => {
   ) : null;
 
   return (
-    <PageLayout title="Contacts" actions={actions} breadcrumbs={breadcrumbs}>
+    <PageLayout
+      title="Contacts"
+      description="Manage individual contacts. Link contacts to organizations and plants, and convert them to leads."
+      actions={actions}
+      breadcrumbs={breadcrumbs}
+    >
       {/* Consolidated Command Bar */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-3 mb-4">
-        <div className="flex items-center justify-between gap-6 flex-wrap lg:flex-nowrap">
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm px-5 py-0 h-14 mb-4 flex items-center">
+        <div className="flex items-center justify-between gap-6 w-full h-full flex-wrap lg:flex-nowrap">
           {/* Internal Navigation group */}
-          <div className="flex items-center gap-6 border-r border-slate-100 pr-6">
-            <nav className="flex gap-4">
+          <div className="flex items-center h-full">
+            <nav className="flex gap-6 h-full">
               {[
                 { path: '/database/organizations', label: 'Organizations', icon: Building2, permission: 'marketing.view_organization' },
                 { path: '/database/customers', label: 'Customers', icon: Users, permission: 'marketing.view_customer' },
@@ -160,7 +169,7 @@ export const ContactsPage: React.FC = () => {
                   to={tab.path}
                   className={({ isActive }) =>
                     cn(
-                      'flex items-center gap-2 py-2 px-1 text-sm font-bold transition-all border-b-2',
+                      'flex items-center gap-2 h-full px-1 text-sm font-bold transition-all border-b-2 -mb-[1px] relative z-10',
                       isActive
                         ? 'border-blue-600 text-blue-600'
                         : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -174,6 +183,9 @@ export const ContactsPage: React.FC = () => {
             </nav>
           </div>
 
+          {/* Centered Vertical Divider */}
+          <div className="hidden lg:block w-[1px] h-5 bg-slate-200" />
+
           {/* Action group: search & filter */}
           <div className="flex flex-1 items-center gap-3">
             <SearchInput
@@ -181,7 +193,7 @@ export const ContactsPage: React.FC = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onClear={() => setSearchTerm('')}
-              containerClassName="max-w-md shadow-none border-slate-100"
+              containerClassName="max-w-md shadow-none"
             />
             <div ref={filterButtonRef} className="inline-block">
               <Button 
@@ -273,7 +285,7 @@ export const ContactsPage: React.FC = () => {
 
       <div className="mt-4">
         {/* Contacts List */}
-        <Card noPadding contentClassName="py-6 px-4">
+        <Card noPadding contentClassName="py-0" className="overflow-hidden">
           {isLoading ? (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -287,6 +299,7 @@ export const ContactsPage: React.FC = () => {
           ) : (
             <>
             <DataTable<Contact>
+              bordered={false}
               data={filteredContacts}
               rowKey={(c) => c.id}
               dense={true}
@@ -356,13 +369,14 @@ export const ContactsPage: React.FC = () => {
                         <Tooltip content="Edit Contact">
                           <Button
                             variant="ghost"
-                            size="xxs"
+                            size="xs"
+                            className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/contacts/${contact.id}/edit`);
                             }}
                           >
-                            <Edit size={12} />
+                            <Edit size={16} />
                           </Button>
                         </Tooltip>
                       )}
@@ -370,14 +384,14 @@ export const ContactsPage: React.FC = () => {
                         <Tooltip content="Delete Contact">
                           <Button
                             variant="ghost"
-                            size="xxs"
+                            size="xs"
+                            className="w-8 h-8 p-0 text-rose-500 hover:text-rose-600 hover:bg-transparent transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
                               openDeleteContactConfirm(contact.id);
                             }}
-                            className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={16} />
                           </Button>
                         </Tooltip>
                       )}

@@ -1758,12 +1758,14 @@ class MarketingAPIService {
     page_size?: number;
     entity_type?: string;
     employee_id?: number;
+    search?: string;
   }): Promise<PaginatedResponse<AuditLog>> {
     const queryParams = new URLSearchParams();
     queryParams.append('page', String(params?.page ?? 1));
     queryParams.append('page_size', String(params?.page_size ?? 25));
     if (params?.entity_type) queryParams.append('entity_type', params.entity_type);
     if (params?.employee_id) queryParams.append('employee_id', String(params.employee_id));
+    if (params?.search) queryParams.append('search', params.search);
     return apiClient.get<PaginatedResponse<AuditLog>>(`/api/audit-logs/?${queryParams.toString()}`);
   }
 

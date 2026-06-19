@@ -5,7 +5,7 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-06-18] — Visual Upload Progress Bars, Kanban Card Quote Values & Seed Script (v1.0.10)
+## [2026-06-19] — Action Icon Consistency, Visual Upload Progress Bars, Kanban Card Quote Values & Seed Script (v1.0.10)
 
 ### 🖥️ Frontend
 
@@ -14,23 +14,39 @@ Format: `[Date] — Category: Description`
 - **Live Upload Percentages**: Upload buttons now render dynamic percentages (e.g. `Uploading (45%)...`) based on standard progress events.
 - **Kanban Card Quote Values**: Upgraded the Kanban board to dynamically fetch and prioritize a lead's quotation-derived `quote_value` (stamped with a blue `Quote` badge), falling back to the Estimated potential value with an `Est` badge when no quotations exist.
 
+#### Improvements
+- **Unified Action Icon Design (All Table Pages)**: Standardised all table action icon buttons across every page to match the Organizations page reference design — `variant="ghost"` + `size="xs"`, `w-8 h-8 p-0`, `hover:bg-transparent`, `transition-colors`, and every icon wrapped in `<Tooltip>`. Replaced raw HTML `title=` attributes on `OrdersPage` icon buttons with proper `<Tooltip>` wrappers.
+- **Streamlined Date Presets & Skeleton Loaders (Leads Page)**: Refactored the bulky inline date pickers into a clean dropdown preset selector ("Today", "Yesterday", "This Month", etc.), revealing custom date fields only when selected. Initialized the reports scope state synchronously from the cached marketing scope to prevent initial load blinks and render fast CSS skeletons.
+- **Client-Side Kanban Search Fallback**: Implemented robust client-side search filtering on the Kanban board to bypass backend limitations with joined customer/contact fields, allowing immediate searching by name, email, company, and notes.
+- **Context-Aware Empty Search States**: Redesigned the Kanban board empty state to show a friendly "No results for..." message with a clear button when searching, instead of the default database empty state.
+- **Unified Page Descriptions**: Added a description prop to the Contacts page layout so that it matches the other database pages (Organizations, Customers) and looks unified.
+- **Premium Settings Audit Logs Table**: Refactored the Settings page Audit Logs table to utilize the core `<DataTable>` and `<Pagination>` components, matching the premium table styling of the Organizations and Customers pages. Defined standard column renderers for formatted timestamps, user initial avatars, action status pills, and inline entity badges with word-wrapping details.
+- **Server-Side Audit Logs Search**: Implemented a debounced search handler in `SettingsPage` that triggers server-side queries to filter logs by user, action, entity type, or description details.
+
 ### ⚙️ Backend (API)
 
 #### Features
 - **Computed Lead Quote Value**: Updated the backend Pydantic schemas and endpoints (`get_leads`, `get_lead`, and `update_lead`) to query the total sum of `ActivityAttachment.quote_value` for each lead and populate the new `quote_value` field dynamically.
 - **Detailed DB Constraint Errors**: Enhanced the global exception handler to extract and append specific PostgreSQL constraint `DETAIL` blocks to client-facing error messages for unique and foreign key violations.
+- **Contacts API Search Support**: Added the missing `search` parameter and query logic to `GET /api/contacts/` on the backend so that the Contacts table search bar filters results by name, email, phone, company, notes, and series code.
+- **Audit Logs API Search Support**: Added the missing `search` parameter and query logic to `GET /api/audit-logs/` on the backend so that the audit logs table search bar filters results by details, employee name, action, or entity type.
 
 ### 📁 Files Changed
 | File | Change |
 |------|--------|
 | `lib/api.ts` | Added `postFormDataWithProgress` using `XMLHttpRequest` |
-| `lib/marketing-api.ts` | Added `onProgress` callback to `uploadLeadActivityAttachments` and added `quote_value` to `Lead` type |
+| `lib/marketing-api.ts` | Added `onProgress` callback to `uploadLeadActivityAttachments`, `quote_value` to `Lead` type, and `search` to `getAuditLogs` |
 | `pages/LeadFormPage.tsx` | Integrated progress bars for initial quotes, logs, and attachments |
 | `pages/LeadsPage.tsx` | Added progress bars to Kanban changes & Won PO modals; updated Kanban card value rendering |
+| `pages/OrdersPage.tsx` | Replaced `title=` attr on Eye/Trash2 action icons with `<Tooltip>` wrappers; normalised `gap-1` |
+| `pages/ContactsPage.tsx` | Added descriptive subtitle/description parameter to PageLayout |
+| `pages/SettingsPage.tsx` | Refactored Audit Logs tab to use DataTable, Pagination, and SearchInput with debounce search |
 | `au-marketing-api/app/config.py` | Bumped API version to `1.0.10` |
 | `au-marketing-api/app/main.py` | Parsed PostgreSQL constraint detail blocks for clearer client errors |
 | `au-marketing-api/app/schemas.py` | Added `quote_value` to `LeadResponse` schema |
 | `au-marketing-api/app/routers/leads.py` | Query and populate `quote_value` in lead responses |
+| `au-marketing-api/app/routers/contacts.py` | Implemented query-based contact search filtering |
+| `au-marketing-api/app/routers/audit_logs.py` | Implemented query-based audit logs search filtering |
 | `au-marketing-api/.server-operator/seed_dashboards.serop` | Added dashboard seed command script |
 
 ---

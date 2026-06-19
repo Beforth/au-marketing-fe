@@ -5,13 +5,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Card } from '../components/ui/Card';
-import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
+import { DataTable, Column } from '../components/ui/DataTable';
 import { marketingAPI, QuotationListItem, QuotationLeadOption } from '../lib/marketing-api';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { Download, ExternalLink, Search, X } from 'lucide-react';
+import { Download, ExternalLink } from 'lucide-react';
 import { Tooltip } from '../UI/Tooltip';
+import { Button } from '../components/ui/Button';
 import { SearchInput } from '../components/ui/SearchInput';
 
 type SortField = 'quotation_number' | 'file_name' | 'lead_name' | 'inquiry_number' | 'activity_date';
@@ -69,6 +70,95 @@ export const EnquiryQuotationsPage: React.FC = () => {
     marketingAPI.downloadLeadActivityAttachment(leadId, activityId, attachmentId, fileName);
   };
 
+  const hasActiveFilters = !!(searchInput.trim() || filterLeadId !== '' || dateFrom || dateTo);
+
+  const columns: Column<QuotationListItem>[] = [
+    {
+      key: 'quotation_number',
+      label: 'Quotation No.',
+      sortable: false,
+      render: (q) => (
+        <span className="font-semibold text-slate-800">{q.quotation_number || '—'}</span>
+      ),
+    },
+    {
+      key: 'file_name',
+      label: 'File',
+      sortable: false,
+      render: (q) => (
+        <span className="text-slate-600">{q.file_name}</span>
+      ),
+    },
+    {
+      key: 'lead_name',
+      label: 'Lead',
+      sortable: false,
+      render: (q) => (
+        <div className="flex items-center flex-wrap gap-1">
+          <span className="font-semibold text-slate-800">{q.lead_series || '—'}</span>
+          <span className="text-slate-500">({q.lead_name || '—'})</span>
+        </div>
+      ),
+    },
+    {
+      key: 'activity_date',
+      label: 'Date',
+      sortable: false,
+      render: (q) => (
+        <span className="text-slate-600">
+          {q.activity_date
+            ? new Date(q.activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })
+            : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'inquiry_number',
+      label: 'Inquiry',
+      sortable: false,
+      render: (q) => (
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-slate-400 font-medium shrink-0">#{q.inquiry_number ?? '—'}</span>
+          <Tooltip content={q.activity_title}>
+            <span className="text-slate-500 truncate max-w-[150px] inline-block font-medium">
+              {q.activity_title}
+            </span>
+          </Tooltip>
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      label: '',
+      sortable: false,
+      align: 'right',
+      render: (q) => (
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Tooltip content="Download Quotation">
+            <Button
+              variant="ghost"
+              size="xs"
+              className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent transition-colors"
+              onClick={() => handleDownload(q.lead_id, q.activity_id, q.id, q.file_name)}
+            >
+              <Download size={15} strokeWidth={2} />
+            </Button>
+          </Tooltip>
+          <Tooltip content="Open Lead Details">
+            <Button
+              variant="ghost"
+              size="xs"
+              className="w-8 h-8 p-0 text-slate-500 hover:text-slate-700 hover:bg-transparent transition-colors"
+              onClick={() => navigate(`/leads/${q.lead_id}/edit?tab=enquiry`)}
+            >
+              <ExternalLink size={15} strokeWidth={2} />
+            </Button>
+          </Tooltip>
+        </div>
+      ),
+    },
+  ];
+
   if (!canViewLead) {
     return (
       <PageLayout title="Quotations" description="Quotations uploaded in enquiry logs." breadcrumbs={[{ label: 'Quotations', href: '/quotations' }]}>
@@ -84,165 +174,99 @@ export const EnquiryQuotationsPage: React.FC = () => {
       description="Quotations you uploaded in enquiry logs. Each row shows the lead and inquiry it belongs to."
       breadcrumbs={breadcrumbs}
     >
-      <Card>
-        {loading ? (
-          <div className="flex items-center gap-2 py-8 text-slate-500">
-            <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-1" /> Loading…
+      <Card noPadding contentClassName="py-0" className="overflow-hidden">
+        {/* ── Command bar ─────────────────────────────────────────── */}
+        <div className="px-5 py-3 bg-white border-b border-slate-100 flex flex-wrap gap-3 items-end">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5">Search</label>
+            <SearchInput
+              placeholder="Search quotation no., file..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onClear={() => setSearchInput('')}
+              inputSize="sm"
+              containerClassName="min-w-[200px] max-w-[280px]"
+            />
           </div>
-        ) : quotations.length === 0 ? (
-          <p className="py-8 text-sm text-slate-500">No quotations yet. Add quotations in a lead’s History tab (enquiry log).</p>
-        ) : (
-          <>
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-              <div className="min-w-[200px] max-w-[280px]">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5">Search</label>
-                  <SearchInput
-                    placeholder="Search quotation no., file..."
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    onClear={() => setSearchInput('')}
-                    inputSize="sm"
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5 shrink-0">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5">Filter by Lead</label>
-                <Select
-                  options={[
-                    { value: '', label: 'All leads' },
-                    ...leadOptions.map((opt) => ({
-                      value: String(opt.lead_id),
-                      label: [opt.lead_series, opt.lead_name].filter(Boolean).join(' – ') || `Lead #${opt.lead_id}`,
-                    })),
-                  ]}
-                  value={filterLeadId === '' ? '' : String(filterLeadId)}
-                  onChange={(val) => setFilterLeadId(val === '' ? '' : Number(val))}
-                  className="min-w-[180px]"
-                  searchable={true}
-                  clearable={false}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5 shrink-0">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5">Sort by</label>
-                <div className="flex items-center gap-2">
-                  <Select
-                    options={[
-                      { value: 'quotation_number', label: 'Quotation no.' },
-                      { value: 'file_name', label: 'File name' },
-                      { value: 'lead_name', label: 'Lead' },
-                      { value: 'inquiry_number', label: 'Inquiry #' },
-                      { value: 'activity_date', label: 'Date' },
-                    ]}
-                    value={sortBy}
-                    onChange={(val) => setSortBy((val as SortField) ?? 'quotation_number')}
-                    className="min-w-[130px]"
-                    searchable={false}
-                    clearable={false}
-                  />
-                  <Select
-                    options={[
-                      { value: 'asc', label: 'Ascending' },
-                      { value: 'desc', label: 'Descending' },
-                    ]}
-                    value={sortOrder}
-                    onChange={(val) => setSortOrder((val as SortOrder) ?? 'asc')}
-                    className="min-w-[120px]"
-                    searchable={false}
-                    clearable={false}
-                  />
-                </div>
-              </div>
-              {(searchInput.trim() || filterLeadId !== '' || dateFrom || dateTo) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchInput('');
-                    setSearchQuery('');
-                    setFilterLeadId('');
-                    setDateFrom('');
-                    setDateTo('');
-                  }}
-                  className="text-xs text-blue-600 hover:underline"
-                >
-                  Clear filters
-                </button>
-              )}
+
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5">Filter by Lead</label>
+            <Select
+              options={[
+                { value: '', label: 'All leads' },
+                ...leadOptions.map((opt) => ({
+                  value: String(opt.lead_id),
+                  label: [opt.lead_series, opt.lead_name].filter(Boolean).join(' – ') || `Lead #${opt.lead_id}`,
+                })),
+              ]}
+              value={filterLeadId === '' ? '' : String(filterLeadId)}
+              onChange={(val) => setFilterLeadId(val === '' ? '' : Number(val))}
+              className="min-w-[180px]"
+              searchable={true}
+              clearable={false}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5">Sort by</label>
+            <div className="flex items-center gap-2">
+              <Select
+                options={[
+                  { value: 'quotation_number', label: 'Quotation no.' },
+                  { value: 'file_name', label: 'File name' },
+                  { value: 'lead_name', label: 'Lead' },
+                  { value: 'inquiry_number', label: 'Inquiry #' },
+                  { value: 'activity_date', label: 'Date' },
+                ]}
+                value={sortBy}
+                onChange={(val) => setSortBy((val as SortField) ?? 'quotation_number')}
+                className="min-w-[130px]"
+                searchable={false}
+                clearable={false}
+              />
+              <Select
+                options={[
+                  { value: 'asc', label: 'Ascending' },
+                  { value: 'desc', label: 'Descending' },
+                ]}
+                value={sortOrder}
+                onChange={(val) => setSortOrder((val as SortOrder) ?? 'asc')}
+                className="min-w-[120px]"
+                searchable={false}
+                clearable={false}
+              />
             </div>
-            <p className="text-xs text-slate-500 mb-2">
-              Showing {quotations.length} quotation{quotations.length !== 1 ? 's' : ''}.
-            </p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left bg-slate-50/50">
-                  <th className="py-2.5 px-4 font-bold text-[10px] text-slate-500 uppercase tracking-widest">Quotation no.</th>
-                  <th className="py-2.5 px-4 font-bold text-[10px] text-slate-500 uppercase tracking-widest">File</th>
-                  <th className="py-2.5 px-4 font-bold text-[10px] text-slate-500 uppercase tracking-widest">Lead</th>
-                  <th className="py-2.5 px-4 font-bold text-[10px] text-slate-500 uppercase tracking-widest">Date</th>
-                  <th className="py-2.5 px-4 font-bold text-[10px] text-slate-500 uppercase tracking-widest">Inquiry</th>
-                  <th className="py-2.5 px-4 font-bold text-[10px] text-slate-500 uppercase tracking-widest text-right">Actions</th>
-                </tr>
-              </thead>
-                <tbody>
-                  {quotations.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-500">
-                        {searchQuery.trim() || filterLeadId !== '' || dateFrom || dateTo ? 'No quotations match the current filters.' : 'No quotations yet. Add quotations in a lead\'s History tab (enquiry log).'}
-                      </td>
-                    </tr>
-                  ) : (
-                    quotations.map((q) => (
-                  <tr key={q.id} className="border-b border-slate-100">
-                    <td className="py-3 px-4 align-middle font-medium text-slate-800">{q.quotation_number || '—'}</td>
-                    <td className="py-3 px-4 align-middle text-slate-600">{q.file_name}</td>
-                    <td className="py-3 px-4 align-middle">
-                      <div className="flex items-center flex-wrap">
-                        <span className="text-slate-800 font-bold">{q.lead_series || '—'}</span>
-                        <span className="text-slate-500 ml-1 font-medium">({q.lead_name || '—'})</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 align-middle text-slate-600">
-                      {q.activity_date ? new Date(q.activity_date).toLocaleDateString(undefined, { dateStyle: 'short' }) : '—'}
-                    </td>
-                    <td className="py-3 px-4 align-middle">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-slate-400 font-medium shrink-0">#{q.inquiry_number ?? '—'}</span>
-                        <span className="text-slate-500 truncate max-w-[150px] inline-block font-medium" title={q.activity_title}>
-                          {q.activity_title}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 align-middle">
-                      <div className="flex items-center justify-end gap-1 min-w-fit">
-                        <Tooltip content="Download Quotation">
-                          <button
-                            type="button"
-                            onClick={() => handleDownload(q.lead_id, q.activity_id, q.id, q.file_name)}
-                            className="p-1.5 hover:bg-blue-50 rounded-lg text-blue-600 transition-colors"
-                          >
-                            <Download size={15} />
-                          </button>
-                        </Tooltip>
-                        <Tooltip content="Open Lead Details">
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/leads/${q.lead_id}/edit?tab=enquiry`)}
-                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
-                          >
-                            <ExternalLink size={15} />
-                          </button>
-                        </Tooltip>
-                      </div>
-                    </td>
-                  </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
           </div>
-          </>
-        )}
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchInput('');
+                setSearchQuery('');
+                setFilterLeadId('');
+                setDateFrom('');
+                setDateTo('');
+              }}
+              className="text-xs text-blue-600 hover:underline self-end pb-1"
+            >
+              Clear filters
+            </button>
+          )}
+
+          <span className="ml-auto self-end pb-1 text-xs text-slate-400 shrink-0">
+            {!loading && `${quotations.length} quotation${quotations.length !== 1 ? 's' : ''}`}
+          </span>
+        </div>
+
+        {/* ── Table ───────────────────────────────────────────────── */}
+        <DataTable<QuotationListItem>
+          data={quotations}
+          columns={columns}
+          rowKey={(q) => q.id}
+          isLoading={loading}
+          bordered={false}
+        />
       </Card>
     </PageLayout>
   );

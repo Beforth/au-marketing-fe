@@ -12,22 +12,23 @@ import { SearchInput } from '../components/ui/SearchInput';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { FilterPopover } from '../components/ui/FilterPopover';
-import { DataTable } from '../components/ui/DataTable';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
-import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, List, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash } from 'lucide-react';
+import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash } from 'lucide-react';
 import { useApp } from '../App';
 import { Tooltip } from '../UI/Tooltip';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, subDays } from 'date-fns';
 import { PageLayout } from '../components/layout/PageLayout';
-import { Pagination } from '../components/ui/Pagination';
+
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadStatusGroup, LeadTypeOption, Domain, Region, Contact, Customer, Organization, Series, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, DEFAULT_LEAD_SERIES_STORAGE_KEY } from '../constants';
 import { serializeNameWithPrefix, serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import { Modal } from '../components/ui/Modal';
+import { getStoredMarketingScope } from '../lib/marketing-scope';
 
-type ViewMode = 'kanban' | 'table';
+
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   new: { bg: 'bg-blue-100/50', text: 'text-blue-700' },
@@ -60,21 +61,13 @@ function getContrastColor(hex: string): string {
 export const LeadsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { showToast, globalSearch, setGlobalSearch } = useApp();
+  const { showToast } = useApp();
   const canView = useAppSelector(selectHasPermission('marketing.view_lead'));
   const canCreate = useAppSelector(selectHasPermission('marketing.create_lead'));
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_lead'));
   const canDelete = useAppSelector(selectHasPermission('marketing.delete_lead'));
   const canManageNumberSeries = useAppSelector(selectHasPermission('marketing.admin'));
-  const viewParam = searchParams.get('view');
-  const viewMode: ViewMode = viewParam === 'table' || viewParam === 'kanban' ? viewParam : 'kanban';
-  const setViewMode = (mode: ViewMode) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set('view', mode);
-      return next;
-    });
-  };
+
   const [leadStatuses, setLeadStatuses] = useState<LeadStatusOption[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
@@ -167,11 +160,73 @@ export const LeadsPage: React.FC = () => {
   const [leadTypeForm, setLeadTypeForm] = useState({ code: '', label: '', display_order: 0, is_active: true });
   const [savingLeadType, setSavingLeadType] = useState(false);
   const [deleteLeadTypeId, setDeleteLeadTypeId] = useState<number | null>(null);
-  const [reportScope, setReportScope] = useState<ReportScopeResponse | null>(null);
+  const [isScopeLoading, setIsScopeLoading] = useState(true);
+  const [reportScope, setReportScope] = useState<ReportScopeResponse | null>(() => {
+    const cached = getStoredMarketingScope();
+    if (!cached) return null;
+    return {
+      can_select_employee: cached.role !== 'self' && cached.role !== 'employee' && cached.role !== 'supervisor',
+      employees: [],
+      role: cached.role === 'supervisor' ? 'self' : cached.role === 'employee' ? 'self' : (cached.role as any),
+      is_domain_coordinator: cached.is_domain_coordinator,
+    };
+  });
   const [dateFromInput, setDateFromInput] = useState('');
   const [dateToInput, setDateToInput] = useState('');
   const [appliedDateFrom, setAppliedDateFrom] = useState('');
   const [appliedDateTo, setAppliedDateTo] = useState('');
+  const [dateRangePreset, setDateRangePreset] = useState<string>('all');
+
+  const getPresetDates = (preset: string): { from: string; to: string } => {
+    const now = new Date();
+    let fromDate: Date | null = null;
+    let toDate: Date | null = null;
+
+    switch (preset) {
+      case 'today':
+        fromDate = now;
+        toDate = now;
+        break;
+      case 'yesterday':
+        fromDate = subDays(now, 1);
+        toDate = subDays(now, 1);
+        break;
+      case 'this_week':
+        fromDate = startOfWeek(now, { weekStartsOn: 1 });
+        toDate = endOfWeek(now, { weekStartsOn: 1 });
+        break;
+      case 'this_month':
+        fromDate = startOfMonth(now);
+        toDate = endOfMonth(now);
+        break;
+      case 'this_quarter':
+        fromDate = startOfQuarter(now);
+        toDate = endOfQuarter(now);
+        break;
+      case 'last_30_days':
+        fromDate = subDays(now, 30);
+        toDate = now;
+        break;
+      default:
+        return { from: '', to: '' };
+    }
+
+    return {
+      from: format(fromDate, 'yyyy-MM-dd'),
+      to: format(toDate, 'yyyy-MM-dd'),
+    };
+  };
+
+  const handlePresetChange = (preset: string) => {
+    setDateRangePreset(preset);
+    if (preset !== 'custom') {
+      const { from, to } = getPresetDates(preset);
+      setAppliedDateFrom(from);
+      setAppliedDateTo(to);
+      setDateFromInput(from);
+      setDateToInput(to);
+    }
+  };
   const [selectedAssignedToIds, setSelectedAssignedToIds] = useState<number[]>([]);
   const [createdByMeOnly, setCreatedByMeOnly] = useState(false);
   const [includeWonLost, setIncludeWonLost] = useState(false);
@@ -208,14 +263,26 @@ export const LeadsPage: React.FC = () => {
     marketingAPI.getLeadStatuses().then(setLeadStatuses).catch(() => setLeadStatuses([]));
     marketingAPI.getLeadStatusGroups().then(setLeadStatusGroups).catch(() => setLeadStatusGroups([]));
     marketingAPI.getLeadTypes().then(setLeadTypes).catch(() => setLeadTypes([]));
-    marketingAPI.getReportsScope().then(setReportScope).catch(() => setReportScope(null));
+    
+    setIsScopeLoading(true);
+    marketingAPI.getReportsScope()
+      .then((scope) => {
+        setReportScope(scope);
+      })
+      .catch(() => {
+        setReportScope(null);
+      })
+      .finally(() => {
+        setIsScopeLoading(false);
+      });
+
     marketingAPI.getSeries({ page: 1, page_size: 100, is_active: true }).then((r) => setSeriesList(r.items ?? [])).catch(() => setSeriesList([]));
   }, [canView]);
 
   useEffect(() => {
     if (!canView) return;
     loadLeads();
-  }, [canView, debouncedSearchTerm, selectedStatus, page, pageSize, viewMode, appliedDateFrom, appliedDateTo, selectedAssignedToIds, createdByMeOnly, includeWonLost, sortConfig]);
+  }, [canView, debouncedSearchTerm, appliedDateFrom, appliedDateTo, selectedAssignedToIds, createdByMeOnly, includeWonLost]);
 
   useEffect(() => {
     if (includeWonLost) return;
@@ -231,20 +298,15 @@ export const LeadsPage: React.FC = () => {
   const loadLeads = async () => {
     setIsLoading(true);
     try {
-      const isKanban = viewMode === 'kanban';
       const res = await marketingAPI.getLeads({
-        page: isKanban ? 1 : page,
-        page_size: isKanban ? undefined : pageSize,
-        no_limit: isKanban ? true : undefined,
-        status_id: isKanban ? undefined : (selectedStatus !== 'all' ? parseInt(selectedStatus, 10) : undefined),
+        page: 1,
+        no_limit: true,
         search: debouncedSearchTerm || undefined,
         date_from: isHeadOrAdmin && appliedDateFrom ? appliedDateFrom : undefined,
         date_to: isHeadOrAdmin && appliedDateTo ? appliedDateTo : undefined,
         assigned_to: selectedAssignedToIds.length > 0 ? selectedAssignedToIds : undefined,
         created_by_me: createdByMeOnly || undefined,
         include_won_lost: includeWonLost || undefined,
-        order_by: sortConfig?.key,
-        order_dir: sortConfig?.direction,
       });
       setLeads(res.items);
       setTotal(res.total);
@@ -262,7 +324,18 @@ export const LeadsPage: React.FC = () => {
     setPage(1);
   };
 
-  const filteredLeads = useMemo(() => leads, [leads]);
+  const filteredLeads = useMemo(() => {
+    const q = debouncedSearchTerm.trim().toLowerCase();
+    if (!q) return leads;
+    return leads.filter((lead) => {
+      const name = leadDisplayName(lead).toLowerCase();
+      const email = leadDisplayEmail(lead).toLowerCase();
+      const company = leadDisplayCompany(lead).toLowerCase();
+      const series = (lead.series ?? '').toLowerCase();
+      const notes = (lead.notes ?? '').toLowerCase();
+      return name.includes(q) || email.includes(q) || company.includes(q) || series.includes(q) || notes.includes(q);
+    });
+  }, [leads, debouncedSearchTerm]);
 
   const leadsByStatus = useMemo(() => {
     const map: Record<string, Lead[]> = {};
@@ -317,174 +390,11 @@ export const LeadsPage: React.FC = () => {
     { label: 'Leads' },
   ];
 
-  /** Lead has next_follow_up_at set and it's due (past or now) - highlight in table and Kanban */
+  /** Lead has next_follow_up_at set and it's due (past or now) - highlight in Kanban */
   const isDueForFollowUp = (lead: Lead) =>
     lead.next_follow_up_at != null && new Date(lead.next_follow_up_at) <= new Date();
 
-  const leadColumns = [
-    {
-      key: 'series',
-      label: 'Lead No.',
-      sortable: true,
-      render: (lead: Lead) => (
-        <div className="flex items-center gap-2">
-          <Tooltip content="Lead Reference Number">
-            <Hash size={12} className="text-slate-400" strokeWidth={2.5} />
-          </Tooltip>
-          <span className="text-slate-700 font-medium tabular-nums">{lead.series ?? '—'}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'name',
-      label: 'Name',
-      sortable: true,
-      render: (lead: Lead) => (
-        <span className="font-medium text-slate-900">
-          {leadDisplayName(lead)}
-        </span>
-      ),
-    },
-    {
-      key: 'email',
-      label: 'Email',
-      sortable: true,
-      render: (lead: Lead) => <span className="text-slate-600">{leadDisplayEmail(lead) || '—'}</span>,
-    },
-    {
-      key: 'company',
-      label: 'Company',
-      sortable: true,
-      render: (lead: Lead) => {
-        const name = leadDisplayCompany(lead);
-        return name ? <span className="text-slate-700">{name}</span> : '—';
-      },
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      sortable: true,
-      render: (lead: Lead) => {
-        const code = lead.status ?? lead.status_option?.code ?? '';
-        const statusOption = leadStatuses.find((s) => s.code === code || s.id === lead.status_id) ?? lead.status_option;
-        const label = statusOption?.label ?? code;
-        const hex = statusOption?.hex_color;
-        const statusColor = !hex ? (STATUS_COLORS[code] || DEFAULT_STATUS_COLOR) : null;
-        if (hex && /^#[0-9A-Fa-f]{6}$/.test(hex)) {
-          return (
-            <span
-              className="text-[10px] px-2 h-5 font-semibold uppercase border-none rounded-full inline-flex items-center"
-              style={{ backgroundColor: hex, color: getContrastColor(hex) }}
-            >
-              {label}
-            </span>
-          );
-        }
-        return (
-          <Badge className={`text-[10px] px-2 h-5 font-semibold uppercase border-none ${statusColor!.bg} ${statusColor!.text}`}>
-            {label}
-          </Badge>
-        );
-      },
-    },
-    {
-      key: 'next_follow_up_at',
-      label: 'Next follow-up',
-      sortable: true,
-      render: (lead: Lead) =>
-        lead.next_follow_up_at
-          ? <span className="text-slate-600 text-xs">{new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}</span>
-          : '—',
-    },
-    {
-      key: 'last_activity_date',
-      label: 'Last inquiry',
-      sortable: true,
-      render: (lead: Lead) =>
-        lead.last_activity_date
-          ? <span className="text-slate-600 text-xs">{new Date(lead.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}</span>
-          : '—',
-    },
-    {
-      key: 'potential_value',
-      label: 'Potential Value',
-      sortable: true,
-      align: 'right' as const,
-      render: (lead: Lead) =>
-        lead.potential_value != null
-          ? <span className="font-medium text-slate-900">₹{Number(lead.potential_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-          : '—',
-    },
-    {
-      key: 'lead_through',
-      label: 'Lead through',
-      sortable: true,
-      render: (lead: Lead) => (
-        <span className="text-slate-600 text-sm">{lead.lead_through_option?.label ?? '—'}</span>
-      ),
-    },
-    {
-      key: 'actions',
-      label: '',
-      sortable: false,
-      render: (lead: Lead) => (
-        <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
-          {canEdit && wonStatusId && lead.status_id !== wonStatusId && !lead.status_option?.is_lost && (
-            <Tooltip content="Mark as Won">
-              <Button
-                variant="ghost"
-                size="xxs"
-                onClick={() => openMarkAsWonModal(lead.id)}
-                className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-              >
-                <Trophy size={12} />
-              </Button>
-            </Tooltip>
-          )}
-          {canEdit && lostStatusId && lead.status_id !== lostStatusId && !lead.status_option?.is_final && (
-            <Tooltip content="Mark as Lost">
-              <Button
-                variant="ghost"
-                size="xxs"
-                onClick={() => setLeadToMarkLost(lead.id)}
-                className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-              >
-                <XCircle size={12} />
-              </Button>
-            </Tooltip>
-          )}
-          {canEdit && (
-            <Tooltip content="Edit Lead">
-              <Button
-                variant="ghost"
-                size="xxs"
-                onClick={() => navigate(`/leads/${lead.id}/edit`)}
-              >
-                <Edit size={12} />
-              </Button>
-            </Tooltip>
-          )}
-          {canDelete && (
-            <Tooltip content="Delete Lead">
-              <Button
-                variant="ghost"
-                size="xxs"
-                onClick={() => openDeleteConfirm(lead.id)}
-                className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-              >
-                <Trash2 size={12} />
-              </Button>
-            </Tooltip>
-          )}
-          <Tooltip content="View History & Updates">
-            <Button variant="link" size="xs" onClick={() => navigate(`/leads/${lead.id}/edit`)} rightIcon={<Eye size={12} />}>
-              View
-            </Button>
-          </Tooltip>
-        </div>
-      ),
-    },
-  ];
+  // leadColumns removed — table view has been removed; Kanban is the only view.
 
   const openStatusModal = () => {
     setEditingStatus(null);
@@ -1239,22 +1149,12 @@ export const LeadsPage: React.FC = () => {
     >
       <div className="space-y-3">
         <div className="flex items-center gap-3 flex-wrap pb-1">
-          <SegmentToggle<ViewMode>
-            value={viewMode}
-            onChange={setViewMode}
-            options={[
-              { value: 'kanban', label: 'Kanban', icon: LayoutGrid },
-              { value: 'table', label: 'Table', icon: List },
-            ]}
-            className="h-9 min-w-[160px]"
-            layoutId="leads-view-mode"
-          />
           <SearchInput
-            placeholder="Search leads..."
+            placeholder="Search leads by name, company, email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onClear={() => setSearchTerm('')}
-            containerClassName="w-[180px]"
+            containerClassName="flex-1 max-w-sm"
             className="h-9 text-sm"
           />
           <div className="flex items-center gap-4 flex-wrap">
@@ -1268,125 +1168,135 @@ export const LeadsPage: React.FC = () => {
               <span className="font-semibold">Show Won &amp; Lost</span>
             </label>
 
-            {reportScope && reportScope.employees.length > 0 && (
+            {((isScopeLoading && reportScope?.can_select_employee) || (reportScope && reportScope.employees.length > 0)) && (
               <div className="flex items-center gap-4">
                 <div ref={employeeFilterRef} className="flex items-center gap-2 flex-shrink-0">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden sm:inline">Assigned:</span>
-                  <div className="flex items-center -space-x-1.5">
-                    {(selectedAssignedToIds.length > 0 ? selectedAssignedToIds.slice(0, 5) : []).map((eid) => {
-                      const emp = reportScope.employees.find((e) => e.id === eid);
-                      return (
-                        <Tooltip key={eid} content={emp?.name ?? `Employee ${eid}`}>
-                          <div
-                            className="w-8 h-8 rounded-full border-2 border-white bg-blue-50 text-blue-700 flex items-center justify-center text-[10px] font-bold shadow-sm ring-1 ring-slate-100"
-                          >
-                            {emp ? getInitials(emp.name) : '?'}
-                          </div>
-                        </Tooltip>
-                      );
-                    })}
-                  </div>
-                  <Tooltip content="Select employees to filter">
-                    <button
-                      type="button"
-                      onClick={() => setShowEmployeeFilterPopover((v) => !v)}
-                      className="w-8 h-8 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-600 flex items-center justify-center transition-all bg-white hover:shadow-sm"
-                    >
-                      <Plus size={14} strokeWidth={2.5} />
-                    </button>
-                  </Tooltip>
+                  {isScopeLoading ? (
+                    <div className="flex items-center space-x-1 animate-pulse">
+                      <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white shadow-sm ring-1 ring-slate-100" />
+                      <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white shadow-sm ring-1 ring-slate-100 -ml-2" />
+                      <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white shadow-sm ring-1 ring-slate-100 -ml-2" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center -space-x-1.5">
+                        {(selectedAssignedToIds.length > 0 ? selectedAssignedToIds.slice(0, 5) : []).map((eid) => {
+                          const emp = reportScope.employees.find((e) => e.id === eid);
+                          return (
+                            <Tooltip key={eid} content={emp?.name ?? `Employee ${eid}`}>
+                              <div
+                                className="w-8 h-8 rounded-full border-2 border-white bg-blue-50 text-blue-700 flex items-center justify-center text-[10px] font-bold shadow-sm ring-1 ring-slate-100"
+                              >
+                                {emp ? getInitials(emp.name) : '?'}
+                              </div>
+                            </Tooltip>
+                          );
+                        })}
+                      </div>
+                      <Tooltip content="Select employees to filter">
+                        <button
+                          type="button"
+                          onClick={() => setShowEmployeeFilterPopover((v) => !v)}
+                          className="w-8 h-8 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-600 flex items-center justify-center transition-all bg-white hover:shadow-sm"
+                        >
+                          <Plus size={14} strokeWidth={2.5} />
+                        </button>
+                      </Tooltip>
+                    </>
+                  )}
                 </div>
 
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={createdByMeOnly}
-                    onChange={(e) => setCreatedByMeOnly(e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600 w-4 h-4"
-                  />
-                  <span className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Only mine</span>
-                </label>
+                {isScopeLoading ? (
+                  <div className="flex items-center gap-2 animate-pulse">
+                    <div className="w-4 h-4 bg-slate-200 rounded border border-slate-300" />
+                    <div className="h-4 w-12 bg-slate-200 rounded" />
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={createdByMeOnly}
+                      onChange={(e) => setCreatedByMeOnly(e.target.checked)}
+                      className="rounded border-slate-300 text-blue-600 w-4 h-4"
+                    />
+                    <span className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Only mine</span>
+                  </label>
+                )}
               </div>
             )}
           </div>
 
-          {viewMode === 'table' && (
-            <div ref={filterButtonRef} className="inline-block border-l border-slate-200 pl-4 ml-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-lg h-9"
-                leftIcon={<Filter size={14} />}
-                onClick={() => {
-                  setTempSelectedStatus(selectedStatus);
-                  setShowFilters(!showFilters);
-                }}
-              >
-                Status
-              </Button>
-            </div>
-          )}
-          {viewMode === 'table' && selectedStatus !== 'all' && (
-            <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
-              {leadStatuses.find((s) => String(s.id) === selectedStatus)?.label ?? selectedStatus}
-            </Badge>
-          )}
-          {viewMode === 'table' && selectedStatus !== 'all' && (
-            <Tooltip content="Clear filter">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedStatus('all');
-                  setTempSelectedStatus('all');
-                }}
-                className="w-8 h-8 rounded-full border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 flex items-center justify-center transition-colors"
-              >
-                <X size={14} strokeWidth={2.5} />
-              </button>
-            </Tooltip>
-          )}
+
         </div>
 
-        {isHeadOrAdmin && viewMode === 'kanban' && (
+        {isHeadOrAdmin && (
           <div className="flex items-center gap-3 flex-wrap border-t border-slate-100 pt-3">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">View Range:</span>
-            <DatePicker
-              value={dateFromInput}
-              onChange={(v) => setDateFromInput(v || '')}
-              className="w-[120px] h-9"
-              placeholder="From"
-            />
-            <span className="text-slate-300 text-[11px] font-bold uppercase tracking-wider">to</span>
-            <DatePicker
-              value={dateToInput}
-              onChange={(v) => setDateToInput(v || '')}
-              className="w-[120px] h-9"
-              placeholder="To"
-            />
-            <Button
-              size="sm"
-              variant="primary"
-              className="rounded-lg h-9 shadow-sm px-4"
-              onClick={() => {
-                setAppliedDateFrom(dateFromInput);
-                setAppliedDateTo(dateToInput);
-              }}
-            >
-              Apply Filter
-            </Button>
-            {(appliedDateFrom || appliedDateTo) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setDateFromInput('');
-                  setDateToInput('');
-                  setAppliedDateFrom('');
-                  setAppliedDateTo('');
-                }}
-                className="text-[11px] font-bold uppercase tracking-wider text-rose-500 hover:text-rose-700 underline px-1"
-              >
-                Clear
-              </button>
+            {isScopeLoading ? (
+              <div className="w-[150px] h-9 bg-slate-200 rounded-lg animate-pulse" />
+            ) : (
+              <>
+                <Select
+                  value={dateRangePreset}
+                  onChange={(v) => handlePresetChange(String(v || 'all'))}
+                  options={[
+                    { value: 'all', label: 'All Time' },
+                    { value: 'this_month', label: 'This Month' },
+                    { value: 'this_quarter', label: 'This Quarter' },
+                    { value: 'custom', label: 'Custom Range...' },
+                  ]}
+                  placeholder="Select range"
+                  containerClassName="w-[160px]"
+                  triggerClassName="h-9 text-xs"
+                  searchable={false}
+                  clearable={false}
+                />
+                
+                {dateRangePreset === 'custom' && (
+                  <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
+                    <DatePicker
+                      value={dateFromInput}
+                      onChange={(v) => setDateFromInput(v || '')}
+                      className="w-[155px] h-9 text-xs"
+                      placeholder="From"
+                    />
+                    <span className="text-slate-300 text-[11px] font-bold uppercase tracking-wider">to</span>
+                    <DatePicker
+                      value={dateToInput}
+                      onChange={(v) => setDateToInput(v || '')}
+                      className="w-[155px] h-9 text-xs"
+                      placeholder="To"
+                    />
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      className="rounded-lg h-9 shadow-sm px-4 text-xs font-semibold"
+                      onClick={() => {
+                        setAppliedDateFrom(dateFromInput);
+                        setAppliedDateTo(dateToInput);
+                      }}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                )}
+                {(appliedDateFrom || appliedDateTo) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDateFromInput('');
+                      setDateToInput('');
+                      setAppliedDateFrom('');
+                      setAppliedDateTo('');
+                      setDateRangePreset('all');
+                    }}
+                    className="text-[11px] font-bold uppercase tracking-wider text-rose-500 hover:text-rose-700 underline px-1"
+                  >
+                    Clear
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -1424,35 +1334,7 @@ export const LeadsPage: React.FC = () => {
           </div>
         </FilterPopover>
 
-        {/* Filter Popover - table view status filter */}
-        <FilterPopover
-          isOpen={showFilters}
-          onClose={() => setShowFilters(false)}
-          triggerRef={filterButtonRef}
-          onApply={() => {
-            setSelectedStatus(tempSelectedStatus);
-            setShowFilters(false);
-          }}
-          onClear={() => {
-            setTempSelectedStatus('all');
-            setSelectedStatus('all');
-            setShowFilters(false);
-          }}
-        >
-          <Select
-            label=""
-            options={[
-              { value: 'all', label: 'All Status' },
-              ...leadStatuses
-                .filter((s) => s.is_active && (includeWonLost || !((s.is_final ?? false) || (s.is_lost ?? false))))
-                .map((s) => ({ value: String(s.id), label: s.label })),
-            ]}
-            value={tempSelectedStatus}
-            onChange={(val) => setTempSelectedStatus(val as string)}
-            placeholder="Select status"
-            searchable
-          />
-        </FilterPopover>
+
       </div>
 
 
@@ -1462,7 +1344,7 @@ export const LeadsPage: React.FC = () => {
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]"></div>
             <p className="mt-4 text-sm text-slate-600">Loading leads...</p>
           </div>
-        ) : viewMode === 'kanban' ? (
+        ) : (
           <>
             {leadStatuses.length === 0 ? (
               <div className="text-center py-24">
@@ -1470,17 +1352,34 @@ export const LeadsPage: React.FC = () => {
               </div>
             ) : filteredLeads.length === 0 ? (
               <div className="text-center py-24">
-                <p className="text-slate-900 font-black text-sm uppercase tracking-widest">
-                  No leads found
-                </p>
-                {canCreate && (
-                  <Button
-                    className="mt-4"
-                    onClick={() => openCreateLeadModal()}
-                    leftIcon={<UserPlus size={14} />}
-                  >
-                    Create Your First Lead
-                  </Button>
+                {debouncedSearchTerm.trim() ? (
+                  <>
+                    <p className="text-slate-400 text-sm font-medium">
+                      No results for <span className="font-semibold text-slate-600">&ldquo;{debouncedSearchTerm.trim()}&rdquo;</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSearchTerm('')}
+                      className="mt-3 text-xs text-blue-600 hover:underline"
+                    >
+                      Clear search
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-slate-900 font-black text-sm uppercase tracking-widest">
+                      No leads found
+                    </p>
+                    {canCreate && (
+                      <Button
+                        className="mt-4"
+                        onClick={() => openCreateLeadModal()}
+                        leftIcon={<UserPlus size={14} />}
+                      >
+                        Create Your First Lead
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             ) : (
@@ -1650,50 +1549,6 @@ export const LeadsPage: React.FC = () => {
                 })}
               </div>
             )}
-          </>
-        ) : (
-          <>
-            {filteredLeads.length > 0 ? (
-            <Card noPadding className="mt-4 overflow-hidden">
-              <DataTable<Lead>
-                data={filteredLeads}
-                columns={leadColumns}
-                rowKey={(lead: Lead) => lead.id}
-                onRowClick={canEdit ? (lead: Lead) => navigate(`/leads/${lead.id}/edit`) : undefined}
-                getRowClassName={(lead: Lead) => isDueForFollowUp(lead) ? 'bg-amber-50 hover:bg-amber-100/80 border-l-4 border-l-amber-400' : ''}
-                dense={true}
-                showVerticalLines={true}
-                sortConfig={sortConfig}
-                onSort={(key, direction) => setSortConfig({ key, direction })}
-              />
-            </Card>
-            ) : (
-              <div className="text-center py-24">
-                <p className="text-slate-900 font-black text-sm uppercase tracking-widest">
-                  No leads found
-                </p>
-                {canCreate && (
-                  <Button
-                    className="mt-4"
-                    onClick={() => navigate('/leads/new')}
-                    leftIcon={<UserPlus size={14} />}
-                  >
-                    Create Your First Lead
-                  </Button>
-                )}
-              </div>
-            )}
-            <div className="mt-3 flex justify-end">
-              <Pagination
-                page={page}
-                pageSize={pageSize}
-                total={total}
-                totalPages={totalPages}
-                onPageChange={setPage}
-                onPageSizeChange={handlePageSizeChange}
-                pageSizeOptions={PAGE_SIZE_OPTIONS}
-              />
-            </div>
           </>
         )}
       </div>

@@ -315,7 +315,7 @@ export const EmployeesPage: React.FC = () => {
         )}
       </div>
 
-      <Card noPadding contentClassName="py-6 px-4">
+      <Card noPadding contentClassName="py-0" className="overflow-hidden">
         {isLoading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
@@ -334,6 +334,7 @@ export const EmployeesPage: React.FC = () => {
         ) : (
           <>
           <DataTable<AssignedUserRow>
+            bordered={false}
             data={paginatedRows}
             rowKey={(r) => r.employee_id}
             dense={true}
@@ -373,7 +374,8 @@ export const EmployeesPage: React.FC = () => {
                       <Tooltip content="Manage Assignments">
                         <Button
                           variant="ghost"
-                          size="xxs"
+                          size="xs"
+                          className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
                             openAssignModal({
@@ -390,7 +392,7 @@ export const EmployeesPage: React.FC = () => {
                             } as HRMSEmployee);
                           }}
                         >
-                          <Settings2 size={12} />
+                          <Settings2 size={16} />
                         </Button>
                       </Tooltip>
                     ),

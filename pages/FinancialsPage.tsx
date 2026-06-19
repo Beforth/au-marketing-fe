@@ -187,7 +187,7 @@ export const FinancialsPage: React.FC = () => {
             ))}
           </div>
         </Card>
-        <Card noPadding title="Ledger Highlights" description="Latest verified system entries.">
+        <Card noPadding title="Ledger Highlights" description="Latest verified system entries." className="overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 bg-white">
             <Input
               variant="white"
@@ -201,10 +201,10 @@ export const FinancialsPage: React.FC = () => {
             />
           </div>
           <DataTable
+            bordered={false}
             data={filteredLedger}
             columns={columns}
             rowKey={(item) => item.label + item.date}
-            className="border-none"
           />
         </Card>
       </div>

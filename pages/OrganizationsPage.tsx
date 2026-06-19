@@ -113,11 +113,11 @@ export const OrganizationsPage: React.FC = () => {
       actions={actions}
     >
       {/* Consolidated Command Bar */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-3 mb-4">
-        <div className="flex items-center justify-between gap-6 flex-wrap lg:flex-nowrap">
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm px-5 py-0 h-14 mb-4 flex items-center">
+        <div className="flex items-center justify-between gap-6 w-full h-full flex-wrap lg:flex-nowrap">
           {/* Internal Navigation group */}
-          <div className="flex items-center gap-6 border-r border-slate-100 pr-6">
-            <nav className="flex gap-4">
+          <div className="flex items-center h-full">
+            <nav className="flex gap-6 h-full">
               {[
                 { path: '/database/organizations', label: 'Organizations', icon: Building2, permission: 'marketing.view_organization' },
                 { path: '/database/customers', label: 'Customers', icon: Users, permission: 'marketing.view_customer' },
@@ -128,7 +128,7 @@ export const OrganizationsPage: React.FC = () => {
                   to={tab.path}
                   className={({ isActive }) =>
                     cn(
-                      'flex items-center gap-2 py-2 px-1 text-sm font-bold transition-all border-b-2',
+                      'flex items-center gap-2 h-full px-1 text-sm font-bold transition-all border-b-2 -mb-[1px] relative z-10',
                       isActive
                         ? 'border-blue-600 text-blue-600'
                         : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -142,6 +142,9 @@ export const OrganizationsPage: React.FC = () => {
             </nav>
           </div>
 
+          {/* Centered Vertical Divider */}
+          <div className="hidden lg:block w-[1px] h-5 bg-slate-200" />
+
           {/* Action group: search */}
           <div className="flex flex-1 items-center gap-3">
             <SearchInput
@@ -149,13 +152,13 @@ export const OrganizationsPage: React.FC = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onClear={() => setSearchTerm('')}
-              containerClassName="max-w-md shadow-none border-slate-100"
+              containerClassName="max-w-md shadow-none"
             />
           </div>
         </div>
       </div>
 
-      <Card noPadding contentClassName="py-0">
+      <Card noPadding contentClassName="py-0" className="overflow-hidden">
         {isLoading ? (
           <div className="py-24 text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
@@ -175,6 +178,7 @@ export const OrganizationsPage: React.FC = () => {
         ) : (
           <>
             <DataTable<Organization>
+              bordered={false}
               data={organizations}
               rowKey={(o) => o.id}
               onRowClick={canEdit ? (o) => navigate(`/organizations/${o.id}/edit`) : undefined}
@@ -226,13 +230,14 @@ export const OrganizationsPage: React.FC = () => {
                         <Tooltip content="Edit Organization">
                           <Button
                             variant="ghost"
-                            size="xxs"
+                            size="xs"
+                            className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/organizations/${o.id}/edit`);
                             }}
                           >
-                            <Edit size={12} />
+                            <Edit size={16} />
                           </Button>
                         </Tooltip>
                       )}
@@ -240,14 +245,14 @@ export const OrganizationsPage: React.FC = () => {
                         <Tooltip content="Delete Organization">
                           <Button
                             variant="ghost"
-                            size="xxs"
+                            size="xs"
+                            className="w-8 h-8 p-0 text-rose-500 hover:text-rose-600 hover:bg-transparent transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
                               setDeleteId(o.id);
                             }}
-                            className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={16} />
                           </Button>
                         </Tooltip>
                       )}

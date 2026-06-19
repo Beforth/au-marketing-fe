@@ -497,7 +497,7 @@ export const NumberingSeriesPage: React.FC = () => {
         )}
 
         <div className="mt-4">
-          <Card noPadding>
+          <Card noPadding className="overflow-hidden">
             {isLoading ? (
               <div className="text-center py-12">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -516,6 +516,7 @@ export const NumberingSeriesPage: React.FC = () => {
             ) : (
               <>
                 <DataTable<Series>
+                  bordered={false}
                   data={list}
                   rowKey={(s) => s.id}
                   dense={true}
@@ -592,19 +593,19 @@ export const NumberingSeriesPage: React.FC = () => {
                       render: (s) => (
                         <div className="flex items-center justify-end gap-1.5">
                           {canGenerate && s.is_active && (
-                            <Tooltip content="Generate next value">
+                            <Tooltip content="Generate next number">
                               <div
                                 onClick={(e) => {
-                                  e.preventDefault();
                                   e.stopPropagation();
                                   handleGenerateNext(s.id);
                                 }}
                               >
                                 <Button
-                                  variant="outline"
-                                  size="xxs"
+                                  variant="ghost"
+                                  size="xs"
+                                  className="w-8 h-8 p-0 text-amber-500 hover:text-amber-600 hover:bg-transparent transition-colors"
                                 >
-                                  <Hash size={12} strokeWidth={2.5} />
+                                  <Hash size={15} strokeWidth={2} />
                                 </Button>
                               </div>
                             </Tooltip>
@@ -612,23 +613,24 @@ export const NumberingSeriesPage: React.FC = () => {
                           {canEdit && (
                             <Tooltip content="Edit numbering series">
                               <Button
-                                variant="outline"
-                                size="xxs"
+                                variant="ghost"
+                                size="xs"
+                                className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent transition-colors"
                                 onClick={(e) => { e.stopPropagation(); navigate(`/numbering-series/${s.id}/edit`); }}
                               >
-                                <Edit size={12} strokeWidth={2.5} />
+                                <Edit size={15} strokeWidth={2} />
                               </Button>
                             </Tooltip>
                           )}
                           {canDelete && (
                             <Tooltip content="Delete numbering series">
                               <Button
-                                variant="outline"
-                                size="xxs"
+                                variant="ghost"
+                                size="xs"
+                                className="w-8 h-8 p-0 text-rose-500 hover:text-rose-600 hover:bg-transparent transition-colors"
                                 onClick={(e) => { e.stopPropagation(); setDeleteId(s.id); }}
-                                className="text-rose-600 hover:text-rose-700 hover:border-rose-300"
                               >
-                                <Trash2 size={14} />
+                                <Trash2 size={15} strokeWidth={2} />
                               </Button>
                             </Tooltip>
                           )}

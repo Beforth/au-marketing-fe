@@ -87,10 +87,11 @@ export const InventoryPage: React.FC = () => {
         <Button
           variant="ghost"
           size="xs"
+          className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent transition-colors"
           onClick={(e) => { e.stopPropagation(); showToast(`Record: ${item.name}`, 'info'); }}
-          className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-slate-600"
-          leftIcon={<MoreVertical size={14} />}
-        />
+        >
+          <MoreVertical size={16} />
+        </Button>
       )
     }
   ];
@@ -128,7 +129,7 @@ export const InventoryPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <div className="lg:col-span-3">
-          <Card noPadding>
+          <Card noPadding className="overflow-hidden">
             <div className="px-5 py-3 bg-white border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between">
               <Input
                 variant="white"
@@ -142,6 +143,7 @@ export const InventoryPage: React.FC = () => {
             </div>
 
             <DataTable
+              bordered={false}
               data={filteredStock}
               columns={columns}
               rowKey={(i) => i.sku}
