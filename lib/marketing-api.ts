@@ -1794,6 +1794,73 @@ class MarketingAPIService {
   async deleteWhatsNew(id: number): Promise<void> {
     return apiClient.delete<void>(`/api/whats-new/${id}`);
   }
+
+  // ─── Exhibition / Roadshow Events ────────────────────────────
+
+  async getEvents(params?: {
+    page?: number;
+    page_size?: number;
+    type?: EventType;
+    status?: EventStatus;
+    search?: string;
+  }): Promise<PaginatedResponse<ExhibitionEvent>> {
+    const q = new URLSearchParams();
+    q.append('page', String(params?.page ?? 1));
+    q.append('page_size', String(params?.page_size ?? DEFAULT_PAGE_SIZE));
+    if (params?.type) q.append('type', params.type);
+    if (params?.status) q.append('status', params.status);
+    if (params?.search) q.append('search', params.search);
+    return apiClient.get<PaginatedResponse<ExhibitionEvent>>(`/api/events/?${q.toString()}`);
+  }
+
+  async getEvent(id: number): Promise<ExhibitionEvent> {
+    return apiClient.get<ExhibitionEvent>(`/api/events/${id}`);
+  }
+
+  async createEvent(data: EventCreateInput): Promise<ExhibitionEvent> {
+    return apiClient.post<ExhibitionEvent>('/api/events/', data);
+  }
+
+  async updateEvent(id: number, data: EventUpdateInput): Promise<ExhibitionEvent> {
+    return apiClient.put<ExhibitionEvent>(`/api/events/${id}`, data);
+  }
+
+  async deleteEvent(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/events/${id}`);
+  }
+
+  async endEvent(id: number): Promise<ExhibitionEvent> {
+    return apiClient.post<ExhibitionEvent>(`/api/events/${id}/end`);
+  }
+
+  async uploadEventFile(
+    eventId: number,
+    fileType: 'stall_design' | 'banner_design' | 'travel_ticket' | 'local_travel_proof',
+    file: File,
+    vendorId?: number,
+    onProgress?: (percent: number) => void,
+    entryIndex?: number,
+  ): Promise<UploadedFileResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('file_type', fileType);
+    if (vendorId != null) formData.append('vendor_id', String(vendorId));
+    if (entryIndex != null) formData.append('entry_index', String(entryIndex));
+    return apiClient.postFormDataWithProgress<UploadedFileResponse>(
+      `/api/events/${eventId}/files`,
+      formData,
+      onProgress,
+    );
+  }
+
+  async getEventFileDownloadUrl(eventId: number, fileId: number): Promise<string> {
+    const blob = await apiClient.getBlob(`/api/events/${eventId}/files/${fileId}/download`);
+    return URL.createObjectURL(blob);
+  }
+
+  async deleteEventFile(eventId: number, fileId: number): Promise<void> {
+    return apiClient.delete<void>(`/api/events/${eventId}/files/${fileId}`);
+  }
 }
 
 export interface ChangelogSection {
@@ -2263,6 +2330,149 @@ export interface MarketingSettingsPayload {
   schema_version: number;
   global_rules: GlobalRules;
   domain_overrides: Record<string, GlobalRules>;
+}
+
+// ─── Exhibition / Roadshow (Event) Types ─────────────────────────────────
+
+export interface Installment {
+  due_date: string;
+  amount: number;
+  paid: boolean;
+}
+
+export interface StallVendor {
+  id: number;
+  name: string;
+}
+
+export interface LocalTravelEntry {
+  note: string;
+  amount: number;
+  employee_ids: number[];
+}
+
+export interface GiftingEntry {
+  name: string;
+  count: number;
+  amount: number;
+}
+
+export interface DesignFile {
+  id: number;
+  vendor_id?: number | null;
+  file_name: string;
+  file_url: string;
+  revision_no: number;
+  is_selected: boolean;
+  created_at: string;
+}
+
+export interface TravelTicket {
+  id: number;
+  employee_id: number;
+  file_name: string;
+  file_url: string;
+  created_at: string;
+}
+
+export type EventType = 'exhibition' | 'roadshow';
+export type EventStatus = 'active' | 'ended';
+export type PaymentStatus = 'pending' | 'partial' | 'completed';
+export type BannerSource = 'stall_vendor' | 'own';
+
+export interface ExhibitionEvent {
+  id: number;
+  type: EventType;
+  name: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  status: EventStatus;
+  budget: number;
+  total_spent: number;
+  selected_employee_ids: number[];
+  created_by_employee_id?: number;
+  created_by_username?: string;
+  created_at: string;
+  updated_at: string;
+  // Space Booking
+  space_booking_vendor: string;
+  space_booking_amount: number;
+  space_booking_pi_sent: boolean;
+  space_booking_payment_status: PaymentStatus;
+  space_booking_installments: Installment[];
+  // Stall Design (exhibition)
+  stall_vendors: StallVendor[];
+  stall_selected_vendor_id?: number | null;
+  stall_po_created: boolean;
+  stall_design_files: DesignFile[];
+  // Banner Design (exhibition)
+  banner_design_source: BannerSource;
+  banner_design_files: DesignFile[];
+  // Table Booking (roadshow)
+  table_booking_venue: string;
+  table_booking_count: number;
+  table_booking_cost_per_table: number;
+  table_booking_total_cost: number;
+  // Travel
+  travel_days_before: number;
+  travel_employee_ids: number[];
+  travel_tickets: TravelTicket[];
+  // Hotel
+  hotel_name: string;
+  hotel_employee_ids: number[];
+  hotel_cost: number;
+  // Local Travel
+  local_travel_entries: LocalTravelEntry[];
+  local_travel_proofs: UploadedFileResponse[];
+  // Gifting
+  gifting_entries: GiftingEntry[];
+}
+
+export interface EventCreateInput {
+  type: EventType;
+  name: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  budget: number;
+  selected_employee_ids: number[];
+}
+
+export interface EventUpdateInput {
+  name?: string;
+  location?: string;
+  start_date?: string;
+  end_date?: string;
+  budget?: number;
+  selected_employee_ids?: number[];
+  // Phase fields
+  space_booking_vendor?: string;
+  space_booking_amount?: number;
+  space_booking_pi_sent?: boolean;
+  space_booking_payment_status?: PaymentStatus;
+  space_booking_installments?: Installment[];
+  stall_vendors?: StallVendor[];
+  stall_selected_vendor_id?: number | null;
+  stall_po_created?: boolean;
+  banner_design_source?: BannerSource;
+  table_booking_venue?: string;
+  table_booking_count?: number;
+  table_booking_cost_per_table?: number;
+  travel_days_before?: number;
+  travel_employee_ids?: number[];
+  hotel_name?: string;
+  hotel_employee_ids?: number[];
+  hotel_cost?: number;
+  local_travel_entries?: LocalTravelEntry[];
+  gifting_entries?: GiftingEntry[];
+}
+
+export interface UploadedFileResponse {
+  id: number;
+  file_name: string;
+  file_url: string;
+  entry_index?: number;
 }
 
 export const marketingAPI = new MarketingAPIService();

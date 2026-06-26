@@ -33,6 +33,7 @@ export const Sidebar: React.FC = () => {
   const hasViewOrganization = useAppSelector(selectHasPermission('marketing.view_organization'));
   const hasViewReport = useAppSelector(selectHasPermission('marketing.view_report'));
   const hasViewMyTeam = useAppSelector(selectHasPermission('marketing.view_myteam'));
+  const hasViewExhibition = useAppSelector(selectHasPermission('marketing.view_exhibition'));
   const hasAdmin = useAppSelector(selectHasPermission('marketing.admin'));
 
   // Filter links based on permissions
@@ -50,11 +51,12 @@ export const Sidebar: React.FC = () => {
         case 'marketing.view_database': return hasViewOrganization || hasViewCustomer || hasViewContact;
         case 'marketing.view_report': return hasViewReport;
         case 'marketing.view_myteam': return hasViewMyTeam;
+        case 'marketing.view_exhibition': return hasViewExhibition;
         case 'marketing.admin': return hasAdmin;
         default: return true;
       }
     });
-  }, [hasViewDomainTab, hasViewDomain, hasViewContact, hasViewLead, hasViewCampaign, hasViewCustomer, hasViewOrganization, hasViewReport, hasViewMyTeam, hasAdmin]);
+  }, [hasViewDomainTab, hasViewDomain, hasViewContact, hasViewLead, hasViewCampaign, hasViewCustomer, hasViewOrganization, hasViewReport, hasViewMyTeam, hasViewExhibition, hasAdmin]);
 
   // Filter secondary links (Settings and Support don't need permissions for now)
   const filteredSecondaryLinks = SECONDARY_LINKS;

@@ -2,6 +2,7 @@
  * Confirmation dialog modal – replaces window.confirm with a consistent UI.
  */
 import React, { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { Modal } from './Modal';
 import { Button } from './Button';
 
@@ -40,7 +41,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   const confirmClass =
     variant === 'danger'
-      ? 'bg-rose-600 hover:bg-rose-700 text-white'
+      ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-200'
       : variant === 'primary'
         ? 'bg-[var(--primary)] hover:opacity-90 text-white'
         : 'bg-slate-800 hover:bg-slate-900 text-white';
@@ -50,6 +51,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={title}
+      contentClassName="max-w-md"
       footer={
         <>
           <Button variant="outline" onClick={onClose} disabled={loading}>
@@ -61,7 +63,16 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         </>
       }
     >
-      <p className="text-slate-600 text-sm">{message}</p>
+      {variant === 'danger' ? (
+        <div className="flex gap-4 items-start">
+          <div className="shrink-0 w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center">
+            <AlertTriangle size={20} className="text-rose-600" />
+          </div>
+          <p className="text-sm text-slate-600 pt-1.5">{message}</p>
+        </div>
+      ) : (
+        <p className="text-slate-600 text-sm">{message}</p>
+      )}
     </Modal>
   );
 };
