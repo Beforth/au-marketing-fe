@@ -1,191 +1,245 @@
-# AP | Sales & Marketing Module — Frontend
+# AP Sales & Marketing Module — Frontend
 
-> **au-marketing-fe** — A high-density, professional ERP-grade frontend for the Aureole Group Sales & Marketing microservice. Built with React 19, TypeScript, and a bespoke Slate/Blue design system.
+**Brand:** S&M Hub · **Package:** `aether-erp-dashboard` · **Version:** 1.0.10
+
+A high-density, ERP-grade React SPA for Aureole Group's Sales & Marketing microservice. Built with React 19, TypeScript, Vite 6, and a bespoke Slate/Blue design system. Manages the full sales lifecycle — leads, orders, quotations, contacts, campaigns, exhibitions/roadshows, team performance, and DSR.
 
 ---
 
-## 🧩 Tech Stack
+## Architecture
+
+```
+                             ┌─────────────────────────────┐
+                             │       S&M Hub Frontend      │
+                             │   React 19 + TypeScript     │
+                             │   Vite 6  ·  Tailwind 3     │
+                             │       Port 3000             │
+                             └──────────┬──────────────────┘
+                                        │
+                    ┌───────────────────┼───────────────────┐
+                    │                   │                   │
+                    ▼                   ▼                   ▼
+        ┌───────────────────┐ ┌─────────────────┐ ┌──────────────┐
+        │  Marketing API    │ │   HRMS RBAC     │ │   Firebase   │
+        │  FastAPI backend  │ │   Auth API      │ │   Cloud Msg  │
+        │  Port 8003        │ │   Port 8000     │ │   (Push)     │
+        └───────────────────┘ └─────────────────┘ └──────────────┘
+                    │
+                    ▼
+        ┌───────────────────┐
+        │   PostgreSQL 16   │
+        │   marketing_db    │
+        └───────────────────┘
+```
+
+The frontend talks to three backends independently:
+- **Marketing API** for all business CRUD (leads, orders, events, etc.)
+- **HRMS RBAC** for login, permissions, and user info
+- **Firebase** for push notifications (optional)
+
+---
+
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Framework | React 19 + TypeScript |
+| Framework | React 19 + TypeScript 5.7 |
 | Build | Vite 6 |
-| Styling | Tailwind CSS 3 + custom design tokens |
-| State | Redux Toolkit + React Context |
-| Routing | React Router DOM v6 |
-| Animations | Framer Motion 12 |
-| Charts | Recharts |
-| UI Primitives | Radix UI (Tooltip, Popover, Dialog, Dropdown) |
+| Styling | Tailwind CSS 3.4 + custom design tokens |
+| State | Redux Toolkit (auth, DSR, plants) + Zustand (calendar) |
+| Routing | React Router DOM v6 (nested, protected) |
+| Animations | Framer Motion 12 + Lottie (login) |
+| Charts | Recharts (area, bar, pie) |
 | Icons | Lucide React |
-| Auth | HRMS RBAC (JWT stored in localStorage) |
-| Push Notifications | Firebase Cloud Messaging |
+| UI Primitives | Radix UI (Tooltip, Dialog, Popover, Dropdown, Avatar) |
+| Auth | HRMS RBAC (JWT) |
+| Push | Firebase Cloud Messaging + OneSignal |
+| Data | date-fns, clsx, tailwind-merge, class-variance-authority |
 
 ---
 
-## ✨ Features
-
-- 🔐 **HRMS RBAC Authentication** — Login with HRMS credentials, JWT stored securely
-- 🛡️ **Permission-Based UI** — Every action/button/route is gated by HRMS permissions
-- 📊 **Dashboard & Analytics** — Live KPI stat cards, charts, and activity feeds
-- 👥 **Database Module** — Organizations, Customers, and Contacts with unified command bar
-- 🎯 **Leads Management** — Full leads lifecycle with server-side sorting, filtering, and pagination
-- 📋 **Quotations & Orders** — Enquiry and quotation pipeline
-- 🔢 **Numbering Series** — Configurable document numbering with live preview
-- 📡 **Real-Time Notifications** — Firebase-powered push notifications
-- 🔔 **Toast System** — Centralized, global feedback for all user actions
-- 🌗 **Theme Support** — Dark/light mode via ThemeProvider
-
----
-
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 au-marketing-fe/
 │
-├── components/
-│   ├── layout/              # DashboardLayout, DatabaseLayout, PageLayout, Navbar, Sidebar
-│   └── ui/                  # Full component library (Button, DataTable, Modal, Toast, etc.)
+├── App.tsx                      # Root: routing, contexts, toast, demo mode
+├── index.tsx                    # React entry
 │
-├── pages/                   # One file per route
-│   ├── DashboardPage.tsx
-│   ├── LeadsPage.tsx
-│   ├── LeadFormPage.tsx
-│   ├── OrganizationsPage.tsx
-│   ├── CustomersPage.tsx
-│   ├── ContactsPage.tsx
-│   ├── NumberingSeriesPage.tsx
-│   └── ...
+├── components/
+│   ├── layout/                  # DashboardLayout, DatabaseLayout, PageLayout
+│   ├── ui/                      # 28 components (DataTable, Modal, Button, Sidebar…)
+│   └── ProtectedRoute.tsx       # Auth/permission route guard
+│
+├── pages/                       # 34 route-level page components
+│   ├── auth:        LoginPage
+│   ├── core:        Dashboard, Leads, LeadForm, Orders, OrderForm
+│   ├── quotations:  EnquiryQuotations
+│   ├── database:    Organizations, Customers, Contacts + forms
+│   ├── admin:       Domains, DomainForm, RegionForm, Employees, Roles,
+│   │                Settings, Schema
+│   ├── reports:     Reports, ExpectedOrder, ODPlan, MyTeam,
+│   │                ReportTemplates, DSR
+│   ├── events:      EventsList, EventForm, EventDetail
+│   ├── misc:        Inventory, Financials, Support
+│   └── lazy-loaded: NumberingSeries
 │
 ├── lib/
-│   ├── marketing-api.ts     # All API calls to the FastAPI backend
-│   └── utils.ts             # cn() utility and helpers
+│   ├── api.ts                   # Base APIClient (fetch + XHR progress + 401 handling)
+│   ├── marketing-api.ts         # ~150 methods, all TypeScript interfaces
+│   ├── hrms-rbac.ts             # HRMS RBAC client
+│   ├── api-cache.ts, auth-utils.ts, marketing-scope.ts
+│   ├── firebase-push.ts         # FCM web push
+│   ├── country-codes.ts, deadline-utils.ts, name-phone-utils.ts
+│   └── utils.ts                 # cn() (clsx + tailwind-merge)
 │
-├── store/                   # Redux slices (auth, permissions)
+├── store/
+│   ├── index.ts                 # Redux store
+│   ├── hooks.ts                 # useAppDispatch, useAppSelector
+│   ├── middleware.ts             # auth:token-expired handler
+│   └── slices/                  # authSlice, dsrSlice, organizationPlantsSlice
 │
-├── App.tsx                  # Root provider, routes, global toast/notification state
-├── UI_COMPONENTS_LIBRARY.md # Source of truth for the design system
-├── CHANGELOG.md             # All notable changes, by date
-└── index.html
+├── context/                     # ThemeContext, AuthContext
+├── UI/                          # Atomic components (Button, Input, Badge…)
+├── public/                      # Static assets, logos, SW scripts
+│
+├── design.md                    # Design system reference
+├── UI_COMPONENTS_LIBRARY.md     # Component patterns
+├── CHANGELOG.md                 # v1.0.0 → v1.0.10
+│
+├── vite.config.ts, tsconfig.json, package.json, index.html
+└── .env.example
 ```
 
 ---
 
-## ⚙️ Setup
+## Route Map
 
-### 1. Install Dependencies
+```
+/login                              → LoginPage
+/                                   → DashboardPage
+/database/organizations             → OrganizationsPage
+/database/customers                 → CustomersPage
+/database/contacts                  → ContactsPage
+
+/leads                              → LeadsPage (Kanban + Table)
+/leads/new                          → LeadFormPage (Create)
+/leads/:id/edit                     → LeadFormPage (Edit)
+
+/orders                             → OrdersPage (Kanban + Table)
+/orders/new                         → OrderFormPage (Create)
+/orders/:id                         → OrderFormPage (View/Edit)
+
+/quotations                         → EnquiryQuotationsPage
+/events                             → EventsListPage
+/events/new                         → EventFormPage
+/events/:id                         → EventDetailPage
+/events/:id/edit                    → EventFormPage
+
+/domains · /domains/new · /:id/edit → Domains CRUD
+/employees · /roles                 → Team management
+/numbering-series                   → Auto-numbering (lazy)
+/settings                           → Multi-tab settings
+/support                            → Support center
+
+*                                   → Redirect to /
+```
+
+Protected behind `view_lead` | `create_lead` | `edit_lead` | `view_events` | `view_contact` | etc.
+
+---
+
+## Features
+
+- **Auth & RBAC** — HRMS login, every UI element permission-gated
+- **Dashboard** — KPI cards, area/bar/pie charts, saved dashboards, performer of month
+- **Leads** — Kanban + table views, dynamic statuses, enquiries, attachments, quotations, follow-ups
+- **Orders** — Kanban + table, order-level enquiries, file attachments
+- **Database** — Organizations, customers, contacts, plants, contact→customer conversion
+- **Domains & Regions** — Hierarchy with heads, coordinators, employee assignments, scoped access
+- **Quotations** — Searchable, filterable, sortable list with inline PDF preview
+- **Events** — Exhibition/roadshow lifecycle: stall booking, space booking, banners, travel, hotel, local travel, gifting, proofs
+- **Numbering Series** — Configurable auto-numbering with pattern builder and live preview
+- **Team Performance** — Targets, summaries, expected orders, OD plans
+- **DSR** — Monthly task submission with deadline enforcement
+- **Push Notifications** — Firebase FCM + in-app toast
+- **Settings Engine** — Live-updating visibility rules with role-specific overrides
+- **Audit Logging** — Full change history per entity
+
+---
+
+## Auth Flow
+
+```
+┌──────────┐     POST /api/rbac/login/     ┌───────────┐
+│  Browser │ ──────────────────────────────▶│   HRMS   │
+│  (React) │                                │   RBAC   │
+│          │◀──────────────────────────────│   API    │
+│          │   JWT + permissions + roles    └───────────┘
+│          │
+│          │     GET /api/leads/            ┌───────────┐
+│          │ ──────────────────────────────▶│ Marketing │
+│          │   Authorization: Bearer JWT    │   API     │
+│          │◀──────────────────────────────│  FastAPI  │
+│          │   leads[] (scoped by role)     └───────────┘
+└──────────┘
+```
+
+Permissions flow: HRMS login → fetch permissions list → store in Redux → gate every button/route via `selectHasPermission()`.
+
+---
+
+## Design System
+
+| Element | Rule |
+|---|---|
+| Font | Outfit (Google Fonts) |
+| Container radius | `rounded-xl` (12px) |
+| Pills/Badges | `rounded-full` |
+| Labels | `font-black uppercase tracking-widest text-[11px] text-slate-500` |
+| Input height | `h-11` with `rounded-xl` and blue focus ring |
+| Click feedback | `active:scale-[0.98]` with spring |
+| Data density | 8–10px padding, `slate-200/60` borders |
+| DataTable | Sticky header, sortable columns, glass overlay loading |
+| Modals | Backdrop blur, `rounded-[2rem]`, sm–max sizes |
+| Theme | 6 colors (blue/sky/emerald/rose/violet/slate) × 3 densities |
+
+Full reference in [`design.md`](./design.md) and [`UI_COMPONENTS_LIBRARY.md`](./UI_COMPONENTS_LIBRARY.md).
+
+---
+
+## Setup
 
 ```bash
 npm install
+npm run dev        # → http://localhost:3000 (HMR)
+npm run build      # → dist/ with sourcemaps
 ```
 
-### 2. Configure Environment Variables
+---
 
-Create a `.env` file in the project root:
+## Key Decisions
 
-```env
-# Marketing FastAPI backend
-VITE_API_BASE_URL=http://localhost:8003
-
-# HRMS RBAC (local)
-VITE_HRMS_RBAC_API_URL=http://localhost:8000/api/rbac
-
-# Firebase (optional — for push notifications)
-VITE_FIREBASE_API_KEY=
-VITE_FIREBASE_AUTH_DOMAIN=
-VITE_FIREBASE_PROJECT_ID=
-VITE_FIREBASE_STORAGE_BUCKET=
-VITE_FIREBASE_MESSAGING_SENDER_ID=
-VITE_FIREBASE_APP_ID=
-VITE_FIREBASE_VAPID_KEY=
-```
-
-> If `.env` is absent, the app defaults to `http://localhost:8000/api/rbac` for HRMS.  
-> **Always restart the dev server after changing `.env`** — Vite bakes env vars at startup.
-
-### 3. Start Development Server
-
-```bash
-npm run dev
-```
-
-Runs at **[http://localhost:5173](http://localhost:5173)** (or the port Vite prints).
-
-### 4. Production Build
-
-```bash
-npm run build
-```
-
-Output goes to `dist/`.
+- **Auth split**: HRMS handles auth; Marketing API handles business logic
+- **JWT in localStorage**: with awareness of XSS exposure — httpOnly cookie migration is the hardening path
+- **No StrictMode**: Disabled to avoid React 19 double-invoke in development
+- **Dual push**: Firebase FCM primary + OneSignal legacy
+- **Demo mode**: `simulateDemo()` injects mock data for testing
+- **Settings versioning**: `X-Marketing-Settings-Version` header triggers live UI reload
+- **Upload progress**: XHR-based with percentage tracking in lead forms
 
 ---
 
-## 🔑 Authentication & Permissions
+## Troubleshooting
 
-Users log in with HRMS credentials. The app:
-1. Authenticates via `VITE_HRMS_RBAC_API_URL`
-2. Stores the JWT in `localStorage`
-3. Uses the token for every Marketing API request
-4. Derives the full permissions list and stores it in Redux
+**Cannot connect to HRMS** — Use `localhost:8000` not `host.docker.internal`. Verify HRMS running: `python manage.py runserver 0.0.0.0:8000`.
 
-### Key Permissions
+**Permissions not loading / UI locked** — Check `auth_token` in localStorage. Re-login.
 
-| Permission | Description |
-|---|---|
-| `marketing.view_lead` | Access leads list |
-| `marketing.create_lead` | Open lead creation form |
-| `marketing.edit_lead` | Edit existing leads |
-| `marketing.delete_lead` | Delete leads |
-| `marketing.view_contact` | View contacts database |
-| `marketing.create_contact` | Add new contacts |
-| `marketing.view_customer` | View customer registry |
-| `marketing.view_organization` | View organization database |
+**Database schema mismatch** — Restart backend: `docker compose restart web`. Startup migration adds missing columns.
+
+**TypeScript errors** — Run `npx tsc --noEmit` to verify types.
 
 ---
 
-## 🔌 API Connections
-
-| Service | Default URL | Env Var |
-|---|---|---|
-| Marketing FastAPI | `http://localhost:8003` | `VITE_API_BASE_URL` |
-| HRMS RBAC | `http://localhost:8000/api/rbac` | `VITE_HRMS_RBAC_API_URL` |
-
-> **Docker note:** The frontend runs in the **browser**, not in a container. The HRMS URL must be reachable from the browser — use `localhost`, not `host.docker.internal`.
-
----
-
-## 🎨 Design System
-
-All UI components follow the **Slate/Blue High-Density ERP** visual language documented in [`UI_COMPONENTS_LIBRARY.md`](./UI_COMPONENTS_LIBRARY.md).
-
-**Key rules:**
-- Font: **Outfit** (Google Fonts)
-- Border radius: `rounded-xl` for containers, `rounded-full` for pills/capsules
-- Headers/labels: `font-black uppercase tracking-widest text-[11px]`
-- Interactive elements: `active:scale-[0.98]` click feedback
-- Animations: Framer Motion with `spring` transitions
-- Loading: Subtle glass overlay on data refetch (no jarring full-table resets)
-
----
-
-## 🐛 Troubleshooting
-
-**Cannot connect to HRMS from the frontend**
-- Use `http://localhost:8000/api/rbac` — not `host.docker.internal` (that's for containers, not browsers).
-- Verify HRMS is running: `python manage.py runserver 0.0.0.0:8000`
-- Test in browser: open `http://localhost:8000/api/rbac/permissions/` — you should see JSON or a 401.
-- Restart dev server: `npm run dev`
-
-**Permissions not loading / all UI locked**
-- Check the JWT token in `localStorage` under key `token`.
-- Ensure the HRMS user has the relevant `marketing.*` permissions assigned.
-
----
-
-## 📄 Changelog
-
-See [`CHANGELOG.md`](./CHANGELOG.md) for a full history of changes.
-
----
-
-_Built with ❤️ for Aureole Group — AP | S&M Module_
+**Forged by BeForth**
