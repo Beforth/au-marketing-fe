@@ -7,16 +7,26 @@ import { useAppSelector } from '../../store/hooks';
 import { selectUserDisplayName, selectUserInitials, selectEmployee, selectUser, selectHasPermission } from '../../store/slices/authSlice';
 import { VersionsModal } from '../VersionsModal';
 import { ChevronDown, ShieldCheck, Hash, Users } from 'lucide-react';
+import { API_CONFIG } from '../../lib/api';
 
 
 export const Sidebar: React.FC = () => {
   const [showChangelog, setShowChangelog] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [appVersion, setAppVersion] = useState('v1.1.0');
   const userDisplayName = useAppSelector(selectUserDisplayName);
   const userInitials = useAppSelector(selectUserInitials);
   const employee = useAppSelector(selectEmployee);
   const user = useAppSelector(selectUser);
-  const appVersion = 'v1.0.10';
+
+  useEffect(() => {
+    fetch(`${API_CONFIG.BASE_URL}/health`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.version) setAppVersion(`v${data.version}`);
+      })
+      .catch(() => {});
+  }, []);
   const changelogSeenKey = useMemo(
     () => `marketing_changelog_seen_${appVersion}_${user?.id ?? 'anon'}`,
     [appVersion, user?.id]
