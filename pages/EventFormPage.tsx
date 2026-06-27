@@ -4,15 +4,15 @@ import { ArrowLeft } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
-import { AsyncSelect } from '../components/ui/AsyncSelect';
+import { AsyncSelect, AsyncSelectOption } from '../components/ui/AsyncSelect';
 import { PageLayout } from '../components/layout/PageLayout';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { marketingAPI, ExhibitionEvent, EventType } from '../lib/marketing-api';
+import { getStoredMarketingScope } from '../lib/marketing-scope';
 
 export const EventFormPage: React.FC = () => {
   const navigate = useNavigate();
@@ -21,8 +21,8 @@ export const EventFormPage: React.FC = () => {
   const { showToast } = useApp();
   const isEdit = Boolean(id);
 
-  const canCreate = useAppSelector(selectHasPermission('marketing.create_exhibition'));
-  const canEdit = useAppSelector(selectHasPermission('marketing.edit_exhibition'));
+  const canCreate = useAppSelector(selectHasPermission('marketing.create_events'));
+  const canEdit = useAppSelector(selectHasPermission('marketing.edit_events'));
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,6 +34,12 @@ export const EventFormPage: React.FC = () => {
   const [endDate, setEndDate] = useState<string | undefined>();
   const [budget, setBudget] = useState('');
   const [selectedEmployees, setSelectedEmployees] = useState<number[]>([]);
+  const [domainId, setDomainId] = useState<number | undefined>(() => {
+    const scope = getStoredMarketingScope();
+    return scope?.domain_id;
+  });
+  const [domainName, setDomainName] = useState('');
+  const [domainOptions, setDomainOptions] = useState<AsyncSelectOption[]>([]);
   const employeeCacheRef = useRef<Map<number, string>>(new Map());
 
   useEffect(() => {
@@ -53,6 +59,14 @@ export const EventFormPage: React.FC = () => {
     }
   }, [id, isEdit, canCreate, canEdit]);
 
+  // Pre-fetch domains so the dropdown opens instantly
+  useEffect(() => {
+    if (isEdit) return;
+    marketingAPI.getDomains({ page: 1, page_size: 100, is_active: true })
+      .then(res => setDomainOptions(res.items.map(d => ({ value: d.id, label: d.name }))))
+      .catch(() => {});
+  }, [isEdit]);
+
   const loadEvent = async () => {
     if (!id) return;
     setIsLoading(true);
@@ -65,6 +79,13 @@ export const EventFormPage: React.FC = () => {
       setEndDate(event.end_date);
       setBudget(String(event.budget || ''));
       setSelectedEmployees(event.selected_employee_ids || []);
+      setDomainId(event.domain_id);
+      if (event.domain_id) {
+        try {
+          const dom = await marketingAPI.getDomain(event.domain_id);
+          setDomainName(dom.name);
+        } catch {}
+      }
     } catch (error: any) {
       showToast(error.message || 'Failed to load event', 'error');
       navigate('/events');
@@ -76,8 +97,8 @@ export const EventFormPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name || !location || !startDate || !endDate) {
-      showToast('Name, location, start date, and end date are required', 'error');
+    if (!name || !location || !startDate || !endDate || (!isEdit && !domainId)) {
+      showToast('Name, location, start date, end date, and domain are required', 'error');
       return;
     }
 
@@ -96,6 +117,7 @@ export const EventFormPage: React.FC = () => {
         navigate(`/events/${id}`);
       } else {
         const created = await marketingAPI.createEvent({
+          domain_id: domainId!,
           type: eventType,
           name,
           location,
@@ -159,10 +181,13 @@ export const EventFormPage: React.FC = () => {
       }
     >
       <Card>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Event Type toggle — always at top for create; hidden on edit */}
           {!isEdit && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Event Type</label>
+              <label className="block text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+                Event Type <span className="text-rose-600">*</span>
+              </label>
               <SegmentToggle<EventType>
                 options={[
                   { value: 'exhibition', label: 'Exhibition' },
@@ -174,30 +199,70 @@ export const EventFormPage: React.FC = () => {
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Name <span className="text-red-500">*</span>
-            </label>
-            <Input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Automation Expo 2026"
-              required
-            />
-          </div>
+          {/* Domain — below event type for create; read-only for edit */}
+          {isEdit ? (
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-2">Domain</label>
+              <Input
+                type="text"
+                value={domainName || 'Loading domain...'}
+                disabled
+              />
+              <p className="text-[11px] text-slate-400 font-medium mt-1">Domain is locked and cannot be changed after creation.</p>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+                Domain <span className="text-rose-600">*</span>
+              </label>
+              <AsyncSelect
+                label=""
+                initialOptions={domainOptions}
+                loadOptions={async (search) => {
+                  const res = await marketingAPI.getDomains({
+                    page: 1,
+                    page_size: 100,
+                    search: search || undefined,
+                    is_active: true,
+                  });
+                  return res.items.map((d) => ({
+                    value: d.id,
+                    label: d.name,
+                  }));
+                }}
+                value={domainId}
+                onChange={(val) => setDomainId(val ? Number(val) : undefined)}
+                placeholder="Search and select domain..."
+                required
+              />
+            </div>
+          )}
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Location <span className="text-red-500">*</span>
-            </label>
-            <Input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g., Mumbai Convention Centre"
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+                Name <span className="text-rose-600">*</span>
+              </label>
+              <Input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., Automation Expo 2026"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+                Location <span className="text-rose-600">*</span>
+              </label>
+              <Input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g., Mumbai Convention Centre"
+                required
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -217,68 +282,69 @@ export const EventFormPage: React.FC = () => {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Overall Budget (₹)
-            </label>
-            <Input
-              type="text"
-              value={budget ? Number(budget).toLocaleString('en-IN') : ''}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/[,\s]/g, '').replace(/\D/g, '');
-                setBudget(raw);
-              }}
-              placeholder="e.g., 10,00,000"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Select Employees (for travel, hotel)
-            </label>
-            <AsyncSelect
-              label=""
-              loadOptions={async (search) => {
-                const res = await marketingAPI.getEmployees({
-                  page: 1,
-                  page_size: 20,
-                  search: search || undefined,
-                  status: 'active',
-                });
-                res.employees.forEach((e) => {
-                  employeeCacheRef.current.set(e.id, [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.username || `#${e.id}`);
-                });
-                return res.employees.map((e) => ({
-                  value: e.id,
-                  label: [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.username || `#${e.id}`,
-                }));
-              }}
-              value={undefined}
-              onChange={(val) => handleSelectEmployee(val ? Number(val) : undefined)}
-              placeholder="Search and select employees..."
-            />
-            {selectedEmployees.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {selectedEmployees.map((empId) => (
-                  <span
-                    key={empId}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-200"
-                  >
-                    {employeeCacheRef.current.get(empId) || `Employee #${empId}`}
-                    <button
-                      type="button"
-                      onClick={() => removeEmployee(empId)}
-                      className="text-blue-400 hover:text-blue-700"
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+                Overall Budget (₹)
+              </label>
+              <Input
+                type="text"
+                value={budget ? Number(budget).toLocaleString('en-IN') : ''}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[,\s]/g, '').replace(/\D/g, '');
+                  setBudget(raw);
+                }}
+                placeholder="e.g., 10,00,000"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+                Employees (travel, hotel)
+              </label>
+              <AsyncSelect
+                label=""
+                loadOptions={async (search) => {
+                  const res = await marketingAPI.getEmployees({
+                    page: 1,
+                    page_size: 20,
+                    search: search || undefined,
+                    status: 'active',
+                  });
+                  res.employees.forEach((e) => {
+                    employeeCacheRef.current.set(e.id, [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.username || `#${e.id}`);
+                  });
+                  return res.employees.map((e) => ({
+                    value: e.id,
+                    label: [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.username || `#${e.id}`,
+                  }));
+                }}
+                value={undefined}
+                onChange={(val) => handleSelectEmployee(val ? Number(val) : undefined)}
+                placeholder="Search and select employees..."
+              />
+              {selectedEmployees.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {selectedEmployees.map((empId) => (
+                    <span
+                      key={empId}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-200"
                     >
-                      &times;
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+                      {employeeCacheRef.current.get(empId) || `Employee #${empId}`}
+                      <button
+                        type="button"
+                        onClick={() => removeEmployee(empId)}
+                        className="text-blue-400 hover:text-blue-700"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="flex gap-3 justify-end pt-4 border-t border-slate-200">
+          <div className="flex gap-3 justify-end pt-5 border-t border-slate-200">
             <Button
               type="button"
               variant="outline"

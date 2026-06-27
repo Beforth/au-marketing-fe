@@ -10,10 +10,11 @@ import { DataTable, Column } from '../components/ui/DataTable';
 import { marketingAPI, QuotationListItem, QuotationLeadOption } from '../lib/marketing-api';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { Download, ExternalLink } from 'lucide-react';
+import { Download, ExternalLink, Eye } from 'lucide-react';
 import { Tooltip } from '../UI/Tooltip';
 import { Button } from '../components/ui/Button';
 import { SearchInput } from '../components/ui/SearchInput';
+import { PdfPreviewModal } from '../components/ui/PdfPreviewModal';
 
 type SortField = 'quotation_number' | 'file_name' | 'lead_name' | 'inquiry_number' | 'activity_date';
 type SortOrder = 'asc' | 'desc';
@@ -66,8 +67,19 @@ export const EnquiryQuotationsPage: React.FC = () => {
     };
   }, [searchInput]);
 
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
+
   const handleDownload = (leadId: number, activityId: number, attachmentId: number, fileName: string) => {
     marketingAPI.downloadLeadActivityAttachment(leadId, activityId, attachmentId, fileName);
+  };
+
+  const handleViewFile = async (leadId: number, activityId: number, attachmentId: number, fileName: string) => {
+    try {
+      const url = await marketingAPI.getLeadActivityAttachmentUrl(leadId, activityId, attachmentId);
+      setPreviewFile({ url, name: fileName });
+    } catch (err: any) {
+      console.error('Preview failed', err);
+    }
   };
 
   const hasActiveFilters = !!(searchInput.trim() || filterLeadId !== '' || dateFrom || dateTo);
@@ -134,6 +146,16 @@ export const EnquiryQuotationsPage: React.FC = () => {
       align: 'right',
       render: (q) => (
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Tooltip content="Preview">
+            <Button
+              variant="ghost"
+              size="xs"
+              className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent transition-colors"
+              onClick={() => handleViewFile(q.lead_id, q.activity_id, q.id, q.file_name)}
+            >
+              <Eye size={15} strokeWidth={2} />
+            </Button>
+          </Tooltip>
           <Tooltip content="Download Quotation">
             <Button
               variant="ghost"
@@ -268,6 +290,13 @@ export const EnquiryQuotationsPage: React.FC = () => {
           bordered={false}
         />
       </Card>
+
+      <PdfPreviewModal
+        isOpen={previewFile != null}
+        onClose={() => setPreviewFile(null)}
+        fileUrl={previewFile?.url || ''}
+        fileName={previewFile?.name || ''}
+      />
     </PageLayout>
   );
 };

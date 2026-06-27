@@ -40,8 +40,9 @@ import { parseNameWithPrefix, serializeNameWithPrefix, parsePhoneWithCountryCode
 import { getStoredMarketingScope } from '../lib/marketing-scope';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Modal } from '../components/ui/Modal';
+import { PdfPreviewModal } from '../components/ui/PdfPreviewModal';
 import { Tooltip } from '../UI/Tooltip';
-import { ArrowLeft, ArrowRight, Clock, ChevronDown, ChevronRight, Globe, User, Building2, FileText, History, Edit2, Trash2, Paperclip, Download, Plus, Upload, X, Package, Trophy, XCircle, Search, Network, Info, Mail, List, Factory, MessageSquare } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Clock, ChevronDown, ChevronRight, Globe, User, Building2, FileText, History, Edit2, Trash2, Paperclip, Download, Plus, Upload, X, Package, Trophy, XCircle, Search, Network, Info, Mail, List, Factory, MessageSquare, Eye } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface LeadFormData extends Partial<Lead> {
@@ -129,6 +130,7 @@ export const LeadFormPage: React.FC = () => {
   const [uploadPhase, setUploadPhase] = useState<'idle' | 'creating' | 'uploading'>('idle');
   const [addAttachmentActivityId, setAddAttachmentActivityId] = useState<number | null>(null);
   const [addAttachmentRows, setAddAttachmentRows] = useState<{ id: string; kind: 'quotation' | 'attachment'; file: File | null; quotationNumber: string; title: string; quoteValue: string }[]>([]);
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
   const [quotationSeriesCode, setQuotationSeriesCode] = useState('');
   const [addAttachmentQuotationSeriesCode, setAddAttachmentQuotationSeriesCode] = useState('');
   const [quotationIsRevised, setQuotationIsRevised] = useState(false);
@@ -711,6 +713,16 @@ export const LeadFormPage: React.FC = () => {
       setCreatingContact(false);
     }
   }, [createContactForm, linkLeadToContact, showToast]);
+
+  const handleViewFile = async (activityId: number, attachmentId: number, fileName: string) => {
+    if (!leadId) return;
+    try {
+      const url = await marketingAPI.getLeadActivityAttachmentUrl(leadId, activityId, attachmentId);
+      setPreviewFile({ url, name: fileName });
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to load file', 'error');
+    }
+  };
 
   const loadActivities = () => {
     if (!isValidId) return;
@@ -1614,13 +1626,22 @@ export const LeadFormPage: React.FC = () => {
                 <br />
                 <span className="font-medium">{latestQuotation.att.quotation_number || '—'}</span>
                 {isValidId && (
-                  <button
-                    type="button"
-                    onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, latestQuotation.activity.id, latestQuotation.att.id, latestQuotation.att.file_name || 'download')}
-                    className="ml-2 text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-0.5"
-                  >
-                    <Download size={12} /> Download
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleViewFile(latestQuotation.activity.id, latestQuotation.att.id, latestQuotation.att.file_name || 'download')}
+                      className="ml-2 text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-0.5"
+                    >
+                      <Eye size={12} /> Preview
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, latestQuotation.activity.id, latestQuotation.att.id, latestQuotation.att.file_name || 'download')}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-0.5"
+                    >
+                      <Download size={12} /> Download
+                    </button>
+                  </>
                 )}
               </div>
             )}
@@ -2892,6 +2913,13 @@ export const LeadFormPage: React.FC = () => {
                                         {att.quotation_number && <span className="text-slate-400">·</span>}
                                         <button
                                           type="button"
+                                          onClick={() => handleViewFile(a.id, att.id, att.file_name)}
+                                          className="text-blue-600 hover:underline flex items-center gap-1"
+                                        >
+                                          <Eye size={12} />
+                                        </button>
+                                        <button
+                                          type="button"
                                           onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, a.id, att.id, att.file_name)}
                                           className="text-blue-600 hover:underline flex items-center gap-1"
                                         >
@@ -2932,6 +2960,13 @@ export const LeadFormPage: React.FC = () => {
                                       <li key={att.id} className="flex items-center gap-2 text-xs">
                                         {att.title && <span className="font-medium text-slate-600 shrink-0">{att.title}</span>}
                                         {att.title && <span className="text-slate-400">·</span>}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleViewFile(a.id, att.id, att.file_name)}
+                                          className="text-blue-600 hover:underline flex items-center gap-1"
+                                        >
+                                          <Eye size={12} />
+                                        </button>
                                         <button
                                           type="button"
                                           onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, a.id, att.id, att.file_name)}
@@ -3773,6 +3808,13 @@ export const LeadFormPage: React.FC = () => {
         message="Are you sure you want to delete this enquiry log? This cannot be undone."
         confirmLabel="Delete"
         variant="danger"
+      />
+
+      <PdfPreviewModal
+        isOpen={previewFile != null}
+        onClose={() => setPreviewFile(null)}
+        fileUrl={previewFile?.url || ''}
+        fileName={previewFile?.name || ''}
       />
     </PageLayout>
   );

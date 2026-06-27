@@ -23,10 +23,10 @@ const TYPE_OPTIONS = [
 export const EventsListPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useApp();
-  const canView = useAppSelector(selectHasPermission('marketing.view_exhibition'));
-  const canCreate = useAppSelector(selectHasPermission('marketing.create_exhibition'));
-  const canEdit = useAppSelector(selectHasPermission('marketing.edit_exhibition'));
-  const canDelete = useAppSelector(selectHasPermission('marketing.delete_exhibition'));
+  const canView = useAppSelector(selectHasPermission('marketing.view_events'));
+  const canCreate = useAppSelector(selectHasPermission('marketing.create_events'));
+  const canEdit = useAppSelector(selectHasPermission('marketing.edit_events'));
+  const canDelete = useAppSelector(selectHasPermission('marketing.delete_events'));
 
   const [eventType, setEventType] = useState<EventType>('exhibition');
   const [data, setData] = useState<ExhibitionEvent[]>([]);
@@ -205,7 +205,7 @@ export const EventsListPage: React.FC = () => {
         <Card>
           <div className="text-center py-12">
             <p className="text-slate-600">You do not have permission to view events.</p>
-            <p className="text-sm text-slate-500 mt-2">Required permission: marketing.view_exhibition</p>
+            <p className="text-sm text-slate-500 mt-2">Required permission: marketing.view_events</p>
           </div>
         </Card>
       </PageLayout>

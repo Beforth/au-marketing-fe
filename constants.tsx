@@ -32,7 +32,7 @@ export const SIDEBAR_LINKS: NavItem[] = [
   { title: 'Orders', icon: Package, href: '/orders', permission: 'marketing.view_lead' },
   { title: 'Database', icon: Database, href: '/database', permission: 'marketing.view_database' },
   { title: 'My Team', icon: UserCheck, href: '/my-team', permission: 'marketing.view_myteam' },
-  { title: 'Events', icon: CalendarDays, href: '/events', permission: 'marketing.view_exhibition' },
+  { title: 'Events', icon: CalendarDays, href: '/events', permission: 'marketing.view_events' },
   { title: 'Reports', icon: PieChart, href: '/reports', permission: 'marketing.view_report' },
   // { title: 'Report templates', icon: FileText, href: '/report-templates', permission: 'marketing.view_lead' },
   // { title: 'Employees', icon: Users, href: '/employees', permission: 'marketing.view_domain' },

@@ -753,6 +753,18 @@ class MarketingAPIService {
     );
   }
 
+  /** Get an activity attachment blob URL for preview. */
+  async getLeadActivityAttachmentUrl(
+    leadId: number,
+    activityId: number,
+    attachmentId: number
+  ): Promise<string> {
+    const blob = await apiClient.getBlob(
+      `/api/leads/${leadId}/activities/${activityId}/attachments/${attachmentId}/download`
+    );
+    return URL.createObjectURL(blob);
+  }
+
   /** Download an activity attachment file (uses auth; triggers browser save). */
   async downloadLeadActivityAttachment(
     leadId: number,
@@ -1858,6 +1870,16 @@ class MarketingAPIService {
     return URL.createObjectURL(blob);
   }
 
+  async downloadEventFile(eventId: number, fileId: number, fileName: string): Promise<void> {
+    const blob = await apiClient.getBlob(`/api/events/${eventId}/files/${fileId}/download`);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName || 'file';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async deleteEventFile(eventId: number, fileId: number): Promise<void> {
     return apiClient.delete<void>(`/api/events/${eventId}/files/${fileId}`);
   }
@@ -2382,6 +2404,7 @@ export type BannerSource = 'stall_vendor' | 'own';
 
 export interface ExhibitionEvent {
   id: number;
+  domain_id: number;
   type: EventType;
   name: string;
   location: string;
@@ -2398,6 +2421,7 @@ export interface ExhibitionEvent {
   // Space Booking
   space_booking_vendor: string;
   space_booking_amount: number;
+  space_booking_paid_amount: number;
   space_booking_pi_sent: boolean;
   space_booking_payment_status: PaymentStatus;
   space_booking_installments: Installment[];
@@ -2430,6 +2454,7 @@ export interface ExhibitionEvent {
 }
 
 export interface EventCreateInput {
+  domain_id: number;
   type: EventType;
   name: string;
   location: string;
@@ -2440,6 +2465,7 @@ export interface EventCreateInput {
 }
 
 export interface EventUpdateInput {
+  domain_id?: number;
   name?: string;
   location?: string;
   start_date?: string;
@@ -2449,6 +2475,7 @@ export interface EventUpdateInput {
   // Phase fields
   space_booking_vendor?: string;
   space_booking_amount?: number;
+  space_booking_paid_amount?: number;
   space_booking_pi_sent?: boolean;
   space_booking_payment_status?: PaymentStatus;
   space_booking_installments?: Installment[];

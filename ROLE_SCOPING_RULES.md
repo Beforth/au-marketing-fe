@@ -76,7 +76,7 @@ Contacts (cold directory records) and Customers (active business accounts) are s
 * **Super Admin**: Sees **all** contacts and customers.
 * **Domain Head / Domain Coordinator**: Sees **only** contacts and customers belonging to their assigned domain(s). Strictly blocked from other domains.
 * **Region Head / Region Coordinator**: Sees **only** contacts and customers belonging to their assigned region(s). Strictly blocked from other regions, even within the same domain.
-* **Employee**: **Isolated.** Can ONLY see contacts and customers they personally created (`created_by_employee_id == user_id`) or are explicitly assigned to.
+* **Employee**: **Isolated.** Can ONLY see contacts and customers they personally created (`created_by_employee_id == user_id`) or are explicitly assigned to (`assigned_to_employee_id == employee_id` or `assigned_to_employee_id == user_id`).
 
 ### 🏢 Organizations & Plants (New Scoping Rules)
 > [!IMPORTANT]
@@ -95,6 +95,24 @@ Contacts (cold directory records) and Customers (active business accounts) are s
 
 ---
 
+## 🎪 4. Exhibition & Roadshow Events Scoping Rules
+
+Rules governing who can see and modify Exhibition/Roadshow events and visitors:
+
+### 📅 Events Access boundaries:
+* **Super Admin**: Full access to view, create, edit, and delete all events.
+* **Domain Head / Domain Coordinator**: Full access to events scoped to their assigned domain(s).
+* **Region Head / Region Coordinator**: Full access to events scoped to regions under their domain(s) or assigned region scope.
+* **Employee**: Can view events they are explicitly selected for (i.e. listed in `selected_employee_ids`, `travel_employee_ids`, or `hotel_employee_ids`).
+
+### 👥 Visitor Allocation & Sharing Rules:
+* **Unique Links**: When linking a visitor to an existing contact, the contact's pre-existing assignment is preserved and displayed in the UI (*"Allocated to: [Employee Name]"*).
+* **Direct Assigned Scoping**: Allocating a visitor to an employee sets the `assigned_to_employee_id` and `assigned_to_username` on the CRM Contact. The assigned employee immediately gains visibility to view and access that contact under their employee directory scope.
+* **Unallocation cleanup**: If a visitor allocation is removed (reset to "Not allocated"), the CRM Contact's assignment fields are cleared, revoking the employee's visibility.
+* **Assignment Notifications**: Allocating or re-allocating a visitor to an employee triggers a real-time push and in-app notification to the assignee.
+
+---
+
 ## 🛠️ Code References
 
 * **Backend Scoping Logic**: [app/scope.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/scope.py)
@@ -103,4 +121,5 @@ Contacts (cold directory records) and Customers (active business accounts) are s
   * Contacts: [app/routers/contacts.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/contacts.py)
   * Customers: [app/routers/customers.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/customers.py)
   * Organizations: [app/routers/organizations.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/organizations.py)
+  * Events: [app/routers/events.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/events.py)
 * **Frontend Rules Config**: [pages/DomainsPage.tsx](file:///Users/ady/Documents/au-marketing-fe/pages/DomainsPage.tsx)

@@ -88,10 +88,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     }
     const rect = containerRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
-    const dropdownHeight = showTime && timePanelPosition === 'bottom' ? 440 : showTime && timeOnRight ? 380 : 340;
+    const dropdownHeight = showTime && timePanelPosition === 'bottom' ? 380 : showTime && timeOnRight ? 320 : 280;
     const openUp = spaceBelow < dropdownHeight && rect.top > spaceBelow;
-    const minWidth = timeOnRight ? 380 : 300;
-    const maxWidth = timeOnRight ? 420 : 360;
+    const minWidth = timeOnRight ? 320 : 260;
+    const maxWidth = timeOnRight ? 380 : 300;
     const targetWidth = Math.min(Math.max(rect.width, minWidth), maxWidth);
 
     setDropdownRect({
@@ -288,28 +288,28 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         {isOpen && dropdownRect && createPortal(
           <div
             ref={dropdownRef}
-            className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl p-4 shadow-blue-100/20 animate-spring-in"
+            className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl p-3 shadow-blue-100/20 animate-spring-in"
             style={{ top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width }}
           >
             <div className={cn(timeOnRight && !isYearPickerOpen && 'flex flex-row gap-3 items-stretch')}>
               <div className={cn(timeOnRight && !isYearPickerOpen && 'min-w-0 flex-1')}>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex flex-col gap-0.5 pointer-events-auto">
-                    <span className="text-sm font-bold text-slate-900 leading-none">{MONTHS[month]}</span>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setIsYearPickerOpen(!isYearPickerOpen); }} className={cn("text-xs flex items-center gap-1 mt-0.5 transition-colors font-medium rounded px-1 -ml-1", isYearPickerOpen ? "bg-[var(--primary)] text-white" : "text-slate-500 hover:text-[var(--primary)] hover:bg-[var(--primary-muted)]")}>
+                    <span className="text-xs font-bold text-slate-900 leading-none">{MONTHS[month]}</span>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setIsYearPickerOpen(!isYearPickerOpen); }} className={cn("text-[11px] flex items-center gap-1 mt-0.5 transition-colors font-medium rounded px-1 -ml-1", isYearPickerOpen ? "bg-[var(--primary)] text-white" : "text-slate-500 hover:text-[var(--primary)] hover:bg-[var(--primary-muted)]")}>
                       {year} <ChevronDown size={12} className={cn("transition-transform", isYearPickerOpen && "rotate-180")} />
                     </button>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button type="button" onClick={handlePrevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><ChevronLeft size={18} /></button>
-                    <button type="button" onClick={handleNextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><ChevronRight size={18} /></button>
+                    <button type="button" onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><ChevronLeft size={16} /></button>
+                    <button type="button" onClick={handleNextMonth} className="p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><ChevronRight size={16} /></button>
                   </div>
                 </div>
 
                 {isYearPickerOpen ? (
-                  <div className="grid grid-cols-4 gap-2 h-[230px] overflow-y-auto pr-1 customize-scrollbar">
+                  <div className="grid grid-cols-4 gap-1 h-[200px] overflow-y-auto pr-1 customize-scrollbar">
                     {Array.from({ length: 41 }, (_, i) => today.getFullYear() - 20 + i).map(y => (
-                      <button key={y} type="button" onClick={() => handleYearChange(y)} className={cn("py-2 text-sm rounded-lg transition-all", y === year ? "bg-[var(--primary)] text-white font-bold shadow-md shadow-[var(--primary)]/20" : "text-slate-600 hover:bg-[var(--primary-muted)] hover:text-[var(--primary)]")}>
+                      <button key={y} type="button" onClick={() => handleYearChange(y)} className={cn("py-1.5 text-xs rounded-lg transition-all", y === year ? "bg-[var(--primary)] text-white font-bold shadow-md shadow-[var(--primary)]/20" : "text-slate-600 hover:bg-[var(--primary-muted)] hover:text-[var(--primary)]")}>
                         {y}
                       </button>
                     ))}
@@ -317,14 +317,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 ) : (
                   <>
                     <div className="grid grid-cols-7 mb-1">
-                      {DAYS.map(day => <div key={day} className="text-center text-[10px] font-bold text-slate-400 uppercase py-1">{day}</div>)}
+                      {DAYS.map(day => <div key={day} className="text-center text-[10px] font-bold text-slate-400 uppercase py-0.5">{day}</div>)}
                     </div>
                     <div className="grid grid-cols-7 gap-px">
                       {calendarDays.map((day, idx) => {
                         const selected = isSelected(day.date);
                         const current = isToday(day.date);
                         return (
-                          <button key={idx} type="button" onClick={() => handleSelectDate(day.date)} className={cn('aspect-square flex items-center justify-center text-sm rounded-lg transition-all relative', !day.currentMonth && 'text-slate-300', day.currentMonth && !selected && 'text-slate-700 hover:bg-[var(--primary-muted)] hover:text-[var(--primary)]', selected && 'bg-[var(--primary)] text-white font-bold shadow-md shadow-[var(--primary)]/20', current && !selected && 'text-[var(--primary)] font-bold')}>
+                          <button key={idx} type="button" onClick={() => handleSelectDate(day.date)} className={cn('aspect-square flex items-center justify-center text-xs rounded-lg transition-all relative', !day.currentMonth && 'text-slate-300', day.currentMonth && !selected && 'text-slate-700 hover:bg-[var(--primary-muted)] hover:text-[var(--primary)]', selected && 'bg-[var(--primary)] text-white font-bold shadow-md shadow-[var(--primary)]/20', current && !selected && 'text-[var(--primary)] font-bold')}>
                             {day.date.getDate()}
                             {current && !selected && <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[var(--primary)]" />}
                           </button>
@@ -354,7 +354,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             </div>
 
             {showTime && !isYearPickerOpen && !timeOnRight && (
-              <div className="mt-4 pt-4 border-t border-slate-100">
+              <div className="mt-3 pt-3 border-t border-slate-100">
                 <div className="flex items-center gap-2 mb-3">
                   <Clock size={14} className="text-slate-400" />
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Set Time</span>
@@ -375,7 +375,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               </div>
             )}
 
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+            <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button type="button" onClick={() => { if (isMulti && onSelectedDatesChange) { const key = dateToKey(today); const next = new Set(selectedDates); if (next.has(key)) next.delete(key); else next.add(key); onSelectedDatesChange(next); } else { handleSelectDate(today); } }} className="text-xs font-semibold text-[var(--primary)] hover:underline">Today</button>
                 {showTime && showNow && <button type="button" onClick={() => updateValue(new Date())} className="text-xs font-semibold text-emerald-600 hover:underline">Now</button>}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Edit, ArrowLeft, Save, X, Upload, FileText, Eye, Plus, Trash2, CalendarCheck } from 'lucide-react';
+import { Edit, ArrowLeft, Save, X, Upload, FileText, Eye, Plus, Trash2, CalendarCheck, Download, FileDown } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -8,6 +8,7 @@ import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
+import { PdfPreviewModal } from '../components/ui/PdfPreviewModal';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
 import { PageLayout } from '../components/layout/PageLayout';
@@ -16,7 +17,7 @@ import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import {
   marketingAPI, ExhibitionEvent, Installment, StallVendor,
-  PaymentStatus, BannerSource, EventType, EventUpdateInput,
+  BannerSource, EventType, EventUpdateInput,
 } from '../lib/marketing-api';
 
 const TABS_EXHIBITION = [
@@ -42,30 +43,10 @@ const TABS_ROADSHOW = [
   { key: 'analysis', label: 'Analysis' },
 ];
 
-const PAYMENT_STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'partial', label: 'Partial' },
-  { value: 'completed', label: 'Completed' },
-];
-
 const BANNER_SOURCE_OPTIONS: { value: BannerSource; label: string }[] = [
   { value: 'stall_vendor', label: 'From Stall Vendor' },
   { value: 'own', label: 'Own Design' },
 ];
-
-function PdfPreviewModal({ isOpen, onClose, fileUrl, fileName }: { isOpen: boolean; onClose: () => void; fileUrl: string; fileName: string }) {
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title={fileName || 'File Preview'} contentClassName="max-w-4xl">
-      <div className="w-full h-[75vh]">
-        {fileUrl ? (
-          <iframe src={fileUrl} className="w-full h-full rounded-lg border border-slate-200" title={fileName} />
-        ) : (
-          <div className="flex items-center justify-center h-full text-slate-400">Unable to load preview</div>
-        )}
-      </div>
-    </Modal>
-  );
-}
 
 type TabKey = 'overview' | 'space_booking' | 'stall_design' | 'banner_design' | 'table_booking' | 'travel' | 'hotel' | 'local_travel' | 'gifting' | 'analysis';
 
@@ -73,8 +54,8 @@ export const EventDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { showToast } = useApp();
-  const canView = useAppSelector(selectHasPermission('marketing.view_exhibition'));
-  const canEdit = useAppSelector(selectHasPermission('marketing.edit_exhibition'));
+  const canView = useAppSelector(selectHasPermission('marketing.view_events'));
+  const canEdit = useAppSelector(selectHasPermission('marketing.edit_events'));
 
   const [event, setEvent] = useState<ExhibitionEvent | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
@@ -211,6 +192,15 @@ export const EventDetailPage: React.FC = () => {
     }
   };
 
+  const handleDownloadFile = async (fileId: number, fileName: string) => {
+    if (!event) return;
+    try {
+      await marketingAPI.downloadEventFile(event.id, fileId, fileName);
+    } catch (error: any) {
+      showToast(error.message || 'Failed to download file', 'error');
+    }
+  };
+
   const isEnded = event?.status === 'ended';
   const tabs = event?.type === 'roadshow' ? TABS_ROADSHOW : TABS_EXHIBITION;
 
@@ -268,44 +258,79 @@ export const EventDetailPage: React.FC = () => {
       <Card>
         <div className="grid grid-cols-2 gap-4">
           <Input label="Vendor Name" value={event.space_booking_vendor || ''} onChange={(e) => setEvent({ ...event, space_booking_vendor: e.target.value })} disabled={isEnded || !canEdit} placeholder="Vendor name..." />
-          <Input label="Amount Paid (₹)" type="text" value={event.space_booking_amount ? String(event.space_booking_amount) : ''} onChange={(e) => setEvent({ ...event, space_booking_amount: parseFloat(e.target.value.replace(/\D/g, '')) || 0 })} disabled={isEnded || !canEdit} placeholder="0" />
+          <Input label="Total Amount (₹)" type="text" value={event.space_booking_amount ? String(event.space_booking_amount) : ''} onChange={(e) => setEvent({ ...event, space_booking_amount: parseFloat(e.target.value.replace(/\D/g, '')) || 0 })} disabled={isEnded || !canEdit} placeholder="0" />
         </div>
 
         <div className="grid grid-cols-2 gap-4 mt-4">
-          <div className="flex items-center gap-3 mt-2">
-            <input type="checkbox" id="pi_sent" checked={event.space_booking_pi_sent} onChange={(e) => setEvent({ ...event, space_booking_pi_sent: e.target.checked })} disabled={isEnded || !canEdit} className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" />
-            <label htmlFor="pi_sent" className="text-sm font-medium text-slate-700">PI Sent to Accounts</label>
+          <div className="flex flex-col gap-1 mt-2">
+            <div className="flex items-center gap-3">
+              <input type="checkbox" id="pi_sent" checked={event.space_booking_pi_sent} disabled className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 opacity-60" />
+              <label htmlFor="pi_sent" className="text-sm font-medium text-slate-500">PI Sent to Accounts</label>
+            </div>
+            <p className="text-[10px] text-slate-400 ml-7">Work in progress — feature not finalized</p>
           </div>
-          <Select label="Payment Status" options={PAYMENT_STATUS_OPTIONS} value={event.space_booking_payment_status} onChange={(val) => setEvent({ ...event, space_booking_payment_status: (val as PaymentStatus) || 'pending' })} disabled={isEnded || !canEdit} />
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-2">Payment Status</label>
+            {(() => {
+              const totalPaid = (event.space_booking_installments || [])
+                .filter(e => e.paid)
+                .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+              const totalAmount = event.space_booking_amount || 0;
+              const status = totalPaid <= 0 ? 'pending' : totalPaid >= totalAmount ? 'completed' : 'partial';
+              const badge = status === 'completed'
+                ? { variant: 'success' as const, label: 'Completed' }
+                : status === 'partial'
+                  ? { variant: 'warning' as const, label: 'Partial' }
+                  : { variant: 'default' as const, label: 'Pending' };
+              return <Badge variant={badge.variant} className="text-xs">{badge.label}</Badge>;
+            })()}
+          </div>
         </div>
 
         <div className="mt-6">
           <div className="flex items-center justify-between mb-3">
-            <label className="text-sm font-semibold text-slate-700">Installments</label>
+            <label className="text-sm font-semibold text-slate-700">Payment Entries</label>
             {canEdit && !isEnded && (
               <Button size="sm" variant="outline" onClick={() => setEvent({ ...event, space_booking_installments: [...(event.space_booking_installments || []), { due_date: '', amount: 0, paid: false }] })} leftIcon={<Plus size={12} />}>
-                Add Installment
+                Add Payment Entry
               </Button>
             )}
           </div>
+
+          {/* Summary bar */}
+          {(() => {
+            const totalPaid = (event.space_booking_installments || [])
+              .filter(e => e.paid)
+              .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+            const totalAmount = event.space_booking_amount || 0;
+            const remaining = Math.max(0, totalAmount - totalPaid);
+            return (
+              <div className="flex items-center gap-6 mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+                <span className="text-slate-600">Total Amount: <strong className="text-slate-900">₹{totalAmount.toLocaleString('en-IN')}</strong></span>
+                <span className="text-slate-600">Total Paid: <strong className="text-emerald-600">₹{totalPaid.toLocaleString('en-IN')}</strong></span>
+                <span className="text-slate-600">Remaining: <strong className={remaining > 0 ? 'text-amber-600' : 'text-slate-900'}>₹{remaining.toLocaleString('en-IN')}</strong></span>
+              </div>
+            );
+          })()}
+
           {(!event.space_booking_installments || event.space_booking_installments.length === 0) ? (
-            <p className="text-sm text-slate-400">No installments added yet.</p>
+            <p className="text-sm text-slate-400">No payment entries added yet.</p>
           ) : (
             <div className="space-y-2">
-              {event.space_booking_installments.map((inst, idx) => (
+              {event.space_booking_installments.map((entry, idx) => (
                 <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <DatePicker value={inst.due_date} onChange={(val) => {
+                  <DatePicker value={entry.due_date || ''} onChange={(val) => {
                     const updated = [...(event.space_booking_installments || [])];
                     updated[idx] = { ...updated[idx], due_date: val || '' };
                     setEvent({ ...event, space_booking_installments: updated });
-                  }} placeholder="Due date" inputSize="sm" showIcon={false} />
-                  <Input type="text" value={inst.amount ? String(inst.amount) : ''} onChange={(e) => {
+                  }} placeholder="Date" inputSize="sm" showIcon={false} />
+                  <Input type="text" value={entry.amount ? String(entry.amount) : ''} onChange={(e) => {
                     const updated = [...(event.space_booking_installments || [])];
                     updated[idx] = { ...updated[idx], amount: parseFloat(e.target.value.replace(/\D/g, '')) || 0 };
                     setEvent({ ...event, space_booking_installments: updated });
                   }} placeholder="Amount" containerClassName="w-32" />
                   <label className="flex items-center gap-2 text-sm whitespace-nowrap">
-                    <input type="checkbox" checked={inst.paid} onChange={(e) => {
+                    <input type="checkbox" checked={entry.paid} onChange={(e) => {
                       const updated = [...(event.space_booking_installments || [])];
                       updated[idx] = { ...updated[idx], paid: e.target.checked };
                       setEvent({ ...event, space_booking_installments: updated });
@@ -325,13 +350,21 @@ export const EventDetailPage: React.FC = () => {
 
         {canEdit && !isEnded && (
           <div className="flex justify-end pt-4 border-t border-slate-200 mt-4">
-            <Button onClick={() => updateField({
-              space_booking_vendor: event.space_booking_vendor,
-              space_booking_amount: event.space_booking_amount,
-              space_booking_pi_sent: event.space_booking_pi_sent,
-              space_booking_payment_status: event.space_booking_payment_status,
-              space_booking_installments: event.space_booking_installments,
-            })} disabled={saving} leftIcon={<Save size={14} />}>
+            <Button onClick={() => {
+              const paidAmount = (event.space_booking_installments || [])
+                .filter(e => e.paid)
+                .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+              const totalAmount = event.space_booking_amount || 0;
+              const paymentStatus = paidAmount <= 0 ? 'pending' : paidAmount >= totalAmount ? 'completed' : 'partial';
+              updateField({
+                space_booking_vendor: event.space_booking_vendor,
+                space_booking_amount: event.space_booking_amount,
+                space_booking_paid_amount: paidAmount,
+                space_booking_pi_sent: event.space_booking_pi_sent,
+                space_booking_payment_status: paymentStatus,
+                space_booking_installments: event.space_booking_installments,
+              });
+            }} disabled={saving} leftIcon={<Save size={14} />}>
               {saving ? 'Saving...' : 'Save Space Booking'}
             </Button>
           </div>
@@ -410,6 +443,9 @@ export const EventDetailPage: React.FC = () => {
                         <button onClick={() => handleViewFile(file.id)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Preview">
                           <Eye size={14} />
                         </button>
+                        <button onClick={() => handleDownloadFile(file.id, file.file_name)} className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded" title="Download">
+                          <Download size={14} />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -486,6 +522,9 @@ export const EventDetailPage: React.FC = () => {
                 </div>
                 <button onClick={() => handleViewFile(file.id)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Preview">
                   <Eye size={14} />
+                </button>
+                <button onClick={() => handleDownloadFile(file.id, file.file_name)} className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded" title="Download">
+                  <Download size={14} />
                 </button>
               </div>
             ))}
@@ -597,9 +636,14 @@ export const EventDetailPage: React.FC = () => {
                     <span className="text-slate-700">{ticket.file_name}</span>
                     <span className="text-xs text-slate-400">Employee #{ticket.employee_id}</span>
                   </div>
-                  <button onClick={() => handleViewFile(ticket.id)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Preview">
-                    <Eye size={14} />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => handleViewFile(ticket.id)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Preview">
+                      <Eye size={14} />
+                    </button>
+                    <button onClick={() => handleDownloadFile(ticket.id, ticket.file_name)} className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded" title="Download">
+                      <Download size={14} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -745,6 +789,9 @@ export const EventDetailPage: React.FC = () => {
                   <button onClick={() => handleViewFile(pf.id)} className="text-blue-600 hover:text-blue-800" title="View">
                     <Eye size={12} />
                   </button>
+                  <button onClick={() => handleDownloadFile(pf.id, pf.file_name)} className="text-slate-500 hover:text-slate-700" title="Download">
+                    <Download size={12} />
+                  </button>
                 </div>
               ))}
               <label className="flex cursor-pointer items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100">
@@ -792,9 +839,14 @@ export const EventDetailPage: React.FC = () => {
                     {proofsForEntry(idx).length > 0 && (
                       <div className="flex items-center gap-2 mt-1">
                         {proofsForEntry(idx).map(pf => (
-                          <button key={pf.id} onClick={() => handleViewFile(pf.id)} className="text-xs text-blue-600 hover:text-blue-800 underline underline-offset-2">
-                            {pf.file_name}
-                          </button>
+                          <span key={pf.id} className="inline-flex items-center gap-1">
+                            <button onClick={() => handleViewFile(pf.id)} className="text-xs text-blue-600 hover:text-blue-800 underline underline-offset-2">
+                              {pf.file_name}
+                            </button>
+                            <button onClick={() => handleDownloadFile(pf.id, pf.file_name)} className="text-slate-400 hover:text-slate-600" title="Download">
+                              <Download size={10} />
+                            </button>
+                          </span>
                         ))}
                       </div>
                     )}

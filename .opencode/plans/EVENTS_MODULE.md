@@ -1,3 +1,5 @@
+w
+
 # Exhibition / Roadshow Events Module
 
 ## Overview
@@ -5,6 +7,7 @@
 Events module for managing exhibitions and roadshows with full CRUD, phase-based expense tracking, file uploads, employee assignment, budget analysis, notifications, and visitor tracking.
 
 **Code files:**
+
 - Backend: `au-marketing-api/app/routers/events.py`, `au-marketing-api/app/models.py` (lines 1252-1382), `au-marketing-api/app/schemas.py` (lines 1286-1367)
 - Frontend: `pages/EventsListPage.tsx`, `pages/EventFormPage.tsx`, `pages/EventDetailPage.tsx`
 - API client: `lib/marketing-api.ts` (lines 1798-1862)
@@ -18,21 +21,22 @@ Events module for managing exhibitions and roadshows with full CRUD, phase-based
 
 Single `ExhibitionEvent` table (`events`) with JSONB columns for sub-features:
 
-| Phase | Column(s) | Type |
-|---|---|---|
-| Core | `type` (exhibition/roadshow), `name`, `location`, `start_date`, `end_date`, `status` (active/ended), `budget`, `total_spent`, `selected_employee_ids` | Various |
-| Space Booking | `space_booking_vendor`, `space_booking_amount`, `space_booking_pi_sent`, `space_booking_payment_status`, `space_booking_installments` | Scalar + JSONB |
-| Stall Design (exhibition) | `stall_vendors`, `stall_selected_vendor_id`, `stall_po_created` | JSONB + Scalar |
-| Banner Design (exhibition) | `banner_design_source` | Scalar |
-| Table Booking (roadshow) | `table_booking_venue`, `table_booking_count`, `table_booking_cost_per_table`, `table_booking_total_cost` | Scalar |
-| Travel | `travel_days_before`, `travel_employee_ids`, `travel_notification_sent` | Scalar + JSONB |
-| Hotel | `hotel_name`, `hotel_employee_ids`, `hotel_cost` | Scalar + JSONB |
-| Local Travel | `local_travel_entries` | JSONB array |
-| Gifting | `gifting_entries` | JSONB array |
+| Phase                      | Column(s)                                                                                                                                                               | Type           |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| Core                       | `type` (exhibition/roadshow), `name`, `location`, `start_date`, `end_date`, `status` (active/ended), `budget`, `total_spent`, `selected_employee_ids` | Various        |
+| Space Booking              | `space_booking_vendor`, `space_booking_amount`, `space_booking_pi_sent`, `space_booking_payment_status`, `space_booking_installments`                         | Scalar + JSONB |
+| Stall Design (exhibition)  | `stall_vendors`, `stall_selected_vendor_id`, `stall_po_created`                                                                                                   | JSONB + Scalar |
+| Banner Design (exhibition) | `banner_design_source`                                                                                                                                                | Scalar         |
+| Table Booking (roadshow)   | `table_booking_venue`, `table_booking_count`, `table_booking_cost_per_table`, `table_booking_total_cost`                                                        | Scalar         |
+| Travel                     | `travel_days_before`, `travel_employee_ids`, `travel_notification_sent`                                                                                           | Scalar + JSONB |
+| Hotel                      | `hotel_name`, `hotel_employee_ids`, `hotel_cost`                                                                                                                  | Scalar + JSONB |
+| Local Travel               | `local_travel_entries`                                                                                                                                                | JSONB array    |
+| Gifting                    | `gifting_entries`                                                                                                                                                     | JSONB array    |
 
 **File uploads** — separate `event_files` table with types: `stall_design`, `banner_design`, `travel_ticket`, `local_travel_proof`. Linked to events via FK.
 
 **File type enum** (`app/models.py:1269`):
+
 ```python
 class FileType(str, enum.Enum):
     STALL_DESIGN = "stall_design"
@@ -43,17 +47,17 @@ class FileType(str, enum.Enum):
 
 ### API Endpoints (`events.py`)
 
-| Method | Path | Description |
-|---|---|---|
-| GET | `/events/` | Paginated list (type, status, search filters) |
-| GET | `/events/{id}` | Get single event |
-| POST | `/events/` | Create event |
-| PUT | `/events/{id}` | Update event (partial, all phase fields) — also handles total_spent recalculation |
-| DELETE | `/events/{id}` | Delete event |
-| POST | `/events/{id}/end` | End event (locks editing) |
-| POST | `/events/{id}/files` | Upload file (stall_design/banner_design/travel_ticket/local_travel_proof) |
-| GET | `/events/{id}/files/{file_id}/download` | Download/preview file |
-| DELETE | `/events/{id}/files/{file_id}` | Delete file |
+| Method | Path                                      | Description                                                                        |
+| ------ | ----------------------------------------- | ---------------------------------------------------------------------------------- |
+| GET    | `/events/`                              | Paginated list (type, status, search filters)                                      |
+| GET    | `/events/{id}`                          | Get single event                                                                   |
+| POST   | `/events/`                              | Create event                                                                       |
+| PUT    | `/events/{id}`                          | Update event (partial, all phase fields) — also handles total_spent recalculation |
+| DELETE | `/events/{id}`                          | Delete event                                                                       |
+| POST   | `/events/{id}/end`                      | End event (locks editing)                                                          |
+| POST   | `/events/{id}/files`                    | Upload file (stall_design/banner_design/travel_ticket/local_travel_proof)          |
+| GET    | `/events/{id}/files/{file_id}/download` | Download/preview file                                                              |
+| DELETE | `/events/{id}/files/{file_id}`          | Delete file                                                                        |
 
 **Permissions required:** `marketing.view_exhibition`, `marketing.create_exhibition`, `marketing.edit_exhibition`, `marketing.delete_exhibition`
 
@@ -64,6 +68,7 @@ Handles `"integer out of range"` / `"numeric value out of range"` errors by extr
 ### DB Migrations (`main.py` startup)
 
 Runs `ALTER TABLE` for new columns on startup:
+
 - `stall_selected_vendor_id` → BIGINT (migration from INTEGER)
 - `travel_notification_sent` → BOOLEAN
 - `local_travel_entries` → JSONB (migrates existing single amount to "Legacy" entry)
@@ -73,6 +78,7 @@ Runs `ALTER TABLE` for new columns on startup:
 ### Frontend Pages
 
 **EventsListPage.tsx** — List with:
+
 - SegmentToggle (Exhibition / Roadshow)
 - Search input
 - DataTable with columns: Name (clickable), Type, Location, Start Date, End Date, Status, Budget, Spent, Actions
@@ -83,6 +89,7 @@ Runs `ALTER TABLE` for new columns on startup:
 - ConfirmModal for both Delete and End Event
 
 **EventFormPage.tsx** — Create/Edit form with:
+
 - SegmentToggle for type (exhibition/roadshow)
 - Name, Location, Start Date, End Date
 - Budget with `toLocaleString('en-IN')` comma formatting
@@ -91,20 +98,21 @@ Runs `ALTER TABLE` for new columns on startup:
 
 **EventDetailPage.tsx** — Tabbed detail page:
 
-| Tab | Exhibition | Roadshow |
-|---|---|---|
-| Overview | ✓ | ✓ |
-| Space Booking | ✓ | ✓ |
-| Stall Design | ✓ | — |
-| Banner Design | ✓ | — |
-| Table Booking | — | ✓ |
-| Travel | ✓ | ✓ |
-| Hotel | ✓ | ✓ |
-| Local Travel | ✓ | ✓ |
-| Gifting | ✓ | ✓ |
-| Analysis | ✓ | ✓ |
+| Tab           | Exhibition | Roadshow |
+| ------------- | ---------- | -------- |
+| Overview      | ✓         | ✓       |
+| Space Booking | ✓         | ✓       |
+| Stall Design  | ✓         | —       |
+| Banner Design | ✓         | —       |
+| Table Booking | —         | ✓       |
+| Travel        | ✓         | ✓       |
+| Hotel         | ✓         | ✓       |
+| Local Travel  | ✓         | ✓       |
+| Gifting       | ✓         | ✓       |
+| Analysis      | ✓         | ✓       |
 
 Features:
+
 - **Local Travel** — entry list (add/edit/read-only cards), each entry has: **Note** (what was this for?), **Amount**, **Employee chips**, **Proof upload** (local_travel_proof file type). Running total at bottom.
 - **Gifting** — entry list (add/edit/read-only cards), each entry: **Name** (Pen, Diary, etc.), **Count**, **Per-unit cost**, total = count x per-unit. Running total at bottom.
 - **Hotel** — hotel name, cost, employee selection chips
@@ -141,21 +149,25 @@ Vendors use sequential counter (`nextVendorIdRef`) initialized past existing max
 **Backend changes:**
 
 `app/models.py` — add column:
+
 ```python
 domain_id = Column(Integer, ForeignKey("domains.id"), nullable=False, default=1)
 ```
 
 `app/schemas.py` — add to:
+
 - `EventCreate`: `domain_id: int`
 - `EventUpdate`: `domain_id: Optional[int] = None`
 - `EventResponse`: `domain_id: int`
 
 `app/routers/events.py` — in `_event_to_response()`:
+
 ```python
 domain_id=event.domain_id,
 ```
 
 `app/main.py` — migration:
+
 ```python
 conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS domain_id INTEGER NOT NULL DEFAULT 1;"))
 ```
@@ -163,6 +175,7 @@ conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS domain_id INTEGER
 **Frontend changes:**
 
 `pages/EventFormPage.tsx` — add Domain dropdown on create form only:
+
 - AsyncSelect fetching domains via existing `GET /domains/` API
 - Default to user's domain from auth context
 - Disabled/hidden on edit (domain shouldn't change after creation)
@@ -178,6 +191,7 @@ conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS domain_id INTEGER
 **Data structure** — JSONB array on event (`visitors`), same as gifting/local_travel.
 
 **Each visitor entry:**
+
 ```typescript
 interface VisitorEntry {
   name: string;
@@ -196,15 +210,18 @@ interface VisitorEntry {
 **Backend changes:**
 
 `app/models.py` — add column:
+
 ```python
 visitors = Column(JSONB, default=list)
 ```
 
 `app/schemas.py` — add:
+
 - `EventUpdate`: `visitors: Optional[List[dict]] = None`
 - `EventResponse`: `visitors: List[dict] = []`
 
 `app/routers/events.py` — in `_event_to_response()`:
+
 ```python
 visitors=event.visitors or [],
 ```
@@ -252,6 +269,7 @@ if "visitors" in update_data:
 **Frontend changes:**
 
 `lib/marketing-api.ts`:
+
 ```typescript
 export interface VisitorEntry {
   name: string;
@@ -278,6 +296,7 @@ Add `visitors?: VisitorEntry[]` to `EventUpdateInput` interface
 4. Add `visitorsTab` constant following the same pattern as `giftingTab`:
 
 **Add form:**
+
 - AsyncSelect at top: searches `GET /contacts/search?q=...`
   - (contacts search endpoint — searches by name, email, phone, company)
   - Found -> select -> pre-fills name/phone/email/company/job_title, stores `contact_id`
@@ -287,6 +306,7 @@ Add `visitors?: VisitorEntry[]` to `EventUpdateInput` interface
 
 **Read-only saved entries:**
 Each card shows:
+
 - Name (bold)
 - Phone | Email
 - Company | Job Title
@@ -303,6 +323,7 @@ Same inline editable form pattern as gifting/local_travel (opens blue editable b
 ### 3. DB Migration
 
 In `app/main.py` startup, add:
+
 ```python
 # Add visitors column
 try:
@@ -355,6 +376,7 @@ Total: Rs.X,XXX          <- running total
 ```
 [AlertTriangle icon] Message text here...
 ```
+
 - Icon in `bg-rose-100` circle
 - Confirm button: `bg-rose-600 hover:bg-rose-700`
 
