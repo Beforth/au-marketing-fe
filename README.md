@@ -1,6 +1,6 @@
 # AP Sales & Marketing Module — Frontend
 
-**Brand:** S&M Hub · **Package:** `aether-erp-dashboard` · **Version:** 1.0.10
+**Brand:** S&M Hub · **Package:** `aether-erp-dashboard` · **Version:** 1.1.0
 
 A high-density, ERP-grade React SPA for Aureole Group's Sales & Marketing microservice. Built with React 19, TypeScript, Vite 6, and a bespoke Slate/Blue design system. Manages the full sales lifecycle — leads, orders, quotations, contacts, campaigns, exhibitions/roadshows, team performance, and DSR.
 

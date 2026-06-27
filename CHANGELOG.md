@@ -5,6 +5,45 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-06-28] — Events Visitors, Domain Scoping, CRM Allocation Sync, Permissions Cleanup & Docs Overhaul (v1.1.0)
+
+### 🎪 Events Module — Visitors & Domain Scoping
+- **Visitors Tab**: Added to both Exhibition and Roadshow event detail pages with inline form editing, Async Contact Search (auto-fills name/email/phone/company/job), Employee Allocation selector, Checked-in tracking, and status badges.
+- **Domain Selection**: Added Domain dropdown to Event form (defaults to user's primary domain, read-only when editing).
+- **Permission Migration**: Renamed all permission checks from `exhibition.*` → `events.*` across frontend (sidebar, pages, constants) and backend.
+
+### 🔐 CRM Access Scoping & Allocation Sync
+- **Contact Visibility**: Updated query logic so employees see contacts they created OR are explicitly assigned/allocated to.
+- **Visitor-to-Contact Linking**: Update route auto-links visitors to CRM contacts, synchronizes allocation, and triggers in-app + Web Push notification to the assigned employee.
+- **Unallocation Handling**: Clears DB assignment fields instantly when visitor is unallocated.
+- **Scoping Rules**: Updated `ROLE_SCOPING_RULES.md` with new contact visibility rules.
+
+### 💳 Space Booking & Table Booking
+- **Space Booking Overhaul**: Renamed "Amount Paid (₹)" → "Total Amount (₹)". Replaced installments section with Payment Entries (date, amount, paid checkbox, delete). Added summary bar (Total, Paid, Remaining). Auto-calculated payment status badge. PI Sent checkbox disabled with "Work in progress" note.
+- **Backend**: Added `space_booking_paid_amount` column. Payment status auto-computed from entries.
+- **Table Booking Total Cost Fix**: Backend now recalculates `table_booking_total_cost = count × cost_per_table` on update.
+
+### 🔧 Backend Improvements
+- **Database Migrations**: Fixed startup migrations to run in isolated transaction blocks (one failure no longer aborts others). Added `space_booking_paid_amount` migration.
+- **Error Handler**: Cleaned up global exception to parse column-missing errors into short messages instead of raw SQL.
+- **Models**: Added `domain_id` (FK) and `visitors` (JSONB) columns to events table.
+
+### 🖥️ Frontend Polish
+- **PdfPreviewModal**: Extracted into shared `components/ui/PdfPreviewModal.tsx`. Added preview buttons to `EnquiryQuotationsPage` and `LeadFormPage` with `getLeadActivityAttachmentUrl()` API method.
+- **Download Buttons**: Added to all event file rows (stall design, banner design, travel tickets, local travel proofs).
+- **DatePicker**: Reduced calendar popup from 340px → 280px, tighter padding and smaller typography.
+- **Domain dropdown**: Pre-fetches all active domains on mount for instant open (no API call on every click).
+- **Form layout**: Event Type toggle moved above Domain dropdown; Name + Location in 2-col grid.
+
+### 📄 Documentation
+- **HRMS RBAC Docs**: Consolidated API endpoint references into `HRMS_RBAC_AND_PERMISSIONS.md`. Deleted stale `HRMS_RBAC_API_DOC.md` and `HRMS_RBAC_API_SUMMARY.md`.
+- **Scoping Rules**: Updated `ROLE_SCOPING_RULES.md` with new visibility and allocation rules.
+
+### 🧹 Chores
+- Version bumped to 1.1.0 (FE `package.json`, BE `main.py`)
+
+---
+
 ## [2026-06-19] — Action Icon Consistency, Visual Upload Progress Bars, Kanban Card Quote Values & Seed Script (v1.0.10)
 
 ### 🖥️ Frontend
