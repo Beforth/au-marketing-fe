@@ -109,9 +109,11 @@ export const LeadsPage: React.FC = () => {
   /** When user drags lead to another status: show enquiry popup to fill reason, then update status */
   const [statusChangePending, setStatusChangePending] = useState<{ leadId: number; currentStatusId: number | undefined; newStatusId: number } | null>(null);
   const [statusChangeForm, setStatusChangeForm] = useState({ title: '', description: '' });
-  const [statusChangeAttachments, setStatusChangeAttachments] = useState<{ id: string; kind: 'quotation' | 'attachment'; file: File | null; title: string }[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '' }]);
+  const [statusChangeAttachments, setStatusChangeAttachments] = useState<{ id: string; kind: 'new-quotation' | 'revise-quotation' | 'attachment'; file: File | null; title: string; quoteValue: string; reviseTargetQuotation: string }[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '', quoteValue: '', reviseTargetQuotation: '' }]);
   const [statusChangeSubmitting, setStatusChangeSubmitting] = useState(false);
   const [statusChangeUploadProgress, setStatusChangeUploadProgress] = useState<number | null>(null);
+  const [statusChangeBaseQuotations, setStatusChangeBaseQuotations] = useState<string[]>([]);
+  const [statusChangeActivitiesLoading, setStatusChangeActivitiesLoading] = useState(false);
   const [wonPoUploadProgress, setWonPoUploadProgress] = useState<number | null>(null);
   const [seriesList, setSeriesList] = useState<Series[]>([]);
   const [statusChangeSeriesCode, setStatusChangeSeriesCode] = useState('');
@@ -612,9 +614,26 @@ export const LeadsPage: React.FC = () => {
     }
     setStatusChangePending({ leadId, currentStatusId, newStatusId });
     setStatusChangeForm({ title: '', description: '' });
-    setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '' }]);
+    setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '', quoteValue: '', reviseTargetQuotation: '' }]);
     setStatusChangeSeriesCode('');
+    setStatusChangeBaseQuotations([]);
     setDraggedLeadId(null);
+    setStatusChangeActivitiesLoading(true);
+    marketingAPI.getLeadActivities(leadId)
+      .then((activities) => {
+        const qns = new Set<string>();
+        for (const a of activities) {
+          for (const att of (a.attachments || [])) {
+            if (att.is_quotation && att.quotation_number) {
+              const base = att.quotation_number.replace(/\(rev\d+\)\s*$/, '').trim();
+              if (base) qns.add(base);
+            }
+          }
+        }
+        setStatusChangeBaseQuotations(Array.from(qns));
+      })
+      .catch(() => { setStatusChangeBaseQuotations([]); })
+      .finally(() => { setStatusChangeActivitiesLoading(false); });
   };
 
   const handleStatusChangeModalSubmit = async () => {
@@ -655,16 +674,17 @@ export const LeadsPage: React.FC = () => {
         to_status_id: newStatusId,
       });
       if (toUpload.length > 0) {
+        const hasRevise = toUpload.some((e) => e.kind === 'revise-quotation');
         await marketingAPI.uploadLeadActivityAttachments(
           leadId,
           created.id,
           toUpload.map((e) => e.file!),
-          toUpload.map((e) => e.kind),
-          undefined,
+          toUpload.map((e) => (e.kind === 'attachment' ? 'attachment' as const : 'quotation' as const)),
+          toUpload.map((e) => (e.kind === 'revise-quotation' ? (e.reviseTargetQuotation || undefined) : undefined)),
           toUpload.map((e) => (e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined)),
           undefined,
-          undefined,
-          undefined,
+          hasRevise || undefined,
+          toUpload.map((e) => (e.kind !== 'attachment' && e.quoteValue ? Number(e.quoteValue) : undefined)),
           setStatusChangeUploadProgress
         );
       }
@@ -677,8 +697,9 @@ export const LeadsPage: React.FC = () => {
       );
       setStatusChangePending(null);
       setStatusChangeForm({ title: '', description: '' });
-      setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '' }]);
+      setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '', quoteValue: '', reviseTargetQuotation: '' }]);
       setStatusChangeSeriesCode('');
+      setStatusChangeBaseQuotations([]);
     } catch (err: any) {
       showToast(err?.message || 'Failed to update lead status', 'error');
     } finally {
@@ -1490,9 +1511,11 @@ export const LeadsPage: React.FC = () => {
                                         </div>
                                       )}
                                       {lead.quote_value != null && lead.quote_value > 0 ? (
-                                        <div className="text-xs font-semibold text-blue-700 mt-1.5 inline-flex items-center">
-                                          <span className="text-[9px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 px-1 py-0.5 rounded mr-1">Quote</span>
-                                          ₹{Number(lead.quote_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        <div className="text-xs font-semibold text-blue-700 mt-1.5 inline-flex items-center gap-1 flex-wrap">
+                                          <span className="text-[9px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 px-1 py-0.5 rounded">Quote</span>
+                                          {lead.quotation_count != null && lead.quotation_count > 1
+                                            ? `${lead.quotation_count} quotes · ₹${Number(lead.quote_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                            : `1 quote · ₹${Number(lead.quote_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                         </div>
                                       ) : lead.potential_value != null ? (
                                         <div className="text-xs font-medium text-slate-600 mt-1.5 inline-flex items-center">
@@ -1620,8 +1643,9 @@ export const LeadsPage: React.FC = () => {
         onClose={() => {
           setStatusChangePending(null);
           setStatusChangeForm({ title: '', description: '' });
-          setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '' }]);
+          setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '', quoteValue: '', reviseTargetQuotation: '' }]);
           setStatusChangeSeriesCode('');
+          setStatusChangeBaseQuotations([]);
         }}
         title="Change lead status"
         footer={
@@ -1635,7 +1659,7 @@ export const LeadsPage: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => { setStatusChangePending(null); setStatusChangeForm({ title: '', description: '' }); setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '' }]); setStatusChangeSeriesCode(''); }}
+                onClick={() => { setStatusChangePending(null); setStatusChangeForm({ title: '', description: '' }); setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '', quoteValue: '', reviseTargetQuotation: '' }]); setStatusChangeSeriesCode(''); setStatusChangeBaseQuotations([]); }}
               >
                 Cancel
               </Button>
@@ -1730,52 +1754,81 @@ export const LeadsPage: React.FC = () => {
                 </p>
                 <div className="space-y-2">
                   {statusChangeAttachments.map((row) => (
-                    <div key={row.id} className="flex flex-wrap items-center gap-2">
-                      <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
-                        <Upload size={12} />
-                        <span className="truncate max-w-[120px]">{row.file ? row.file.name : 'Choose file'}</span>
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, file: file ?? null } : r)));
-                          }}
-                        />
-                      </label>
-                      <select
-                        className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs w-24"
-                        value={row.kind}
-                        onChange={(e) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, kind: e.target.value as 'quotation' | 'attachment' } : r)))}
-                      >
-                        <option value="quotation">Quotation</option>
-                        <option value="attachment">Attachment</option>
-                      </select>
-                      {row.kind === 'attachment' && (
-                        <input
-                          className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs min-w-[100px] flex-1 max-w-[160px]"
-                          placeholder="Title"
-                          value={row.title}
-                          onChange={(e) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r)))}
-                        />
-                      )}
-                      {row.kind === 'quotation' && <span className="text-xs text-slate-500">Auto from lead</span>}
-                      <Tooltip content="Remove">
-                        <button
-                          type="button"
-                          onClick={() => setStatusChangeAttachments((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))}
-                          className="p-1.5 rounded text-slate-400 hover:bg-slate-200 hover:text-rose-600"
+                    <div key={row.id} className="space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0">
+                          <Upload size={12} />
+                          <span className="truncate max-w-[120px]">{row.file ? row.file.name : 'Choose file'}</span>
+                          <input
+                            type="file"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, file: file ?? null } : r)));
+                            }}
+                          />
+                        </label>
+                        <select
+                          className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs w-32"
+                          value={row.kind}
+                          onChange={(e) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, kind: e.target.value as 'new-quotation' | 'revise-quotation' | 'attachment', reviseTargetQuotation: '' } : r)))}
                         >
-                          <Trash2 size={14} />
-                        </button>
-                      </Tooltip>
+                          <option value="new-quotation">New Quotation</option>
+                          <option value="revise-quotation">Revise Quotation</option>
+                          <option value="attachment">Attachment</option>
+                        </select>
+                        {row.kind === 'revise-quotation' && statusChangeBaseQuotations.length > 0 && (
+                          <div className="w-40 shrink-0 [&_button]:!h-9 [&_button]:!min-h-0 [&_button]:!py-0">
+                            <Select
+                              options={statusChangeBaseQuotations.map((q) => ({ value: q, label: q }))}
+                              value={row.reviseTargetQuotation}
+                              onChange={(val) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, reviseTargetQuotation: String(val ?? '') } : r)))}
+                              placeholder="Which quotation?"
+                              className="w-full"
+                              searchable
+                            />
+                          </div>
+                        )}
+                        {row.kind === 'attachment' && (
+                          <input
+                            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs min-w-[100px] flex-1 max-w-[160px]"
+                            placeholder="Title"
+                            value={row.title}
+                            onChange={(e) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r)))}
+                          />
+                        )}
+                        {row.kind !== 'attachment' && (
+                          <Input
+                            placeholder={row.kind === 'revise-quotation' ? 'Revised Quote Value (₹)' : 'Quote Value (₹)'}
+                            type="text"
+                            value={row.quoteValue}
+                            onChange={(e) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, quoteValue: e.target.value.replace(/\D/g, '') } : r)))}
+                            inputSize="sm"
+                            containerClassName="min-w-[110px] max-w-[150px] !space-y-0"
+                          />
+                        )}
+                        <Tooltip content="Remove">
+                          <button
+                            type="button"
+                            onClick={() => setStatusChangeAttachments((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))}
+                            className="p-1.5 rounded text-slate-400 hover:bg-slate-200 hover:text-rose-600"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </Tooltip>
+                      </div>
+                      {row.kind === 'revise-quotation' && (
+                        <p className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                          This value won't be reflected in the kanban quotation bar
+                        </p>
+                      )}
                     </div>
                   ))}
                   <button
                     type="button"
                     className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-                    onClick={() => setStatusChangeAttachments((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, title: '' }])}
+                    onClick={() => setStatusChangeAttachments((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, title: '', quoteValue: '', reviseTargetQuotation: '' }])}
                   >
                     <Plus size={12} /> Add file
                   </button>

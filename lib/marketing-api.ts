@@ -273,6 +273,7 @@ export interface Lead {
   referred_by_customer_id?: number | null;
   potential_value?: number;
   quote_value?: number | null;
+  quotation_count?: number;
   notes?: string;
   closed_value?: number | null;
   closed_at?: string | null;

@@ -2,28 +2,34 @@
 import React from 'react';
 import { Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { Tooltip } from '../../UI/Tooltip';
 
 interface DeleteButtonProps {
     onClick: (e: React.MouseEvent) => void;
     className?: string;
     size?: number;
+    tooltip?: string;
 }
 
 export const DeleteButton: React.FC<DeleteButtonProps> = ({
     onClick,
     className,
-    size = 14
+    size = 14,
+    tooltip = 'Delete',
 }) => {
     return (
-        <button
-            onClick={onClick}
-            className={cn(
-                "flex justify-center items-center text-slate-900 hover:text-rose-600 transition-colors p-1 rounded-md hover:bg-rose-50/50 active:scale-95",
-                className
-            )}
-            title="Delete"
-        >
-            <Trash2 size={size} />
-        </button>
+        <Tooltip content={tooltip}>
+            <button
+                type="button"
+                onClick={onClick}
+                className={cn(
+                    "flex justify-center items-center text-rose-500 p-1 rounded-md active:scale-95",
+                    className
+                )}
+                title={tooltip}
+            >
+                <Trash2 size={size} />
+            </button>
+        </Tooltip>
     );
 };

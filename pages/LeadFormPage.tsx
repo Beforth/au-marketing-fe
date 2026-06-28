@@ -41,6 +41,7 @@ import { getStoredMarketingScope } from '../lib/marketing-scope';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Modal } from '../components/ui/Modal';
 import { PdfPreviewModal } from '../components/ui/PdfPreviewModal';
+import { DeleteButton } from '../components/ui/DeleteButton';
 import { Tooltip } from '../UI/Tooltip';
 import { ArrowLeft, ArrowRight, Clock, ChevronDown, ChevronRight, Globe, User, Building2, FileText, History, Edit2, Trash2, Paperclip, Download, Plus, Upload, X, Package, Trophy, XCircle, Search, Network, Info, Mail, List, Factory, MessageSquare, Eye } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -110,6 +111,18 @@ export const LeadFormPage: React.FC = () => {
   const hasExistingQuotation = useMemo(() => {
     return activities.some(a => a.attachments?.some(att => att.is_quotation));
   }, [activities]);
+  const existingBaseQuotations = useMemo(() => {
+    const qns = new Set<string>();
+    for (const a of activities) {
+      for (const att of (a.attachments || [])) {
+        if (att.is_quotation && att.quotation_number) {
+          const base = att.quotation_number.replace(/\(rev\d+\)\s*$/, '').trim();
+          if (base) qns.add(base);
+        }
+      }
+    }
+    return Array.from(qns);
+  }, [activities]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activityForm, setActivityForm] = useState({
     activity_type: 'call',
@@ -123,8 +136,17 @@ export const LeadFormPage: React.FC = () => {
     from_status_id: undefined as number | undefined,
     to_status_id: undefined as number | undefined,
   });
-  type AttachmentEntry = { id: string; kind: 'quotation' | 'attachment'; file: File | null; quotationNumber: string; title: string; quoteValue: string };
-  const [attachmentEntries, setAttachmentEntries] = useState<AttachmentEntry[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
+  type AttachmentEntry = { id: string; kind: 'quotation' | 'attachment'; isRevised: boolean; file: File | null; quotationNumber: string; title: string; quoteValue: string };
+  const [attachmentEntries, setAttachmentEntries] = useState<AttachmentEntry[]>([]);
+  const [activityDraftFile, setActivityDraftFile] = useState<File | null>(null);
+  const [activityDraftValue, setActivityDraftValue] = useState('');
+  const [activityDraftTitle, setActivityDraftTitle] = useState('');
+  const [activityDraftNumber, setActivityDraftNumber] = useState('');
+  const [activityDraftSeriesCode, setActivityDraftSeriesCode] = useState('');
+  const [activityDraftGeneratedNumber, setActivityDraftGeneratedNumber] = useState<string | null>(null);
+  const [activityDraftGeneratedSeriesCode, setActivityDraftGeneratedSeriesCode] = useState<string | null>(null);
+  const [activityDraftCustomNumber, setActivityDraftCustomNumber] = useState('');
+  const [activityDraftGenerating, setActivityDraftGenerating] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
   const [activitySubmitting, setActivitySubmitting] = useState(false);
   const [uploadPhase, setUploadPhase] = useState<'idle' | 'creating' | 'uploading'>('idle');
@@ -134,7 +156,11 @@ export const LeadFormPage: React.FC = () => {
   const [quotationSeriesCode, setQuotationSeriesCode] = useState('');
   const [addAttachmentQuotationSeriesCode, setAddAttachmentQuotationSeriesCode] = useState('');
   const [quotationIsRevised, setQuotationIsRevised] = useState(false);
+  const [activityAttachmentMode, setActivityAttachmentMode] = useState<'new-quotation' | 'revise-quotation' | 'attachment'>('attachment');
+  const [activityReviseTargetQuotation, setActivityReviseTargetQuotation] = useState('');
   const [addAttachmentIsRevised, setAddAttachmentIsRevised] = useState(false);
+  const [addAttachmentMode, setAddAttachmentMode] = useState<'new-quotation' | 'revise-quotation' | 'attachment'>('attachment');
+  const [reviseTargetQuotation, setReviseTargetQuotation] = useState('');
   const [editingActivityId, setEditingActivityId] = useState<number | null>(null);
   const [followUpSaving, setFollowUpSaving] = useState(false);
   const [editActivityForm, setEditActivityForm] = useState({
@@ -157,9 +183,11 @@ export const LeadFormPage: React.FC = () => {
   const [quickAddUploadProgress, setQuickAddUploadProgress] = useState<number | null>(null);
   const [attachmentUploadProgress, setAttachmentUploadProgress] = useState<number | null>(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<number | null>(null);
-  /** When creating lead: optional quotation file; adds one enquiry with title "Added quotation" and no description. */
-  const [initialQuotationFile, setInitialQuotationFile] = useState<File | null>(null);
-  const [initialQuotationValue, setInitialQuotationValue] = useState('');
+  /** When creating lead: multiple quotations added one at a time */
+  const [createQuotations, setCreateQuotations] = useState<{ id: string; file: File | null; value: string; number: string; }[]>([]);
+  const [createQuoteFile, setCreateQuoteFile] = useState<File | null>(null);
+  const [createQuoteValue, setCreateQuoteValue] = useState('');
+  const [createQuoteNumber, setCreateQuoteNumber] = useState('');
   /** Create flow: optional backdated enquiry date/time (local datetime-local value). */
   const [initialInquiryReceivedAtLocal, setInitialInquiryReceivedAtLocal] = useState('');
   /** Quick add quotation (edit mode, enquiry tab): one file → one enquiry with auto title/description. */
@@ -770,6 +798,11 @@ export const LeadFormPage: React.FC = () => {
         showToast('Please upload a quotation file', 'error');
         return;
       }
+      const missingValue = quotationFiles.find((entry) => !entry.quoteValue);
+      if (missingValue) {
+        showToast('Please provide a value for each quotation', 'error');
+        return;
+      }
     }
     if (activityForm.activity_type === 'lead_status_change' && !activityForm.to_status_id) {
       showToast('Please select "To status"', 'error');
@@ -790,20 +823,21 @@ export const LeadFormPage: React.FC = () => {
         contact_person_email: activityForm.activity_type === 'contacted_different_person' ? (activityForm.contact_person_email?.trim() || undefined) : undefined,
         contact_person_phone: activityForm.activity_type === 'contacted_different_person' ? (serializePhoneWithCountryCode(activityForm.contact_person_phone_code, activityForm.contact_person_phone)?.trim() || undefined) : undefined,
       });
-      const toUpload = attachmentEntries.filter((e) => e.file);
-      if (toUpload.length > 0) {
+      const readyEntries = attachmentEntries.filter((entry) => entry.file);
+      if (readyEntries.length > 0) {
         setUploadPhase('uploading');
         setLogUploadProgress(0);
+        const hasNewQuotation = readyEntries.some((entry) => entry.kind === 'quotation' && !entry.quotationNumber);
         await marketingAPI.uploadLeadActivityAttachments(
           leadId,
           created.id,
-          toUpload.map((e) => e.file!),
-          toUpload.map((e) => e.kind),
-          undefined,
-          toUpload.map((e) => (e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined)),
-          toUpload.some((e) => e.kind === 'quotation') ? (quotationSeriesCode.trim() || undefined) : undefined,
-          toUpload.some((e) => e.kind === 'quotation') ? quotationIsRevised : undefined,
-          toUpload.map((e) => (e.kind === 'quotation' && e.quoteValue ? Number(e.quoteValue) : undefined)),
+          readyEntries.map((entry) => entry.file!),
+          readyEntries.map((entry) => entry.kind),
+          readyEntries.map((entry) => (entry.kind === 'quotation' ? (entry.quotationNumber || undefined) : undefined)),
+          readyEntries.map((entry) => (entry.kind === 'attachment' ? (entry.title || undefined) : undefined)),
+          hasNewQuotation ? (quotationSeriesCode.trim() || undefined) : undefined,
+          readyEntries.some((entry) => entry.isRevised) || undefined,
+          readyEntries.map((entry) => (entry.kind === 'quotation' && entry.quoteValue ? Number(entry.quoteValue) : undefined)),
           setLogUploadProgress
         );
       }
@@ -820,9 +854,19 @@ export const LeadFormPage: React.FC = () => {
         from_status_id: undefined,
         to_status_id: undefined,
       });
-      setAttachmentEntries([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
+      setAttachmentEntries([]);
+      setActivityDraftFile(null);
+      setActivityDraftValue('');
+      setActivityDraftTitle('');
+      setActivityDraftNumber('');
+      setActivityDraftSeriesCode('');
+      setActivityDraftGeneratedNumber(null);
+      setActivityDraftGeneratedSeriesCode(null);
+      setActivityDraftCustomNumber('');
       setShowAttachments(false);
       setQuotationIsRevised(false);
+      setActivityAttachmentMode('attachment');
+      setActivityReviseTargetQuotation('');
       loadActivities();
     } catch (err: any) {
       if (created) {
@@ -1369,7 +1413,7 @@ export const LeadFormPage: React.FC = () => {
           !Number.isNaN(new Date(initialInquiryReceivedAtLocal).getTime())
           ? new Date(initialInquiryReceivedAtLocal).toISOString()
           : undefined;
-      if (!isEdit && initialInquiryIso && !initialQuotationFile) {
+      if (!isEdit && initialInquiryIso && createQuotations.length === 0) {
         (payload as any).initial_inquiry_at = initialInquiryIso;
       }
 
@@ -1382,7 +1426,8 @@ export const LeadFormPage: React.FC = () => {
           loadActivities();
         } else {
           const lead = await marketingAPI.createLead(payload as any);
-          if (initialQuotationFile) {
+          const filesToUpload = createQuotations.filter(q => q.file).map(q => q.file!);
+          if (filesToUpload.length > 0) {
             let createdActivity: LeadActivity | null = null;
             try {
               createdActivity = await marketingAPI.createLeadActivity(lead.id, {
@@ -1396,14 +1441,13 @@ export const LeadFormPage: React.FC = () => {
               await marketingAPI.uploadLeadActivityAttachments(
                 lead.id,
                 createdActivity.id,
-                [initialQuotationFile],
-                ['quotation'],
-                qNum ? [qNum] : undefined,
+                filesToUpload,
+                filesToUpload.map(() => 'quotation' as const),
+                createQuotations.map(q => q.number.trim() || undefined),
                 undefined,
-                // When no explicit quote number, use quotation series to generate on upload
                 qNum ? undefined : (createFormQuoteSeriesCode.trim() || undefined),
                 false,
-                [initialQuotationValue ? Number(initialQuotationValue) : undefined],
+                createQuotations.map(q => q.value ? Number(q.value) : undefined),
                 setCreateLeadUploadProgress
               );
               showToast('Lead and enquiry created successfully', 'success');
@@ -1484,6 +1528,37 @@ export const LeadFormPage: React.FC = () => {
       showToast(e?.message || 'Failed to generate quote number', 'error');
     } finally {
       setGeneratingQuoteNumberOnCreate(false);
+    }
+  };
+
+  const handleGenerateActivityDraftQuoteNumber = async () => {
+    const code = activityDraftSeriesCode.trim();
+    if (!code) {
+      showToast('Select a quotation series', 'error');
+      return;
+    }
+    const company = effectiveCompanyNameForQuote || formData.company?.trim();
+    if (!company) {
+      showToast('Link an organization in the contact section first (quote patterns often use company name).', 'error');
+      return;
+    }
+    setActivityDraftGenerating(true);
+    try {
+      const res = await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company } });
+      const generated = res.generated_value ?? null;
+      setActivityDraftGeneratedNumber(generated);
+      setActivityDraftGeneratedSeriesCode(code);
+      setActivityDraftCustomNumber('');
+      if (generated) {
+        setActivityDraftNumber(generated);
+        showToast('Quote number generated', 'success');
+      } else {
+        showToast('No value returned from series', 'error');
+      }
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to generate quote number', 'error');
+    } finally {
+      setActivityDraftGenerating(false);
     }
   };
 
@@ -1938,7 +2013,7 @@ export const LeadFormPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={clearOrganization}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                            className="p-1.5 text-slate-400 rounded-md transition-colors"
                           >
                             <X size={16} />
                           </button>
@@ -1946,7 +2021,7 @@ export const LeadFormPage: React.FC = () => {
                             href={`/organizations/${formData.organization_id}/edit`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-blue-600 transition-colors"
+                            className="p-1.5 rounded-md text-slate-500 transition-colors"
                           >
                             <ArrowRight size={16} />
                           </a>
@@ -2221,116 +2296,167 @@ export const LeadFormPage: React.FC = () => {
               <p className="text-sm text-slate-500 font-medium">
                 Optional. Set when the enquiry was received, attach a quotation file, and/or set a quote number. On save, the lead is created and a first enquiry entry is added when you attach a file; the enquiry date is stored when set (with or without a file).
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <DatePicker
+                  label="Enquiry / inquiry received at"
+                  value={initialInquiryReceivedAtLocal.trim() ? initialInquiryReceivedAtLocal : undefined}
+                  onChange={(v) => setInitialInquiryReceivedAtLocal(v ?? '')}
+                  placeholder="Select date and time..."
+                  showTime
+                  showNow
+                  timePanelPosition="right"
+                />
+                <p className="text-xs text-slate-500 -mt-3">Backdates the first enquiry activity when you add a quotation, or sets lead inquiry time when saved without a file (if supported).</p>
                 <div>
-                  <DatePicker
-                    label="Enquiry / inquiry received at"
-                    value={initialInquiryReceivedAtLocal.trim() ? initialInquiryReceivedAtLocal : undefined}
-                    onChange={(v) => setInitialInquiryReceivedAtLocal(v ?? '')}
-                    placeholder="Select date and time..."
-                    showTime
-                    showNow
-                    timePanelPosition="right"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">Backdates the first enquiry activity when you add a quotation, or sets lead inquiry time when saved without a file (if supported).</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Quotation file (optional)</label>
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,image/*"
-                    className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0] ?? null;
-                      setInitialQuotationFile(f);
-                    }}
-                  />
-                  {initialQuotationFile && (
-                    <div className="mt-2 space-y-2">
-                      <p className="text-xs text-slate-600 truncate" title={initialQuotationFile.name}>
-                        Selected: {initialQuotationFile.name}
-                      </p>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Add Quotation</label>
+                  <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className={cn(
+                        "flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-xs font-medium shrink-0 min-w-[130px] justify-center",
+                        createQuoteFile ? "border-blue-400 bg-blue-50 text-blue-700" : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                      )}>
+                        <Upload size={14} className={createQuoteFile ? "text-blue-600" : "text-slate-400"} />
+                        <span className="truncate max-w-[110px]">{createQuoteFile ? createQuoteFile.name : 'Choose file'}</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] ?? null;
+                            setCreateQuoteFile(f);
+                            if (f) {
+                              setCreateQuoteValue('');
+                              setCreateQuoteNumber('');
+                              setCreateFormQuoteSeriesCode('');
+                              setCustomCreateQuoteNumber('');
+                              setGeneratedQuoteNumber(null);
+                            }
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      {createQuoteFile && (
+                        <DeleteButton
+                          onClick={() => setCreateQuoteFile(null)}
+                          tooltip="Remove file"
+                        />
+                      )}
                       <Input
-                        label="Quote Value (₹) *"
+                        placeholder="Quote Value (₹) *"
                         type="text"
-                        value={initialQuotationValue}
-                        onChange={(e) => setInitialQuotationValue(e.target.value.replace(/\D/g, ''))}
-                        placeholder="e.g. 500000"
-                        inputSize="sm"
+                        value={createQuoteValue}
+                        onChange={(e) => setCreateQuoteValue(e.target.value.replace(/\D/g, ''))}
+                        inputSize="md"
+                        containerClassName="min-w-[160px] flex-1 !space-y-0"
                       />
+                    </div>
+                    {(createQuoteFile || initialInquiryReceivedAtLocal.trim()) && (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                        <p className="text-xs font-semibold text-slate-700">Quote number for this attachment (optional)</p>
+                        <p className="text-xs text-slate-500">
+                          Use <strong>one</strong> of: generate from a quotation series, type a manual number, or leave both empty so the server can assign from the series you select below on upload.
+                        </p>
+                        <div className="flex flex-wrap items-end gap-2">
+                          <div className="min-w-[200px] flex-1">
+                            <Select
+                              label="Quotation series (for generate or auto)"
+                              options={[
+                                { value: '', label: '— None —' },
+                                ...seriesList
+                                  .filter((s) => (s.entity_type ?? '').toLowerCase() === 'lead' || !s.entity_type || (s.code ?? '').includes('quote'))
+                                  .map((s) => ({ value: s.code, label: `${s.name} (${s.code})` })),
+                              ]}
+                              value={createFormQuoteSeriesCode}
+                              onChange={(v) => { setCreateFormQuoteSeriesCode(v != null ? String(v) : ''); setGeneratedQuoteNumber(null); setGeneratedQuoteSeriesCode(null); setCustomCreateQuoteNumber(''); }}
+                              placeholder="Series"
+                              searchable={seriesList.length > 8}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={generatingQuoteNumberOnCreate || !createFormQuoteSeriesCode.trim() || !!customCreateQuoteNumber.trim()}
+                            onClick={handleGenerateQuoteNumberOnCreate}
+                          >
+                            {generatingQuoteNumberOnCreate ? 'Generating…' : 'Generate quote number'}
+                          </Button>
+                        </div>
+                        {customCreateQuoteNumber.trim() ? (
+                          <p className="text-xs text-slate-500">Clear the manual number below to use generate again.</p>
+                        ) : null}
+                        {generatedQuoteNumber ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm text-slate-800">
+                              <span className="font-medium text-slate-500">Quote number:</span>{' '}
+                              <span className="font-mono tabular-nums">{generatedQuoteNumber}</span>
+                              {generatedQuoteSeriesCode && (
+                                <span className="text-slate-500 text-xs ml-2">({generatedQuoteSeriesCode})</span>
+                              )}
+                            </p>
+                            <button
+                              type="button"
+                              className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                              onClick={() => { setGeneratedQuoteNumber(null); setGeneratedQuoteSeriesCode(null); }}
+                            >
+                              Use manual number instead
+                            </button>
+                          </div>
+                        ) : (
+                          <Input
+                            label="Manual quote number (only if not using generate)"
+                            value={customCreateQuoteNumber}
+                            onChange={(e) => { setCustomCreateQuoteNumber(e.target.value); setGeneratedQuoteNumber(null); setGeneratedQuoteSeriesCode(null); setCreateQuoteNumber(e.target.value); }}
+                            placeholder="e.g. AP/QUOTE-N/001"
+                          />
+                        )}
+                      </div>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={!createQuoteFile || !createQuoteValue}
+                      className="active:scale-[0.98]"
+                      onClick={() => {
+                        if (createQuoteFile && createQuoteValue) {
+                          const trimmed = createQuoteNumber.trim();
+                          if (trimmed && createQuotations.some(q => q.number.trim() === trimmed)) {
+                            showToast('Quote number already exists in the list', 'error');
+                            return;
+                          }
+                          setCreateQuotations(prev => [...prev, { id: crypto.randomUUID(), file: createQuoteFile, value: createQuoteValue, number: createQuoteNumber }]);
+                          setCreateQuoteFile(null);
+                          setCreateQuoteValue('');
+                          setCreateQuoteNumber('');
+                          setCreateFormQuoteSeriesCode('');
+                          setCustomCreateQuoteNumber('');
+                          setGeneratedQuoteNumber(null);
+                          setGeneratedQuoteSeriesCode(null);
+                        }
+                      }}
+                    >
+                      + Add to list
+                    </Button>
+                  </div>
+                  {createQuotations.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      <p className="text-xs font-semibold text-slate-500">Added quotations ({createQuotations.length})</p>
+                      {createQuotations.map((q) => (
+                        <div key={q.id} className="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2">
+                          <FileText size={14} className="text-slate-400 shrink-0" />
+                          <span className="text-sm font-medium text-slate-700 truncate flex-1">{q.file?.name || 'File'}</span>
+                          {q.number && <span className="text-xs font-mono text-slate-500 shrink-0">{q.number}</span>}
+                          <span className="text-sm font-semibold text-slate-900 shrink-0">₹{Number(q.value).toLocaleString('en-IN')}</span>
+                          <DeleteButton
+                            onClick={() => setCreateQuotations(prev => prev.filter(r => r.id !== q.id))}
+                            tooltip="Remove quotation"
+                          />
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
               </div>
-              {(initialQuotationFile || initialInquiryReceivedAtLocal.trim()) && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
-                  <p className="text-xs font-semibold text-slate-700">Quote number for this attachment (optional)</p>
-                  <p className="text-xs text-slate-500">
-                    Use <strong>one</strong> of: generate from a quotation series, type a manual number, or leave both empty so the server can assign from the series you select below on upload.
-                  </p>
-                  <div className="flex flex-wrap items-end gap-2">
-                    <div className="min-w-[200px] flex-1">
-                      <Select
-                        label="Quotation series (for generate or auto)"
-                        options={[
-                          { value: '', label: '— None —' },
-                          ...seriesList
-                            .filter((s) => (s.entity_type ?? '').toLowerCase() === 'lead' || !s.entity_type || (s.code ?? '').includes('quote'))
-                            .map((s) => ({ value: s.code, label: `${s.name} (${s.code})` })),
-                        ]}
-                        value={createFormQuoteSeriesCode}
-                        onChange={(v) => setCreateFormQuoteSeriesCode(v != null ? String(v) : '')}
-                        placeholder="Series"
-                        searchable={seriesList.length > 8}
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={generatingQuoteNumberOnCreate || !createFormQuoteSeriesCode.trim() || !!customCreateQuoteNumber.trim()}
-                      onClick={handleGenerateQuoteNumberOnCreate}
-                    >
-                      {generatingQuoteNumberOnCreate ? 'Generating…' : 'Generate quote number'}
-                    </Button>
-                  </div>
-                  {customCreateQuoteNumber.trim() ? (
-                    <p className="text-xs text-slate-500">Clear the manual number below to use generate again.</p>
-                  ) : null}
-                  {generatedQuoteNumber ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm text-slate-800">
-                        <span className="font-medium text-slate-500">Quote number:</span>{' '}
-                        <span className="font-mono tabular-nums">{generatedQuoteNumber}</span>
-                        {generatedQuoteSeriesCode && (
-                          <span className="text-slate-500 text-xs ml-2">({generatedQuoteSeriesCode})</span>
-                        )}
-                      </p>
-                      <button
-                        type="button"
-                        className="text-xs font-semibold text-blue-600 hover:text-blue-800"
-                        onClick={() => {
-                          setGeneratedQuoteNumber(null);
-                          setGeneratedQuoteSeriesCode(null);
-                        }}
-                      >
-                        Use manual number instead
-                      </button>
-                    </div>
-                  ) : (
-                    <Input
-                      label="Manual quote number (only if not using generate)"
-                      value={customCreateQuoteNumber}
-                      onChange={(e) => {
-                        setCustomCreateQuoteNumber(e.target.value);
-                        setGeneratedQuoteNumber(null);
-                        setGeneratedQuoteSeriesCode(null);
-                      }}
-                      placeholder="e.g. AP/QUOTE-N/001"
-                    />
-                  )}
-                </div>
-              )}
             </div>
 
             {/* 4. Domain & Region Section */}
@@ -2564,144 +2690,224 @@ export const LeadFormPage: React.FC = () => {
                     </button>
                     {showAttachments && (
                       <>
-                        <div className="mt-2 space-y-2">
-                          {attachmentEntries.map((row) => (
-                            <div key={row.id} className="flex flex-wrap md:flex-nowrap items-center gap-2 p-2 rounded-lg border border-slate-200 bg-white shadow-sm group/row">
-                              <label className={cn(
-                                "flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-xs font-medium transition-all duration-200 shrink-0 min-w-[130px] justify-center",
-                                row.file ? "border-blue-400 bg-blue-50 text-blue-700" : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
-                              )}>
-                                <Upload size={14} className={row.file ? "text-blue-600" : "text-slate-400"} />
-                                <span className="truncate max-w-[110px]">{row.file ? row.file.name : 'Choose file'}</span>
-                                <input
-                                  type="file"
-                                  accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                                  className="hidden"
-                                  multiple
-                                  onChange={(e) => {
-                                    const fileList = e.target.files;
-                                    if (!fileList?.length) return;
-                                    const files = Array.from(fileList);
-                                    if (files.length === 1) {
-                                      setAttachmentEntries((prev) =>
-                                        prev.map((r) => (r.id === row.id ? { ...r, file: files[0] } : r))
-                                      );
-                                    } else {
-                                      const newRows = files.map((file) => ({
-                                        id: crypto.randomUUID(),
-                                        kind: 'attachment' as const,
-                                        file: file as File,
-                                        quotationNumber: '',
-                                        title: '',
-                                        quoteValue: '',
-                                      }));
-                                      setAttachmentEntries((prev) =>
-                                        prev.map((r) => (r.id === row.id ? { ...r, file: files[0] } : r)).concat(newRows.slice(1))
-                                      );
-                                    }
-                                    e.target.value = '';
-                                  }}
-                                />
-                              </label>
-                              <div className="w-28 shrink-0 [&_button]:!h-10 [&_button]:!min-h-0 [&_button]:!py-0">
-                                <Select
-                                  options={[
-                                    { value: 'quotation', label: 'Quotation' },
-                                    { value: 'attachment', label: 'Attachment' },
-                                  ]}
-                                  value={row.kind}
-                                  onChange={(val) =>
-                                    setAttachmentEntries((prev) =>
-                                      prev.map((r) => (r.id === row.id ? { ...r, kind: (val || 'attachment') as 'quotation' | 'attachment' } : r))
-                                    )
-                                  }
-                                  className="w-full"
-                                  searchable={false}
-                                />
-                              </div>
-                              {row.kind === 'quotation' ? (
-                                <Input
-                                  placeholder="Quote Value (₹) *"
-                                  type="text"
-                                  value={row.quoteValue}
-                                  onChange={(e) => {
-                                    const val = e.target.value.replace(/\D/g, '');
-                                    setAttachmentEntries((prev) =>
-                                      prev.map((r) => (r.id === row.id ? { ...r, quoteValue: val } : r))
-                                    );
-                                  }}
-                                  inputSize="md"
-                                  containerClassName="min-w-[160px] flex-1 !space-y-0"
-                                />
-                              ) : (
-                                <Input
-                                  placeholder="File title"
-                                  value={row.title}
-                                  onChange={(e) =>
-                                    setAttachmentEntries((prev) =>
-                                      prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r))
-                                    )
-                                  }
-                                  inputSize="md"
-                                  containerClassName="min-w-[160px] flex-1 !space-y-0"
-                                />
-                              )}
-                              <div className="ml-auto flex items-center gap-1 shrink-0">
-                                <Tooltip content="Remove">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setAttachmentEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))
-                                    }
-                                    className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </Tooltip>
-                                <Tooltip content="Add row">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }])
-                                    }
-                                    className="h-9 w-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white transition-colors"
-                                  >
-                                    <Plus size={14} />
-                                  </button>
-                                </Tooltip>
-                              </div>
+                        <div className="mt-2 p-2 rounded-lg border border-slate-200 bg-white shadow-sm space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="w-36 shrink-0 [&_button]:!h-9 [&_button]:!min-h-0 [&_button]:!py-0">
+                              <Select
+                                options={[
+                                  { value: 'new-quotation', label: 'New Quotation' },
+                                  { value: 'revise-quotation', label: 'Revise Quotation' },
+                                  { value: 'attachment', label: 'Attachment' },
+                                ]}
+                                value={activityAttachmentMode}
+                                onChange={(val) => {
+                                  const mode = (val || 'attachment') as typeof activityAttachmentMode;
+                                  setActivityAttachmentMode(mode);
+                                  setActivityReviseTargetQuotation('');
+                                  setActivityDraftFile(null);
+                                  setActivityDraftValue('');
+                                  setActivityDraftTitle('');
+                                  setActivityDraftNumber('');
+                                  setActivityDraftSeriesCode('');
+                                  setActivityDraftGeneratedNumber(null);
+                                  setActivityDraftGeneratedSeriesCode(null);
+                                  setActivityDraftCustomNumber('');
+                                }}
+                                className="w-full"
+                                searchable={false}
+                              />
                             </div>
-                          ))}
-                        </div>
-                        {attachmentEntries.some((e) => e.kind === 'quotation') && (
-                          <div className="mt-3 p-3 rounded-lg border border-blue-100 bg-blue-50/50">
-                            {hasExistingQuotation ? (
-                              <div className="flex items-center">
-                                <span className="text-[11px] font-semibold uppercase tracking-widest text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-100 flex items-center gap-2">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                                  Revised quotation auto-marked
-                                </span>
-                              </div>
-                            ) : (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {activityAttachmentMode === 'revise-quotation' && existingBaseQuotations.length > 0 && (
+                              <div className="w-44 shrink-0 [&_button]:!h-9 [&_button]:!min-h-0 [&_button]:!py-0">
                                 <Select
-                                  label="Quotation series"
-                                  value={quotationSeriesCode}
-                                  onChange={(v) => setQuotationSeriesCode((v ?? '') as string)}
-                                  options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
-                                  placeholder="Choose series"
+                                  options={existingBaseQuotations.map((q) => ({ value: q, label: q }))}
+                                  value={activityReviseTargetQuotation}
+                                  onChange={(val) => setActivityReviseTargetQuotation((val || '') as string)}
+                                  placeholder="Which quotation?"
+                                  className="w-full"
+                                  searchable
                                 />
-                                <label className="inline-flex items-center gap-2 text-xs text-slate-700 mt-2 md:mt-7 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                    checked={quotationIsRevised}
-                                    onChange={(e) => setQuotationIsRevised(e.target.checked)}
-                                  />
-                                  Mark as revised
-                                </label>
                               </div>
                             )}
+                            <label className={cn(
+                              "flex h-9 cursor-pointer items-center gap-2 rounded-lg border px-3 text-xs font-medium shrink-0 min-w-[130px] justify-center",
+                              activityDraftFile ? "border-blue-400 bg-blue-50 text-blue-700" : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                            )}>
+                              <Upload size={14} className={activityDraftFile ? "text-blue-600" : "text-slate-400"} />
+                              <span className="truncate max-w-[110px]">{activityDraftFile ? activityDraftFile.name : 'Choose file'}</span>
+                              <input
+                                type="file"
+                                accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0] ?? null;
+                                  setActivityDraftFile(file);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+                            {activityDraftFile && (
+                              <DeleteButton
+                                onClick={() => setActivityDraftFile(null)}
+                                tooltip="Remove file"
+                              />
+                            )}
+                            {activityAttachmentMode !== 'attachment' && (
+                              <Input
+                                placeholder={activityAttachmentMode === 'revise-quotation' ? 'Revised Quote Value (₹) *' : 'Quote Value (₹) *'}
+                                type="text"
+                                value={activityDraftValue}
+                                onChange={(e) => setActivityDraftValue(e.target.value.replace(/\D/g, ''))}
+                                inputSize="sm"
+                                containerClassName="min-w-[120px] max-w-[150px] !space-y-0"
+                              />
+                            )}
+                            {activityAttachmentMode === 'attachment' && (
+                              <Input
+                                placeholder="File title"
+                                value={activityDraftTitle}
+                                onChange={(e) => setActivityDraftTitle(e.target.value)}
+                                inputSize="sm"
+                                containerClassName="min-w-[120px] flex-1 !space-y-0"
+                              />
+                            )}
+                          </div>
+                          {activityAttachmentMode === 'revise-quotation' && (
+                            <p className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                              This value won't be reflected in the kanban quotation bar
+                            </p>
+                          )}
+                          {activityAttachmentMode === 'new-quotation' && (
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                              <p className="text-xs font-semibold text-slate-700">Quote number for this attachment (optional)</p>
+                              <p className="text-xs text-slate-500">
+                                Use <strong>one</strong> of: generate from a quotation series, type a manual number, or leave both empty so the server can assign from the series you select below on upload.
+                              </p>
+                              <div className="flex flex-wrap items-end gap-2">
+                                <div className="min-w-[200px] flex-1">
+                                  <Select
+                                    label="Quotation series (for generate or auto)"
+                                    options={[
+                                      { value: '', label: '— None —' },
+                                      ...seriesList
+                                        .filter((s) => (s.entity_type ?? '').toLowerCase() === 'lead' || !s.entity_type || (s.code ?? '').includes('quote'))
+                                        .map((s) => ({ value: s.code, label: `${s.name} (${s.code})` })),
+                                    ]}
+                                    value={activityDraftSeriesCode}
+                                    onChange={(v) => { setActivityDraftSeriesCode(v != null ? String(v) : ''); setActivityDraftGeneratedNumber(null); setActivityDraftGeneratedSeriesCode(null); setActivityDraftCustomNumber(''); }}
+                                    placeholder="Series"
+                                    searchable={seriesList.length > 8}
+                                  />
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={activityDraftGenerating || !activityDraftSeriesCode.trim() || !!activityDraftCustomNumber.trim()}
+                                  onClick={handleGenerateActivityDraftQuoteNumber}
+                                >
+                                  {activityDraftGenerating ? 'Generating…' : 'Generate quote number'}
+                                </Button>
+                              </div>
+                              {activityDraftCustomNumber.trim() ? (
+                                <p className="text-xs text-slate-500">Clear the manual number below to use generate again.</p>
+                              ) : null}
+                              {activityDraftGeneratedNumber ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-sm text-slate-800">
+                                    <span className="font-medium text-slate-500">Quote number:</span>{' '}
+                                    <span className="font-mono tabular-nums">{activityDraftGeneratedNumber}</span>
+                                    {activityDraftGeneratedSeriesCode && (
+                                      <span className="text-slate-500 text-xs ml-2">({activityDraftGeneratedSeriesCode})</span>
+                                    )}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                                    onClick={() => { setActivityDraftGeneratedNumber(null); setActivityDraftGeneratedSeriesCode(null); }}
+                                  >
+                                    Use manual number instead
+                                  </button>
+                                </div>
+                              ) : (
+                                <Input
+                                  label="Manual quote number (only if not using generate)"
+                                  value={activityDraftCustomNumber}
+                                  onChange={(e) => { setActivityDraftCustomNumber(e.target.value); setActivityDraftGeneratedNumber(null); setActivityDraftGeneratedSeriesCode(null); setActivityDraftNumber(e.target.value); }}
+                                  placeholder="e.g. AP/QUOTE-N/001"
+                                />
+                              )}
+                            </div>
+                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={
+                              !activityDraftFile ||
+                              (activityAttachmentMode !== 'attachment' && !activityDraftValue) ||
+                              (activityAttachmentMode === 'revise-quotation' && existingBaseQuotations.length > 0 && !activityReviseTargetQuotation)
+                            }
+                            className="active:scale-[0.98]"
+                            onClick={() => {
+                              if (!activityDraftFile) return;
+                              if (activityAttachmentMode === 'revise-quotation' && existingBaseQuotations.length > 0 && !activityReviseTargetQuotation) return;
+                              const isRevise = activityAttachmentMode === 'revise-quotation';
+                              const isNewQuotation = activityAttachmentMode === 'new-quotation';
+                              if (!isRevise && activityAttachmentMode !== 'attachment' && !activityDraftValue) return;
+                              const isAttachment = activityAttachmentMode === 'attachment';
+                              const effectiveNumber = isRevise
+                                ? activityReviseTargetQuotation
+                                : isNewQuotation
+                                  ? (activityDraftNumber.trim() || activityDraftGeneratedNumber || activityDraftCustomNumber.trim())
+                                  : '';
+                              setAttachmentEntries((prev) => [
+                                ...prev,
+                                {
+                                  id: crypto.randomUUID(),
+                                  kind: isAttachment ? 'attachment' : 'quotation',
+                                  isRevised: isRevise,
+                                  file: activityDraftFile,
+                                  quotationNumber: effectiveNumber,
+                                  title: isAttachment ? activityDraftTitle.trim() : '',
+                                  quoteValue: isAttachment ? '' : activityDraftValue,
+                                },
+                              ]);
+                              setActivityDraftFile(null);
+                              setActivityDraftValue('');
+                              setActivityDraftTitle('');
+                              setActivityDraftNumber('');
+                              setActivityDraftSeriesCode('');
+                              setActivityDraftGeneratedNumber(null);
+                              setActivityDraftGeneratedSeriesCode(null);
+                              setActivityDraftCustomNumber('');
+                              if (isRevise) setActivityReviseTargetQuotation('');
+                            }}
+                          >
+                            + Add to list
+                          </Button>
+                        </div>
+                        {attachmentEntries.length > 0 && (
+                          <div className="mt-2 space-y-1.5">
+                            <p className="text-xs font-semibold text-slate-500">Added files ({attachmentEntries.length})</p>
+                            {attachmentEntries.map((entry) => (
+                              <div key={entry.id} className="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2 bg-white">
+                                <FileText size={14} className="text-slate-400 shrink-0" />
+                                <span className="text-sm font-medium text-slate-700 truncate flex-1">{entry.file?.name || 'File'}</span>
+                                {entry.kind === 'quotation' && entry.quotationNumber && (
+                                  <span className="text-xs font-mono text-slate-500 shrink-0">{entry.quotationNumber}</span>
+                                )}
+                                {entry.kind === 'quotation' && entry.quoteValue && (
+                                  <span className="text-sm font-semibold text-slate-900 shrink-0">₹{Number(entry.quoteValue).toLocaleString('en-IN')}</span>
+                                )}
+                                {entry.kind === 'attachment' && entry.title && (
+                                  <span className="text-xs text-slate-500 shrink-0 truncate max-w-[200px]">{entry.title}</span>
+                                )}
+                                <DeleteButton
+                                  onClick={() => setAttachmentEntries((prev) => prev.filter((r) => r.id !== entry.id))}
+                                  tooltip="Remove from list"
+                                />
+                              </div>
+                            ))}
                           </div>
                         )}
                       </>
@@ -3009,6 +3215,8 @@ export const LeadFormPage: React.FC = () => {
                                 type="button"
                                 onClick={() => {
                                   setAddAttachmentActivityId(a.id);
+                                  setAddAttachmentMode('attachment');
+                                  setReviseTargetQuotation('');
                                   setAddAttachmentRows([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
                                 }}
                                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 border border-dashed border-blue-300 rounded-lg px-3 py-1.5 hover:bg-blue-50"
@@ -3018,43 +3226,8 @@ export const LeadFormPage: React.FC = () => {
                             ) : (
                               <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-2">
                                 <div className="flex items-center justify-between flex-wrap gap-2">
-                                  <span className="text-xs font-semibold text-slate-700">Add quotations / attachments</span>
+                                  <span className="text-xs font-semibold text-slate-700">Add attachments</span>
                                   <div className="flex items-center gap-2">
-                                    <label className="flex cursor-pointer items-center gap-1 rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 shrink-0">
-                                      <Upload size={12} /> Choose files
-                                      <input
-                                        type="file"
-                                        accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                                        className="hidden"
-                                        multiple
-                                        onChange={(e) => {
-                                          const fileList = e.target.files;
-                                          if (!fileList?.length) return;
-                                          const newRows = Array.from(fileList).map((file) => ({
-                                            id: crypto.randomUUID(),
-                                            kind: 'attachment' as const,
-                                            file: file as File,
-                                            quotationNumber: '',
-                                            title: '',
-                                            quoteValue: '',
-                                          }));
-                                          setAddAttachmentRows((prev) => [...prev, ...newRows]);
-                                          e.target.value = '';
-                                        }}
-                                      />
-                                    </label>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setAddAttachmentRows((prev) => [
-                                          ...prev,
-                                          { id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' },
-                                        ])
-                                      }
-                                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
-                                    >
-                                      <Plus size={12} /> Add row
-                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -3062,6 +3235,8 @@ export const LeadFormPage: React.FC = () => {
                                         setAddAttachmentRows([]);
                                         setAddAttachmentQuotationSeriesCode('');
                                         setAddAttachmentIsRevised(false);
+                                        setAddAttachmentMode('attachment');
+                                        setReviseTargetQuotation('');
                                       }}
                                       className="text-xs text-slate-500 hover:text-slate-700"
                                     >
@@ -3069,150 +3244,143 @@ export const LeadFormPage: React.FC = () => {
                                     </button>
                                   </div>
                                 </div>
-                                <p className="text-xs text-slate-500 mb-2">Quote numbers for quotation documents use the series you choose when adding a quotation (or a base with rev2, rev3). The lead number is separate.</p>
-                                {addAttachmentRows.map((row) => (
-                                  <div key={row.id} className="flex flex-nowrap items-center gap-2">
-                                    <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-2.5 text-xs text-slate-700 hover:bg-slate-100 shrink-0">
-                                      <Upload size={12} />
-                                      <span className="truncate max-w-[100px]">{row.file ? row.file.name : 'Choose file'}</span>
-                                      <input
-                                        type="file"
-                                        accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                          const file = e.target.files?.[0];
-                                          setAddAttachmentRows((prev) =>
-                                            prev.map((r) => (r.id === row.id ? { ...r, file: file || null } : r))
-                                          );
-                                        }}
-                                      />
-                                    </label>
-                                    <div className="w-28 shrink-0 [&_button]:!h-9 [&_button]:!min-h-0 [&_button]:!py-0">
+                                <div className="flex flex-wrap items-center gap-2 pt-1">
+                                  <div className="w-36 shrink-0 [&_button]:!h-8 [&_button]:!min-h-0 [&_button]:!py-0">
+                                    <Select
+                                      options={[
+                                        { value: 'new-quotation', label: 'New Quotation' },
+                                        { value: 'revise-quotation', label: 'Revise Quotation' },
+                                        { value: 'attachment', label: 'Attachment' },
+                                      ]}
+                                      value={addAttachmentMode}
+                                      onChange={(val) => {
+                                        const mode = (val || 'attachment') as typeof addAttachmentMode;
+                                        setAddAttachmentMode(mode);
+                                        setReviseTargetQuotation('');
+                                        setAddAttachmentRows([{ id: crypto.randomUUID(), kind: mode === 'attachment' ? 'attachment' as const : 'quotation' as const, file: null, quotationNumber: '', title: '', quoteValue: '' }]);
+                                      }}
+                                      className="w-full"
+                                      searchable={false}
+                                    />
+                                  </div>
+                                  {addAttachmentMode === 'revise-quotation' && existingBaseQuotations.length > 0 && (
+                                    <div className="w-44 shrink-0 [&_button]:!h-8 [&_button]:!min-h-0 [&_button]:!py-0">
                                       <Select
-                                        options={[
-                                          { value: 'quotation', label: 'Quotation' },
-                                          { value: 'attachment', label: 'Attachment' },
-                                        ]}
-                                        value={row.kind}
-                                        onChange={(val) =>
-                                          setAddAttachmentRows((prev) =>
-                                            prev.map((r) => (r.id === row.id ? { ...r, kind: (val || 'attachment') as 'quotation' | 'attachment' } : r))
-                                          )
-                                        }
+                                        options={existingBaseQuotations.map((q) => ({ value: q, label: q }))}
+                                        value={reviseTargetQuotation}
+                                        onChange={(val) => setReviseTargetQuotation((val || '') as string)}
+                                        placeholder="Which quotation?"
                                         className="w-full"
-                                        searchable={false}
+                                        searchable
                                       />
                                     </div>
-                                    {row.kind === 'quotation' ? (
-                                      <Input
-                                        placeholder="Quote Value (₹) *"
-                                        type="text"
-                                        value={row.quoteValue}
-                                        onChange={(e) => {
-                                          const val = e.target.value.replace(/\D/g, '');
+                                  )}
+                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-2.5 text-xs text-slate-700 hover:bg-slate-100 shrink-0">
+                                    <Upload size={12} />
+                                    <span className="truncate max-w-[100px]">{addAttachmentRows[0]?.file ? addAttachmentRows[0].file.name : 'Choose file'}</span>
+                                    <input
+                                      type="file"
+                                      accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
                                           setAddAttachmentRows((prev) =>
-                                            prev.map((r) => (r.id === row.id ? { ...r, quoteValue: val } : r))
+                                            prev.map((r) => ({ ...r, file: file || null }))
                                           );
-                                        }}
-                                        inputSize="sm"
-                                        containerClassName="min-w-[120px] max-w-[180px] flex-1 !space-y-0"
-                                      />
-                                    ) : (
-                                      <Input
-                                        placeholder="Title"
-                                        value={row.title}
-                                        onChange={(e) =>
-                                          setAddAttachmentRows((prev) =>
-                                            prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r))
-                                          )
                                         }
-                                        inputSize="sm"
-                                        containerClassName="min-w-[120px] max-w-[180px] flex-1 !space-y-0"
-                                      />
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={() =>
+                                        e.target.value = '';
+                                      }}
+                                    />
+                                  </label>
+                                  {addAttachmentMode !== 'attachment' && (
+                                    <Input
+                                      placeholder={addAttachmentMode === 'revise-quotation' ? 'Revised Quote Value (₹) *' : 'Quote Value (₹) *'}
+                                      type="text"
+                                      value={addAttachmentRows[0]?.quoteValue || ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value.replace(/\D/g, '');
                                         setAddAttachmentRows((prev) =>
-                                          prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev
+                                          prev.map((r) => ({ ...r, quoteValue: val }))
+                                        );
+                                      }}
+                                      inputSize="sm"
+                                      containerClassName="min-w-[120px] max-w-[150px] !space-y-0"
+                                    />
+                                  )}
+                                  {addAttachmentMode === 'attachment' && (
+                                    <Input
+                                      placeholder="Title"
+                                      value={addAttachmentRows[0]?.title || ''}
+                                      onChange={(e) =>
+                                        setAddAttachmentRows((prev) =>
+                                          prev.map((r) => ({ ...r, title: e.target.value }))
                                         )
                                       }
-                                      className="h-9 w-9 shrink-0 flex items-center justify-center rounded text-slate-400 hover:text-rose-600"
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
+                                      inputSize="sm"
+                                      containerClassName="min-w-[120px] flex-1 !space-y-0"
+                                    />
+                                  )}
+                                </div>
+                                {addAttachmentMode === 'revise-quotation' && (
+                                  <p className="text-[11px] text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                                    This value won't be reflected in the kanban quotation bar
+                                  </p>
+                                )}
+                                {addAttachmentMode === 'new-quotation' && !hasExistingQuotation && (
+                                  <div className="flex items-end gap-3 p-2 rounded border border-blue-100 bg-blue-50/30">
+                                    <div className="flex-1">
+                                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Series</label>
+                                      <Select
+                                        value={addAttachmentQuotationSeriesCode}
+                                        onChange={(val) => setAddAttachmentQuotationSeriesCode((val ?? '') as string)}
+                                        options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
+                                        placeholder="Choose series"
+                                        className="!h-8"
+                                      />
+                                    </div>
                                   </div>
-                                ))}
-                                <div className="flex flex-wrap items-center gap-2 pt-1">
+                                )}
+                                <div className="flex items-center gap-2 pt-1">
                                   {uploadingAttachmentsForActivityId === a.id && attachmentUploadProgress !== null && (
                                     <div className="w-full mb-1.5 bg-slate-100 rounded-full h-1 overflow-hidden">
                                       <div className="bg-blue-600 h-1 rounded-full transition-all duration-300 ease-out" style={{ width: `${attachmentUploadProgress}%` }}></div>
-                                    </div>
-                                  )}
-                                  {addAttachmentRows.some((r) => r.kind === 'quotation') && (
-                                    <div className="w-full mb-2">
-                                      {hasExistingQuotation ? (
-                                        <div className="flex items-center">
-                                          <span className="text-[10px] font-semibold uppercase tracking-widest text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 flex items-center gap-1.5">
-                                            <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
-                                            Revised quotation auto-marked
-                                          </span>
-                                        </div>
-                                      ) : (
-                                        <div className="flex items-end gap-3 p-2 rounded border border-blue-100 bg-blue-50/30">
-                                          <div className="flex-1">
-                                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                                              Series
-                                            </label>
-                                            <Select
-                                              value={addAttachmentQuotationSeriesCode}
-                                              onChange={(val) => setAddAttachmentQuotationSeriesCode((val ?? '') as string)}
-                                              options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
-                                              placeholder="Choose series"
-                                              className="!h-8"
-                                            />
-                                          </div>
-                                          <label className="inline-flex items-center gap-1.5 text-[11px] text-slate-700 mb-2 cursor-pointer">
-                                            <input
-                                              type="checkbox"
-                                              className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                              checked={addAttachmentIsRevised}
-                                              onChange={(e) => setAddAttachmentIsRevised(e.target.checked)}
-                                            />
-                                            Mark revised
-                                          </label>
-                                        </div>
-                                      )}
                                     </div>
                                   )}
                                   <Button
                                     size="sm"
                                     disabled={
                                       uploadingAttachmentsForActivityId === a.id ||
-                                      addAttachmentRows.every((r) => !r.file)
+                                      !addAttachmentRows[0]?.file ||
+                                      (addAttachmentMode === 'revise-quotation' && !reviseTargetQuotation)
                                     }
                                     onClick={async () => {
-                                      const toUpload = addAttachmentRows.filter((r) => r.file);
-                                      if (!isValidId || toUpload.length === 0) return;
+                                      const row = addAttachmentRows[0];
+                                      if (!isValidId || !row?.file) return;
                                       setUploadingAttachmentsForActivityId(a.id);
                                       setAttachmentUploadProgress(0);
                                       try {
+                                        const isRevised = addAttachmentMode === 'revise-quotation';
+                                        const qn = isRevised && reviseTargetQuotation ? [reviseTargetQuotation] : undefined;
                                         await marketingAPI.uploadLeadActivityAttachments(
                                           leadId,
                                           a.id,
-                                          toUpload.map((r) => r.file!),
-                                          toUpload.map((r) => r.kind),
-                                          undefined,
-                                          toUpload.map((r) => (r.kind === 'attachment' ? (r.title.trim() || undefined) : undefined)),
-                                          toUpload.some((r) => r.kind === 'quotation') ? (addAttachmentQuotationSeriesCode.trim() || undefined) : undefined,
-                                          toUpload.some((r) => r.kind === 'quotation') ? addAttachmentIsRevised : undefined,
-                                          toUpload.map((r) => (r.kind === 'quotation' && r.quoteValue ? Number(r.quoteValue) : undefined)),
+                                          [row.file],
+                                          [isRevised || addAttachmentMode === 'new-quotation' ? 'quotation' : 'attachment'],
+                                          qn,
+                                          [addAttachmentMode === 'attachment' ? (row.title.trim() || undefined) : undefined],
+                                          addAttachmentMode === 'new-quotation' && !hasExistingQuotation ? (addAttachmentQuotationSeriesCode.trim() || undefined) : undefined,
+                                          isRevised || undefined,
+                                          [(addAttachmentMode !== 'attachment' && row.quoteValue ? Number(row.quoteValue) : undefined)],
                                           setAttachmentUploadProgress
                                         );
                                         showToast('Added', 'success');
                                         setAddAttachmentActivityId(null);
                                         setAddAttachmentRows([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
                                         setAddAttachmentQuotationSeriesCode('');
+                                        setAddAttachmentIsRevised(false);
+                                        setAddAttachmentMode('attachment');
+                                        setReviseTargetQuotation('');
                                         loadActivities();
                                       } catch (err: any) {
                                         showToast(err.message || 'Upload failed', 'error');

@@ -38,6 +38,35 @@ Format: `[Date] — Category: Description`
 #### Documentation
 - **design.md**: Full rewrite to reflect all typography, component, and layout changes.
 
+#### Lead Creation — Multi-Quotation Support
+- **Multiple Quotations Per Lead**: Replaced the single quotation row in lead creation with a draft + list pattern. User picks a file, enters a value, and clicks "+ Add to list" to add it; the form resets for the next entry. All added quotations appear in a list below with file name, quote number, value, and remove button.
+- **Full Quote Number Flow**: Added the same series dropdown + "Generate quote number" + manual number input that the lead creation form has, so every new quotation can have its own number (generated, manual, or auto-assigned on upload).
+- **File Remove Button**: Added an "X" button next to the file chooser so users can clear a wrong file selection before adding to the list.
+- **Duplicate Number Prevention**: "+ Add to list" now blocks adding a quotation with a quote number that already exists in the list, with a toast error.
+- **DeleteButton Standardisation**: All new remove actions (file chooser, added quotations) use the shared `DeleteButton` component (Radix Tooltip + `Trash2` icon, no hover color changes).
+- **Stacked Layout**: Moved the "Add Quotation" section below the "Enquiry / inquiry received at" date picker in the lead creation form (no longer side-by-side).
+
+#### Enquiry Log — Attach Files Refactor
+- **Draft + List Pattern**: Refactored the single-row "Attach files" panel in the enquiry log to the same draft + list pattern as lead creation. User composes one entry at a time, adds it to the list, then composes the next.
+- **3-Mode Support Maintained**: New Quotation / Revise Quotation / Attachment modes are still per-entry, with the revise target dropdown and amber "won't be reflected in kanban" warning preserved.
+- **Full New-Quotation Flow**: New Quotation mode now shows the same series + Generate + manual number section as the lead creation form. Every entry in the list can have its own number.
+- **Per-Entry Revision Tracking**: Added `isRevised: boolean` field to `AttachmentEntry` to track whether each entry is a true revision, not just whether it has a number.
+- **Revision Bug Fix**: Fixed a bug where any new quotation with a generated number was being marked as a revision on upload. Only entries explicitly added in "Revise Quotation" mode are now marked as revisions.
+
+#### Kanban Status-Change Modal — Enhancements
+- **3-Option Kind Dropdown**: Replaced the old 2-option "Quotation / Attachment" dropdown with 3 options: New Quotation / Revise Quotation / Attachment.
+- **Revise Target Picker**: When "Revise Quotation" is selected, a dropdown appears to pick which existing quotation to revise. Populated by fetching the lead's activities when the modal opens.
+- **Amber Warning**: "Revise Quotation" rows show an amber "This value won't be reflected in the kanban quotation bar" hint.
+- **Per-Row Quote Value Input**: Replaced the old static "Auto from lead" text with a real `Quote Value (₹)` input for quotation rows. Same input shape for "New Quotation" and "Revise Quotation" (with "Revised Quote Value (₹)" label).
+- **All-At-Once Upload**: All added rows (files, kinds, numbers, values, titles) are uploaded in a single backend call when the lead is moved to the new status.
+- **Revision Flag Correctness**: Uses `kind === 'revise-quotation'` to compute the `is_revised` flag (per-row, not "has any number").
+
+#### Kanban Card Display
+- **Quotation Count**: Kanban cards now show "1 quote · ₹X" / "N quotes · ₹X" using the new `quotation_count` field from the API. Previously the field was computed by the backend but stripped by the Pydantic schema; now declared in `LeadResponse`.
+
+#### UX Consistency
+- **Custom Tooltip**: All new remove buttons (file chooser, added quotations, etc.) use the project's `Tooltip` component (Radix UI) instead of native `title=` attributes.
+
 ### 📁 Files Changed
 | File | Change |
 |------|--------|
@@ -68,8 +97,6 @@ Format: `[Date] — Category: Description`
 | `pages/EventsListPage.tsx` | Added description |
 | `pages/FinancialsPage.tsx` | Label/header typography cleanup |
 | `pages/InventoryPage.tsx` | Label/header typography cleanup |
-| `pages/LeadFormPage.tsx` | Label/header typography cleanup |
-| `pages/LeadsPage.tsx` | Label/header typography cleanup |
 | `pages/LoginPage.tsx` | Label/header typography cleanup |
 | `pages/NumberingSeriesPage.tsx` | Label/header typography cleanup |
 | `pages/QuotationsPage.tsx` | Label/header typography cleanup |
@@ -77,6 +104,10 @@ Format: `[Date] — Category: Description`
 | `pages/SettingsPage.tsx` | Label/header typography cleanup |
 | `pages/SupportPage.tsx` | Label/header typography cleanup |
 | `design.md` | Full rewrite |
+| `pages/LeadFormPage.tsx` | Multi-quotation support in lead creation; draft+list refactor for enquiry log attach files; per-entry isRevised tracking; revision bug fix; new-quotation series+generate+manual number flow |
+| `pages/LeadsPage.tsx` | 3-option kind dropdown in kanban status-change modal; revise target picker; per-row quote value input; activities fetch on modal open; quotation count display on kanban cards |
+| `lib/marketing-api.ts` | Added `quotation_count?: number` to `Lead` interface |
+| `au-marketing-api/app/schemas.py` | Added `quotation_count: Optional[int] = None` to `LeadResponse` (was computed but stripped by Pydantic) |
 
 ---
 
