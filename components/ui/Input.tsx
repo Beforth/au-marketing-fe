@@ -48,7 +48,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
       )}
       <div className="relative group/input flex items-center">
         {icon && (
-          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/input:text-[var(--primary)] transition-colors pointer-events-none z-10">
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/input:text-blue-600 transition-colors pointer-events-none z-10">
             {icon}
           </div>
         )}
@@ -57,7 +57,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
           ref={ref}
           value={value}
           className={cn(
-            'w-full border rounded-lg outline-none transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-[var(--primary)]/10 focus:border-[var(--primary)]',
+            'w-full border rounded-lg outline-none transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-600',
             variants[variant],
             sizes[inputSize],
             icon && 'pl-10',

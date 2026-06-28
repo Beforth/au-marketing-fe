@@ -9,7 +9,7 @@
 
 A **professional, data-dense internal tool** with restrained Slate/Blue palette.
 Neutral greys dominate surfaces; Blue is the interactive/brand accent.
-Uppercase-heavy labels, metadata, table headers. Micro-animations (spring-based
+Clean, minimal typography with no uppercase noise. Micro-animations (spring-based
 transitions, scale-on-click, slide-in reveals). Tone is **utilitarian-premium**.
 
 ---
@@ -23,8 +23,8 @@ transitions, scale-on-click, slide-in reveals). Tone is **utilitarian-premium**.
 | `blue-700` | `#1d4ed8` | Hover on blue-600 |
 | `blue-50` | `#eff6ff` | Muted bg for active/hover, role badges |
 | `blue-100` | `#dbeafe` | Borders for blue-tinted elements |
-| `blue-500/20` | — | Focus ring (ring-2) |
-| `blue-500/10` | — | SearchBar focus ring (ring-4) |
+| `blue-500/10` | — | Focus ring (ring-2) |
+| `blue-500/20` | — | SearchBar focus ring (ring-4) |
 
 ### Neutral (Slate scale)
 | Class | Hex | Usage |
@@ -84,75 +84,91 @@ Each palette entry includes gradient fill colors (`stroke`, `start`, `end`) — 
 
 ### Font
 `font-family: 'Outfit', sans-serif` (Google Fonts, weights 300–900)
+`font-family: 'Inter', sans-serif` (Google Fonts, weights 400, 500, 600, 700) — secondary fallback
 
 ### Size Scale
 | Class | px | Usage |
 |---|---|---|
-| `text-[9px]` | 9 | Status badge text |
-| `text-[10px]` | 10 | Meta labels, page description, compact stat labels, badge text |
-| `text-[11px]` | 11 | Table headers, labels, Breadcrumb, filter labels, section headers |
-| `text-xs` | 12 | Pagination, small UI text, secondary info |
-| `text-sm` | 14 | Body text, input text, table cells, card descriptions |
-| `text-base` | 16 | Compact KPI values |
-| `text-lg` | 18 | Card title, modal title |
+| `text-xs` | 12 | Table headers (uppercase), pagination, small UI text, secondary info, meta labels |
+| `text-sm` | 14 | Body text, input text, table cells, card descriptions, labels |
+| `text-base` | 16 | Compact KPI values, card title |
+| `text-lg` | 18 | Modal title |
 | `text-xl` | 20 | KPI card values, login subtitles |
 | `text-2xl` | 24 | StatCard value |
 | `text-4xl` | 36 | Page title (h1) |
 
+No custom pixel sizes (`text-[9px]`, `text-[10px]`, `text-[11px]`) — all text uses the standard Tailwind scale.
+
 ### Weights
 | Class | Weight | Usage |
 |---|---|---|
-| `font-medium` | 500 | Body, segment toggle labels |
-| `font-semibold` | 600 | Card descriptions, labels, toast messages |
-| `font-bold` | 700 | Page title, card values, general bold |
-| `font-black` | 900 | Buttons (all sizes), table headers, labels, breadcrumbs, section headers, KPI values, tab triggers |
+| `font-medium` | 500 | Body, card descriptions, segment toggle labels, input text |
+| `font-semibold` | 600 | Labels, table headers, breadcrumbs, card subtitles, toast messages, nav items, badge text, filter labels, "Today" button, empty/loading states |
+| `font-bold` | 700 | Page title, modal title, card values, KPI values, "View All" links, "Today" button (date picker), section titles |
+
+`font-black` (900) is not used.
 
 ### Letter Spacing
 | Class | Value | Usage |
 |---|---|---|
-| `tracking-tight` | -0.025em | Card titles, page title, modal title |
-| `tracking-wide` | 0.025em | Segment toggle labels |
-| `tracking-wider` | 0.05em | Section headers, uppercase labels |
-| `tracking-widest` | 0.1em | Labels, table heads, breadcrumbs, nav section titles, badge status |
+| `tracking-tight` | -0.025em | Page title (h1) only |
+| `tracking-wider` | 0.05em | Table headers (uppercase), "View All" links (uppercase) |
+| `tracking-widest` | 0.1em | Not used |
 
 ### Common Text Patterns
 ```
 Page title (h1):
-  text-4xl font-bold text-slate-900 tracking-tight leading-none
+  text-4xl font-bold text-slate-900 tracking-tight leading-none whitespace-nowrap
+
+Page description:
+  text-sm text-slate-500 font-medium
 
 Card title:
-  text-[11px] font-black text-slate-500 uppercase tracking-widest leading-none
+  text-base font-semibold text-slate-900
 
 Card description:
-  text-[11px] text-slate-400 font-medium mt-0.5
+  text-sm text-slate-500 font-medium
 
-Section group label:
-  text-[11px] font-bold text-{color} uppercase tracking-wider mb-2
+Modal title:
+  text-lg font-bold text-slate-900
+
+Section header / card subtitle (uppercase):
+  text-xs font-semibold text-slate-500 uppercase tracking-wider
 
 KPI card label:
-  text-[10px] font-semibold text-slate-500 uppercase tracking-wider
+  text-xs font-semibold text-slate-500
 
 KPI card value:
   text-base font-bold text-slate-900  (compact)
   text-xl font-bold text-slate-900    (regular)
   text-2xl font-bold text-slate-900 tracking-tight tabular-nums  (StatCard)
 
-Badge text:
-  text-[9px] font-black uppercase tracking-widest
-
 Label (form fields):
-  text-[11px] uppercase font-black tracking-widest text-slate-500
+  text-sm font-medium text-slate-500
 
 Body / item text:
   text-sm font-semibold text-slate-800
 
 Secondary info:
   text-xs text-slate-500
-  text-[11px] text-slate-400
-  text-[10px] text-slate-500
 
 Empty state text:
   text-sm text-slate-400
+
+Badge text:
+  no custom typography classes — uses variant-based color only
+
+"View All" link:
+  text-sm font-bold text-blue-600
+
+Navbar button labels:
+  text-xs font-semibold text-slate-500
+
+Table header:
+  text-xs font-semibold text-slate-500 uppercase tracking-wider
+
+Pagination / loading text:
+  text-xs font-semibold text-slate-500
 ```
 
 ---
@@ -163,16 +179,9 @@ Empty state text:
 ```
 Sidebar:               w-60 (240px), fixed left-0 top-0, h-screen
 Navbar:                h-16 (64px), sticky top-0, ml-60
-Main content area:     ml-60, px-16 (in PageLayout)
-PageLayout gap:        gap-4 (--ui-gap)
+Main content area:     ml-60, px-16
+PageLayout wrapper:    pt-[1.5625rem] pb-[0.625rem]
 ```
-
-### Density Variables (from ThemeContext)
-| Density | `--ui-padding` | `--ui-gap` | `--ui-radius` |
-|---|---|---|---|
-| compact | 0.625rem | 0.5rem | 0.5rem |
-| default | 1.25rem | 1rem | 0.75rem |
-| relaxed | 2rem | 1.5rem | 1rem |
 
 ### Grid Background (DashboardLayout)
 ```css
@@ -217,8 +226,8 @@ Base:    bg-white border border-slate-200/50 rounded-[1.25rem]
 
 No padding:   Card noPadding → inner div with p-4
 Header:       px-6 py-5 border-b border-slate-50 min-h-[72px]
-Title:        text-[11px] font-black text-slate-500 uppercase tracking-widest leading-none
-Description:  text-[11px] text-slate-400 font-medium mt-0.5
+Title:        text-base font-semibold text-slate-900
+Description:  text-sm text-slate-500 font-medium
 Content:      flex-1
 ```
 
@@ -235,27 +244,33 @@ Variants:
 Base: inline-flex items-center justify-center transition-all duration-200
       disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap
       rounded-lg (xs/sm/md/icon), rounded-xl (lg)
+      font-medium (default weight from Tailwind)
 ```
 
 ### Select
 ```
 Base:     h-11 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium
-Focus:    ring-2 ring-blue-500/20 focus:border-blue-500
-Label:    text-[11px] uppercase font-black tracking-widest text-slate-500 ml-1
+Focus:    ring-2 ring-blue-500/10 focus:border-blue-600
+Label:    text-sm font-medium text-slate-500 ml-1
 Chevron:  position absolute right-3 top-3.5 h-4 w-4 text-slate-400
 ```
 
 ### DatePicker
 ```
-Base:     h-11 rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-semibold
-Icon:     Calendar/Clock at left-4, turns text-blue-500 on focus
-Label:    text-[11px] uppercase font-black tracking-widest text-slate-500 ml-1
+Base:     h-11 rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-medium
+Icon:     Calendar/Clock at left-4, turns text-blue-600 on focus
+Focus:    ring-2 ring-blue-500/10 focus:border-blue-600
+Label:    text-sm font-medium text-slate-500 ml-1
+Year btn: text-xs font-semibold
+Day btn:  text-xs, selected = text-white bg-blue-600 font-bold shadow-md shadow-blue-500/20
+Today:    text-xs font-semibold text-blue-600 hover:underline
+Done:     text-xs font-semibold bg-slate-900 text-white px-3 py-1.5 rounded-lg
 ```
 
 ### Breadcrumb
 ```
 Container:  flex items-center gap-2 mb-6
-Item:       text-xs font-black uppercase tracking-widest text-slate-500 hover:text-blue-600
+Item:       text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors
 Active:     text-slate-900 border-b-2 border-blue-500/50 pb-0.5
 Separator:  ChevronRight size={14} text-slate-300
 ```
@@ -282,7 +297,7 @@ Separator:  ChevronRight size={14} text-slate-300
   <div className="px-3 py-2.5 flex items-center gap-3">
     <Icon size={18} className="text-{color} shrink-0" />
     <div className="min-w-0 flex-1">
-      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Label</p>
+      <p className="text-xs font-semibold text-slate-500">Label</p>
       <p className="text-base font-bold text-slate-900">value</p>
     </div>
   </div>
@@ -296,8 +311,8 @@ className: bg-gradient-to-br from-{color}-50/40 to-{color}-100/10
            shadow-sm hover:shadow-md hover:-translate-y-0.5
 
 Inner: flex items-center gap-2.5 w-full p-3 rounded-xl
-Label: text-[9px] font-black uppercase tracking-widest text-slate-500
-Value: text-xl font-black text-{color}-800 mt-0.5
+Label: text-xs font-semibold text-slate-500
+Value: text-xl font-bold text-{color}-800 mt-0.5
 Icon:  size={18}, no wrapper, color matches accent
 
 Accent color by keyword:
@@ -347,6 +362,11 @@ Accent color by keyword:
 </PageLayout>
 ```
 
+### Page title + description gap
+```
+gap-1 (4px) between title and description
+```
+
 ### Loading State (Skeleton)
 ```
 <div className="animate-pulse space-y-3">
@@ -368,7 +388,7 @@ Accent color by keyword:
 <div className="border border-slate-200 rounded-lg p-3">
   <p className="text-sm font-semibold text-slate-800">Title</p>
   <p className="text-xs text-slate-500 mt-1">Description</p>
-  <p className="text-[11px] text-slate-400 mt-1">Meta info</p>
+  <p className="text-xs text-slate-400 mt-1">Meta info</p>
 </div>
 ```
 
@@ -383,9 +403,8 @@ Accent color by keyword:
 
 ### "View All" Link
 ```
-<button className="w-full py-2 text-[11px] font-bold text-blue-600
-                   hover:text-blue-700 transition-colors text-center
-                   uppercase tracking-wider">
+<button className="w-full py-2 text-sm font-bold text-blue-600
+                   hover:text-blue-700 transition-colors text-center">
   View All →
 </button>
 ```
@@ -405,7 +424,7 @@ Accent color by keyword:
 | Sidebar nav | Per page | 18 |
 | Date filter | `Calendar` | 14 |
 | Empty state | Per section | 28 |
-| Edit | `Edit3` | 12–14 |
+| Edit | `Edit` | 12–14 |
 | Delete | `Trash2` | 12–14 |
 | Refresh | `RefreshCw` | 13–15 |
 | Search | `Search` | 14 |
@@ -417,8 +436,7 @@ Accent color by keyword:
 ```
 text-slate-400     — default inactive
 text-slate-500     — slightly more prominent inactive
-text-blue-500    — active/focused
-text-blue-600    — active nav, primary accent
+text-blue-600      — active/focused, primary accent
 text-emerald-500   — success
 text-amber-500     — warning
 text-rose-500      — error/danger

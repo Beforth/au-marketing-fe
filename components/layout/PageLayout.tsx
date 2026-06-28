@@ -21,8 +21,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
 }) => {
     return (
         <div
-            className={`w-full transition-all duration-300 animate-in fade-in ${className}`}
-            style={{ gap: 'var(--ui-gap)', display: 'flex', flexDirection: 'column' }}
+            className={`w-full transition-all duration-300 animate-in fade-in flex flex-col gap-2 ${className}`}
         >
             {breadcrumbs && breadcrumbs.length > 0 && (
                 <Breadcrumb items={breadcrumbs} />
@@ -30,10 +29,10 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
             
             <div className="flex flex-col gap-0.5 mb-3 px-1">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1">
                         <h1 className="text-4xl font-bold text-slate-900 tracking-tight leading-none whitespace-nowrap">{title}</h1>
                         {description && (
-                            <p className="text-slate-400 text-[10px] font-medium py-0 opacity-80 uppercase tracking-widest leading-none">{description}</p>
+                            <p className="text-sm text-slate-500 font-medium">{description}</p>
                         )}
                     </div>
                     {actions && (

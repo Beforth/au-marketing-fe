@@ -49,7 +49,7 @@ import {
   TableCell,
   SegmentToggle,
 } from '../UI';
-import { useTheme, Density } from '../context/ThemeContext';
+
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { refreshUserInfo, selectUser, selectEmployee, selectHasPermission } from '../store/slices/authSlice';
 import { marketingAPI, AuditLog, MarketingEmployee } from '../lib/marketing-api';
@@ -64,7 +64,7 @@ export const SettingsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const user = useAppSelector(selectUser);
   const employee = useAppSelector(selectEmployee);
-  const { color, setColor, density, setDensity } = useTheme();
+
   const [activeTab, setActiveTab] = useState<SettingsTab>('Profile');
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshingPermissions, setIsRefreshingPermissions] = useState(false);
@@ -314,22 +314,22 @@ export const SettingsPage: React.FC = () => {
               <div className="flex-1 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-5">
                   <div className="space-y-0.5">
-                    <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Full Name</Label>
+                    <Label className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Full Name</Label>
                     <div className="text-sm font-semibold text-slate-900">{displayName || '—'}</div>
                   </div>
                   <div className="space-y-0.5">
-                    <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Email Address</Label>
+                    <Label className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Email Address</Label>
                     <div className="text-sm font-semibold text-slate-900">{displayEmail || '—'}</div>
                   </div>
                   <div className="space-y-0.5">
-                    <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Designation</Label>
+                    <Label className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Designation</Label>
                     <div className="text-sm font-semibold text-slate-900">{displayRole || '—'}</div>
                   </div>
                   <div className="space-y-0.5">
-                    <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Status</Label>
+                    <Label className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Status</Label>
                     <div className="flex items-center gap-1.5">
                        <div className="size-1.5 rounded-full bg-emerald-500" />
-                       <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Active</span>
+                       <span className="text-xs text-emerald-600">Active</span>
                     </div>
                   </div>
                 </div>
@@ -340,7 +340,7 @@ export const SettingsPage: React.FC = () => {
 
             {/* Connections Section */}
             <div className="space-y-5 pt-2">
-              <h4 className="text-[11px] font-black uppercase tracking-tight text-slate-900">Integrations</h4>
+              <h4 className="text-[11px] font-semibold uppercase tracking-tight text-slate-900">Integrations</h4>
               
               <div className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-4">
@@ -348,7 +348,7 @@ export const SettingsPage: React.FC = () => {
                     <Globe size={18} />
                   </div>
                   <div>
-                    <div className="text-[11px] font-black uppercase tracking-tight text-slate-900">Gmail Account</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-tight text-slate-900">Gmail Account</div>
                     <div className="text-sm font-semibold text-slate-400">Connect to send automated follow-up emails.</div>
                   </div>
                 </div>
@@ -358,7 +358,7 @@ export const SettingsPage: React.FC = () => {
                 ) : emailConnection?.connected ? (
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                       <div className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Authenticated</div>
+                       <div className="text-xs text-emerald-600">Authenticated</div>
                        <div className="text-xs font-semibold text-slate-400">{emailConnection.email}</div>
                     </div>
                     <Button variant="outline" size="xs" onClick={handleDisconnectEmail} isLoading={disconnectEmailLoading} className="h-8 px-3 border-slate-200">
@@ -379,7 +379,7 @@ export const SettingsPage: React.FC = () => {
                       <Users size={18} />
                     </div>
                     <div>
-                      <div className="text-[11px] font-black uppercase tracking-tight text-slate-900">HRMS Employees</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-tight text-slate-900">HRMS Employees</div>
                       <div className="text-sm font-semibold text-slate-400">Refresh employee metadata for marketing team members.</div>
                     </div>
                   </div>
@@ -420,7 +420,7 @@ export const SettingsPage: React.FC = () => {
                     onClick={() => setSyncResultsOpen(!syncResultsOpen)}
                     className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
                   >
-                    <span className="text-[11px] font-black uppercase tracking-tight text-slate-700">
+                    <span className="text-[11px] font-semibold uppercase tracking-tight text-slate-700">
                       Synced Employees ({syncResults.employees.length})
                     </span>
                     {syncResultsOpen ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
@@ -442,7 +442,7 @@ export const SettingsPage: React.FC = () => {
                                 {`${emp.first_name} ${emp.last_name}`.trim() || emp.email || emp.username || `ID ${emp.hrms_employee_id}`}
                               </td>
                               <td className="px-4 py-2">
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border ${
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-widest border ${
                                   emp.role === 'domain_head' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                                   emp.role === 'domain_coordinator' ? 'bg-purple-50 text-purple-700 border-purple-200' :
                                   emp.role === 'region_head' ? 'bg-amber-50 text-amber-700 border-amber-200' :
@@ -468,88 +468,12 @@ export const SettingsPage: React.FC = () => {
               )}
             </div>
 
-            <div className="border-t border-slate-200 -mx-4 md:-mx-6 lg:-mx-8" />
 
-            {/* Theme & Customization Section */}
-            <div className="space-y-5 pt-2">
-              <h4 className="text-[11px] font-black uppercase tracking-tight text-slate-900">Interface Customization</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Theme Color Picker */}
-                <div className="space-y-3">
-                  <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Theme Color</Label>
-                  <p className="text-xs text-slate-400 mt-0.5">Select a brand accent color for active elements, buttons, and badges.</p>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {[
-                      { id: 'blue', name: 'Royal Blue', bg: '#2563eb', border: '#1d4ed8' },
-                      { id: 'sky', name: 'Sky Blue', bg: '#0ea5e9', border: '#0284c7' },
-                      { id: 'emerald', name: 'Emerald', bg: '#10b981', border: '#059669' },
-                      { id: 'rose', name: 'Rose', bg: '#f43f5e', border: '#e11d48' },
-                      { id: 'violet', name: 'Violet', bg: '#8b5cf6', border: '#7c3aed' },
-                      { id: 'slate', name: 'Zinc (Slate)', bg: '#18181b', border: '#27272a' },
-                    ].map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => {
-                          setColor(t.id as any);
-                          showToast(`Theme changed to ${t.name}`, 'success');
-                        }}
-                        className={cn(
-                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-all duration-200 active:scale-95",
-                          color === t.id
-                            ? "bg-blue-50 border-blue-500 text-blue-700 shadow-xs"
-                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                        )}
-                      >
-                        <span 
-                          className="size-3 rounded-full border shrink-0" 
-                          style={{ backgroundColor: t.bg, borderColor: t.border }}
-                        />
-                        {t.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Density Settings */}
-                <div className="space-y-3">
-                  <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Layout Density</Label>
-                  <p className="text-xs text-slate-400 mt-0.5">Adjust padding and sizes to fit more information on screen.</p>
-                  <div className="flex gap-2 pt-1">
-                    {[
-                      { id: 'compact', name: 'Compact (HRMS)' },
-                      { id: 'default', name: 'Default' },
-                      { id: 'relaxed', name: 'Relaxed' },
-                    ].map((d) => (
-                      <button
-                        key={d.id}
-                        type="button"
-                        onClick={() => {
-                          setDensity(d.id as Density);
-                          showToast(`Density set to ${d.name}`, 'success');
-                        }}
-                        className={cn(
-                          "flex-1 px-3 py-1.5 rounded-lg border text-xs font-semibold uppercase tracking-wider text-center transition-all duration-200 active:scale-95",
-                          density === d.id
-                            ? "bg-blue-50 border-blue-500 text-blue-700 shadow-xs"
-                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                        )}
-                      >
-                        {d.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t border-slate-200 -mx-4 md:-mx-6 lg:-mx-8" />
 
             {/* Sync Section */}
             <div className="flex items-center justify-between pt-2">
               <div>
-                <div className="text-[11px] font-black uppercase tracking-tight text-slate-900">Permissions Sync</div>
+                <div className="text-[11px] font-semibold uppercase tracking-tight text-slate-900">Permissions Sync</div>
                 <div className="text-sm font-semibold text-slate-400">Force refresh your access tokens and permissions.</div>
               </div>
               <Button

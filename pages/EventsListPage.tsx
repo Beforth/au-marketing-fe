@@ -215,6 +215,7 @@ export const EventsListPage: React.FC = () => {
   return (
     <PageLayout
       title="Events"
+      description="Manage marketing events and roadshows."
       breadcrumbs={[{ label: 'Events' }]}
       actions={
         canCreate && (

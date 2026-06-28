@@ -2677,7 +2677,7 @@ export const LeadFormPage: React.FC = () => {
                           <div className="mt-3 p-3 rounded-lg border border-blue-100 bg-blue-50/50">
                             {hasExistingQuotation ? (
                               <div className="flex items-center">
-                                <span className="text-[11px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-100 flex items-center gap-2">
+                                <span className="text-[11px] font-semibold uppercase tracking-widest text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-100 flex items-center gap-2">
                                   <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                                   Revised quotation auto-marked
                                 </span>
@@ -3153,7 +3153,7 @@ export const LeadFormPage: React.FC = () => {
                                     <div className="w-full mb-2">
                                       {hasExistingQuotation ? (
                                         <div className="flex items-center">
-                                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 flex items-center gap-1.5">
+                                          <span className="text-[10px] font-semibold uppercase tracking-widest text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 flex items-center gap-1.5">
                                             <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
                                             Revised quotation auto-marked
                                           </span>

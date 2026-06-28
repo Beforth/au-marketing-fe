@@ -61,7 +61,7 @@ export const Card: React.FC<CardProps> = ({
       {(title || description || headerAction || showHandle) && (
         <div className="px-6 py-5 flex justify-between items-center border-b border-slate-50 min-h-[72px]">
           <div className="min-w-0 pr-6">
-            {title && <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-none">{title}</h3>}
+            {title && <h3 className="text-base font-semibold text-slate-900">{title}</h3>}
             {description && <p className="text-[11px] text-slate-400 font-medium mt-0.5">{description}</p>}
           </div>
           <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover/card:opacity-100 transition-opacity">

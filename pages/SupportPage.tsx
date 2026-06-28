@@ -368,7 +368,7 @@ export const SupportPage: React.FC = () => {
                     <h3 className="text-[13px] font-bold text-slate-900 tracking-tight mb-1">{item.title}</h3>
                     <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{item.desc}</p>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-blue-600 group-hover:gap-2.5 transition-all">
+                  <div className="flex items-center gap-1.5 text-xs text-blue-600 group-hover:gap-2.5 transition-all">
                     Open guide <ExternalLink size={11} />
                   </div>
                 </div>
@@ -402,7 +402,7 @@ export const SupportPage: React.FC = () => {
                 </div>
                 <span className="text-[13px] font-bold text-slate-900 tracking-tight flex-1">{module.label}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{module.faqs.length} articles</span>
+                  <span className="text-xs text-slate-400">{module.faqs.length} articles</span>
                   <a
                     href={`${DOCS_BASE}${module.anchor}`}
                     target="_blank"
@@ -443,7 +443,7 @@ export const SupportPage: React.FC = () => {
                               href={`${DOCS_BASE}${faq.anchor}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-700 transition-colors mt-1"
+                              className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 transition-colors mt-1"
                             >
                               Full documentation <ArrowRight size={10} />
                             </a>

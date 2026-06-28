@@ -173,7 +173,7 @@ export const VersionsSettings: React.FC = () => {
             >
               <ArrowLeft size={16} />
             </button>
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+            <h3 className="text-sm font-bold text-slate-800">
               {editingVersion ? `Edit Version ${editingVersion.version}` : 'Create New Version'}
             </h3>
           </div>
@@ -189,7 +189,7 @@ export const VersionsSettings: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Version Code</Label>
+            <Label className="text-xs font-semibold text-slate-500 mb-1.5 block">Version Code</Label>
             <Input
               value={formVersion}
               onChange={e => setFormVersion(e.target.value)}
@@ -198,7 +198,7 @@ export const VersionsSettings: React.FC = () => {
             />
           </div>
           <div>
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Release Date</Label>
+            <Label className="text-xs font-semibold text-slate-500 mb-1.5 block">Release Date</Label>
             <Input
               value={formReleaseDate}
               onChange={e => setFormReleaseDate(e.target.value)}
@@ -210,7 +210,7 @@ export const VersionsSettings: React.FC = () => {
 
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Changelog Sections</Label>
+            <Label className="text-xs font-semibold text-slate-500">Changelog Sections</Label>
             <Button
               type="button"
               variant="outline"
@@ -240,7 +240,7 @@ export const VersionsSettings: React.FC = () => {
               </button>
 
               <div className="max-w-md">
-                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block">Section Title</Label>
+                <Label className="text-xs text-slate-400 mb-1.5 block">Section Title</Label>
                 <Input
                   value={sec.title}
                   onChange={e => updateSectionTitle(secIdx, e.target.value)}
@@ -252,7 +252,7 @@ export const VersionsSettings: React.FC = () => {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Section Items</span>
+                  <span className="text-xs text-slate-400">Section Items</span>
                   <button
                     type="button"
                     onClick={() => addItem(secIdx)}
@@ -294,7 +294,7 @@ export const VersionsSettings: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Version Releases</h3>
+          <h3 className="text-sm font-bold text-slate-800">Version Releases</h3>
           <p className="text-[10px] text-slate-400 uppercase font-semibold mt-0.5">Manage in-app changelog versions and notes</p>
         </div>
         <div className="flex gap-2">
@@ -337,10 +337,10 @@ export const VersionsSettings: React.FC = () => {
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/50">
-                <th className="px-4 py-3 font-black text-slate-500 uppercase tracking-widest text-[9px] w-28">Version</th>
-                <th className="px-4 py-3 font-black text-slate-500 uppercase tracking-widest text-[9px] w-40">Release Date</th>
-                <th className="px-4 py-3 font-black text-slate-500 uppercase tracking-widest text-[9px]">Sections & Bullet Points</th>
-                <th className="px-4 py-3 font-black text-slate-500 uppercase tracking-widest text-[9px] w-24 text-right">Actions</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px] w-28">Version</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px] w-40">Release Date</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Sections & Bullet Points</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-[10px] w-24 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">

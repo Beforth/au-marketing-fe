@@ -151,10 +151,7 @@ export const Navbar: React.FC = () => {
   }, [globalSearch, SEARCHABLE_ITEMS]);
 
   return (
-    <header
-      className="h-16 sticky top-0 bg-white/5 backdrop-blur-md z-40 ml-60 flex items-center justify-between relative transition-all duration-300"
-      style={{ paddingLeft: 'var(--ui-padding)', paddingRight: 'var(--ui-padding)' }}
-    >
+    <header className="h-16 sticky top-0 bg-white/5 backdrop-blur-md z-40 ml-60 flex items-center justify-between relative transition-all duration-300">
       <div className="absolute bottom-0 left-8 right-8 h-px bg-slate-200/50" />
       <div className="flex-1 max-w-lg relative">
         <SearchInput
@@ -208,7 +205,7 @@ export const Navbar: React.FC = () => {
           >
             <ClipboardList size={16} strokeWidth={2} />
             {dsrTasks.filter(t => t.status === 'pending').length > 0 && (
-              <span className={`text-[11px] font-black tracking-tight ${showDSR ? 'text-blue-50' : 'text-blue-600'}`}>
+              <span className={`text-sm font-semibold ${showDSR ? 'text-blue-50' : 'text-blue-600'}`}>
                 {dsrTasks.filter(t => t.status === 'pending').length}
               </span>
             )}
@@ -217,7 +214,7 @@ export const Navbar: React.FC = () => {
           {showDSR && (
             <div className="absolute top-full right-0 mt-3 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Today's DSR</span>
+                <span className="text-xs font-semibold text-slate-500">Today's DSR</span>
                 <button
                   onClick={(e) => { e.stopPropagation(); fetchDSR(); }}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
@@ -285,7 +282,7 @@ export const Navbar: React.FC = () => {
           >
             <Bell size={16} strokeWidth={2} />
             {unreadCount > 0 && (
-              <span className={`text-[11px] font-black tracking-tight ${showNotifications ? 'text-blue-50' : 'text-blue-600'}`}>
+              <span className={`text-sm font-semibold ${showNotifications ? 'text-blue-50' : 'text-blue-600'}`}>
                 {unreadCount}
               </span>
             )}
@@ -294,7 +291,7 @@ export const Navbar: React.FC = () => {
           {showNotifications && (
             <div className="absolute top-full right-0 mt-3 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Notifications</span>
+                <span className="text-xs font-semibold text-slate-500">Notifications</span>
                 <button
                   onClick={markAllAsRead}
                   className="text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-tight"
@@ -348,7 +345,7 @@ export const Navbar: React.FC = () => {
         </button>
         <div className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-50 transition-colors">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-[var(--primary)] text-white flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm">
+            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm">
               {userInitials}
             </div>
             <div className="hidden md:block text-right">

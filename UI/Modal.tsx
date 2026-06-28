@@ -49,7 +49,7 @@ export function Modal({ isOpen, onClose, title, children, footer, className, siz
         )}
       >
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
+          <h3 className="text-lg font-bold text-slate-900">
             {title}
           </h3>
           <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full h-8 w-8">

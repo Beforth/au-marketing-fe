@@ -220,7 +220,7 @@ export const CalendarBody = ({ features, children, onDateClick }: CalendarBodyPr
       >
         <div className="flex items-center justify-between">
           <span className="font-bold text-slate-700 group-hover/day:text-blue-600 transition-colors">{day}</span>
-          <span className="opacity-0 group-hover/day:opacity-100 text-[9px] font-black uppercase tracking-widest text-blue-500 transition-opacity whitespace-nowrap">
+          <span className="opacity-0 group-hover/day:opacity-100 text-xs font-medium text-blue-500 transition-opacity whitespace-nowrap">
             Add plan +
           </span>
         </div>
@@ -403,7 +403,7 @@ export const CalendarHeader = ({ className }: CalendarHeaderProps) => {
   return (
     <div className={cn('grid grid-cols-7 border-x border-slate-200 bg-slate-50/50', className)}>
       {daysForLocale(locale, startDay).map((day) => (
-        <div key={day} className="px-3 py-2.5 text-center text-slate-400 text-[10px] font-black uppercase tracking-widest border-r border-slate-200 last:border-r-0">
+        <div key={day} className="px-3 py-2.5 text-center text-slate-400 text-xs font-semibold uppercase tracking-wider border-r border-slate-200 last:border-r-0">
           {day}
         </div>
       ))}

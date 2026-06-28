@@ -33,7 +33,7 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
         value={value}
         className={cn(
           'w-full bg-white border border-slate-200 rounded-full outline-none transition-all shadow-sm',
-          inputSize === 'sm' ? 'h-9 pl-9 pr-9 text-xs' : 'h-10 pl-11 pr-10 text-sm font-medium',
+          inputSize === 'sm' ? 'h-9 pl-9 pr-9 text-xs' : 'h-10 pl-11 pr-10 text-[13px] font-medium',
           'placeholder:text-slate-400',
           'focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:shadow-md',
           'hover:border-slate-300 hover:bg-slate-50/50',

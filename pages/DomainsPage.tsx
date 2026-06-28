@@ -1172,12 +1172,12 @@ export const DomainsPage: React.FC = () => {
                   <div>
                     <div className="flex flex-row items-center justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                           {scopeText}
                         </h3>
                       </div>
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-lg font-black text-slate-900">{formatTargetAmount(achievedVal)}</span>
+                        <span className="text-lg font-bold text-slate-900">{formatTargetAmount(achievedVal)}</span>
                         <span className="text-sm font-bold text-slate-600">/ {formatTargetAmount(targetVal)}</span>
                       </div>
                     </div>
@@ -1249,7 +1249,7 @@ export const DomainsPage: React.FC = () => {
                         </>
                       )}
 
-                      <span className="absolute inset-0 flex items-center justify-end pr-2 text-[9px] font-black text-white mix-blend-difference z-20">
+                      <span className="absolute inset-0 flex items-center justify-end pr-2 text-[9px] font-semibold text-white mix-blend-difference z-20">
                         {pct.toFixed(1)}%
                       </span>
                     </div>
@@ -1345,12 +1345,12 @@ export const DomainsPage: React.FC = () => {
                   <div>
                     <div className="flex flex-row items-center justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-xs font-black uppercase tracking-wider text-sky-600">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-sky-600">
                           {qScopeText}
                         </h3>
                       </div>
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-lg font-black text-slate-900">{formatTargetAmount(totalQuoteVal)}</span>
+                        <span className="text-lg font-bold text-slate-900">{formatTargetAmount(totalQuoteVal)}</span>
                         <span className="text-sm font-bold text-slate-600">/ {formatTargetAmount(quoteTarget)}</span>
                       </div>
                     </div>
@@ -1422,7 +1422,7 @@ export const DomainsPage: React.FC = () => {
                         </>
                       )}
 
-                      <span className="absolute inset-0 flex items-center justify-end pr-2 text-[9px] font-black text-white mix-blend-difference z-20">
+                      <span className="absolute inset-0 flex items-center justify-end pr-2 text-[9px] font-semibold text-white mix-blend-difference z-20">
                         {quotePct.toFixed(1)}%
                       </span>
                     </div>

@@ -538,7 +538,7 @@ export const NumberingSeriesPage: React.FC = () => {
                       key: 'entity_type',
                       label: 'Used for',
                       render: (s) => (
-                        <span className="text-slate-600 text-[10px] font-black uppercase tracking-widest bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/50 shadow-sm">
+                        <span className="text-slate-600 text-[10px] font-semibold uppercase tracking-widest bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/50 shadow-sm">
                           {s.entity_type ? s.entity_type.charAt(0).toUpperCase() + s.entity_type.slice(1) : 'Generic'}
                         </span>
                       ),

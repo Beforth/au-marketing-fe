@@ -155,7 +155,7 @@ export const VersionsModal: React.FC<VersionsModalProps> = ({ isOpen, onClose })
               <div key={v.id} className="space-y-4 animate-in fade-in duration-300">
                 {/* Version & Date Header */}
                 <div className="flex items-center gap-3 border-b border-slate-100 pb-2">
-                  <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-blue-700 bg-blue-50 border border-blue-100 rounded-lg">
+                  <span className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg">
                     Version {v.version}
                   </span>
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
@@ -168,7 +168,7 @@ export const VersionsModal: React.FC<VersionsModalProps> = ({ isOpen, onClose })
                 <div className="space-y-6 pl-4 border-l-2 border-slate-100/80">
                   {v.sections.map((section) => (
                     <section key={section.title} className="space-y-2">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                         {section.title.toLowerCase().includes('bug') ? (
                           <Bug size={13} className="text-rose-500 animate-pulse" />
                         ) : (

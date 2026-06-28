@@ -80,7 +80,7 @@ export const LoginPage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           <p className="mt-4 text-sm text-slate-600">Checking authentication...</p>
         </div>
       </div>
@@ -90,7 +90,7 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen flex">
       {/* Left Section - Lottie Animation (60%) */}
-      <div className="hidden lg:flex lg:w-[60%] items-center justify-center bg-gradient-to-br from-[var(--primary)]/10 via-blue-50 to-purple-50 p-8">
+      <div className="hidden lg:flex lg:w-[60%] items-center justify-center bg-gradient-to-br from-blue-600/10 via-blue-50 to-purple-50 p-8">
         <div className="w-full h-full max-w-4xl flex items-center justify-center">
           {animationData ? (
             <Lottie
@@ -101,7 +101,7 @@ export const LoginPage: React.FC = () => {
             />
           ) : (
             <div className="flex items-center justify-center w-full h-full">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--primary)]"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
           )}
         </div>

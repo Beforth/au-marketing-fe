@@ -146,7 +146,7 @@ export const RolesPage: React.FC = () => {
                       <Shield size={16} className={color.text} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-black text-slate-900 truncate tracking-tight">{role.name}</p>
+                      <p className="text-[13px] font-semibold text-slate-900 truncate tracking-tight">{role.name}</p>
                       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{getLevelLabel(role.level)}</p>
                     </div>
                     {role.is_system_role && (
@@ -165,7 +165,7 @@ export const RolesPage: React.FC = () => {
 
                   {/* Footer */}
                   <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border ${color.bg} ${color.text} ${color.border}`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-widest border ${color.bg} ${color.text} ${color.border}`}>
                       {role.role_type ?? 'role'}
                     </span>
                     <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium">

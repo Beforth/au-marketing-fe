@@ -49,7 +49,7 @@ export const CustomTooltip = ({ active, payload, label }: any) => {
     return (
       <div className="bg-white border border-slate-200 p-3 rounded-lg shadow-lg shadow-slate-100/80">
         {label && (
-          <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2 pb-2 border-b border-slate-100">
+          <p className="text-xs font-semibold text-slate-500 mb-2 pb-2 border-b border-slate-100">
             {label}
           </p>
         )}

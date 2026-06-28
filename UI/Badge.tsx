@@ -10,10 +10,10 @@ export function Badge({ className, variant = 'default', ...props }: BadgeProps) 
     default: 'bg-slate-900 text-white border-transparent',
     secondary: 'bg-slate-100 text-slate-900 border-transparent hover:bg-slate-200',
     outline: 'text-slate-900 border-slate-200 bg-transparent',
-    success: 'bg-emerald-50 text-emerald-700 border-emerald-100 uppercase tracking-widest text-[9px] font-black',
-    warning: 'bg-amber-50 text-amber-700 border-amber-100 uppercase tracking-widest text-[9px] font-black',
-    danger: 'bg-rose-50 text-rose-700 border-rose-100 uppercase tracking-widest text-[9px] font-black',
-    info: 'bg-blue-50 text-blue-700 border-blue-100 uppercase tracking-widest text-[9px] font-black',
+    success: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    warning: 'bg-amber-50 text-amber-700 border-amber-100',
+    danger: 'bg-rose-50 text-rose-700 border-rose-100',
+    info: 'bg-blue-50 text-blue-700 border-blue-100',
   };
 
   return (

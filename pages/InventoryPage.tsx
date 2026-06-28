@@ -64,7 +64,7 @@ export const InventoryPage: React.FC = () => {
     {
       key: 'stock',
       label: 'Stock',
-      cellClassName: 'text-xs font-black text-slate-900 tabular-nums'
+      cellClassName: 'text-xs font-semibold text-slate-900 tabular-nums'
     },
     {
       key: 'status',
@@ -163,7 +163,7 @@ export const InventoryPage: React.FC = () => {
                   <AlertTriangle size={16} strokeWidth={2.5} />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black text-slate-900 leading-tight">Critical Depletion</h4>
+                  <h4 className="text-xs font-semibold text-slate-900 leading-tight">Critical Depletion</h4>
                   <p className="text-[10px] text-slate-500 font-medium leading-relaxed mt-1">
                     3 priority SKUs are currently below the safety stock margin.
                   </p>
@@ -171,7 +171,7 @@ export const InventoryPage: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest">
+                <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-400">Urgency</span>
                   <span className="text-amber-600">85%</span>
                 </div>

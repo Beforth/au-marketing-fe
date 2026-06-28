@@ -251,7 +251,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           disabled={disabled}
           className={cn(
             'w-full border rounded-lg text-left transition-all',
-            'focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]',
+            'focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600',
             'bg-white border-slate-300',
             inputSize === 'sm' && 'h-9 px-3 text-xs',
             inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
@@ -263,11 +263,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           <div className="flex items-center gap-2 flex-1 truncate">
             {showIcon && (
               icon ? (
-                <div className="text-slate-400 group-hover:text-[var(--primary)] transition-colors">
+                <div className="text-slate-400 group-hover:text-blue-600 transition-colors">
                   {icon}
                 </div>
               ) : (
-                <CalendarIcon size={16} className="text-slate-400 group-hover:text-[var(--primary)] transition-colors" />
+                <CalendarIcon size={16} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
               )
             )}
             <span className={cn('truncate', !value && 'text-slate-400')}>
@@ -296,7 +296,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex flex-col gap-0.5 pointer-events-auto">
                     <span className="text-xs font-bold text-slate-900 leading-none">{MONTHS[month]}</span>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setIsYearPickerOpen(!isYearPickerOpen); }} className={cn("text-[11px] flex items-center gap-1 mt-0.5 transition-colors font-medium rounded px-1 -ml-1", isYearPickerOpen ? "bg-[var(--primary)] text-white" : "text-slate-500 hover:text-[var(--primary)] hover:bg-[var(--primary-muted)]")}>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setIsYearPickerOpen(!isYearPickerOpen); }} className={cn("text-[11px] flex items-center gap-1 mt-0.5 transition-colors font-medium rounded px-1 -ml-1", isYearPickerOpen ? "bg-blue-600 text-white" : "text-slate-500 hover:text-blue-600 hover:bg-blue-50")}>
                       {year} <ChevronDown size={12} className={cn("transition-transform", isYearPickerOpen && "rotate-180")} />
                     </button>
                   </div>
@@ -309,7 +309,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 {isYearPickerOpen ? (
                   <div className="grid grid-cols-4 gap-1 h-[200px] overflow-y-auto pr-1 customize-scrollbar">
                     {Array.from({ length: 41 }, (_, i) => today.getFullYear() - 20 + i).map(y => (
-                      <button key={y} type="button" onClick={() => handleYearChange(y)} className={cn("py-1.5 text-xs rounded-lg transition-all", y === year ? "bg-[var(--primary)] text-white font-bold shadow-md shadow-[var(--primary)]/20" : "text-slate-600 hover:bg-[var(--primary-muted)] hover:text-[var(--primary)]")}>
+                      <button key={y} type="button" onClick={() => handleYearChange(y)} className={cn("py-1.5 text-xs rounded-lg transition-all", y === year ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20" : "text-slate-600 hover:bg-blue-50 hover:text-blue-600")}>
                         {y}
                       </button>
                     ))}
@@ -324,9 +324,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                         const selected = isSelected(day.date);
                         const current = isToday(day.date);
                         return (
-                          <button key={idx} type="button" onClick={() => handleSelectDate(day.date)} className={cn('aspect-square flex items-center justify-center text-xs rounded-lg transition-all relative', !day.currentMonth && 'text-slate-300', day.currentMonth && !selected && 'text-slate-700 hover:bg-[var(--primary-muted)] hover:text-[var(--primary)]', selected && 'bg-[var(--primary)] text-white font-bold shadow-md shadow-[var(--primary)]/20', current && !selected && 'text-[var(--primary)] font-bold')}>
+                          <button key={idx} type="button" onClick={() => handleSelectDate(day.date)} className={cn('aspect-square flex items-center justify-center text-xs rounded-lg transition-all relative', !day.currentMonth && 'text-slate-300', day.currentMonth && !selected && 'text-slate-700 hover:bg-blue-50 hover:text-blue-600', selected && 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20', current && !selected && 'text-blue-600 font-bold')}>
                             {day.date.getDate()}
-                            {current && !selected && <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[var(--primary)]" />}
+                            {current && !selected && <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-600" />}
                           </button>
                         );
                       })}
@@ -377,12 +377,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
             <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => { if (isMulti && onSelectedDatesChange) { const key = dateToKey(today); const next = new Set(selectedDates); if (next.has(key)) next.delete(key); else next.add(key); onSelectedDatesChange(next); } else { handleSelectDate(today); } }} className="text-xs font-semibold text-[var(--primary)] hover:underline">Today</button>
+                <button type="button" onClick={() => { if (isMulti && onSelectedDatesChange) { const key = dateToKey(today); const next = new Set(selectedDates); if (next.has(key)) next.delete(key); else next.add(key); onSelectedDatesChange(next); } else { handleSelectDate(today); } }} className="text-xs font-semibold text-blue-600 hover:underline">Today</button>
                 {showTime && showNow && <button type="button" onClick={() => updateValue(new Date())} className="text-xs font-semibold text-emerald-600 hover:underline">Now</button>}
               </div>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={(ee) => { if (isMulti && onSelectedDatesChange) { onSelectedDatesChange(new Set()); } else { handleClear(ee); } }} className="text-xs font-semibold text-slate-400 hover:text-rose-500 transition-colors">Clear</button>
-                {showTime && <button type="button" onClick={() => setIsOpen(false)} className="text-xs font-black uppercase tracking-widest bg-slate-900 text-white px-3 py-1.5 rounded-lg hover:bg-black transition-colors">Done</button>}
+                {showTime && <button type="button" onClick={() => setIsOpen(false)} className="text-xs font-semibold bg-slate-900 text-white px-3 py-1.5 rounded-lg hover:bg-black transition-colors">Done</button>}
               </div>
             </div>
           </div>,

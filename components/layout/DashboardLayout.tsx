@@ -16,10 +16,7 @@ export const DashboardLayout: React.FC = () => {
       <main className="flex-1 flex flex-col min-h-screen min-w-0 bg-[#f8fafc]">
         <Navbar />
 
-        <div
-          className="ml-60 flex-1 min-w-0 overflow-x-auto px-16 transition-all duration-500 relative"
-          style={{ paddingTop: 'calc(var(--ui-padding) * 2.5)', paddingBottom: 'var(--ui-padding)' }}
-        >
+        <div className="ml-60 flex-1 min-w-0 overflow-x-auto px-16 pt-[1.5625rem] pb-[0.625rem] transition-all duration-500 relative">
           {/* Subtle grid pattern for active work look */}
           <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] opacity-30 pointer-events-none -z-10" />
           

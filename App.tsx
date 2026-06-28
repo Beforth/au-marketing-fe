@@ -2,7 +2,6 @@
 import React, { useState, useMemo, createContext, useContext, useEffect, useCallback, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from './components/layout/DashboardLayout';
-import { ThemeProvider } from './context/ThemeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { loadAuthFromStorage, selectToken } from './store/slices/authSlice';
@@ -307,11 +306,9 @@ const AppMain: React.FC = () => {
 };
 
 const App: React.FC = () => (
-  <ThemeProvider>
-    <ErrorBoundary>
-      <AppMain />
-    </ErrorBoundary>
-  </ThemeProvider>
+  <ErrorBoundary>
+    <AppMain />
+  </ErrorBoundary>
 );
 
 export default App;

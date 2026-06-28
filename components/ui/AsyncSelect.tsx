@@ -273,10 +273,10 @@ export const AsyncSelect: React.FC<AsyncSelectProps> = ({
               {isLoading && options.length === 0 ? (
                 <div className="px-3 py-8 text-sm text-slate-500 text-center">
                   <Loader2 size={24} className="animate-spin mx-auto mb-2 text-blue-500 opacity-50" />
-                  <p className="text-xs uppercase tracking-widest font-black opacity-30">Loading options...</p>
+                  <p className="text-xs uppercase tracking-widest font-semibold opacity-30">Loading options...</p>
                 </div>
               ) : options.length === 0 ? (
-                <div className="px-3 py-6 text-sm text-slate-500 text-center uppercase tracking-widest font-black opacity-30">
+                <div className="px-3 py-6 text-sm text-slate-500 text-center uppercase tracking-widest font-semibold opacity-30">
                   No results found
                 </div>
               ) : (

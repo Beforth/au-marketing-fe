@@ -29,13 +29,13 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
           {item.href && index < items.length - 1 ? (
             <Link
               to={item.href}
-              className="text-xs font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors"
+              className="text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors"
             >
               {item.label}
             </Link>
           ) : (
             <span className={cn(
-              'text-xs font-black uppercase tracking-widest',
+              'text-xs font-semibold',
               index === items.length - 1 ? 'text-slate-900 border-b-2 border-blue-500/50 pb-0.5' : 'text-slate-500'
             )}>
               {item.label}

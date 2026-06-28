@@ -43,7 +43,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     variant === 'danger'
       ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-200'
       : variant === 'primary'
-        ? 'bg-[var(--primary)] hover:opacity-90 text-white'
+        ? 'bg-blue-600 hover:opacity-90 text-white'
         : 'bg-slate-800 hover:bg-slate-900 text-white';
 
   return (

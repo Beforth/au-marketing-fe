@@ -1081,6 +1081,7 @@ export const EventDetailPage: React.FC = () => {
   return (
     <PageLayout
       title={event.name || 'Event Details'}
+      description="Event details and attendee management."
       breadcrumbs={[
         { label: 'Events', href: '/events' },
         { label: event.name },

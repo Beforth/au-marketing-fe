@@ -217,7 +217,7 @@ function DashboardChangelogWidget() {
   return (
     <div className="p-4 space-y-3 max-h-[300px] overflow-y-auto customize-scrollbar">
       <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-        <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-blue-700 bg-blue-50 border border-blue-100 rounded-md">
+        <span className="px-2 py-0.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded-md">
           v{latest.version}
         </span>
         <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
@@ -227,7 +227,7 @@ function DashboardChangelogWidget() {
       <div className="space-y-3">
         {latest.sections?.slice(0, 2).map((section: any) => (
           <div key={section.title} className="space-y-1">
-            <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
+            <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-700 flex items-center gap-1">
               {section.title.toLowerCase().includes('bug') ? (
                 <Bug size={11} className="text-rose-500" />
               ) : (
@@ -421,8 +421,8 @@ function CustomSqlWidgetContent({
       )}>
         {getCardIcon(labelText || '')}
         <div className="min-w-0">
-          {labelText && <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">{labelText}</p>}
-          <p className={cn("text-xl font-black mt-0.5", valueColorClass)}>{valueText}</p>
+          {labelText && <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">{labelText}</p>}
+          <p className={cn("text-xl font-bold mt-0.5", valueColorClass)}>{valueText}</p>
           {rows.length > 1 && (
             <p className="text-[9px] text-slate-400">{`First of ${rows.length} records`}</p>
           )}
@@ -498,7 +498,7 @@ function CustomSqlWidgetContent({
               {/* Metrics */}
               <div className="text-right shrink-0">
                 <p className="text-sm font-bold text-slate-900">₹{revenue}</p>
-                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-0.5 flex items-center justify-end gap-1">
+                <p className="text-[9px] font-semibold text-emerald-600 uppercase tracking-widest mt-0.5 flex items-center justify-end gap-1">
                   <Check className="w-3 h-3" />
                   {won} won
                 </p>
@@ -607,10 +607,10 @@ function CustomSqlWidgetContent({
             </PieChart>
           </ResponsiveContainer>
           <div className={`absolute top-[37%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none w-[45%] overflow-hidden transition-opacity duration-200 ${hoveredSlice ? 'opacity-0' : 'opacity-100'}`}>
-            <p className={`font-black text-slate-900 leading-none transition-all duration-200 ${span === 1 ? 'text-base' : 'text-xl'}`}>
+            <p className={`font-bold text-slate-900 leading-none transition-all duration-200 ${span === 1 ? 'text-base' : 'text-xl'}`}>
               {hoveredSlice ? hoveredSlice.value.toLocaleString() : totalValue.toLocaleString()}
             </p>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5 transition-all duration-200 truncate px-1">
+            <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-1.5 transition-all duration-200 truncate px-1">
               {hoveredSlice ? hoveredSlice.name : 'Total'}
             </p>
           </div>
@@ -743,8 +743,8 @@ function CustomSqlWidgetContent({
               )}
             >
               <div className="flex flex-col gap-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{label}</p>
-                <p className="text-2xl font-black text-slate-900 leading-tight">{val}</p>
+                <p className="text-xs font-semibold text-slate-500">{label}</p>
+                <p className="text-2xl font-bold text-slate-900 leading-tight">{val}</p>
               </div>
         <div className={cn("p-2.5 rounded-xl shrink-0", iconBg)}>
                 {getCardIcon(label)}
@@ -764,7 +764,7 @@ function CustomSqlWidgetContent({
     const upper = str.toUpperCase();
     if (['URGENT', 'CRITICAL', 'HOT'].includes(upper)) {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200 shadow-sm">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200 shadow-sm">
           <span className="w-1.5 h-1.5 mr-1.5 rounded-full bg-rose-500 animate-pulse"></span>
           {str}
         </span>
@@ -772,21 +772,21 @@ function CustomSqlWidgetContent({
     }
     if (['TODAY', 'PENDING', 'FOLLOWUP', 'WARNING'].includes(upper)) {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 shadow-sm">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 shadow-sm">
           {str}
         </span>
       );
     }
     if (['SUCCESS', 'WON', 'COMPLETED', 'ACTIVE', 'DOMESTIC'].includes(upper)) {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
           {str}
         </span>
       );
     }
     if (['LOST', 'CANCELLED', 'INACTIVE', 'EXPORT'].includes(upper)) {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200 shadow-sm">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200 shadow-sm">
           {str}
         </span>
       );
@@ -815,7 +815,7 @@ function CustomSqlWidgetContent({
         <thead>
           <tr className="bg-slate-50 border-b border-slate-200/80">
             {keys.filter(k => k !== idKey).map((k) => (
-              <th key={k} className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">
+              <th key={k} className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs">
                 {k.replace(/_/g, ' ')}
               </th>
             ))}
@@ -1334,8 +1334,8 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-sm mb-1.5">
-                    <span className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Achieved this month</span>
-                    <span className="font-black text-slate-900 text-sm whitespace-nowrap">₹{(s.achieved_this_month / 1_00_000).toFixed(2)} Lacs</span>
+                    <span className="text-slate-500 text-xs font-semibold">Achieved this month</span>
+                    <span className="font-semibold text-slate-900 text-sm whitespace-nowrap">₹{(s.achieved_this_month / 1_00_000).toFixed(2)} Lacs</span>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
                     <div 
@@ -1350,15 +1350,15 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                 <div className="flex items-center gap-2.5 p-3 rounded-xl bg-gradient-to-br from-emerald-50/40 to-emerald-100/10 border border-emerald-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
                   <Trophy size={18} className="text-emerald-600 shrink-0" />
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Won leads (this month)</p>
-                    <p className="text-xl font-black text-emerald-800 mt-0.5">{s.won_leads_count_this_month}</p>
+                    <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Won leads (this month)</p>
+                    <p className="text-xl font-bold text-emerald-800 mt-0.5">{s.won_leads_count_this_month}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5 p-3 rounded-xl bg-gradient-to-br from-rose-50/40 to-rose-100/10 border border-rose-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
                   <XCircle size={18} className="text-rose-600 shrink-0" />
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Lost leads (this month)</p>
-                    <p className="text-xl font-black text-rose-800 mt-0.5">{s.lost_leads_count_this_month}</p>
+                    <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Lost leads (this month)</p>
+                    <p className="text-xl font-bold text-rose-800 mt-0.5">{s.lost_leads_count_this_month}</p>
                   </div>
                 </div>
               </div>
@@ -1382,43 +1382,43 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
               <div className="p-4 space-y-4">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="px-3.5 py-2.5 rounded-xl bg-gradient-to-br from-slate-50/40 to-slate-100/10 border border-slate-200/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Total leads</p>
-                    <p className="text-xl font-black text-slate-900 mt-1">{headSummary.total_leads}</p>
+                    <p className="text-xs font-semibold text-slate-500">Total leads</p>
+                    <p className="text-xl font-bold text-slate-900 mt-1">{headSummary.total_leads}</p>
                   </div>
                   <div className="px-3.5 py-2.5 rounded-xl bg-gradient-to-br from-amber-50/40 to-amber-100/10 border border-amber-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Hot cases</p>
-                    <p className="text-xl font-black text-amber-800 mt-1">{headSummary.hot_cases_count}</p>
+                    <p className="text-xs font-semibold text-slate-500">Hot cases</p>
+                    <p className="text-xl font-bold text-amber-800 mt-1">{headSummary.hot_cases_count}</p>
                   </div>
                   <div className="px-3.5 py-2.5 rounded-xl bg-gradient-to-br from-blue-50/40 to-blue-100/10 border border-blue-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Conversion ratio</p>
-                    <p className="text-xl font-black text-slate-900 mt-1">{headSummary.conversion_ratio_pct != null ? `${headSummary.conversion_ratio_pct}%` : '—'}</p>
+                    <p className="text-xs font-semibold text-slate-500">Conversion ratio</p>
+                    <p className="text-xl font-bold text-slate-900 mt-1">{headSummary.conversion_ratio_pct != null ? `${headSummary.conversion_ratio_pct}%` : '—'}</p>
                   </div>
                   <div className="flex gap-2">
                     <div className="flex-1 px-3 py-2 rounded-xl bg-gradient-to-br from-emerald-50/40 to-emerald-100/10 border border-emerald-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Won</p>
-                      <p className="text-lg font-black text-emerald-800 mt-0.5">{headSummary.won_count}</p>
+                      <p className="text-[9px] font-semibold uppercase tracking-widest text-emerald-600">Won</p>
+                      <p className="text-lg font-bold text-emerald-800 mt-0.5">{headSummary.won_count}</p>
                     </div>
                     <div className="flex-1 px-3 py-2 rounded-xl bg-gradient-to-br from-rose-50/40 to-rose-100/10 border border-rose-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-rose-600">Lost</p>
-                      <p className="text-lg font-black text-rose-800 mt-0.5">{headSummary.lost_count}</p>
+                      <p className="text-[9px] font-semibold uppercase tracking-widest text-rose-600">Lost</p>
+                      <p className="text-lg font-bold text-rose-800 mt-0.5">{headSummary.lost_count}</p>
                     </div>
                   </div>
                 </div>
 
                 {headSummary.region_breakdown.length > 0 && (
                   <div className="border border-slate-200/60 rounded-xl overflow-hidden shadow-xs bg-white">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 py-3 bg-slate-50/50 border-b border-slate-100">Region-wise split</p>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest px-4 py-3 bg-slate-50/50 border-b border-slate-100">Region-wise split</p>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs border-collapse">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-200/80">
-                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Region</th>
-                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Domain</th>
-                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Total</th>
-                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Won</th>
-                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Lost</th>
-                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Hot</th>
-                            <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Conv.%</th>
+                            <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs">Region</th>
+                            <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs">Domain</th>
+                            <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs text-right">Total</th>
+                            <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs text-right">Won</th>
+                            <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs text-right">Lost</th>
+                            <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs text-right">Hot</th>
+                            <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs text-right">Conv.%</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -1536,22 +1536,22 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
               {reportSummary != null && (
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="bg-gradient-to-br from-slate-50/40 to-slate-100/10 border border-slate-200/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 p-3.5 rounded-xl">
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{scopeLabel} leads (assigned)</p>
-                    <p className="text-2xl font-black text-slate-900 mt-1">{reportSummary.leads_total}</p>
+                    <p className="text-slate-500 text-xs font-semibold">{scopeLabel} leads (assigned)</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">{reportSummary.leads_total}</p>
                   </div>
                   <div className="bg-gradient-to-br from-blue-50/40 to-blue-100/10 border border-blue-100/60 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 p-3.5 rounded-xl">
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{scopeLabel} inquiries</p>
-                    <p className="text-2xl font-black text-slate-900 mt-1">{reportSummary.inquiries_count}</p>
+                    <p className="text-slate-500 text-xs font-semibold">{scopeLabel} inquiries</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">{reportSummary.inquiries_count}</p>
                   </div>
                 </div>
               )}
               {leadStatusCounts.length > 0 && (
                 <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Recent leads by status</p>
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Recent leads by status</p>
                   {leadStatusCounts.map(({ label, count }) => (
                     <div key={label} className="flex justify-between items-center text-xs py-1.5 border-b border-slate-100/60 hover:bg-slate-50/50 px-1 rounded transition-colors duration-150">
                       <span className="text-slate-600 font-semibold">{label}</span>
-                      <span className="font-black text-slate-900 bg-slate-100 px-2 py-0.5 rounded-full text-[10px]">{count}</span>
+                      <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-full text-[10px]">{count}</span>
                     </div>
                   ))}
                 </div>
@@ -1573,7 +1573,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                         </div>
                         <span className="text-slate-600 text-xs font-semibold">Inquiries logged</span>
                       </div>
-                      <span className="font-black text-slate-900 text-sm">{reportSummary.inquiries_count}</span>
+                      <span className="font-semibold text-slate-900 text-sm">{reportSummary.inquiries_count}</span>
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-br from-blue-50/40 to-blue-100/10 border border-blue-100/60 shadow-sm transition-all duration-300 hover:shadow-md">
                       <div className="flex items-center gap-2">
@@ -1582,7 +1582,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                         </div>
                         <span className="text-slate-600 text-xs font-semibold">Quotations sent</span>
                       </div>
-                      <span className="font-black text-blue-900 text-sm">{reportSummary.quotations_sent_count}</span>
+                      <span className="font-semibold text-blue-900 text-sm">{reportSummary.quotations_sent_count}</span>
                     </div>
                   </div>
                   <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => navigate('/reports')}>
@@ -1605,10 +1605,10 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-slate-200/80 bg-slate-50">
-                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Name</th>
-                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Company</th>
-                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Status</th>
-                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Next follow-up</th>
+                      <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs">Name</th>
+                      <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs">Company</th>
+                      <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs">Status</th>
+                      <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs">Next follow-up</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1632,7 +1632,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                 </table>
               )}
               <div className="p-2 border-t border-slate-100 bg-slate-50/30">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/leads')} className="text-xs font-black uppercase tracking-wider text-blue-600 hover:text-blue-700">
+                <Button variant="ghost" size="sm" onClick={() => navigate('/leads')} className="text-xs font-semibold text-blue-600 hover:text-blue-700">
                   View all leads →
                 </Button>
               </div>
@@ -1644,20 +1644,20 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
         return (
           <Card key={config.id} {...commonProps} title={config.title || 'Quick links'} description="Marketing module.">
             <div className="p-4 space-y-2">
-              <Button variant="ghost" size="sm" className="w-full justify-start font-black text-xs uppercase tracking-wider hover:bg-slate-50" onClick={() => navigate('/leads')} leftIcon={<Users size={14} />}>
+              <Button variant="ghost" size="sm" className="w-full justify-start font-semibold text-xs hover:bg-slate-50" onClick={() => navigate('/leads')} leftIcon={<Users size={14} />}>
                 Leads
               </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start font-black text-xs uppercase tracking-wider hover:bg-slate-50" onClick={() => navigate('/contacts')} leftIcon={<UserCircle size={14} />}>
+              <Button variant="ghost" size="sm" className="w-full justify-start font-semibold text-xs hover:bg-slate-50" onClick={() => navigate('/contacts')} leftIcon={<UserCircle size={14} />}>
                 Contacts
               </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start font-black text-xs uppercase tracking-wider hover:bg-slate-50" onClick={() => navigate('/customers')} leftIcon={<Users size={14} />}>
+              <Button variant="ghost" size="sm" className="w-full justify-start font-semibold text-xs hover:bg-slate-50" onClick={() => navigate('/customers')} leftIcon={<Users size={14} />}>
                 Customers
               </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start font-black text-xs uppercase tracking-wider hover:bg-slate-50" onClick={() => navigate('/quotations')} leftIcon={<Quote size={14} />}>
+              <Button variant="ghost" size="sm" className="w-full justify-start font-semibold text-xs hover:bg-slate-50" onClick={() => navigate('/quotations')} leftIcon={<Quote size={14} />}>
                 Quotations
               </Button>
               {canViewReport && (
-                <Button variant="ghost" size="sm" className="w-full justify-start font-black text-xs uppercase tracking-wider hover:bg-slate-50" onClick={() => navigate('/reports')} leftIcon={<FileText size={14} />}>
+                <Button variant="ghost" size="sm" className="w-full justify-start font-semibold text-xs hover:bg-slate-50" onClick={() => navigate('/reports')} leftIcon={<FileText size={14} />}>
                   Reports
                 </Button>
               )}
@@ -1678,8 +1678,8 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                 <Target size={20} className="text-blue-600" />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Metric</p>
-                <p className="text-2xl font-black text-slate-900 mt-0.5">{reportSummary?.leads_total ?? '—'}</p>
+                <p className="text-xs font-semibold text-slate-500">Metric</p>
+                <p className="text-2xl font-bold text-slate-900 mt-0.5">{reportSummary?.leads_total ?? '—'}</p>
               </div>
             </div>
           </Card>
@@ -1720,9 +1720,9 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-slate-200/80 bg-slate-50">
-                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Name</th>
-                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Company</th>
-                      <th className="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest text-[10px]">Status</th>
+                      <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs">Name</th>
+                      <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs">Company</th>
+                      <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-xs">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1814,8 +1814,8 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
               <div className={`flex items-center gap-2.5 p-3 rounded-xl transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 bg-gradient-to-br ${accentColor}`}>
                 <IconComponent size={18} className={`${iconColor} shrink-0`} />
                 <div className="min-w-0">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 truncate">{titleStr}</p>
-                  <p className={`text-xl font-black mt-0.5 ${hasData ? valueColor : 'text-slate-300'}`}>{hasData ? valueText : '—'}</p>
+                  <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-500 truncate">{titleStr}</p>
+                  <p className={`text-xl font-bold mt-0.5 ${hasData ? valueColor : 'text-slate-300'}`}>{hasData ? valueText : '—'}</p>
                   <p className="text-[9px] text-slate-400">
                     {hasData ? (
                       t.includes('team') ? 'Active members' :
@@ -1898,8 +1898,8 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
               <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white border border-slate-200/50">
                 <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-slate-400 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-300 truncate">Top Performer</p>
-                  <p className="text-xl font-black text-slate-300 mt-0.5">—</p>
+                  <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-300 truncate">Top Performer</p>
+                  <p className="text-xl font-bold text-slate-300 mt-0.5">—</p>
                   <p className="text-[9px] text-slate-400">Loading…</p>
                 </div>
               </div>
@@ -1907,8 +1907,8 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
               <div className="flex items-center gap-2.5 p-3 rounded-xl transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 bg-gradient-to-br from-amber-100/60 to-amber-50 border border-amber-200">
                 <Trophy size={18} className="text-amber-600 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 truncate">Top Performer</p>
-                  <p className="text-xl font-black text-amber-700 mt-0.5 truncate">{topPerformer.employee_name}</p>
+                  <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-500 truncate">Top Performer</p>
+                  <p className="text-xl font-bold text-amber-700 mt-0.5 truncate">{topPerformer.employee_name}</p>
                   <p className="text-[9px] text-slate-400">{topPerformer.achievement_pct}% · {topPerformer.won_count} won</p>
                 </div>
               </div>
@@ -1916,8 +1916,8 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
               <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white border border-slate-200/50">
                 <Trophy size={18} className="text-slate-300 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-300 truncate">Top Performer</p>
-                  <p className="text-xl font-black text-slate-300 mt-0.5">—</p>
+                  <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-300 truncate">Top Performer</p>
+                  <p className="text-xl font-bold text-slate-300 mt-0.5">—</p>
                   <p className="text-[9px] text-slate-400">No data</p>
                 </div>
               </div>
@@ -2199,7 +2199,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                   <div className="mx-auto h-20 w-20 bg-blue-50 rounded-3xl flex items-center justify-center mb-6 shadow-inner">
                     <LayoutIcon className="h-10 w-10 text-blue-500" />
                   </div>
-                  <h3 className="text-xl font-black text-slate-800 mb-2 tracking-tight">Your Workspace is Empty</h3>
+                  <h3 className="text-xl font-bold text-slate-800 mb-2 tracking-tight">Your Workspace is Empty</h3>
                   <p className="text-sm text-slate-500 mb-8 max-w-sm mx-auto font-medium leading-relaxed">Customize your command center by adding graphs, key metrics, or live data tables from the widget gallery.</p>
                   <Button size="lg" variant="primary" leftIcon={<Plus size={18} />} onClick={() => setShowAddWidgetModal(true)} disabled={!canCustomizeDashboard} className="shadow-xl shadow-blue-500/20 px-8 rounded-2xl h-11">
                     Initialize Dashboard

@@ -1341,7 +1341,7 @@ export const LeadsPage: React.FC = () => {
       <div className="mt-4">
         {isLoading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <p className="mt-4 text-sm text-slate-600">Loading leads...</p>
           </div>
         ) : (
@@ -1367,7 +1367,7 @@ export const LeadsPage: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <p className="text-slate-900 font-black text-sm uppercase tracking-widest">
+                    <p className="text-slate-900 font-semibold text-sm uppercase tracking-widest">
                       No leads found
                     </p>
                     {canCreate && (
@@ -2076,7 +2076,7 @@ export const LeadsPage: React.FC = () => {
               onChange={(e) => setCreateLeadForm((f) => ({ ...f, notes: e.target.value }))}
               placeholder="Notes"
               rows={2}
-              className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]/10 focus:border-[var(--primary)]"
+              className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-600"
             />
           </div>
         </div>
