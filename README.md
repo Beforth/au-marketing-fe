@@ -2,40 +2,122 @@
 
 **Brand:** S&M Hub · **Package:** `aether-erp-dashboard` · **Version:** 1.1.0
 
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript)
+![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)
+![Tailwind](https://img.shields.io/badge/Tailwind-3.4-06B6D4?logo=tailwindcss)
+![Vitest](https://img.shields.io/badge/Vitest-4.1-6E9F18?logo=vitest)
+
 A high-density, ERP-grade React SPA for Aureole Group's Sales & Marketing microservice. Built with React 19, TypeScript, Vite 6, and a bespoke Slate/Blue design system. Manages the full sales lifecycle — leads, orders, quotations, contacts, campaigns, exhibitions/roadshows, team performance, and DSR.
 
 ---
 
 ## Architecture
 
-```
-                             ┌─────────────────────────────┐
-                             │       S&M Hub Frontend      │
-                             │   React 19 + TypeScript     │
-                             │   Vite 6  ·  Tailwind 3     │
-                             │       Port 3000             │
-                             └──────────┬──────────────────┘
-                                        │
-                    ┌───────────────────┼───────────────────┐
-                    │                   │                   │
-                    ▼                   ▼                   ▼
-        ┌───────────────────┐ ┌─────────────────┐ ┌──────────────┐
-        │  Marketing API    │ │   HRMS RBAC     │ │   Firebase   │
-        │  FastAPI backend  │ │   Auth API      │ │   Cloud Msg  │
-        │  Port 8003        │ │   Port 8000     │ │   (Push)     │
-        └───────────────────┘ └─────────────────┘ └──────────────┘
-                    │
-                    ▼
-        ┌───────────────────┐
-        │   PostgreSQL 16   │
-        │   marketing_db    │
-        └───────────────────┘
+```mermaid
+graph TB
+    subgraph Frontend["S&M Hub Frontend (:3000)"]
+        REACT["React 19 + TypeScript<br/>Vite 6 · Tailwind 3"]
+    end
+
+    subgraph Backend["Marketing API (:8003)"]
+        FASTAPI["FastAPI · SQLAlchemy<br/>24 Routers · 150+ Endpoints"]
+        DB[("PostgreSQL 16<br/>marketing_db")]
+        WORKER["Background Worker<br/>APScheduler"]
+        FASTAPI --> DB
+        FASTAPI --> WORKER
+    end
+
+    subgraph HRMS["HRMS System (:8000)"]
+        AUTH["Auth API<br/>JWT · Permissions"]
+        RBAC["RBAC API<br/>Scope · Roles"]
+    end
+
+    subgraph EXTERNAL["External Services"]
+        FCM["Firebase Cloud<br/>Messaging"]
+        S3["AWS S3<br/>File Storage"]
+    end
+
+    Frontend -->|HTTP JSON| Backend
+    Frontend -->|Login / Permissions| HRMS
+    Frontend -->|Push Notifications| FCM
+    Backend -->|Auth Check| HRMS
+    Backend -->|File Upload| S3
+    Backend -->|Notification| FCM
 ```
 
 The frontend talks to three backends independently:
 - **Marketing API** for all business CRUD (leads, orders, events, etc.)
 - **HRMS RBAC** for login, permissions, and user info
 - **Firebase** for push notifications (optional)
+
+---
+
+## Lead Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> New : Create Lead
+    New --> Active : Qualify
+    Active --> Quotation : Send Quote
+    Quotation --> Negotiation : Follow-up
+    Negotiation --> Won : Closed-Won
+    Negotiation --> Lost : Closed-Lost
+    Active --> Lost : Disqualified
+    Won --> [*]
+    Lost --> [*]
+
+    note right of New
+        Auto-numbered via
+        Numbering Series
+    end note
+
+    note right of Quotation
+        PDF upload with
+        quote_value tracking
+    end note
+```
+
+---
+
+## Component Data Flow
+
+```mermaid
+flowchart LR
+    subgraph Pages["Route Pages"]
+        LP["LoginPage"]
+        DP["DashboardPage"]
+        LeadsP["LeadsPage"]
+        LFP["LeadFormPage"]
+        OP["OrdersPage"]
+        EP["EventsPage"]
+    end
+
+    subgraph State["Redux Store"]
+        AS["authSlice<br/>token · user · perms"]
+        DS["dsrSlice<br/>tasks"]
+        OPS["organizationPlantsSlice"]
+    end
+
+    subgraph API["API Layer"]
+        API_CLIENT["api.ts<br/>Base Client"]
+        MKT_API["marketing-api.ts<br/>~150 methods"]
+        HRMS_CLIENT["hrms-rbac.ts<br/>Auth Client"]
+    end
+
+    subgraph External["External"]
+        MKT_BE["Marketing API"]
+        HRMS_BE["HRMS RBAC"]
+        FCM["Firebase"]
+    end
+
+    Pages --> State
+    Pages --> API
+    API_CLIENT --> MKT_BE
+    API_CLIENT --> FCM
+    MKT_API --> MKT_BE
+    HRMS_CLIENT --> HRMS_BE
+```
 
 ---
 
@@ -54,6 +136,7 @@ The frontend talks to three backends independently:
 | UI Primitives | Radix UI (Tooltip, Dialog, Popover, Dropdown, Avatar) |
 | Auth | HRMS RBAC (JWT) |
 | Push | Firebase Cloud Messaging + OneSignal |
+| Testing | Vitest 4.1 + React Testing Library |
 | Data | date-fns, clsx, tailwind-merge, class-variance-authority |
 
 ---
@@ -99,13 +182,14 @@ au-marketing-fe/
 │   ├── middleware.ts             # auth:token-expired handler
 │   └── slices/                  # authSlice, dsrSlice, organizationPlantsSlice
 │
+├── src/test/                    # Vitest setup + smoke tests
 ├── context/                     # ThemeContext, AuthContext
 ├── UI/                          # Atomic components (Button, Input, Badge…)
 ├── public/                      # Static assets, logos, SW scripts
 │
 ├── design.md                    # Design system reference
 ├── UI_COMPONENTS_LIBRARY.md     # Component patterns
-├── CHANGELOG.md                 # v1.0.0 → v1.0.10
+├── CHANGELOG.md                 # Version history
 │
 ├── vite.config.ts, tsconfig.json, package.json, index.html
 └── .env.example
@@ -149,7 +233,77 @@ Protected behind `view_lead` | `create_lead` | `edit_lead` | `view_events` | `vi
 
 ---
 
+## Auth Flow
+
+```mermaid
+sequenceDiagram
+    participant B as Browser (React)
+    participant M as Marketing API
+    participant H as HRMS RBAC
+
+    B->>H: POST /api/rbac/login/
+    H-->>B: JWT + permissions + roles
+    Note over B: Store token + perms in Redux
+
+    B->>M: GET /api/leads/ (Authorization: Bearer JWT)
+    M->>H: GET /api/rbac/check-perm/
+    H-->>M: permitted (cached 5 min)
+    M-->>B: leads[] (scoped by role)
+
+    Note over B: Every UI element gated via selectHasPermission()
+```
+
+---
+
 ## Features
+
+```mermaid
+mindmap
+  root((S&M Hub))
+    Auth & RBAC
+      HRMS login
+      Permission-gated UI
+      Role-based scoping
+    Dashboard
+      KPI cards
+      Charts area/bar/pie
+      Saved dashboards
+      Performer of month
+    Leads
+      Kanban + Table
+      Dynamic statuses
+      Enquiries & Attachments
+      Quotations & Follow-ups
+    Orders
+      Kanban + Table
+      Order enquiries
+      File attachments
+    Database
+      Organizations
+      Customers
+      Contacts
+      Plants & conversion
+    Domains & Regions
+      Hierarchy
+      Heads/Coordinators
+      Employee assignments
+      Scoped access
+    Events
+      Exhibition/Roadshow
+      Stall/Space booking
+      Travel & Gifting
+      Proof uploads
+    Reports
+      Team performance
+      Expected Orders
+      OD Plans
+      DSR submissions
+    Admin
+      Numbering Series
+      Settings engine
+      Audit logging
+      Role management
+```
 
 - **Auth & RBAC** — HRMS login, every UI element permission-gated
 - **Dashboard** — KPI cards, area/bar/pie charts, saved dashboards, performer of month
@@ -165,27 +319,6 @@ Protected behind `view_lead` | `create_lead` | `edit_lead` | `view_events` | `vi
 - **Push Notifications** — Firebase FCM + in-app toast
 - **Settings Engine** — Live-updating visibility rules with role-specific overrides
 - **Audit Logging** — Full change history per entity
-
----
-
-## Auth Flow
-
-```
-┌──────────┐     POST /api/rbac/login/     ┌───────────┐
-│  Browser │ ──────────────────────────────▶│   HRMS   │
-│  (React) │                                │   RBAC   │
-│          │◀──────────────────────────────│   API    │
-│          │   JWT + permissions + roles    └───────────┘
-│          │
-│          │     GET /api/leads/            ┌───────────┐
-│          │ ──────────────────────────────▶│ Marketing │
-│          │   Authorization: Bearer JWT    │   API     │
-│          │◀──────────────────────────────│  FastAPI  │
-│          │   leads[] (scoped by role)     └───────────┘
-└──────────┘
-```
-
-Permissions flow: HRMS login → fetch permissions list → store in Redux → gate every button/route via `selectHasPermission()`.
 
 ---
 
@@ -214,6 +347,8 @@ Full reference in [`design.md`](./design.md) and [`UI_COMPONENTS_LIBRARY.md`](./
 npm install
 npm run dev        # → http://localhost:3000 (HMR)
 npm run build      # → dist/ with sourcemaps
+npm run test       # → Vitest (watch)
+npm run test:run   # → Vitest (CI)
 ```
 
 ---
