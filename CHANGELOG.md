@@ -5,7 +5,7 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-06-28] — Typography Cleanup & Design System Overhaul (v1.1.2)
+## [2026-06-28] — Typography Cleanup & Design System Overhaul (v1.1.1)
 
 ### 🖥️ Frontend
 

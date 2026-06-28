@@ -13,7 +13,7 @@ import { API_CONFIG } from '../../lib/api';
 export const Sidebar: React.FC = () => {
   const [showChangelog, setShowChangelog] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState('v1.1.0');
+  const [appVersion, setAppVersion] = useState('v1.1.1');
   const userDisplayName = useAppSelector(selectUserDisplayName);
   const userInitials = useAppSelector(selectUserInitials);
   const employee = useAppSelector(selectEmployee);
