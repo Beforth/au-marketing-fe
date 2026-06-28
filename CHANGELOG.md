@@ -78,6 +78,10 @@ Format: `[Date] — Category: Description`
 | `pages/SupportPage.tsx` | Label/header typography cleanup |
 | `design.md` | Full rewrite |
 
+---
+
+## [2026-06-27] — Events Visitors, Domain Scoping, CRM Allocation Sync, Permissions Cleanup & Docs Overhaul (v1.1.0)
+
 ### 🎪 Events Module — Visitors & Domain Scoping
 - **Visitors Tab**: Added to both Exhibition and Roadshow event detail pages with inline form editing, Async Contact Search (auto-fills name/email/phone/company/job), Employee Allocation selector, Checked-in tracking, and status badges.
 - **Domain Selection**: Added Domain dropdown to Event form (defaults to user's primary domain, read-only when editing).
