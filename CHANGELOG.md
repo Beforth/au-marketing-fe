@@ -5,7 +5,78 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-06-28] — Events Visitors, Domain Scoping, CRM Allocation Sync, Permissions Cleanup & Docs Overhaul (v1.1.0)
+## [2026-06-28] — Typography Cleanup & Design System Overhaul (v1.1.2)
+
+### 🖥️ Frontend
+
+#### Typography Overhaul
+- **Font**: Added Inter (weights 400–700) as secondary font family alongside Outfit.
+- **Removed `font-black` (900)** across the entire app — replaced with `font-semibold` (labels, table headers, breadcrumbs, badges, nav) or `font-bold` (titles, section headers, KPI values).
+- **Removed `uppercase`** from all labels, badges, breadcrumbs, buttons, card titles, and nav items — text is now sentence-case everywhere.
+- **Removed custom pixel sizes** (`text-[9px]`, `text-[10px]`, `text-[11px]`) — all text uses standard Tailwind scale (`text-xs`, `text-sm`, `text-base`).
+- **Removed `tracking-widest`** — only `tracking-tight` (page title) and `tracking-wider` (table headers) remain.
+
+#### Component Updates
+- **Card**: Title → `text-base font-semibold text-slate-900`, Description → `text-sm text-slate-500 font-medium`.
+- **Form labels** (Select, DatePicker, Input, Label): `text-sm font-medium text-slate-500` (was `text-[11px] font-black uppercase tracking-widest`).
+- **Table headers**: `text-xs font-semibold text-slate-500 uppercase tracking-wider` (was `text-[11px] font-black uppercase tracking-widest`).
+- **Breadcrumbs**: `text-xs font-semibold text-slate-500` (was `font-black uppercase tracking-widest`).
+- **Page title**: `text-4xl font-bold text-slate-900 tracking-tight leading-none whitespace-nowrap` (was `text-2xl font-semibold`).
+- **Page description**: `text-sm text-slate-500 font-medium` with `gap-1` spacing from title.
+- **KPI card labels**: `text-xs font-semibold text-slate-500` (no uppercase/tracking).
+- **DatePicker**: Cleaned up button typography, primary color changed from CSS vars to `blue-600`.
+- **Badges**: Stripped custom typography — use variant-based color only.
+
+#### Layout
+- **DashboardLayout**: Replaced dynamic CSS variable padding with static `pt-[1.5625rem] pb-[0.625rem]`, added subtle grid background pattern.
+- **Removed ThemeProvider**: Stripped `ThemeContext.tsx` and all density CSS variables (`--ui-padding`, `--ui-gap`, `--ui-radius`).
+
+#### Page Descriptions
+- **EventsListPage**: Added `description="Manage marketing events and roadshows."`.
+- **EventDetailPage**: Added `description="Event details and attendee management."`.
+
+#### Documentation
+- **design.md**: Full rewrite to reflect all typography, component, and layout changes.
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `App.tsx` | Removed ThemeProvider wrapper |
+| `context/ThemeContext.tsx` | Deleted entire file |
+| `index.html` | Added Inter font |
+| `components/layout/DashboardLayout.tsx` | Static padding, grid background |
+| `components/layout/PageLayout.tsx` | Title/description typography, gap fix |
+| `UI/Badge.tsx` | Stripped font-black/uppercase |
+| `UI/Breadcrumb.tsx` | font-black → font-semibold, removed uppercase/tracking |
+| `UI/Card.tsx`, `components/ui/Card.tsx` | Title: text-base font-semibold, description: text-sm font-medium |
+| `UI/DatePicker.tsx`, `components/ui/DatePicker.tsx` | Button typography cleanup, css vars → blue-600 |
+| `UI/Input.tsx`, `components/ui/Input.tsx` | Label typography, focus colors |
+| `UI/Label.tsx`, `components/ui/Label.tsx` | text-sm font-medium |
+| `UI/Modal.tsx`, `components/ui/ConfirmModal.tsx` | Title font-bold, removed uppercase |
+| `UI/Select.tsx` | Label typography, focus ring colors |
+| `UI/Table.tsx` | Header font-semibold, removed tracking-widest |
+| `components/ProtectedRoute.tsx` | Cleaned up leftover typography |
+| `components/VersionsModal.tsx`, `components/ui/VersionsSettings.tsx` | font-black → font-semibold/bold, removed uppercase |
+| `components/ui/AsyncSelect.tsx` | font-black → font-semibold |
+| `components/ui/ChartsSection.tsx` | font-black → font-bold, removed uppercase |
+| `components/ui/Navbar.tsx` | Button labels: text-sm font-semibold, removed uppercase/tracking |
+| `components/ui/SearchInput.tsx` | Input text-[13px], focus colors |
+| `components/ui/calendar.tsx` | font-black → font-semibold |
+| `pages/DashboardPage.tsx` | KPI card gradient labels, chart cleanups |
+| `pages/DomainsPage.tsx` | Removed uppercase/tracking-widest |
+| `pages/EventDetailPage.tsx` | Added description |
+| `pages/EventsListPage.tsx` | Added description |
+| `pages/FinancialsPage.tsx` | Label/header typography cleanup |
+| `pages/InventoryPage.tsx` | Label/header typography cleanup |
+| `pages/LeadFormPage.tsx` | Label/header typography cleanup |
+| `pages/LeadsPage.tsx` | Label/header typography cleanup |
+| `pages/LoginPage.tsx` | Label/header typography cleanup |
+| `pages/NumberingSeriesPage.tsx` | Label/header typography cleanup |
+| `pages/QuotationsPage.tsx` | Label/header typography cleanup |
+| `pages/RolesPage.tsx` | Label/header typography cleanup |
+| `pages/SettingsPage.tsx` | Label/header typography cleanup |
+| `pages/SupportPage.tsx` | Label/header typography cleanup |
+| `design.md` | Full rewrite |
 
 ### 🎪 Events Module — Visitors & Domain Scoping
 - **Visitors Tab**: Added to both Exhibition and Roadshow event detail pages with inline form editing, Async Contact Search (auto-fills name/email/phone/company/job), Employee Allocation selector, Checked-in tracking, and status badges.
