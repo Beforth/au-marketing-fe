@@ -17,105 +17,115 @@ transitions, scale-on-click, slide-in reveals). Tone is **utilitarian-premium**.
 ## 2. Colors (Tailwind classes only)
 
 ### Primary / Brand
-| Class | Hex | Usage |
-|---|---|---|
-| `blue-600` | `#2563eb` | Buttons, active nav, switch-on, focus rings, active tab |
-| `blue-700` | `#1d4ed8` | Hover on blue-600 |
-| `blue-50` | `#eff6ff` | Muted bg for active/hover, role badges |
-| `blue-100` | `#dbeafe` | Borders for blue-tinted elements |
-| `blue-500/10` | — | Focus ring (ring-2) |
-| `blue-500/20` | — | SearchBar focus ring (ring-4) |
+
+| Class           | Hex         | Usage                                                   |
+| --------------- | ----------- | ------------------------------------------------------- |
+| `blue-600`    | `#2563eb` | Buttons, active nav, switch-on, focus rings, active tab |
+| `blue-700`    | `#1d4ed8` | Hover on blue-600                                       |
+| `blue-50`     | `#eff6ff` | Muted bg for active/hover, role badges                  |
+| `blue-100`    | `#dbeafe` | Borders for blue-tinted elements                        |
+| `blue-500/10` | —          | Focus ring (ring-2)                                     |
+| `blue-500/20` | —          | SearchBar focus ring (ring-4)                           |
 
 ### Neutral (Slate scale)
-| Class | Hex | Usage |
-|---|---|---|
-| `slate-900` | `#0f172a` | Primary text, headings, bold values |
-| `slate-800` | `#1e293b` | Secondary button bg, item titles |
-| `slate-700` | `#334155` | Label text, medium-contrast body |
-| `slate-600` | `#475569` | Table cell text, nav items |
-| `slate-500` | `#64748b` | Secondary/placeholder text, icons, card description text |
+
+| Class         | Hex         | Usage                                                       |
+| ------------- | ----------- | ----------------------------------------------------------- |
+| `slate-900` | `#0f172a` | Primary text, headings, bold values                         |
+| `slate-800` | `#1e293b` | Secondary button bg, item titles                            |
+| `slate-700` | `#334155` | Label text, medium-contrast body                            |
+| `slate-600` | `#475569` | Table cell text, nav items                                  |
+| `slate-500` | `#64748b` | Secondary/placeholder text, icons, card description text    |
 | `slate-400` | `#94a3b8` | Placeholders, disabled text, subtle icons, empty state text |
-| `slate-300` | `#cbd5e1` | Scrollbar thumb, chevron icons |
-| `slate-200` | `#e2e8f0` | Borders, dividers, skeleton bg |
-| `slate-100` | `#f1f5f9` | Hover bg, table header bg tint, skeleton |
-| `slate-50` | `#f8fafc` | Page background, table header bg |
+| `slate-300` | `#cbd5e1` | Scrollbar thumb, chevron icons                              |
+| `slate-200` | `#e2e8f0` | Borders, dividers, skeleton bg                              |
+| `slate-100` | `#f1f5f9` | Hover bg, table header bg tint, skeleton                    |
+| `slate-50`  | `#f8fafc` | Page background, table header bg                            |
 
 ### Semantic
-| Class | Hex | Usage |
-|---|---|---|
-| `emerald-50` | `#ecfdf5` | Success badge/notification bg |
-| `emerald-100` | `#d1fae5` | Success badge border |
-| `emerald-500` | `#10b981` | Success icon |
-| `emerald-600` | `#059669` | Completed count, positive trend text |
-| `emerald-700` | `#047857` | Success badge text |
-| `amber-50` | `#fffbeb` | Warning badge/notification bg |
-| `amber-100` | `#fef3c7` | Warning badge border |
-| `amber-500` | `#f59e0b` | Warning icon, pending count |
-| `amber-600` | `#d97706` | Pending section header |
-| `amber-700` | `#b45309` | Warning badge text |
-| `rose-50` | `#fff1f2` | Error/danger button hover bg |
-| `rose-500` | `#f43f5e` | Error icon, lost count |
-| `rose-600` | `#e11d48` | Danger button, error border, required asterisk |
-| `purple-600` | `#9333ea` | Orders count accent |
+
+| Class           | Hex         | Usage                                          |
+| --------------- | ----------- | ---------------------------------------------- |
+| `emerald-50`  | `#ecfdf5` | Success badge/notification bg                  |
+| `emerald-100` | `#d1fae5` | Success badge border                           |
+| `emerald-500` | `#10b981` | Success icon                                   |
+| `emerald-600` | `#059669` | Completed count, positive trend text           |
+| `emerald-700` | `#047857` | Success badge text                             |
+| `amber-50`    | `#fffbeb` | Warning badge/notification bg                  |
+| `amber-100`   | `#fef3c7` | Warning badge border                           |
+| `amber-500`   | `#f59e0b` | Warning icon, pending count                    |
+| `amber-600`   | `#d97706` | Pending section header                         |
+| `amber-700`   | `#b45309` | Warning badge text                             |
+| `rose-50`     | `#fff1f2` | Error/danger button hover bg                   |
+| `rose-500`    | `#f43f5e` | Error icon, lost count                         |
+| `rose-600`    | `#e11d48` | Danger button, error border, required asterisk |
+| `purple-600`  | `#9333ea` | Orders count accent                            |
 
 ### Dashboard Chart Palette
-| Index | Color | Hex | Usage |
-|---|---|---|---|
-| 1 | Blue | `#3b82f6` | Primary chart series |
-| 2 | Emerald | `#10b981` | Revenue, won, positive |
-| 3 | Amber | `#f59e0b` | Conversions, pending (not rose/red) |
-| 4 | Red | `#ef4444` | Lost, negatives |
-| 5 | Violet | `#8b5cf6` | Premium / won alternate |
-| 6 | Cyan | `#06b6d4` | Informational series |
-| 7 | Orange | `#f97316` | Urgent / warning series |
+
+| Index | Color   | Hex         | Usage                               |
+| ----- | ------- | ----------- | ----------------------------------- |
+| 1     | Blue    | `#3b82f6` | Primary chart series                |
+| 2     | Emerald | `#10b981` | Revenue, won, positive              |
+| 3     | Amber   | `#f59e0b` | Conversions, pending (not rose/red) |
+| 4     | Red     | `#ef4444` | Lost, negatives                     |
+| 5     | Violet  | `#8b5cf6` | Premium / won alternate             |
+| 6     | Cyan    | `#06b6d4` | Informational series                |
+| 7     | Orange  | `#f97316` | Urgent / warning series             |
 
 Each palette entry includes gradient fill colors (`stroke`, `start`, `end`) — defined in `CHART_COLOR_PALETTES` in `DashboardPage.tsx`. Unified across all render paths: `getCardIcon`, `number-card` gradient, and standalone KPI cards.
 
 ### Surface
-| Value | Usage |
-|---|---|
-| `bg-white` | Cards, modals, inputs, sidebar, navbar |
-| `bg-white/5 backdrop-blur-md` | Navbar glass effect |
-| `bg-slate-50` | Page background |
+
+| Value                           | Usage                                  |
+| ------------------------------- | -------------------------------------- |
+| `bg-white`                    | Cards, modals, inputs, sidebar, navbar |
+| `bg-white/5 backdrop-blur-md` | Navbar glass effect                    |
+| `bg-slate-50`                 | Page background                        |
 
 ---
 
 ## 3. Typography
 
 ### Font
+
 `font-family: 'Outfit', sans-serif` (Google Fonts, weights 300–900)
 `font-family: 'Inter', sans-serif` (Google Fonts, weights 400, 500, 600, 700) — secondary fallback
 
 ### Size Scale
-| Class | px | Usage |
-|---|---|---|
-| `text-xs` | 12 | Table headers (uppercase), pagination, small UI text, secondary info, meta labels |
-| `text-sm` | 14 | Body text, input text, table cells, card descriptions, labels |
-| `text-base` | 16 | Compact KPI values, card title |
-| `text-lg` | 18 | Modal title |
-| `text-xl` | 20 | KPI card values, login subtitles |
-| `text-2xl` | 24 | StatCard value |
-| `text-4xl` | 36 | Page title (h1) |
+
+| Class         | px | Usage                                                                             |
+| ------------- | -- | --------------------------------------------------------------------------------- |
+| `text-xs`   | 12 | Table headers (uppercase), pagination, small UI text, secondary info, meta labels |
+| `text-sm`   | 14 | Body text, input text, table cells, card descriptions, labels                     |
+| `text-base` | 16 | Compact KPI values, card title                                                    |
+| `text-lg`   | 18 | Modal title                                                                       |
+| `text-xl`   | 20 | KPI card values, login subtitles                                                  |
+| `text-2xl`  | 24 | StatCard value                                                                    |
+| `text-4xl`  | 36 | Page title (h1)                                                                   |
 
 No custom pixel sizes (`text-[9px]`, `text-[10px]`, `text-[11px]`) — all text uses the standard Tailwind scale.
 
 ### Weights
-| Class | Weight | Usage |
-|---|---|---|
-| `font-medium` | 500 | Body, card descriptions, segment toggle labels, input text |
-| `font-semibold` | 600 | Labels, table headers, breadcrumbs, card subtitles, toast messages, nav items, badge text, filter labels, "Today" button, empty/loading states |
-| `font-bold` | 700 | Page title, modal title, card values, KPI values, "View All" links, "Today" button (date picker), section titles |
+
+| Class             | Weight | Usage                                                                                                                                          |
+| ----------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `font-medium`   | 500    | Body, card descriptions, segment toggle labels, input text                                                                                     |
+| `font-semibold` | 600    | Labels, table headers, breadcrumbs, card subtitles, toast messages, nav items, badge text, filter labels, "Today" button, empty/loading states |
+| `font-bold`     | 700    | Page title, modal title, card values, KPI values, "View All" links, "Today" button (date picker), section titles                               |
 
 `font-black` (900) is not used.
 
 ### Letter Spacing
-| Class | Value | Usage |
-|---|---|---|
-| `tracking-tight` | -0.025em | Page title (h1) only |
-| `tracking-wider` | 0.05em | Table headers (uppercase), "View All" links (uppercase) |
-| `tracking-widest` | 0.1em | Not used |
+
+| Class               | Value    | Usage                                                   |
+| ------------------- | -------- | ------------------------------------------------------- |
+| `tracking-tight`  | -0.025em | Page title (h1) only                                    |
+| `tracking-wider`  | 0.05em   | Table headers (uppercase), "View All" links (uppercase) |
+| `tracking-widest` | 0.1em    | Not used                                                |
 
 ### Common Text Patterns
+
 ```
 Page title (h1):
   text-4xl font-bold text-slate-900 tracking-tight leading-none whitespace-nowrap
@@ -176,6 +186,7 @@ Pagination / loading text:
 ## 4. Spacing & Layout
 
 ### Layout Structure
+
 ```
 Sidebar:               w-60 (240px), fixed left-0 top-0, h-screen
 Navbar:                h-16 (64px), sticky top-0, ml-60
@@ -184,6 +195,7 @@ PageLayout wrapper:    pt-[1.5625rem] pb-[0.625rem]
 ```
 
 ### Grid Background (DashboardLayout)
+
 ```css
 background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
 background-size: 24px 24px;
@@ -191,6 +203,7 @@ opacity: 0.3;
 ```
 
 ### Common Spacing
+
 ```
 Filters card inner:     flex flex-wrap items-end gap-3
 Filter label:           text-xs font-semibold text-slate-700 ml-0.5
@@ -219,6 +232,7 @@ Input:                  h-11 px-4 py-2 rounded-xl
 ## 5. Components
 
 ### Card
+
 ```
 Base:    bg-white border border-slate-200/50 rounded-[1.25rem]
          shadow-[0_1px_3px_rgba(0,0,0,0.05),0_10px_40px_-15px_rgba(0,0,0,0.02)]
@@ -232,6 +246,7 @@ Content:      flex-1
 ```
 
 ### Button
+
 ```
 Variants:
   primary:   bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98]
@@ -248,6 +263,7 @@ Base: inline-flex items-center justify-center transition-all duration-200
 ```
 
 ### Select
+
 ```
 Base:     h-11 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium
 Focus:    ring-2 ring-blue-500/10 focus:border-blue-600
@@ -256,6 +272,7 @@ Chevron:  position absolute right-3 top-3.5 h-4 w-4 text-slate-400
 ```
 
 ### DatePicker
+
 ```
 Base:     h-11 rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-medium
 Icon:     Calendar/Clock at left-4, turns text-blue-600 on focus
@@ -268,6 +285,7 @@ Done:     text-xs font-semibold bg-slate-900 text-white px-3 py-1.5 rounded-lg
 ```
 
 ### Breadcrumb
+
 ```
 Container:  flex items-center gap-2 mb-6
 Item:       text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors
@@ -280,6 +298,7 @@ Separator:  ChevronRight size={14} text-slate-300
 ## 6. KPI / Metric Cards
 
 ### Default KPI Card Pattern (full size)
+
 ```
 <Card noPadding>
   <div className="p-4">
@@ -292,6 +311,7 @@ Separator:  ChevronRight size={14} text-slate-300
 ```
 
 ### Compact KPI Card Pattern (horizontal, for dashboards/overviews)
+
 ```
 <Card noPadding className="min-h-0">
   <div className="px-3 py-2.5 flex items-center gap-3">
@@ -305,6 +325,7 @@ Separator:  ChevronRight size={14} text-slate-300
 ```
 
 ### Gradient KPI Card (Dashboard number-card widgets)
+
 ```
 className: bg-gradient-to-br from-{color}-50/40 to-{color}-100/10
            border border-{color}-100/60
@@ -329,6 +350,7 @@ Accent color by keyword:
 ## 7. Common Page Layout Patterns
 
 ### Standard Page Structure
+
 ```tsx
 <PageLayout title="Page Title" description="Description text." breadcrumbs={[{ label, href }]}>
   {/* 1. Filters Card */}
@@ -363,11 +385,13 @@ Accent color by keyword:
 ```
 
 ### Page title + description gap
+
 ```
 gap-1 (4px) between title and description
 ```
 
 ### Loading State (Skeleton)
+
 ```
 <div className="animate-pulse space-y-3">
   <div className="h-16 bg-slate-200 rounded-lg" />
@@ -376,6 +400,7 @@ gap-1 (4px) between title and description
 ```
 
 ### Empty State
+
 ```
 <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
   <Icon size={28} />
@@ -384,6 +409,7 @@ gap-1 (4px) between title and description
 ```
 
 ### List Items (within cards)
+
 ```
 <div className="border border-slate-200 rounded-lg p-3">
   <p className="text-sm font-semibold text-slate-800">Title</p>
@@ -393,6 +419,7 @@ gap-1 (4px) between title and description
 ```
 
 ### Clickable List Items
+
 ```
 <div className="border border-slate-200 rounded-lg p-3 cursor-pointer
             hover:border-blue-200 hover:bg-blue-50/20 transition-colors"
@@ -402,6 +429,7 @@ gap-1 (4px) between title and description
 ```
 
 ### "View All" Link
+
 ```
 <button className="w-full py-2 text-sm font-bold text-blue-600
                    hover:text-blue-700 transition-colors text-center">
@@ -414,25 +442,28 @@ gap-1 (4px) between title and description
 ## 8. Icon Conventions
 
 ### Library
+
 `lucide-react` — named imports only.
 
 ### Common Icons
-| Context | Icon | Size |
-|---|---|---|
-| KPI labels | Per keyword | 14 |
-| KPI compact | Per keyword | 18 |
-| Sidebar nav | Per page | 18 |
-| Date filter | `Calendar` | 14 |
-| Empty state | Per section | 28 |
-| Edit | `Edit` | 12–14 |
-| Delete | `Trash2` | 12–14 |
-| Refresh | `RefreshCw` | 13–15 |
-| Search | `Search` | 14 |
-| Chevron | `ChevronDown/Right` | 14 |
-| Close | `X` | 14–16 |
-| Arrow | `ArrowRight` | 10–14 |
+
+| Context     | Icon                  | Size   |
+| ----------- | --------------------- | ------ |
+| KPI labels  | Per keyword           | 14     |
+| KPI compact | Per keyword           | 18     |
+| Sidebar nav | Per page              | 18     |
+| Date filter | `Calendar`          | 14     |
+| Empty state | Per section           | 28     |
+| Edit        | `Edit`              | 12–14 |
+| Delete      | `Trash2`            | 12–14 |
+| Refresh     | `RefreshCw`         | 13–15 |
+| Search      | `Search`            | 14     |
+| Chevron     | `ChevronDown/Right` | 14     |
+| Close       | `X`                 | 14–16 |
+| Arrow       | `ArrowRight`        | 10–14 |
 
 ### Icon Colors
+
 ```
 text-slate-400     — default inactive
 text-slate-500     — slightly more prominent inactive
@@ -458,30 +489,30 @@ Dashboard:      grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4
 
 ## 10. Shadow Styles
 
-| Context | Shadow |
-|---|---|
-| Card default | `shadow-[0_1px_3px_rgba(0,0,0,0.05),0_10px_40px_-15px_rgba(0,0,0,0.02)]` |
-| Card hover | `hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.08)] hover:border-blue-200/50 hover:-translate-y-1` |
-| Modal | `shadow-2xl` |
-| Notification panel | `shadow-2xl` |
-| Tooltip | `shadow-lg shadow-slate-100/80` |
-| StatCard | `shadow-[0_2px_4px_rgba(0,0,0,0.02),0_1px_0_rgba(0,0,0,0.02)]` |
-| StatCard hover | `hover:shadow-xl hover:shadow-blue-500/5` |
+| Context            | Shadow                                                                                              |
+| ------------------ | --------------------------------------------------------------------------------------------------- |
+| Card default       | `shadow-[0_1px_3px_rgba(0,0,0,0.05),0_10px_40px_-15px_rgba(0,0,0,0.02)]`                          |
+| Card hover         | `hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.08)] hover:border-blue-200/50 hover:-translate-y-1` |
+| Modal              | `shadow-2xl`                                                                                      |
+| Notification panel | `shadow-2xl`                                                                                      |
+| Tooltip            | `shadow-lg shadow-slate-100/80`                                                                   |
+| StatCard           | `shadow-[0_2px_4px_rgba(0,0,0,0.02),0_1px_0_rgba(0,0,0,0.02)]`                                    |
+| StatCard hover     | `hover:shadow-xl hover:shadow-blue-500/5`                                                         |
 
 ---
 
 ## 11. Animations
 
-| Context | Animation |
-|---|---|
-| Page entrance | `animate-in fade-in duration-500` |
-| Dropdowns/panels | `animate-in fade-in slide-in-from-top-1 duration-200` |
-| Modal | `animate-in fade-in zoom-in-95` |
-| Toast | `animate-in slide-in-from-right-10 fade-in duration-300` |
-| Buttons (click) | `active:scale-[0.98]` |
-| Card hover | `hover:-translate-y-1 duration-300` |
-| KPI card hover | `hover:-translate-y-0.5 hover:shadow-md duration-300` |
-| All transitions | `duration-200` (standard), `duration-300` (cards/modals) |
+| Context          | Animation                                                    |
+| ---------------- | ------------------------------------------------------------ |
+| Page entrance    | `animate-in fade-in duration-500`                          |
+| Dropdowns/panels | `animate-in fade-in slide-in-from-top-1 duration-200`      |
+| Modal            | `animate-in fade-in zoom-in-95`                            |
+| Toast            | `animate-in slide-in-from-right-10 fade-in duration-300`   |
+| Buttons (click)  | `active:scale-[0.98]`                                      |
+| Card hover       | `hover:-translate-y-1 duration-300`                        |
+| KPI card hover   | `hover:-translate-y-0.5 hover:shadow-md duration-300`      |
+| All transitions  | `duration-200` (standard), `duration-300` (cards/modals) |
 
 ---
 
