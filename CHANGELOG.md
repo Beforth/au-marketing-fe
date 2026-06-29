@@ -8,26 +8,37 @@ Format: `[Date] — Category: Description`
 ## [2026-06-29] — Plant-Based Contact Region & Audit Log Coverage (v1.1.3)
 
 ### 🖥️ Frontend
-- **Plant Domain/Region**: Added `domain_id`/`region_id` to Plant type; plant forms now have region pickers (country picker for Export domains with auto-create), plant detail cards, and auto-fill of contact region from selected plant
-- **Lead Form**: Decoupled lead region from contact region — lead's "Domain & Region" section stays independent; contact gets region from plant (editable)
-- **Kanban "Last inquiry"**: Now filters to only inquiry-type activities (`call`, `email`, `meeting`, `note`) — excludes system entries like status changes, lead edits, quotation uploads
-- **Plant Cards**: Show full plant details (name, address, domain, region) when a plant is selected across LeadFormPage, ContactFormPage, CustomerFormPage, and LeadsPage Kanban modal
-- **Export Domain Auto-Create**: Selecting a country in a plant form auto-creates the region if it doesn't exist
+
+#### Plant Domain/Region
+- Added `domain_id`/`region_id` to Plant type; plant forms now have region pickers (country picker for Export domains with auto-create), plant detail cards, and auto-fill of contact region from selected plant
+- Lead Form: Decoupled lead region from contact region — lead's "Domain & Region" section stays independent; contact gets region from plant (editable)
+- Plant Cards: Show full plant details (name, address, domain, region) when a plant is selected across LeadFormPage, ContactFormPage, CustomerFormPage, and LeadsPage Kanban modal
+- Export Domain Auto-Create: Selecting a country in a plant form auto-creates the region if it doesn't exist
+
+#### Kanban "Last Inquiry"
+- Now filters to only inquiry-type activities (`call`, `email`, `meeting`, `note`) — excludes system entries like status changes, lead edits, quotation uploads
 
 ### ⚙️ Backend
-- **Lead Region Validation Removed**: Removed "Lead region must match linked contact region" and "Lead region must match linked customer region" checks in `leads.py`
-- **Plant Model**: Added `domain_id` and `region_id` columns to Plant model and all Pydantic schemas (`PlantBase`, `PlantInlineCreate`, `PlantCreate`, `PlantUpdate`, `PlantResponse`)
-- **Plant CRUD**: Updated organization plant create/update endpoints to pass `domain_id`/`region_id`
-- **Last Activity Date**: Kanban "Last inquiry" now only considers inquiry-type activities (`call`, `email`, `meeting`, `note`)
-- **Audit Logs — Added to missing routers**:
-  - `domains.py`: create / edit / delete domain
-  - `regions.py`: create / edit / delete region + employee assignments
-  - `employees.py`: edit / sync from HRMS
-  - `events.py`: create / edit / delete / end event + upload / delete files
-  - `organizations.py`: create / edit / delete org + create / edit / delete plant
-  - `series.py`: create / edit / delete numbering series
-  - `tasks.py`: create / complete task
-  - `leads.py` (new): activity update / activity delete / quotation upload
+
+#### Lead Region Validation
+- Removed "Lead region must match linked contact region" and "Lead region must match linked customer region" checks in `leads.py`
+
+#### Plant Model & CRUD
+- Added `domain_id` and `region_id` columns to Plant model and all Pydantic schemas (`PlantBase`, `PlantInlineCreate`, `PlantCreate`, `PlantUpdate`, `PlantResponse`)
+- Updated organization plant create/update endpoints to pass `domain_id`/`region_id`
+
+#### Last Activity Date
+- Kanban "Last inquiry" now only considers inquiry-type activities (`call`, `email`, `meeting`, `note`)
+
+#### Audit Logs — Added to missing routers
+- `domains.py`: create / edit / delete domain
+- `regions.py`: create / edit / delete region + employee assignments
+- `employees.py`: edit / sync from HRMS
+- `events.py`: create / edit / delete / end event + upload / delete files
+- `organizations.py`: create / edit / delete org + create / edit / delete plant
+- `series.py`: create / edit / delete numbering series
+- `tasks.py`: create / complete task
+- `leads.py` (new): activity update / activity delete / quotation upload
 
 ### 📁 Files Changed
 | File | Change |
