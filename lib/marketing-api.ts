@@ -186,6 +186,8 @@ export interface Plant {
   customer_id?: number;
   plant_name: string;
   plant_code?: string;
+  domain_id?: number;
+  region_id?: number;
   address_line1?: string;
   address_line2?: string;
   city?: string;
@@ -1273,6 +1275,8 @@ class MarketingAPIService {
   buildCreatePlantPayload(data: Partial<Plant>): {
     plant_name: string;
     plant_code?: string;
+    domain_id?: number;
+    region_id?: number;
     address_line1?: string;
     address_line2?: string;
     city?: string;
@@ -1286,6 +1290,8 @@ class MarketingAPIService {
       plant_name: name,
     };
     if (data.plant_code != null && String(data.plant_code).trim()) out.plant_code = String(data.plant_code).trim();
+    if (data.domain_id != null && !isNaN(Number(data.domain_id))) out.domain_id = Number(data.domain_id);
+    if (data.region_id != null && !isNaN(Number(data.region_id))) out.region_id = Number(data.region_id);
     if (data.address_line1 != null && String(data.address_line1).trim()) out.address_line1 = String(data.address_line1).trim();
     if (data.address_line2 != null && String(data.address_line2).trim()) out.address_line2 = String(data.address_line2).trim();
     if (data.city != null && String(data.city).trim()) out.city = String(data.city).trim();

@@ -5,6 +5,53 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-06-29] — Plant-Based Contact Region & Audit Log Coverage (v1.1.3)
+
+### 🖥️ Frontend
+- **Plant Domain/Region**: Added `domain_id`/`region_id` to Plant type; plant forms now have region pickers (country picker for Export domains with auto-create), plant detail cards, and auto-fill of contact region from selected plant
+- **Lead Form**: Decoupled lead region from contact region — lead's "Domain & Region" section stays independent; contact gets region from plant (editable)
+- **Kanban "Last inquiry"**: Now filters to only inquiry-type activities (`call`, `email`, `meeting`, `note`) — excludes system entries like status changes, lead edits, quotation uploads
+- **Plant Cards**: Show full plant details (name, address, domain, region) when a plant is selected across LeadFormPage, ContactFormPage, CustomerFormPage, and LeadsPage Kanban modal
+- **Export Domain Auto-Create**: Selecting a country in a plant form auto-creates the region if it doesn't exist
+
+### ⚙️ Backend
+- **Lead Region Validation Removed**: Removed "Lead region must match linked contact region" and "Lead region must match linked customer region" checks in `leads.py`
+- **Plant Model**: Added `domain_id` and `region_id` columns to Plant model and all Pydantic schemas (`PlantBase`, `PlantInlineCreate`, `PlantCreate`, `PlantUpdate`, `PlantResponse`)
+- **Plant CRUD**: Updated organization plant create/update endpoints to pass `domain_id`/`region_id`
+- **Last Activity Date**: Kanban "Last inquiry" now only considers inquiry-type activities (`call`, `email`, `meeting`, `note`)
+- **Audit Logs — Added to missing routers**:
+  - `domains.py`: create / edit / delete domain
+  - `regions.py`: create / edit / delete region + employee assignments
+  - `employees.py`: edit / sync from HRMS
+  - `events.py`: create / edit / delete / end event + upload / delete files
+  - `organizations.py`: create / edit / delete org + create / edit / delete plant
+  - `series.py`: create / edit / delete numbering series
+  - `tasks.py`: create / complete task
+  - `leads.py` (new): activity update / activity delete / quotation upload
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `au-marketing-api/app/models.py` | Added `domain_id`/`region_id` to Plant model |
+| `au-marketing-api/app/schemas.py` | Added `domain_id`/`region_id` to Plant schemas |
+| `au-marketing-api/app/routers/leads.py` | Removed region-match validation; filtered last_activity_date; added audit logs for activity update/delete + quotation upload |
+| `au-marketing-api/app/routers/organizations.py` | Pass `domain_id`/`region_id` in plant CRUD + audit logs |
+| `au-marketing-api/app/routers/domains.py` | Added audit logs |
+| `au-marketing-api/app/routers/regions.py` | Added audit logs |
+| `au-marketing-api/app/routers/employees.py` | Added audit logs |
+| `au-marketing-api/app/routers/events.py` | Added audit logs |
+| `au-marketing-api/app/routers/series.py` | Added audit logs |
+| `au-marketing-api/app/routers/tasks.py` | Added audit logs |
+| `au-marketing-api/migrations/env.py` | Added Plant import |
+| `lib/marketing-api.ts` | Added `domain_id`/`region_id` to Plant type & API |
+| `pages/LeadFormPage.tsx` | Plant region pickers, plant cards, auto-fill contact from plant, decoupled lead region, export auto-create |
+| `pages/ContactFormPage.tsx` | Plant region pickers, plant cards |
+| `pages/CustomerFormPage.tsx` | Plant region pickers, plant cards |
+| `pages/LeadsPage.tsx` | Kanban "Last inquiry" filter, plant cards, auto-fill from plant |
+| `pages/OrganizationFormPage.tsx` | Domain/Region fields on plant forms |
+
+---
+
 ## [2026-06-28] — Typography Cleanup & Design System Overhaul (v1.1.2)
 
 ### 🖥️ Frontend

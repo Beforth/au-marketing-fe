@@ -53,8 +53,8 @@ export const CustomerFormPage: React.FC = () => {
   const [plants, setPlants] = useState<Plant[]>([]);
   const [showPlantInline, setShowPlantInline] = useState(false);
   const [newOrgForm, setNewOrgForm] = useState<{ name: string; code: string; description: string; website: string; industry: string; organization_size: string }>({ name: '', code: '', description: '', website: '', industry: '', organization_size: '' });
-  const [newPlantForm, setNewPlantForm] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
-  const [plantModalData, setPlantModalData] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+  const [newPlantForm, setNewPlantForm] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined, region_id: undefined });
+  const [plantModalData, setPlantModalData] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined, region_id: undefined });
   const [savingModal, setSavingModal] = useState(false);
   const contactSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const orgSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -290,8 +290,10 @@ export const CustomerFormPage: React.FC = () => {
 
       // 1. Create organization first if needed (so we can attach it and the new contact to the customer)
       if (!organization_id && companyOrOrgName && canCreateOrg) {
+        const plantDomainId = formData.domain_id;
+        const plantRegionId = newPlantForm.region_id ?? (formData.region_id ?? undefined);
         const plantsToCreate = newPlantForm.plant_name?.trim()
-          ? [{ plant_name: newPlantForm.plant_name.trim(), address_line1: newPlantForm.address_line1?.trim() || undefined, address_line2: newPlantForm.address_line2?.trim() || undefined, city: newPlantForm.city?.trim() || undefined, state: newPlantForm.state?.trim() || undefined, country: newPlantForm.country?.trim() || undefined, postal_code: newPlantForm.postal_code?.trim() || undefined }]
+          ? [{ plant_name: newPlantForm.plant_name.trim(), domain_id: plantDomainId, region_id: plantRegionId, address_line1: newPlantForm.address_line1?.trim() || undefined, address_line2: newPlantForm.address_line2?.trim() || undefined, city: newPlantForm.city?.trim() || undefined, state: newPlantForm.state?.trim() || undefined, country: newPlantForm.country?.trim() || undefined, postal_code: newPlantForm.postal_code?.trim() || undefined }]
           : undefined;
         const org = await marketingAPI.createOrganization({
           name: newOrgForm.name.trim() || companyOrOrgName,
@@ -517,7 +519,16 @@ export const CustomerFormPage: React.FC = () => {
                             ...plants.map(p => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` })),
                           ]}
                           value={formData.plant_id != null ? String(formData.plant_id) : ''}
-                          onChange={(val) => setFormData({ ...formData, plant_id: val ? Number(val) : undefined })}
+                          onChange={(val) => {
+                            const newPlantId = val ? Number(val) : undefined;
+                            const selectedPlant = newPlantId ? plants.find(p => p.id === newPlantId) : undefined;
+                            setFormData(prev => ({
+                              ...prev,
+                              plant_id: newPlantId,
+                              domain_id: selectedPlant?.domain_id ?? prev.domain_id,
+                              region_id: selectedPlant?.region_id ?? prev.region_id,
+                            }));
+                          }}
                           placeholder="Select plant"
                           searchable
                         />
@@ -526,7 +537,7 @@ export const CustomerFormPage: React.FC = () => {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => { setShowPlantInline(!showPlantInline); if (!showPlantInline) setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' }); }}
+                        onClick={() => { setShowPlantInline(!showPlantInline); if (!showPlantInline) setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined, region_id: undefined }); }}
                         title="Add plant to organization"
                         leftIcon={<Plus size={16} />}
                       >
@@ -544,6 +555,13 @@ export const CustomerFormPage: React.FC = () => {
                           <Select label="State" options={INDIAN_STATES} value={plantModalData.state || ''} onChange={(val) => setPlantModalData(prev => ({ ...prev, state: (val as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable />
                           <Input label="Country" value={plantModalData.country || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, country: e.target.value }))} />
                           <Input label="Pin / Postal code" value={plantModalData.postal_code || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, postal_code: e.target.value }))} />
+                          <Select
+                            label="Region"
+                            options={[{ value: '', label: 'None' }, ...regions.map(r => ({ value: String(r.id), label: r.name }))]}
+                            value={plantModalData.region_id ? String(plantModalData.region_id) : (formData.region_id ? String(formData.region_id) : '')}
+                            onChange={(val) => setPlantModalData(prev => ({ ...prev, region_id: val ? Number(val) : undefined }))}
+                            placeholder="Select region"
+                          />
                         </div>
                         <Button
                           type="button"
@@ -559,7 +577,7 @@ export const CustomerFormPage: React.FC = () => {
                               setPlants(pl);
                               setFormData(prev => ({ ...prev, plant_id: created.id }));
                               setShowPlantInline(false);
-                              setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+                              setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined, region_id: undefined });
                             } catch (e: any) {
                               showToast(e.message || 'Failed to add plant', 'error');
                             } finally {
@@ -569,11 +587,30 @@ export const CustomerFormPage: React.FC = () => {
                         >
                           {savingModal ? 'Adding...' : 'Add Plant'}
                         </Button>
+                    </div>
+                  )}
+                  {formData.plant_id && (() => {
+                    const selectedPlant = plants.find(p => p.id === formData.plant_id);
+                    if (!selectedPlant) return null;
+                    const plantDomain = domains.find(d => d.id === selectedPlant.domain_id);
+                    const plantRegion = regions.find(r => r.id === selectedPlant.region_id);
+                    const address = [selectedPlant.address_line1, selectedPlant.address_line2, selectedPlant.city, selectedPlant.state, selectedPlant.country, selectedPlant.postal_code].filter(Boolean).join(', ');
+                    return (
+                      <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm mt-2 animate-in zoom-in-95 duration-200 shadow-sm">
+                        <p className="font-bold text-slate-800">Selected plant</p>
+                        <p className="text-slate-600 mt-0.5">{selectedPlant.plant_name}</p>
+                        {address && <p className="text-slate-500 text-xs mt-1">{address}</p>}
+                        {(plantDomain || plantRegion) && (
+                          <p className="text-slate-500 text-xs mt-0.5">
+                            {plantDomain?.name}{plantDomain && plantRegion ? ' · ' : ''}{plantRegion?.name}
+                          </p>
+                        )}
                       </div>
-                    )}
-                  </>
-                ) : (
-                  canCreateOrg && (
+                    );
+                  })()}
+                </>
+              ) : (
+                canCreateOrg && (
                     <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-4 space-y-3 mt-3">
                       <p className="text-sm font-medium text-slate-700">Create new organization on save (fill below)</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -656,6 +693,13 @@ export const CustomerFormPage: React.FC = () => {
                           <Select label="State" options={INDIAN_STATES} value={newPlantForm.state || ''} onChange={(val) => setNewPlantForm(prev => ({ ...prev, state: (val as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable />
                           <Input label="Country" value={newPlantForm.country || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, country: e.target.value }))} />
                           <Input label="Postal code" value={newPlantForm.postal_code || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} />
+                          <Select
+                            label="Region"
+                            options={[{ value: '', label: 'None' }, ...regions.map(r => ({ value: String(r.id), label: r.name }))]}
+                            value={newPlantForm.region_id ? String(newPlantForm.region_id) : (formData.region_id ? String(formData.region_id) : '')}
+                            onChange={(val) => setNewPlantForm(prev => ({ ...prev, region_id: val ? Number(val) : undefined }))}
+                            placeholder="Select region"
+                          />
                         </div>
                       </div>
                     </div>

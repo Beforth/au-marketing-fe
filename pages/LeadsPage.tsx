@@ -22,7 +22,7 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarte
 import { PageLayout } from '../components/layout/PageLayout';
 
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadStatusGroup, LeadTypeOption, Domain, Region, Contact, Customer, Organization, Series, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
+import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadStatusGroup, LeadTypeOption, Domain, Region, Contact, Customer, Organization, Plant, Series, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, DEFAULT_LEAD_SERIES_STORAGE_KEY } from '../constants';
 import { serializeNameWithPrefix, serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import { Modal } from '../components/ui/Modal';
@@ -139,7 +139,7 @@ export const LeadsPage: React.FC = () => {
   });
   const [createLeadInlineOrgQuery, setCreateLeadInlineOrgQuery] = useState('');
   const [createLeadInlineOrgSuggestions, setCreateLeadInlineOrgSuggestions] = useState<Organization[]>([]);
-  const [createLeadInlinePlants, setCreateLeadInlinePlants] = useState<{ id: number; plant_name: string }[]>([]);
+  const [createLeadInlinePlants, setCreateLeadInlinePlants] = useState<Plant[]>([]);
   const createLeadSearchTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const createLeadOrgTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [createLeadForm, setCreateLeadForm] = useState({
@@ -976,9 +976,12 @@ export const LeadsPage: React.FC = () => {
               return;
             }
           }
+          const selectedPlant = createLeadInlineContact.plant_id ? createLeadInlinePlants.find(p => p.id === createLeadInlineContact.plant_id) : undefined;
+          const contactDomainId = selectedPlant?.domain_id ?? domainId!;
+          const contactRegionId = selectedPlant?.region_id ?? regionId ?? undefined;
           const contact = await marketingAPI.createContact({
-            domain_id: domainId!,
-            region_id: regionId ?? undefined,
+            domain_id: contactDomainId,
+            region_id: contactRegionId,
             organization_id: resolvedOrganizationId,
             plant_id: createLeadInlineContact.plant_id ?? undefined,
             title: createLeadInlineContact.title?.trim() || undefined,
@@ -987,19 +990,8 @@ export const LeadsPage: React.FC = () => {
             contact_email: resolvedEmail || undefined,
             contact_phone: resolvedPhone || undefined,
           });
-          if (
-            contact.domain_id !== domainId ||
-            (contact.region_id ?? undefined) !== (regionId ?? undefined)
-          ) {
-            showToast('Contact was created with different domain/region than selected in lead form. Lead was not saved.', 'error');
-            setCreateLeadSubmitting(false);
-            return;
-          }
           setCreateLeadInlineContact((prev) => ({ ...prev, organization_id: resolvedOrganizationId }));
           contactId = contact.id;
-          // Keep lead and contact aligned on selected scope.
-          domainId = selectedLeadDomainId;
-          regionId = selectedLeadRegionId;
         } catch (e: any) {
           showToast(e?.message || 'Failed to create contact', 'error');
           setCreateLeadSubmitting(false);
@@ -2101,12 +2093,40 @@ export const LeadsPage: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Plant</label>
                     <Select
-                      options={[{ value: '', label: 'None' }, ...createLeadInlinePlants.map((p) => ({ value: String(p.id), label: (p as { plant_name?: string }).plant_name || `Plant ${p.id}` }))]}
+                      options={[{ value: '', label: 'None' }, ...createLeadInlinePlants.map((p) => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` }))]}
                       value={createLeadInlineContact.plant_id != null ? String(createLeadInlineContact.plant_id) : ''}
-                      onChange={(val) => setCreateLeadInlineContact((prev) => ({ ...prev, plant_id: val ? Number(val) : undefined }))}
+                      onChange={(val) => {
+                        const newPlantId = val ? Number(val) : undefined;
+                        const selectedPlant = newPlantId ? createLeadInlinePlants.find(p => p.id === newPlantId) : undefined;
+                        setCreateLeadInlineContact((prev) => ({
+                          ...prev,
+                          plant_id: newPlantId,
+                          domain_id: selectedPlant?.domain_id ?? prev.domain_id,
+                          region_id: selectedPlant?.region_id ?? prev.region_id,
+                        }));
+                      }}
                       placeholder="Select plant"
                       searchable
                     />
+                    {createLeadInlineContact.plant_id && (() => {
+                      const sp = createLeadInlinePlants.find(p => p.id === createLeadInlineContact.plant_id);
+                      if (!sp) return null;
+                      const pd = createLeadDomains.find(d => d.id === sp.domain_id);
+                      const pr = createLeadRegions.find(r => r.id === sp.region_id);
+                      const addr = [sp.address_line1, sp.address_line2, sp.city, sp.state, sp.country, sp.postal_code].filter(Boolean).join(', ');
+                      return (
+                        <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm mt-2 animate-in zoom-in-95 duration-200 shadow-sm">
+                          <p className="font-bold text-slate-800">Selected plant</p>
+                          <p className="text-slate-600 mt-0.5">{sp.plant_name}</p>
+                          {addr && <p className="text-slate-500 text-xs mt-1">{addr}</p>}
+                          {(pd || pr) && (
+                            <p className="text-slate-500 text-xs mt-0.5">
+                              {pd?.name}{pd && pr ? ' · ' : ''}{pr?.name}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

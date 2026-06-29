@@ -227,8 +227,8 @@ export const LeadFormPage: React.FC = () => {
   const [newOrgForm, setNewOrgForm] = useState<{ name: string; code: string; description: string; website: string; industry: string; organization_size: string }>({ name: '', code: '', description: '', website: '', industry: '', organization_size: '' });
   const [showAddPlantInContactModal, setShowAddPlantInContactModal] = useState(false);
   const [addingPlant, setAddingPlant] = useState(false);
-  const [newPlantForm, setNewPlantForm] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
-  const [plantModalData, setPlantModalData] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+  const [newPlantForm, setNewPlantForm] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined, region_id: undefined });
+  const [plantModalData, setPlantModalData] = useState<Partial<Plant>>({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined, region_id: undefined });
   const [showPlantInline, setShowPlantInline] = useState(false);
   const [savingModal, setSavingModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -263,7 +263,7 @@ export const LeadFormPage: React.FC = () => {
   const [inlineNewOrgForm, setInlineNewOrgForm] = useState({ code: '', website: '', industry: '', organization_size: '' });
   const [creatingOrgInline, setCreatingOrgInline] = useState(false);
   const [showInlineNewPlant, setShowInlineNewPlant] = useState(false);
-  const [inlineNewPlantForm, setInlineNewPlantForm] = useState({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+  const [inlineNewPlantForm, setInlineNewPlantForm] = useState({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined as number | undefined, region_id: undefined as number | undefined });
   const [creatingPlantInline, setCreatingPlantInline] = useState(false);
   const [formData, setFormData] = useState<LeadFormData>({
     domain_id: undefined,
@@ -316,7 +316,7 @@ export const LeadFormPage: React.FC = () => {
   const [inlineThroughContactPlants, setInlineThroughContactPlants] = useState<Plant[]>([]);
   const [inlineThroughNewOrgForm, setInlineThroughNewOrgForm] = useState({ code: '', website: '', industry: '', organization_size: '' });
   const [showInlineThroughNewPlant, setShowInlineThroughNewPlant] = useState(false);
-  const [inlineThroughNewPlantForm, setInlineThroughNewPlantForm] = useState({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+  const [inlineThroughNewPlantForm, setInlineThroughNewPlantForm] = useState({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined as number | undefined, region_id: undefined as number | undefined });
   const [creatingThroughOrgInline, setCreatingThroughOrgInline] = useState(false);
   const [creatingThroughPlantInline, setCreatingThroughPlantInline] = useState(false);
   const [seriesList, setSeriesList] = useState<Series[]>([]);
@@ -693,8 +693,8 @@ export const LeadFormPage: React.FC = () => {
       const plant = await marketingAPI.createOrganizationPlant(createContactForm.organization_id, newPlantForm);
       const updated = await marketingAPI.getOrganizationPlants(createContactForm.organization_id);
       setContactCreatePlants(updated);
-      setCreateContactForm(prev => ({ ...prev, plant_id: plant.id }));
-      setNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+      setCreateContactForm(prev => ({ ...prev, plant_id: plant.id, domain_id: plant.domain_id ?? prev.domain_id, region_id: plant.region_id ?? prev.region_id }));
+      setNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined, region_id: undefined });
       setShowAddPlantInContactModal(false);
       showToast('Plant added', 'success');
     } catch (err: any) {
@@ -1076,6 +1076,26 @@ export const LeadFormPage: React.FC = () => {
     }
   };
 
+  const resolveExportRegion = async (countryCode: string, domainId: number): Promise<number | undefined> => {
+    const matched = regions.find(r => r.code.toUpperCase() === countryCode.toUpperCase());
+    if (matched) return matched.id;
+    const countryOpt = countryOptions.find(o => o.value === countryCode);
+    const countryName = countryOpt ? countryOpt.name : countryCode;
+    try {
+      const newRegion = await marketingAPI.createRegion({
+        domain_id: domainId,
+        name: countryName,
+        code: countryCode.toUpperCase(),
+        is_active: true
+      });
+      setRegions(prev => [...prev, newRegion]);
+      return newRegion.id;
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to create region for country', 'error');
+      return undefined;
+    }
+  };
+
   const loadCustomers = async () => {
     try {
       const res = await marketingAPI.getCustomers({ is_active: true, page: 1, page_size: 100 });
@@ -1261,8 +1281,10 @@ export const LeadFormPage: React.FC = () => {
 
           // 1. Create organization first if needed
           if (!organization_id && companyOrOrgName && canCreateOrg) {
+            const plantDomainId = formData.domain_id;
+            const plantRegionId = inlineNewPlantForm.region_id ?? (formData.region_id ?? undefined);
             const plantsToCreate = inlineNewPlantForm.plant_name?.trim()
-              ? [{ plant_name: inlineNewPlantForm.plant_name.trim(), address_line1: inlineNewPlantForm.address_line1?.trim() || undefined, address_line2: inlineNewPlantForm.address_line2?.trim() || undefined, city: inlineNewPlantForm.city?.trim() || undefined, state: inlineNewPlantForm.state?.trim() || undefined, country: inlineNewPlantForm.country?.trim() || undefined, postal_code: inlineNewPlantForm.postal_code?.trim() || undefined }]
+              ? [{ plant_name: inlineNewPlantForm.plant_name.trim(), domain_id: plantDomainId, region_id: plantRegionId, address_line1: inlineNewPlantForm.address_line1?.trim() || undefined, address_line2: inlineNewPlantForm.address_line2?.trim() || undefined, city: inlineNewPlantForm.city?.trim() || undefined, state: inlineNewPlantForm.state?.trim() || undefined, country: inlineNewPlantForm.country?.trim() || undefined, postal_code: inlineNewPlantForm.postal_code?.trim() || undefined }]
               : undefined;
             const org = await marketingAPI.createOrganization({
               name: newOrgForm.name.trim() || companyOrOrgName,
@@ -1283,6 +1305,8 @@ export const LeadFormPage: React.FC = () => {
             }
             setInlineContactForm(prev => ({
               ...prev,
+              domain_id: inlineNewPlantForm.domain_id ?? formData.domain_id ?? prev.domain_id,
+              region_id: inlineNewPlantForm.region_id ?? formData.region_id ?? prev.region_id,
               organization_id: org.id,
               plant_id: plant_id
             }));
@@ -1291,9 +1315,11 @@ export const LeadFormPage: React.FC = () => {
           // 2. Create contact if needed
           if (!primaryContactContactId && inlineContactFilled && canCreateContact) {
             const fullPhone = serializePhoneWithCountryCode(inlineContactForm.contact_phone_code, inlineContactForm.contact_phone);
+            const contactDomainId = inlineContactForm.domain_id ?? effectiveDomainId!;
+            const contactRegionId = inlineContactForm.region_id ?? effectiveRegionId;
             const contact = await marketingAPI.createContact({
-              domain_id: effectiveDomainId!,
-              region_id: effectiveRegionId,
+              domain_id: contactDomainId,
+              region_id: contactRegionId,
               organization_id: organization_id,
               plant_id: plant_id,
               title: inlineContactForm.title?.trim() || undefined,
@@ -2079,7 +2105,16 @@ export const LeadFormPage: React.FC = () => {
                             ...plants.map(p => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` })),
                           ]}
                           value={formData.plant_id != null ? String(formData.plant_id) : ''}
-                          onChange={(val) => setFormData(prev => ({ ...prev, plant_id: val ? Number(val) : undefined }))}
+                          onChange={(val) => {
+                            const newPlantId = val ? Number(val) : undefined;
+                            setFormData(prev => ({ ...prev, plant_id: newPlantId }));
+                            const selectedPlant = newPlantId ? plants.find(p => p.id === newPlantId) : undefined;
+                            setInlineContactForm(prev => ({
+                              ...prev,
+                              domain_id: selectedPlant?.domain_id ?? formData.domain_id ?? prev.domain_id,
+                              region_id: selectedPlant?.region_id ?? formData.region_id ?? prev.region_id,
+                            }));
+                          }}
                           placeholder={plants.length === 0 ? 'No plants yet — add one below' : 'Select plant'}
                           searchable
                         />
@@ -2091,7 +2126,7 @@ export const LeadFormPage: React.FC = () => {
                           size="sm"
                           onClick={() => {
                             setShowPlantInline(!showPlantInline);
-                            if (!showPlantInline) setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+                            if (!showPlantInline) setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined, region_id: undefined });
                           }}
                           leftIcon={<Plus size={16} />}
                         >
@@ -2110,6 +2145,34 @@ export const LeadFormPage: React.FC = () => {
                           <Select label="State" options={INDIAN_STATES} value={plantModalData.state || ''} onChange={(val) => setPlantModalData(prev => ({ ...prev, state: val as string }))} placeholder="Select or type state..." isCombobox creatable searchable />
                           <Input label="Country" value={plantModalData.country || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, country: e.target.value }))} />
                           <Input label="Postal code" value={plantModalData.postal_code || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, postal_code: e.target.value }))} />
+                          {isExportDomain ? (
+                            <Select
+                              label="Region (Country) *"
+                              options={countryOptions}
+                              value={plantModalData.region_id ? (regions.find(r => r.id === plantModalData.region_id)?.code || '') : (formData.region_id ? (regions.find(r => r.id === formData.region_id)?.code || '') : '')}
+                              onChange={async (v) => {
+                                const code = v ? String(v) : '';
+                                if (code) {
+                                  const regionId = await resolveExportRegion(code, formData.domain_id!);
+                                  if (regionId) {
+                                    setPlantModalData(prev => ({ ...prev, region_id: regionId }));
+                                  }
+                                } else {
+                                  setPlantModalData(prev => ({ ...prev, region_id: undefined }));
+                                }
+                              }}
+                              placeholder="Select country"
+                              searchable={true}
+                            />
+                          ) : (
+                            <Select
+                              label="Region"
+                              options={[{ value: '', label: 'None' }, ...regions.map(r => ({ value: String(r.id), label: r.name }))]}
+                              value={plantModalData.region_id ? String(plantModalData.region_id) : (formData.region_id ? String(formData.region_id) : '')}
+                              onChange={(val) => setPlantModalData(prev => ({ ...prev, region_id: val ? Number(val) : undefined }))}
+                              placeholder="Select region"
+                            />
+                          )}
                         </div>
                         <Button
                           type="button"
@@ -2124,8 +2187,13 @@ export const LeadFormPage: React.FC = () => {
                               const pl = await marketingAPI.getOrganizationPlants(formData.organization_id);
                               setPlants(pl);
                               setFormData(prev => ({ ...prev, plant_id: created.id }));
+                              setInlineContactForm(prev => ({
+                                ...prev,
+                                domain_id: created.domain_id ?? formData.domain_id ?? prev.domain_id,
+                                region_id: created.region_id ?? formData.region_id ?? prev.region_id,
+                              }));
                               setShowPlantInline(false);
-                              setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' });
+                              setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined, region_id: undefined });
                             } catch (e: unknown) {
                               const err = e as { message?: string };
                               showToast(err?.message || 'Failed to add plant', 'error');
@@ -2138,6 +2206,25 @@ export const LeadFormPage: React.FC = () => {
                         </Button>
                       </div>
                     )}
+                    {formData.plant_id && (() => {
+                      const selectedPlant = plants.find(p => p.id === formData.plant_id);
+                      if (!selectedPlant) return null;
+                      const plantDomain = domains.find(d => d.id === selectedPlant.domain_id);
+                      const plantRegion = regions.find(r => r.id === selectedPlant.region_id);
+                      const address = [selectedPlant.address_line1, selectedPlant.address_line2, selectedPlant.city, selectedPlant.state, selectedPlant.country, selectedPlant.postal_code].filter(Boolean).join(', ');
+                      return (
+                        <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm mt-2 animate-in zoom-in-95 duration-200 shadow-sm">
+                          <p className="font-bold text-slate-800">Selected plant</p>
+                          <p className="text-slate-600 mt-0.5">{selectedPlant.plant_name}</p>
+                          {address && <p className="text-slate-500 text-xs mt-1">{address}</p>}
+                          {(plantDomain || plantRegion) && (
+                            <p className="text-slate-500 text-xs mt-0.5">
+                              {plantDomain?.name}{plantDomain && plantRegion ? ' · ' : ''}{plantRegion?.name}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </>
                 ) : (
                   canCreateOrg && orgSearchQuery.trim() !== '' && (
@@ -2168,6 +2255,34 @@ export const LeadFormPage: React.FC = () => {
                           <Select label="State" options={INDIAN_STATES} value={inlineNewPlantForm.state} onChange={(val) => setInlineNewPlantForm(prev => ({ ...prev, state: (val as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable />
                           <Input label="Country" value={inlineNewPlantForm.country} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, country: e.target.value }))} />
                           <Input label="Postal code" value={inlineNewPlantForm.postal_code} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} />
+                          {isExportDomain ? (
+                            <Select
+                              label="Region (Country) *"
+                              options={countryOptions}
+                              value={inlineNewPlantForm.region_id ? (regions.find(r => r.id === inlineNewPlantForm.region_id)?.code || '') : (formData.region_id ? (regions.find(r => r.id === formData.region_id)?.code || '') : '')}
+                              onChange={async (v) => {
+                                const code = v ? String(v) : '';
+                                if (code) {
+                                  const regionId = await resolveExportRegion(code, formData.domain_id!);
+                                  if (regionId) {
+                                    setInlineNewPlantForm(prev => ({ ...prev, region_id: regionId }));
+                                  }
+                                } else {
+                                  setInlineNewPlantForm(prev => ({ ...prev, region_id: undefined }));
+                                }
+                              }}
+                              placeholder="Select country"
+                              searchable={true}
+                            />
+                          ) : (
+                            <Select
+                              label="Region"
+                              options={[{ value: '', label: 'None' }, ...regions.map(r => ({ value: String(r.id), label: r.name }))]}
+                              value={inlineNewPlantForm.region_id ? String(inlineNewPlantForm.region_id) : (formData.region_id ? String(formData.region_id) : '')}
+                              onChange={(val) => setInlineNewPlantForm(prev => ({ ...prev, region_id: val ? Number(val) : undefined }))}
+                              placeholder="Select region"
+                            />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -3643,10 +3758,40 @@ export const LeadFormPage: React.FC = () => {
                           <Select label="State" options={INDIAN_STATES} value={newPlantForm.state} onChange={(val) => setNewPlantForm(prev => ({ ...prev, state: (val as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable inputSize="sm" />
                           <Input label="Country" value={newPlantForm.country} onChange={(e) => setNewPlantForm(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" inputSize="sm" />
                           <Input label="Postal code" value={newPlantForm.postal_code} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" inputSize="sm" />
+                          {isExportDomain ? (
+                            <Select
+                              label="Region (Country)"
+                              options={countryOptions}
+                              value={newPlantForm.region_id ? (regions.find(r => r.id === newPlantForm.region_id)?.code || '') : (formData.region_id ? (regions.find(r => r.id === formData.region_id)?.code || '') : '')}
+                              onChange={async (v) => {
+                                const code = v ? String(v) : '';
+                                if (code) {
+                                  const regionId = await resolveExportRegion(code, formData.domain_id!);
+                                  if (regionId) {
+                                    setNewPlantForm(prev => ({ ...prev, region_id: regionId }));
+                                  }
+                                } else {
+                                  setNewPlantForm(prev => ({ ...prev, region_id: undefined }));
+                                }
+                              }}
+                              placeholder="Select country"
+                              searchable={true}
+                              inputSize="sm"
+                            />
+                          ) : (
+                            <Select
+                              label="Region"
+                              options={[{ value: '', label: 'None' }, ...regions.map(r => ({ value: String(r.id), label: r.name }))]}
+                              value={newPlantForm.region_id ? String(newPlantForm.region_id) : (formData.region_id ? String(formData.region_id) : '')}
+                              onChange={(val) => setNewPlantForm(prev => ({ ...prev, region_id: val ? Number(val) : undefined }))}
+                              placeholder="Select region"
+                              inputSize="sm"
+                            />
+                          )}
                         </div>
                         <div className="flex gap-2">
                           <Button type="button" size="sm" onClick={handleAddPlantInContactModal} disabled={addingPlant || !newPlantForm.plant_name?.trim()}>{addingPlant ? 'Adding...' : 'Add plant'}</Button>
-                          <Button type="button" variant="outline" size="sm" onClick={() => { setShowAddPlantInContactModal(false); setNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '' }); }}>Cancel</Button>
+                          <Button type="button" variant="outline" size="sm" onClick={() => { setShowAddPlantInContactModal(false); setNewPlantForm({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined, region_id: undefined }); }}>Cancel</Button>
                         </div>
                       </div>
                     )}
