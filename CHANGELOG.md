@@ -18,6 +18,16 @@ Format: `[Date] — Category: Description`
 #### Kanban "Last Inquiry"
 - Now filters to only inquiry-type activities (`call`, `email`, `meeting`, `note`) — excludes system entries like status changes, lead edits, quotation uploads
 
+#### ContactFormPage Fixes
+- Removed phone required validation — phone is now optional on both create and edit
+- Changed email field from `type="email"` to `type="text"` to stop browser @ validation
+- Plant dropdown now auto-fills contact's domain/region from selected plant (same as LeadFormPage)
+- After creating a new plant inline, contact's domain/region auto-fills from the new plant
+
+#### Label Updates
+- "Plant" → "Plant / Location" across LeadFormPage, ContactFormPage, CustomerFormPage, LeadsPage
+- "Plants (address, pin code, city, country)" → "Plants / Locations" in OrganizationFormPage
+
 ### ⚙️ Backend
 
 #### Lead Region Validation

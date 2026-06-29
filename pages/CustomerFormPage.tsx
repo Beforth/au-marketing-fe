@@ -512,7 +512,7 @@ export const CustomerFormPage: React.FC = () => {
                     </div>
                     <div className="flex gap-2 items-end mt-3">
                       <div className="min-w-[200px]">
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Plant</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Plant / Location</label>
                         <Select
                           options={[
                             { value: '', label: 'None' },
@@ -808,7 +808,7 @@ export const CustomerFormPage: React.FC = () => {
                         {formData.organization_id && plants.length > 0 && (
                           <div className="md:col-span-2">
                             <Select
-                              label="Plant"
+                              label="Plant / Location"
                               options={[{ value: '', label: 'None' }, ...plants.map(p => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` }))]}
                               value={createContactForm.plant_id != null ? String(createContactForm.plant_id) : ''}
                               onChange={(val) => setCreateContactForm(prev => ({ ...prev, plant_id: val ? Number(val) : undefined }))}

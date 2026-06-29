@@ -267,10 +267,7 @@ export const ContactFormPage: React.FC = () => {
         return;
       }
       const fullPhone = serializePhoneWithCountryCode(contactPhoneCountryCode, contactPhonePart);
-      if (!fullPhone?.trim()) {
-        showToast('Phone number is required', 'error');
-        return;
-      }
+
       if (!formData.domain_id) {
         showToast('Domain is required', 'error');
         return;
@@ -427,7 +424,7 @@ export const ContactFormPage: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
               <Input
-                type="email"
+                type="text"
                 value={formData.contact_email || ''}
                 onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
                 placeholder="email@example.com"
@@ -551,14 +548,23 @@ export const ContactFormPage: React.FC = () => {
                   </div>
                   <div className="flex gap-2 items-end">
                     <div className="min-w-[200px]">
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Plant</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Plant / Location</label>
                       <Select
                         options={[
                           { value: '', label: 'None' },
                           ...plants.map(p => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` })),
                         ]}
                         value={formData.plant_id != null ? String(formData.plant_id) : ''}
-                        onChange={(val) => setFormData({ ...formData, plant_id: val ? Number(val) : undefined })}
+                        onChange={(val) => {
+                          const newPlantId = val ? Number(val) : undefined;
+                          const selectedPlant = newPlantId ? plants.find(p => p.id === newPlantId) : undefined;
+                          setFormData(prev => ({
+                            ...prev,
+                            plant_id: newPlantId,
+                            domain_id: selectedPlant?.domain_id ?? prev.domain_id,
+                            region_id: selectedPlant?.region_id ?? prev.region_id,
+                          }));
+                        }}
                         placeholder="Select plant"
                         searchable
                       />
@@ -605,7 +611,7 @@ export const ContactFormPage: React.FC = () => {
                             showToast('Plant added', 'success');
                             const pl = await marketingAPI.getOrganizationPlants(formData.organization_id);
                             setPlants(pl);
-                            setFormData(prev => ({ ...prev, plant_id: created.id }));
+                            setFormData(prev => ({ ...prev, plant_id: created.id, domain_id: created.domain_id ?? prev.domain_id, region_id: created.region_id ?? prev.region_id }));
                             setShowPlantInline(false);
                             setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined, region_id: undefined });
                           } catch (e: any) {

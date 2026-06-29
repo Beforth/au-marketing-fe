@@ -2099,7 +2099,7 @@ export const LeadFormPage: React.FC = () => {
                     <div className="flex gap-2 items-end mt-3">
                       <div className="flex-1 min-w-[200px]">
                         <Select
-                          label="Plant"
+                          label="Plant / Location"
                           options={[
                             { value: '', label: 'None' },
                             ...plants.map(p => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` })),
@@ -3726,7 +3726,7 @@ export const LeadFormPage: React.FC = () => {
                 />
               </div>
               <div className="space-y-3 p-3 bg-slate-50/50 rounded-xl border border-slate-200 mt-2">
-                <label className="block text-[12px] font-semibold text-slate-700 mb-1.5 ml-0.5">Plant Location</label>
+                <label className="block text-[12px] font-semibold text-slate-700 mb-1.5 ml-0.5">Plant / Location</label>
                 {createContactForm.organization_id != null ? (
                   <>
                     <div className="flex gap-2 items-end">

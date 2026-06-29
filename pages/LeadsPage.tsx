@@ -2091,7 +2091,7 @@ export const LeadsPage: React.FC = () => {
                 </div>
                 {createLeadInlineContact.organization_id != null && createLeadInlinePlants.length > 0 && (
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Plant</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Plant / Location</label>
                     <Select
                       options={[{ value: '', label: 'None' }, ...createLeadInlinePlants.map((p) => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` }))]}
                       value={createLeadInlineContact.plant_id != null ? String(createLeadInlineContact.plant_id) : ''}

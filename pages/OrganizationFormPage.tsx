@@ -357,7 +357,7 @@ export const OrganizationFormPage: React.FC = () => {
         {!isEdit && (
           <div className="rounded-xl border border-slate-200 bg-white p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-slate-900">Plants (address, pin code, city, country)</h3>
+              <h3 className="font-semibold text-slate-900">Plants / Locations</h3>
               <Button type="button" size="sm" variant="outline" onClick={addPendingPlant} leftIcon={<Plus size={14} />}>
                 Add Plant
               </Button>
@@ -440,7 +440,7 @@ export const OrganizationFormPage: React.FC = () => {
         {isEdit && id && (
           <div className="rounded-xl border border-slate-200 bg-white p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-slate-900">Plants (address, pin code, city, country)</h3>
+              <h3 className="font-semibold text-slate-900">Plants / Locations</h3>
               {canCreatePlant && (
                 <Button type="button" size="sm" onClick={() => setShowAddPlant(true)} leftIcon={<Plus size={14} />}>
                   Add Plant
