@@ -114,11 +114,10 @@ export const LoginPage: React.FC = () => {
           <div className="space-y-2">
             <div className="flex items-center gap-3 mb-2">
               <img
-                src="https://www.beforth.in/images/befu.png"
-                alt="BeForth"
+                src="/befu.png"
+                alt="Logo"
                 className="w-16 h-16 rounded-lg object-contain"
               />
-              <h1 className="text-2xl font-bold text-slate-900">BeForth</h1>
             </div>
             <h2 className="text-xl font-semibold text-slate-800">Welcome Back</h2>
             <p className="text-sm text-slate-600">Sign in to access the BeForth Portal</p>
