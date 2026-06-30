@@ -116,7 +116,7 @@ export const LoginPage: React.FC = () => {
               <img
                 src="/befu.png"
                 alt="Logo"
-                className="w-16 h-16 rounded-lg object-contain"
+                className="w-24 h-24 rounded-lg object-contain"
               />
             </div>
             <h2 className="text-xl font-semibold text-slate-800">Welcome Back</h2>
