@@ -124,6 +124,7 @@ export interface Contact {
   domain?: Domain;
   region?: Region;
   organization?: Organization | null;  // Populated when API includes it
+  plant?: Plant | null;  // Organization plant with address
 }
 
 // Customer Types (primary contact via primary_contact_contact_id / primary_contact_contact)

@@ -342,21 +342,26 @@ export const ContactsPage: React.FC = () => {
                     ),
                 },
                 {
-                  key: 'domain',
-                  label: 'Domain',
-                  render: (contact) => contact.domain ? <Badge variant="outline">{contact.domain.name}</Badge> : null,
+                  key: 'plant_location',
+                  label: 'Plant / Location',
+                  render: (contact) => {
+                    if (!contact.plant) return <span className="text-slate-400 text-sm">-</span>;
+                    const parts = [contact.plant.city, contact.plant.state, contact.plant.country].filter(Boolean);
+                    return (
+                      <div>
+                        <div className="text-sm text-slate-900">{contact.plant.plant_name}</div>
+                        {parts.length > 0 && <div className="text-xs text-slate-500">{parts.join(', ')}</div>}
+                      </div>
+                    );
+                  },
                 },
                 {
-                  key: 'region',
-                  label: 'Region',
-                  render: (contact) =>
-                    contact.region ? <Badge variant="outline">{contact.region.name}</Badge> : <span className="text-slate-400 text-sm">-</span>,
-                },
-                {
-                  key: 'is_converted',
-                  label: 'Status',
-                  render: (contact) =>
-                    contact.is_converted ? <Badge variant="success">Converted</Badge> : <Badge variant="outline">Active</Badge>,
+                  key: 'region_domain',
+                  label: 'Region / Domain',
+                  render: (contact) => {
+                    const parts = [contact.region?.name, contact.domain?.name].filter(Boolean);
+                    return parts.length > 0 ? <Badge variant="outline">{parts.join(' / ')}</Badge> : null;
+                  },
                 },
                 {
                   key: 'actions',

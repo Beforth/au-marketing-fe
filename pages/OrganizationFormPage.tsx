@@ -416,20 +416,6 @@ export const OrganizationFormPage: React.FC = () => {
                       value={p.postal_code || ''}
                       onChange={(e) => updatePendingPlant(index, 'postal_code', e.target.value)}
                     />
-                    <Input
-                      label="Domain ID"
-                      type="number"
-                      value={p.domain_id != null ? String(p.domain_id) : ''}
-                      onChange={(e) => updatePendingPlant(index, 'domain_id' as keyof Plant, e.target.value ? Number(e.target.value) : undefined as any)}
-                      placeholder="Domain ID (optional)"
-                    />
-                    <Input
-                      label="Region ID"
-                      type="number"
-                      value={p.region_id != null ? String(p.region_id) : ''}
-                      onChange={(e) => updatePendingPlant(index, 'region_id' as keyof Plant, e.target.value ? Number(e.target.value) : undefined as any)}
-                      placeholder="Region ID (optional)"
-                    />
                   </div>
                 </li>
               ))}
@@ -498,20 +484,6 @@ export const OrganizationFormPage: React.FC = () => {
                           value={editingPlantForm.postal_code || ''}
                           onChange={(e) => setEditingPlantForm(prev => ({ ...prev, postal_code: e.target.value }))}
                         />
-                        <Input
-                          label="Domain ID"
-                          type="number"
-                          value={editingPlantForm.domain_id ?? ''}
-                          onChange={(e) => setEditingPlantForm(prev => ({ ...prev, domain_id: e.target.value ? Number(e.target.value) : undefined }))}
-                          placeholder="Domain ID (optional)"
-                        />
-                        <Input
-                          label="Region ID"
-                          type="number"
-                          value={editingPlantForm.region_id ?? ''}
-                          onChange={(e) => setEditingPlantForm(prev => ({ ...prev, region_id: e.target.value ? Number(e.target.value) : undefined }))}
-                          placeholder="Region ID (optional)"
-                        />
                       </div>
                       <div className="flex gap-2">
                         <Button type="submit" size="sm" disabled={savingPlant}>{savingPlant ? 'Saving...' : 'Save'}</Button>
@@ -522,9 +494,9 @@ export const OrganizationFormPage: React.FC = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                       <MapPin size={14} className="text-slate-400 shrink-0" />
                       <span className="font-medium">{p.plant_name}</span>
-                      {(p.address_line1 || p.city || p.state || p.country || p.postal_code || p.domain_id != null || p.region_id != null) && (
+                      {(p.address_line1 || p.city || p.state || p.country || p.postal_code) && (
                         <span className="text-sm text-slate-500">
-                          {[p.address_line1, p.address_line2, p.city, p.state, p.country, p.postal_code, p.domain_id != null ? `Domain:${p.domain_id}` : '', p.region_id != null ? `Region:${p.region_id}` : ''].filter(Boolean).join(', ')}
+                          {[p.address_line1, p.address_line2, p.city, p.state, p.country, p.postal_code].filter(Boolean).join(', ')}
                         </span>
                       )}
                       <div className="ml-auto flex items-center gap-1">
@@ -610,20 +582,6 @@ export const OrganizationFormPage: React.FC = () => {
                     label="Pin / Postal code"
                     value={plantForm.postal_code || ''}
                     onChange={(e) => setPlantForm({ ...plantForm, postal_code: e.target.value })}
-                  />
-                  <Input
-                    label="Domain ID"
-                    type="number"
-                    value={plantForm.domain_id ?? ''}
-                    onChange={(e) => setPlantForm({ ...plantForm, domain_id: e.target.value ? Number(e.target.value) : undefined })}
-                    placeholder="Domain ID (optional)"
-                  />
-                  <Input
-                    label="Region ID"
-                    type="number"
-                    value={plantForm.region_id ?? ''}
-                    onChange={(e) => setPlantForm({ ...plantForm, region_id: e.target.value ? Number(e.target.value) : undefined })}
-                    placeholder="Region ID (optional)"
                   />
                 </div>
                 <div className="flex gap-2">
