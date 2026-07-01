@@ -17,9 +17,10 @@ import {
   removeOrganizationPlant,
   selectPlantsForOrganization,
 } from '../store/slices/organizationPlantsSlice';
-import { marketingAPI, Organization, Plant } from '../lib/marketing-api';
+import { marketingAPI, Organization, Plant, Domain, Region } from '../lib/marketing-api';
 import { INDIAN_STATES, INDUSTRY_OPTIONS } from '../constants';
 import { ArrowLeft, Plus, MapPin, Building2, Layers, Pencil, Trash2 } from 'lucide-react';
+import { getStoredMarketingScope } from '../lib/marketing-scope';
 
 const ORGANIZATION_SIZES = [
   { value: '1-10', label: '1-10 employees' },
@@ -81,6 +82,14 @@ export const OrganizationFormPage: React.FC = () => {
     industry: '',
     is_active: true,
   });
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [userDomainId, setUserDomainId] = useState<number | null>(null);
+  const isExportDomain = useMemo(() => {
+    const d = domains.find(x => x.id === userDomainId);
+    return d?.is_export ?? false;
+  }, [domains, userDomainId]);
+
   const [showAddPlant, setShowAddPlant] = useState(false);
   const [plantForm, setPlantForm] = useState<Partial<Plant>>({
     plant_name: '',
@@ -98,6 +107,17 @@ export const OrganizationFormPage: React.FC = () => {
   const [savingPlant, setSavingPlant] = useState(false);
   /** When creating: multiple plants to submit with the org */
   const [pendingPlants, setPendingPlants] = useState<Array<Partial<Plant>>>([]);
+
+  useEffect(() => {
+    const scope = getStoredMarketingScope();
+    if (scope?.domain_id) setUserDomainId(scope.domain_id);
+    marketingAPI.getDomains({ is_active: true, page: 1, page_size: 100 }).then(r => setDomains(r.items)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!userDomainId) return;
+    marketingAPI.getRegions({ domain_id: userDomainId, is_active: true, page: 1, page_size: 100 }).then(r => setRegions(r.items)).catch(() => {});
+  }, [userDomainId]);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -159,6 +179,10 @@ export const OrganizationFormPage: React.FC = () => {
         await marketingAPI.updateOrganization(parseInt(id), formData);
         showToast('Organization updated', 'success');
       } else {
+        if (pendingPlants.length === 0) {
+          showToast('At least one plant is required', 'error');
+          return;
+        }
         const plantsToCreate = pendingPlants.filter((p) => p.plant_name?.trim());
         const payload = { ...formData, plants: plantsToCreate.length > 0 ? plantsToCreate : undefined };
         const created = await marketingAPI.createOrganization(payload);
@@ -407,14 +431,20 @@ export const OrganizationFormPage: React.FC = () => {
                       isCombobox creatable searchable
                     />
                     <Input
-                      label="Country"
-                      value={p.country || ''}
-                      onChange={(e) => updatePendingPlant(index, 'country', e.target.value)}
-                    />
-                    <Input
                       label="Pin / Postal code"
                       value={p.postal_code || ''}
                       onChange={(e) => updatePendingPlant(index, 'postal_code', e.target.value)}
+                    />
+                    <Select
+                      label={isExportDomain ? 'Country' : 'Region'}
+                      options={[
+                        { value: '', label: 'None' },
+                        ...regions.map(r => ({ value: String(r.id), label: r.name })),
+                      ]}
+                      value={p.region_id ? String(p.region_id) : ''}
+                      onChange={(val) => updatePendingPlant(index, 'region_id' as keyof Plant, val ? Number(val) : undefined as any)}
+                      placeholder={isExportDomain ? 'Select country' : 'Select region'}
+                      searchable
                     />
                   </div>
                 </li>
@@ -475,14 +505,20 @@ export const OrganizationFormPage: React.FC = () => {
                           isCombobox creatable searchable
                         />
                         <Input
-                          label="Country"
-                          value={editingPlantForm.country || ''}
-                          onChange={(e) => setEditingPlantForm(prev => ({ ...prev, country: e.target.value }))}
-                        />
-                        <Input
                           label="Pin / Postal code"
                           value={editingPlantForm.postal_code || ''}
                           onChange={(e) => setEditingPlantForm(prev => ({ ...prev, postal_code: e.target.value }))}
+                        />
+                        <Select
+                          label={isExportDomain ? 'Country' : 'Region'}
+                          options={[
+                            { value: '', label: 'None' },
+                            ...regions.map(r => ({ value: String(r.id), label: r.name })),
+                          ]}
+                          value={editingPlantForm.region_id ? String(editingPlantForm.region_id) : ''}
+                          onChange={(val) => setEditingPlantForm(prev => ({ ...prev, region_id: val ? Number(val) : undefined }))}
+                          placeholder={isExportDomain ? 'Select country' : 'Select region'}
+                          searchable
                         />
                       </div>
                       <div className="flex gap-2">
@@ -513,6 +549,7 @@ export const OrganizationFormPage: React.FC = () => {
                                 city: p.city || '',
                                 country: p.country || '',
                                 postal_code: p.postal_code || '',
+                                region_id: p.region_id ?? undefined,
                               });
                             }}
                             title="Edit plant"
@@ -574,14 +611,20 @@ export const OrganizationFormPage: React.FC = () => {
                     isCombobox creatable searchable
                   />
                   <Input
-                    label="Country"
-                    value={plantForm.country || ''}
-                    onChange={(e) => setPlantForm({ ...plantForm, country: e.target.value })}
-                  />
-                  <Input
                     label="Pin / Postal code"
                     value={plantForm.postal_code || ''}
                     onChange={(e) => setPlantForm({ ...plantForm, postal_code: e.target.value })}
+                  />
+                  <Select
+                    label={isExportDomain ? 'Country' : 'Region'}
+                    options={[
+                      { value: '', label: 'None' },
+                      ...regions.map(r => ({ value: String(r.id), label: r.name })),
+                    ]}
+                    value={plantForm.region_id ? String(plantForm.region_id) : ''}
+                    onChange={(val) => setPlantForm({ ...plantForm, region_id: val ? Number(val) : undefined })}
+                    placeholder={isExportDomain ? 'Select country' : 'Select region'}
+                    searchable
                   />
                 </div>
                 <div className="flex gap-2">

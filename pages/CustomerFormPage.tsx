@@ -290,11 +290,13 @@ export const CustomerFormPage: React.FC = () => {
 
       // 1. Create organization first if needed (so we can attach it and the new contact to the customer)
       if (!organization_id && companyOrOrgName && canCreateOrg) {
+        if (!newPlantForm.plant_name?.trim()) {
+          showToast('Plant name is required when creating a new organization', 'error');
+          return;
+        }
         const plantDomainId = formData.domain_id;
         const plantRegionId = newPlantForm.region_id ?? (formData.region_id ?? undefined);
-        const plantsToCreate = newPlantForm.plant_name?.trim()
-          ? [{ plant_name: newPlantForm.plant_name.trim(), domain_id: plantDomainId, region_id: plantRegionId, address_line1: newPlantForm.address_line1?.trim() || undefined, address_line2: newPlantForm.address_line2?.trim() || undefined, city: newPlantForm.city?.trim() || undefined, state: newPlantForm.state?.trim() || undefined, country: newPlantForm.country?.trim() || undefined, postal_code: newPlantForm.postal_code?.trim() || undefined }]
-          : undefined;
+        const plantsToCreate = [{ plant_name: newPlantForm.plant_name.trim(), domain_id: plantDomainId, region_id: plantRegionId, address_line1: newPlantForm.address_line1?.trim() || undefined, address_line2: newPlantForm.address_line2?.trim() || undefined, city: newPlantForm.city?.trim() || undefined, state: newPlantForm.state?.trim() || undefined, country: newPlantForm.country?.trim() || undefined, postal_code: newPlantForm.postal_code?.trim() || undefined }];
         const org = await marketingAPI.createOrganization({
           name: newOrgForm.name.trim() || companyOrOrgName,
           code: newOrgForm.code.trim() || undefined,
@@ -553,7 +555,6 @@ export const CustomerFormPage: React.FC = () => {
                           <Input label="Address line 2" value={plantModalData.address_line2 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
                           <Input label="City" value={plantModalData.city || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, city: e.target.value }))} />
                           <Select label="State" options={INDIAN_STATES} value={plantModalData.state || ''} onChange={(val) => setPlantModalData(prev => ({ ...prev, state: (val as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable />
-                          <Input label="Country" value={plantModalData.country || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, country: e.target.value }))} />
                           <Input label="Pin / Postal code" value={plantModalData.postal_code || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, postal_code: e.target.value }))} />
                           <Select
                             label="Region"
@@ -691,7 +692,6 @@ export const CustomerFormPage: React.FC = () => {
                           <Input label="Address line 2" value={newPlantForm.address_line2 || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
                           <Input label="City" value={newPlantForm.city || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, city: e.target.value }))} />
                           <Select label="State" options={INDIAN_STATES} value={newPlantForm.state || ''} onChange={(val) => setNewPlantForm(prev => ({ ...prev, state: (val as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable />
-                          <Input label="Country" value={newPlantForm.country || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, country: e.target.value }))} />
                           <Input label="Postal code" value={newPlantForm.postal_code || ''} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} />
                           <Select
                             label="Region"

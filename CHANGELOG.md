@@ -5,6 +5,32 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-07-01] — Plant Required on Org Creation & Region Search Fix (v1.1.4)
+
+### 🖥️ Frontend
+
+#### Plant Now Required on Organization Creation
+- Organization creation now requires at least one plant — validation added across OrganizationFormPage, LeadFormPage, ContactFormPage, CustomerFormPage
+- Added plant name validation guards before `createOrganization` API calls in all 4 pages
+- Updated label from "Plant (optional — created with organization)" to "Plant (required — created with organization)" in LeadFormPage
+- Removed free-text Country input from all plant forms in LeadFormPage, OrganizationFormPage, ContactFormPage, CustomerFormPage — region/country selection now done exclusively via the Region/Region (Country) dropdown
+
+### ⚙️ Backend
+
+#### Regions Search
+- Added `search` query parameter to `GET /api/regions/` endpoint with `name` ILIKE filter — region dropdowns now properly filter results when typing
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `pages/OrganizationFormPage.tsx` | Added plant required validation; removed Country input |
+| `pages/LeadFormPage.tsx` | Added plant validation in 3 flows; removed Country inputs; updated label |
+| `pages/ContactFormPage.tsx` | Added plant validation; removed Country input |
+| `pages/CustomerFormPage.tsx` | Added plant validation; removed Country input |
+| `au-marketing-api/app/routers/regions.py` | Added `search` parameter + ILIKE filter |
+
+---
+
 ## [2026-06-29] — Plant-Based Contact Region & Audit Log Coverage (v1.1.3)
 
 ### 🖥️ Frontend

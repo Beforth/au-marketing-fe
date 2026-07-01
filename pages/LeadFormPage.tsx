@@ -654,6 +654,10 @@ export const LeadFormPage: React.FC = () => {
       showToast('Organization name is required', 'error');
       return;
     }
+    if (!newPlantForm.plant_name?.trim()) {
+      showToast('Plant name is required when creating a new organization', 'error');
+      return;
+    }
     setCreatingOrg(true);
     try {
       const org = await marketingAPI.createOrganization({
@@ -664,6 +668,7 @@ export const LeadFormPage: React.FC = () => {
         industry: newOrgForm.industry.trim() || undefined,
         organization_size: newOrgForm.organization_size?.trim() || undefined,
         is_active: true,
+        plants: [{ plant_name: newPlantForm.plant_name.trim(), address_line1: newPlantForm.address_line1?.trim() || undefined, address_line2: newPlantForm.address_line2?.trim() || undefined, city: newPlantForm.city?.trim() || undefined, state: newPlantForm.state?.trim() || undefined, postal_code: newPlantForm.postal_code?.trim() || undefined, domain_id: newPlantForm.domain_id ?? undefined, region_id: newPlantForm.region_id ?? undefined }],
       });
       const plants = await marketingAPI.getOrganizationPlants(org.id).catch(() => []);
       setCreateContactForm(prev => ({
@@ -1281,11 +1286,13 @@ export const LeadFormPage: React.FC = () => {
 
           // 1. Create organization first if needed
           if (!organization_id && companyOrOrgName && canCreateOrg) {
+            if (!inlineNewPlantForm.plant_name?.trim()) {
+              showToast('Plant name is required when creating a new organization', 'error');
+              return;
+            }
             const plantDomainId = formData.domain_id;
             const plantRegionId = inlineNewPlantForm.region_id ?? (formData.region_id ?? undefined);
-            const plantsToCreate = inlineNewPlantForm.plant_name?.trim()
-              ? [{ plant_name: inlineNewPlantForm.plant_name.trim(), domain_id: plantDomainId, region_id: plantRegionId, address_line1: inlineNewPlantForm.address_line1?.trim() || undefined, address_line2: inlineNewPlantForm.address_line2?.trim() || undefined, city: inlineNewPlantForm.city?.trim() || undefined, state: inlineNewPlantForm.state?.trim() || undefined, country: inlineNewPlantForm.country?.trim() || undefined, postal_code: inlineNewPlantForm.postal_code?.trim() || undefined }]
-              : undefined;
+            const plantsToCreate = [{ plant_name: inlineNewPlantForm.plant_name.trim(), domain_id: plantDomainId, region_id: plantRegionId, address_line1: inlineNewPlantForm.address_line1?.trim() || undefined, address_line2: inlineNewPlantForm.address_line2?.trim() || undefined, city: inlineNewPlantForm.city?.trim() || undefined, state: inlineNewPlantForm.state?.trim() || undefined, country: inlineNewPlantForm.country?.trim() || undefined, postal_code: inlineNewPlantForm.postal_code?.trim() || undefined }];
             const org = await marketingAPI.createOrganization({
               name: newOrgForm.name.trim() || companyOrOrgName,
               code: newOrgForm.code.trim() || undefined,
@@ -1356,6 +1363,10 @@ export const LeadFormPage: React.FC = () => {
             if (exact) {
               throughOrgId = exact.id;
             } else if (canCreateOrg) {
+              if (!inlineThroughNewPlantForm.plant_name.trim()) {
+                showToast('Plant name is required when creating a new organization', 'error');
+                return;
+              }
               const createdOrg = await marketingAPI.createOrganization({
                 name: throughTypedOrgName,
                 code: inlineThroughNewOrgForm.code.trim() || undefined,
@@ -2143,7 +2154,6 @@ export const LeadFormPage: React.FC = () => {
                           <Input label="Address line 2" value={plantModalData.address_line2 || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
                           <Input label="City" value={plantModalData.city || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, city: e.target.value }))} />
                           <Select label="State" options={INDIAN_STATES} value={plantModalData.state || ''} onChange={(val) => setPlantModalData(prev => ({ ...prev, state: val as string }))} placeholder="Select or type state..." isCombobox creatable searchable />
-                          <Input label="Country" value={plantModalData.country || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, country: e.target.value }))} />
                           <Input label="Postal code" value={plantModalData.postal_code || ''} onChange={(e) => setPlantModalData(prev => ({ ...prev, postal_code: e.target.value }))} />
                           {isExportDomain ? (
                             <Select
@@ -2246,14 +2256,13 @@ export const LeadFormPage: React.FC = () => {
                         <Input label="Website" value={newOrgForm.website} onChange={(e) => setNewOrgForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
                       </div>
                       <div className="pt-2 border-t border-slate-200">
-                        <p className="text-sm font-medium text-slate-700 mb-2">Plant (optional — created with organization)</p>
+                        <p className="text-sm font-medium text-slate-700 mb-2">Plant (required — created with organization)</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <Input label="Plant name" value={inlineNewPlantForm.plant_name} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, plant_name: e.target.value }))} placeholder="e.g. Main Plant" />
                           <Input label="Address line 1" value={inlineNewPlantForm.address_line1} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, address_line1: e.target.value }))} placeholder="Address line 1" />
                           <Input label="Address line 2" value={inlineNewPlantForm.address_line2} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, address_line2: e.target.value }))} placeholder="Address line 2" />
                           <Input label="City" value={inlineNewPlantForm.city} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, city: e.target.value }))} />
                           <Select label="State" options={INDIAN_STATES} value={inlineNewPlantForm.state} onChange={(val) => setInlineNewPlantForm(prev => ({ ...prev, state: (val as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable />
-                          <Input label="Country" value={inlineNewPlantForm.country} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, country: e.target.value }))} />
                           <Input label="Postal code" value={inlineNewPlantForm.postal_code} onChange={(e) => setInlineNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} />
                           {isExportDomain ? (
                             <Select
@@ -3756,7 +3765,6 @@ export const LeadFormPage: React.FC = () => {
                         <div className="grid grid-cols-2 gap-2">
                           <Input label="City" value={newPlantForm.city} onChange={(e) => setNewPlantForm(prev => ({ ...prev, city: e.target.value }))} placeholder="City" inputSize="sm" />
                           <Select label="State" options={INDIAN_STATES} value={newPlantForm.state} onChange={(val) => setNewPlantForm(prev => ({ ...prev, state: (val as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable inputSize="sm" />
-                          <Input label="Country" value={newPlantForm.country} onChange={(e) => setNewPlantForm(prev => ({ ...prev, country: e.target.value }))} placeholder="Country" inputSize="sm" />
                           <Input label="Postal code" value={newPlantForm.postal_code} onChange={(e) => setNewPlantForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="Postal code" inputSize="sm" />
                           {isExportDomain ? (
                             <Select
