@@ -104,8 +104,8 @@ export interface Contact {
   contact_email?: string;
   contact_phone?: string;
   contact_job_title?: string;
-  domain_id: number;
-  region_id?: number;
+  domain_id?: number | null;
+  region_id?: number | null;
   organization_id?: number | null;  // Optional – link contact to an organization
   plant_id?: number | null;         // Optional – link to organization's plant
   is_active: boolean;
@@ -1150,8 +1150,6 @@ class MarketingAPIService {
   async getContacts(params?: {
     page?: number;
     page_size?: number;
-    domain_id?: number;
-    region_id?: number;
     is_active?: boolean;
     is_converted?: boolean;
     assigned_to?: number;
@@ -1160,8 +1158,6 @@ class MarketingAPIService {
     const queryParams = new URLSearchParams();
     queryParams.append('page', String(params?.page ?? 1));
     queryParams.append('page_size', String(params?.page_size ?? DEFAULT_PAGE_SIZE));
-    if (params?.domain_id != null) queryParams.append('domain_id', params.domain_id.toString());
-    if (params?.region_id != null) queryParams.append('region_id', params.region_id.toString());
     if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
     if (params?.is_converted !== undefined) queryParams.append('is_converted', params.is_converted.toString());
     if (params?.assigned_to != null) queryParams.append('assigned_to', params.assigned_to.toString());

@@ -5,24 +5,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { SearchInput } from '../components/ui/SearchInput';
-import { Select } from '../components/ui/Select';
-import { AsyncSelect } from '../components/ui/AsyncSelect';
-import { FilterPopover } from '../components/ui/FilterPopover';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
 import { NavLink } from 'react-router-dom';
-import { Database, Users, UserCircle, Search, UserPlus, Filter, Edit, Trash2, Eye, Building2, Mail, Phone, MapPin, X } from 'lucide-react';
+import { Users, UserCircle, UserPlus, Edit, Trash2, Building2, Mail } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Tooltip } from '../UI/Tooltip';
 import { DataTable } from '../components/ui/DataTable';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { marketingAPI, Contact, Domain, Region, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
+import { marketingAPI, Contact, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
 
 export const ContactsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -41,13 +37,7 @@ export const ContactsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const [selectedDomain, setSelectedDomain] = useState<number | null>(null);
-  const [selectedRegion, setSelectedRegion] = useState<number | null>(null);
-  const [tempSelectedDomain, setTempSelectedDomain] = useState<number | null>(null);
-  const [tempSelectedRegion, setTempSelectedRegion] = useState<number | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
   const [deleteContactId, setDeleteContactId] = useState<number | null>(null);
-  const filterButtonRef = React.useRef<HTMLDivElement>(null);
 
   // Debounce search term
   useEffect(() => {
@@ -63,7 +53,7 @@ export const ContactsPage: React.FC = () => {
       return;
     }
     loadData();
-  }, [canView, debouncedSearchTerm, selectedDomain, selectedRegion, page, pageSize]);
+  }, [canView, debouncedSearchTerm, page, pageSize]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -71,8 +61,6 @@ export const ContactsPage: React.FC = () => {
       const res = await marketingAPI.getContacts({
         page,
         page_size: pageSize,
-        domain_id: selectedDomain || undefined,
-        region_id: selectedRegion || undefined,
         search: debouncedSearchTerm || undefined
       });
       setContacts(res.items);
@@ -186,7 +174,7 @@ export const ContactsPage: React.FC = () => {
           {/* Centered Vertical Divider */}
           <div className="hidden lg:block w-[1px] h-5 bg-slate-200" />
 
-          {/* Action group: search & filter */}
+          {/* Action group: search */}
           <div className="flex flex-1 items-center gap-3">
             <SearchInput
               placeholder="Search contacts..."
@@ -195,93 +183,9 @@ export const ContactsPage: React.FC = () => {
               onClear={() => setSearchTerm('')}
               containerClassName="max-w-md shadow-none"
             />
-            <div ref={filterButtonRef} className="inline-block">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="rounded-full border-slate-200 h-10 px-6 font-bold text-slate-600" 
-                leftIcon={<Filter size={14} strokeWidth={2.5} />}
-                onClick={() => {
-                  setTempSelectedDomain(selectedDomain);
-                  setTempSelectedRegion(selectedRegion);
-                  setShowFilters(!showFilters);
-                }}
-              >
-                Filter
-              </Button>
-            </div>
-            {(selectedDomain || selectedRegion) && (
-              <Badge variant="outline" className="text-xs h-7">
-                Active Filter
-              </Badge>
-            )}
           </div>
         </div>
       </div>
-
-      {/* Filter Popover */}
-      <FilterPopover
-        isOpen={showFilters}
-        onClose={() => setShowFilters(false)}
-        triggerRef={filterButtonRef}
-        onApply={() => {
-          setSelectedDomain(tempSelectedDomain);
-          setSelectedRegion(tempSelectedRegion);
-          setShowFilters(false);
-        }}
-        onClear={() => {
-          setTempSelectedDomain(null);
-          setTempSelectedRegion(null);
-          setSelectedDomain(null);
-          setSelectedRegion(null);
-          setShowFilters(false);
-        }}
-      >
-        <AsyncSelect
-          label="Domain"
-          loadOptions={async (search) => {
-            if (search) {
-              const res = await marketingAPI.getDomains({ is_active: true, page: 1, page_size: 25, search });
-              return [
-                { value: '', label: 'All Domains' },
-                ...res.items.map(d => ({ value: d.id, label: d.name }))
-              ];
-            }
-            return [{ value: '', label: 'All Domains' }];
-          }}
-          value={tempSelectedDomain || ''}
-          onChange={(val) => {
-            const domainId = val ? Number(val) : null;
-            setTempSelectedDomain(domainId);
-            setTempSelectedRegion(null);
-          }}
-          placeholder="All Domains"
-          initialOptions={[{ value: '', label: 'All Domains' }]}
-        />
-
-        {tempSelectedDomain && (
-          <AsyncSelect
-            label="Region"
-            loadOptions={async (search) => {
-              const res = await marketingAPI.getRegions({
-                domain_id: tempSelectedDomain,
-                is_active: true,
-                page: 1,
-                page_size: 25,
-                search: search || undefined
-              });
-              return [
-                { value: '', label: 'All Regions' },
-                ...res.items.map(r => ({ value: r.id, label: r.name }))
-              ];
-            }}
-            value={tempSelectedRegion || ''}
-            onChange={(val) => setTempSelectedRegion(val ? Number(val) : null)}
-            placeholder="All Regions"
-            initialOptions={[]}
-          />
-        )}
-      </FilterPopover>
 
       <div className="mt-4">
         {/* Contacts List */}
@@ -353,14 +257,6 @@ export const ContactsPage: React.FC = () => {
                         {parts.length > 0 && <div className="text-xs text-slate-500">{parts.join(', ')}</div>}
                       </div>
                     );
-                  },
-                },
-                {
-                  key: 'region_domain',
-                  label: 'Region / Domain',
-                  render: (contact) => {
-                    const parts = [contact.region?.name, contact.domain?.name].filter(Boolean);
-                    return parts.length > 0 ? <Badge variant="outline">{parts.join(' / ')}</Badge> : null;
                   },
                 },
                 {

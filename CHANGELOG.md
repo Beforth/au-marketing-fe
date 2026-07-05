@@ -5,6 +5,51 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-07-05] — Contact Domain/Region Auto-Derived from Plant & UI Cleanup (v1.1.5)
+
+### 🖥️ Frontend
+
+#### Contact Form — Domain/Region Auto-Derivation
+- Removed Domain & Region collapsible panel from ContactFormPage — domain/region no longer manually editable on contacts
+- Removed domain_id/region_id from form state and initial data
+- Removed loadUserAssignments and associated region loading based on formData.domain_id
+- Contact form now loads regions based on userDomainId only
+- Plant creation flow uses userDomainId instead of formData.domain_id
+
+#### Contact Form — Selected Plant Display
+- "Selected plant" section now always shows domain and region labels (with fallbacks: "No domain" / "No region" or Domain #ID / Region #ID when names are unavailable)
+- Added "Edit plant" action button that navigates to `/organizations/{orgId}/edit?tab=plants` for quick access to plant details
+
+#### Contacts List — Filter & Badge Cleanup
+- Removed domain/region filter dropdowns and FilterPopover from ContactsPage
+- Removed "Region / Domain" badge column from table
+- Removed domain_id/region_id from getContacts API call params
+
+### ⚙️ Backend
+
+#### Contact Domain/Region Auto-Derivation
+- ContactBase.domain_id changed from required `int` to `Optional[int] = None` in schemas
+- Contact.domain_id column changed from `nullable=False` to `nullable=True` in models
+- Create contact endpoint: domain/region now auto-derived from linked plant instead of validated from request
+- Update contact endpoint: domain/region re-derived from plant on change
+- List contacts endpoint: removed domain_id/region_id from query parameters
+
+#### Bug Fix — regions.py log_action Crash
+- Fixed `NameError` in region create (line 228) and update (line 284) — `log_action(current_user=user, ...)` changed to `current_user=user_info` (variable did not exist in scope)
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `pages/ContactFormPage.tsx` | Removed domain/region panel, form state, loadUserAssignments; simplified region loading; added always-show domain/region labels + Edit plant button |
+| `pages/ContactsPage.tsx` | Removed domain/region filters, FilterPopover, badge column |
+| `lib/marketing-api.ts` | Contact.domain_id made optional; getContacts params cleaned |
+| `au-marketing-api/app/schemas.py` | ContactBase.domain_id: int → Optional[int] |
+| `au-marketing-api/app/models.py` | Contact.domain_id: nullable=False → nullable=True |
+| `au-marketing-api/app/routers/contacts.py` | Create/update auto-derive domain/region from plant; list no longer accepts domain_id/region_id params |
+| `au-marketing-api/app/routers/regions.py` | Fixed `user` → `user_info` NameError in log_action calls |
+
+---
+
 ## [2026-07-01] — Plant Required on Org Creation & Region Search Fix (v1.1.4)
 
 ### 🖥️ Frontend

@@ -8,16 +8,15 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
-import { AsyncSelect } from '../components/ui/AsyncSelect';
 import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
-import { selectHasPermission, selectUser, selectEmployee } from '../store/slices/authSlice';
+import { selectHasPermission } from '../store/slices/authSlice';
 import { marketingAPI, Contact, Domain, Region, Organization, Plant } from '../lib/marketing-api';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, INDIAN_STATES, INDUSTRY_OPTIONS } from '../constants';
 import { parseNameWithPrefix, parsePhoneWithCountryCode, serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import { getStoredMarketingScope } from '../lib/marketing-scope';
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Globe, Plus, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ExternalLink, Plus, X } from 'lucide-react';
 
 const ORGANIZATION_SIZES = [
   { value: '1-10', label: '1-10 employees' },
@@ -32,8 +31,6 @@ export const ContactFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { showToast } = useApp();
-  const user = useAppSelector(selectUser);
-  const employee = useAppSelector(selectEmployee);
   const isEdit = Boolean(id);
   
   const canCreate = useAppSelector(selectHasPermission('marketing.create_contact'));
@@ -44,7 +41,7 @@ export const ContactFormPage: React.FC = () => {
   const submittingRef = useRef(false);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
-  const [domainRegionCollapsed, setDomainRegionCollapsed] = useState(true);
+  const [userDomainId, setUserDomainId] = useState<number | null>(null);
   const [namePrefix, setNamePrefix] = useState('');
   const [contactPhoneCountryCode, setContactPhoneCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [contactPhonePart, setContactPhonePart] = useState('');
@@ -55,8 +52,6 @@ export const ContactFormPage: React.FC = () => {
     contact_email: '',
     contact_phone: '',
     contact_job_title: '',
-    domain_id: undefined,
-    region_id: undefined,
     organization_id: undefined,
     plant_id: undefined,
     notes: '',
@@ -79,7 +74,6 @@ export const ContactFormPage: React.FC = () => {
 
   useEffect(() => {
     if (isEdit) {
-      setDomainRegionCollapsed(false);
       if (!canEdit) {
         showToast('You do not have permission to edit contacts', 'error');
         navigate('/database/contacts');
@@ -87,15 +81,16 @@ export const ContactFormPage: React.FC = () => {
       }
       loadContact();
     } else {
-      setDomainRegionCollapsed(true);
       if (!canCreate) {
         showToast('You do not have permission to create contacts', 'error');
         navigate('/database/contacts');
         return;
       }
     }
+    const scope = getStoredMarketingScope();
+    if (scope?.domain_id) setUserDomainId(scope.domain_id);
     loadDomains();
-  }, [id, isEdit, canCreate, canEdit, employee?.id, user?.id]);
+  }, [id, isEdit, canCreate, canEdit]);
 
   const searchOrganizationsByName = useCallback((query: string) => {
     const q = query.trim();
@@ -141,58 +136,18 @@ export const ContactFormPage: React.FC = () => {
   }, [formData.organization_id]);
 
   useEffect(() => {
-    if (formData.domain_id) {
-      loadRegions(formData.domain_id);
+    if (userDomainId) {
+      loadRegions(userDomainId);
     } else {
       setRegions([]);
     }
-  }, [formData.domain_id]);
-
-  const loadUserAssignments = async (): Promise<{ domain_id: number; region_id?: number } | null> => {
-    const cachedScope = getStoredMarketingScope();
-    if (cachedScope?.domain_id != null) {
-      return {
-        domain_id: cachedScope.domain_id,
-        region_id: cachedScope.region_id ?? cachedScope.region_ids?.[0],
-      };
-    }
-    const candidateIds = Array.from(new Set([employee?.id, user?.id].filter((v): v is number => typeof v === 'number' && Number.isFinite(v))));
-    for (const candidateId of candidateIds) {
-      try {
-        const assignments = await marketingAPI.getEmployeeAssignments(candidateId);
-        if (!assignments?.length) continue;
-        const active = assignments.find((x: any) => x?.is_active) ?? assignments[0];
-        if (!active) continue;
-        if (active.region?.id != null && active.region?.domain_id != null) {
-          return { domain_id: active.region.domain_id, region_id: active.region.id };
-        }
-        if (active.region_id != null) {
-          try {
-            const region = await marketingAPI.getRegion(active.region_id);
-            if (region?.id != null && region?.domain_id != null) {
-              return { domain_id: region.domain_id, region_id: region.id };
-            }
-          } catch (_) {}
-        }
-      } catch (_) {}
-    }
-    return null;
-  };
+  }, [userDomainId]);
 
   const loadDomains = async () => {
     try {
       const res = await marketingAPI.getDomains({ is_active: true, page: 1, page_size: 100 });
       const list = res?.items ?? [];
       setDomains(list);
-      if (!isEdit) {
-        const assigned = await loadUserAssignments();
-        if (assigned) {
-          setFormData(prev => ({ ...prev, domain_id: assigned.domain_id, region_id: assigned.region_id ?? prev.region_id }));
-          await loadRegions(assigned.domain_id);
-        } else if (!formData.domain_id && list.length > 0) {
-          setFormData(prev => ({ ...prev, domain_id: list[0].id }));
-        }
-      }
     } catch (error: any) {
       showToast('Failed to load domains', 'error');
       setDomains([]);
@@ -231,8 +186,6 @@ export const ContactFormPage: React.FC = () => {
         contact_email: contact.contact_email || '',
         contact_phone: contact.contact_phone || '',
         contact_job_title: contact.contact_job_title || '',
-        domain_id: contact.domain_id,
-        region_id: contact.region_id ?? undefined,
         organization_id: contact.organization_id ?? undefined,
         plant_id: contact.plant_id ?? undefined,
         notes: contact.notes || '',
@@ -242,8 +195,6 @@ export const ContactFormPage: React.FC = () => {
         is_active: contact.is_active,
       });
       setSelectedOrganization(contact.organization ?? null);
-      // Load regions for the domain if domain is set
-      if (contact.domain_id) await loadRegions(contact.domain_id);
       if (contact.organization_id) {
         const pl = await marketingAPI.getOrganizationPlants(contact.organization_id);
         setPlants(pl);
@@ -268,11 +219,6 @@ export const ContactFormPage: React.FC = () => {
       }
       const fullPhone = serializePhoneWithCountryCode(contactPhoneCountryCode, contactPhonePart);
 
-      if (!formData.domain_id) {
-        showToast('Domain is required', 'error');
-        return;
-      }
-
       let organization_id = formData.organization_id;
       let plant_id = formData.plant_id;
 
@@ -282,8 +228,8 @@ export const ContactFormPage: React.FC = () => {
           showToast('Plant name is required when creating a new organization', 'error');
           return;
         }
-        const plantDomainId = formData.domain_id;
-        const plantRegionId = newPlantForm.region_id ?? (formData.region_id ?? undefined);
+        const plantDomainId = userDomainId ?? undefined;
+        const plantRegionId = newPlantForm.region_id ?? undefined;
         const plantsToCreate = [{ plant_name: newPlantForm.plant_name.trim(), domain_id: plantDomainId, region_id: plantRegionId, address_line1: newPlantForm.address_line1?.trim() || undefined, address_line2: newPlantForm.address_line2?.trim() || undefined, city: newPlantForm.city?.trim() || undefined, state: newPlantForm.state?.trim() || undefined, country: newPlantForm.country?.trim() || undefined, postal_code: newPlantForm.postal_code?.trim() || undefined }];
         const org = await marketingAPI.createOrganization({
           name: newOrgName,
@@ -559,12 +505,9 @@ export const ContactFormPage: React.FC = () => {
                         value={formData.plant_id != null ? String(formData.plant_id) : ''}
                         onChange={(val) => {
                           const newPlantId = val ? Number(val) : undefined;
-                          const selectedPlant = newPlantId ? plants.find(p => p.id === newPlantId) : undefined;
                           setFormData(prev => ({
                             ...prev,
                             plant_id: newPlantId,
-                            domain_id: selectedPlant?.domain_id ?? prev.domain_id,
-                            region_id: selectedPlant?.region_id ?? prev.region_id,
                           }));
                         }}
                         placeholder="Select plant"
@@ -595,7 +538,7 @@ export const ContactFormPage: React.FC = () => {
                         <Select
                           label="Region"
                           options={[{ value: '', label: 'None' }, ...regions.map(r => ({ value: String(r.id), label: r.name }))]}
-                          value={plantModalData.region_id ? String(plantModalData.region_id) : (formData.region_id ? String(formData.region_id) : '')}
+                          value={plantModalData.region_id ? String(plantModalData.region_id) : ''}
                           onChange={(val) => setPlantModalData(prev => ({ ...prev, region_id: val ? Number(val) : undefined }))}
                           placeholder="Select region"
                         />
@@ -612,7 +555,7 @@ export const ContactFormPage: React.FC = () => {
                             showToast('Plant added', 'success');
                             const pl = await marketingAPI.getOrganizationPlants(formData.organization_id);
                             setPlants(pl);
-                            setFormData(prev => ({ ...prev, plant_id: created.id, domain_id: created.domain_id ?? prev.domain_id, region_id: created.region_id ?? prev.region_id }));
+                            setFormData(prev => ({ ...prev, plant_id: created.id }));
                             setShowPlantInline(false);
                             setPlantModalData({ plant_name: '', address_line1: '', address_line2: '', city: '', state: '', country: '', postal_code: '', domain_id: undefined, region_id: undefined });
                           } catch (e: any) {
@@ -632,16 +575,28 @@ export const ContactFormPage: React.FC = () => {
                     const plantDomain = domains.find(d => d.id === selectedPlant.domain_id);
                     const plantRegion = regions.find(r => r.id === selectedPlant.region_id);
                     const address = [selectedPlant.address_line1, selectedPlant.address_line2, selectedPlant.city, selectedPlant.state, selectedPlant.country, selectedPlant.postal_code].filter(Boolean).join(', ');
+                    const domainLabel = plantDomain?.name ?? (selectedPlant.domain_id != null ? `Domain #${selectedPlant.domain_id}` : 'No domain');
+                    const regionLabel = plantRegion?.name ?? (selectedPlant.region_id != null ? `Region #${selectedPlant.region_id}` : 'No region');
                     return (
                       <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm mt-2 animate-in zoom-in-95 duration-200 shadow-sm">
-                        <p className="font-bold text-slate-800">Selected plant</p>
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold text-slate-800">Selected plant</p>
+                          {selectedPlant.organization_id != null && (
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="outline"
+                              onClick={() => navigate(`/organizations/${selectedPlant.organization_id}/edit?tab=plants`)}
+                            >
+                              <ExternalLink size={12} className="mr-1" /> Edit plant
+                            </Button>
+                          )}
+                        </div>
                         <p className="text-slate-600 mt-0.5">{selectedPlant.plant_name}</p>
                         {address && <p className="text-slate-500 text-xs mt-1">{address}</p>}
-                        {(plantDomain || plantRegion) && (
-                          <p className="text-slate-500 text-xs mt-0.5">
-                            {plantDomain?.name}{plantDomain && plantRegion ? ' · ' : ''}{plantRegion?.name}
-                          </p>
-                        )}
+                        <p className="text-slate-500 text-xs mt-0.5">
+                          {domainLabel} · {regionLabel}
+                        </p>
                       </div>
                     );
                   })()}
@@ -697,7 +652,7 @@ export const ContactFormPage: React.FC = () => {
                         <Select
                           label="Region"
                           options={[{ value: '', label: 'None' }, ...regions.map(r => ({ value: String(r.id), label: r.name }))]}
-                          value={newPlantForm.region_id ? String(newPlantForm.region_id) : (formData.region_id ? String(formData.region_id) : '')}
+                          value={newPlantForm.region_id ? String(newPlantForm.region_id) : ''}
                           onChange={(val) => setNewPlantForm(prev => ({ ...prev, region_id: val ? Number(val) : undefined }))}
                           placeholder="Select region"
                         />
@@ -716,76 +671,6 @@ export const ContactFormPage: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, source: e.target.value })}
                 placeholder="e.g. Website, Referral"
               />
-            </div>
-
-            {/* Domain & Region — collapsed by default on create, auto-filled from user assignment */}
-            <div className="md:col-span-2 space-y-2">
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setDomainRegionCollapsed(!domainRegionCollapsed)}
-                  className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-left transition-colors"
-                >
-                  <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                    <Globe size={16} className="text-slate-500" />
-                    Domain & Region
-                    {formData.domain_id && (
-                      <span className="text-slate-500 font-normal">
-                        — {domains.find(d => d.id === formData.domain_id)?.name ?? 'Domain'}
-                        {formData.region_id && regions.find(r => r.id === formData.region_id)
-                          ? ` · ${regions.find(r => r.id === formData.region_id)?.name}`
-                          : ''}
-                      </span>
-                    )}
-                  </span>
-                  {domainRegionCollapsed ? (
-                    <ChevronRight size={18} className="text-slate-500 shrink-0" />
-                  ) : (
-                    <ChevronDown size={18} className="text-slate-500 shrink-0" />
-                  )}
-                </button>
-                {!domainRegionCollapsed && (
-                  <div className="p-4 pt-2 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-200 bg-white">
-                    <AsyncSelect
-                      label="Domain"
-                      loadOptions={async (search) => {
-                        const res = await marketingAPI.getDomains({ 
-                          is_active: true,
-                          page: 1,
-                          page_size: 100,
-                          search: search || undefined
-                        });
-                        const list = res?.items ?? [];
-                        return list.map(d => ({ value: d.id, label: d.name }));
-                      }}
-                      value={formData.domain_id}
-                      onChange={(val) => setFormData({ ...formData, domain_id: val ? Number(val) : undefined, region_id: undefined })}
-                      placeholder="Select Domain"
-                      required
-                      initialOptions={domains.map(d => ({ value: d.id, label: d.name }))}
-                    />
-                    <AsyncSelect
-                      label="Region"
-                      loadOptions={async (search) => {
-                        if (!formData.domain_id) return [];
-                        const res = await marketingAPI.getRegions({
-                          domain_id: formData.domain_id,
-                          is_active: true,
-                          page: 1,
-                          page_size: 25,
-                          search: search || undefined
-                        });
-                        return res.items.map(r => ({ value: r.id, label: r.name }));
-                      }}
-                      value={formData.region_id}
-                      onChange={(val) => setFormData({ ...formData, region_id: val ? Number(val) : undefined })}
-                      placeholder="Select Region"
-                      disabled={!formData.domain_id}
-                      initialOptions={regions.map(r => ({ value: r.id, label: r.name }))}
-                    />
-                  </div>
-                )}
-              </div>
             </div>
 
           <div>

@@ -21,6 +21,7 @@ import { marketingAPI, Organization, Plant, Domain, Region } from '../lib/market
 import { INDIAN_STATES, INDUSTRY_OPTIONS } from '../constants';
 import { ArrowLeft, Plus, MapPin, Building2, Layers, Pencil, Trash2 } from 'lucide-react';
 import { getStoredMarketingScope } from '../lib/marketing-scope';
+import { Tooltip } from '../UI/Tooltip';
 
 const ORGANIZATION_SIZES = [
   { value: '1-10', label: '1-10 employees' },
@@ -104,6 +105,7 @@ export const OrganizationFormPage: React.FC = () => {
   });
   const [editingPlantId, setEditingPlantId] = useState<number | null>(null);
   const [editingPlantForm, setEditingPlantForm] = useState<Partial<Plant>>({});
+  const [editPlantRegions, setEditPlantRegions] = useState<Region[]>([]);
   const [savingPlant, setSavingPlant] = useState(false);
   /** When creating: multiple plants to submit with the org */
   const [pendingPlants, setPendingPlants] = useState<Array<Partial<Plant>>>([]);
@@ -115,9 +117,16 @@ export const OrganizationFormPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!userDomainId) return;
-    marketingAPI.getRegions({ domain_id: userDomainId, is_active: true, page: 1, page_size: 100 }).then(r => setRegions(r.items)).catch(() => {});
-  }, [userDomainId]);
+    const domainId = plantForm.domain_id ?? userDomainId;
+    if (!domainId) return;
+    marketingAPI.getRegions({ domain_id: domainId, is_active: true, page: 1, page_size: 100 }).then(r => setRegions(r.items)).catch(() => {});
+  }, [plantForm.domain_id, userDomainId]);
+
+  useEffect(() => {
+    const domainId = editingPlantForm.domain_id ?? userDomainId;
+    if (!domainId) { setEditPlantRegions([]); return; }
+    marketingAPI.getRegions({ domain_id: domainId, is_active: true, page: 1, page_size: 100 }).then(r => setEditPlantRegions(r.items)).catch(() => setEditPlantRegions([]));
+  }, [editingPlantForm.domain_id, userDomainId]);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -229,8 +238,7 @@ export const OrganizationFormPage: React.FC = () => {
     }
   };
 
-  const handleUpdatePlant = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdatePlant = async () => {
     if (!id || editingPlantId == null || !editingPlantForm.plant_name?.trim()) {
       showToast('Plant name is required', 'error');
       return;
@@ -470,7 +478,7 @@ export const OrganizationFormPage: React.FC = () => {
               {plants.map((p) => (
                 <li key={p.id} className="py-2 border-b border-slate-100 last:border-0">
                   {editingPlantId === p.id ? (
-                    <form onSubmit={handleUpdatePlant} className="p-4 bg-slate-50 rounded-lg space-y-3">
+                    <div className="p-4 bg-slate-50 rounded-lg space-y-3">
                       <Input
                         label="Plant name"
                         value={editingPlantForm.plant_name || ''}
@@ -489,6 +497,17 @@ export const OrganizationFormPage: React.FC = () => {
                         value={editingPlantForm.address_line2 || ''}
                         onChange={(e) => setEditingPlantForm(prev => ({ ...prev, address_line2: e.target.value }))}
                         placeholder="Address line 2"
+                      />
+                      <Select
+                        label="Domain"
+                        options={[
+                          { value: '', label: 'None' },
+                          ...domains.map(d => ({ value: String(d.id), label: d.name })),
+                        ]}
+                        value={editingPlantForm.domain_id ? String(editingPlantForm.domain_id) : ''}
+                        onChange={(val) => setEditingPlantForm(prev => ({ ...prev, domain_id: val ? Number(val) : undefined, region_id: undefined }))}
+                        placeholder="Select Domain"
+                        searchable
                       />
                       <div className="grid grid-cols-2 gap-3">
                         <Input
@@ -513,7 +532,7 @@ export const OrganizationFormPage: React.FC = () => {
                           label={isExportDomain ? 'Country' : 'Region'}
                           options={[
                             { value: '', label: 'None' },
-                            ...regions.map(r => ({ value: String(r.id), label: r.name })),
+                            ...editPlantRegions.map(r => ({ value: String(r.id), label: r.name })),
                           ]}
                           value={editingPlantForm.region_id ? String(editingPlantForm.region_id) : ''}
                           onChange={(val) => setEditingPlantForm(prev => ({ ...prev, region_id: val ? Number(val) : undefined }))}
@@ -522,10 +541,10 @@ export const OrganizationFormPage: React.FC = () => {
                         />
                       </div>
                       <div className="flex gap-2">
-                        <Button type="submit" size="sm" disabled={savingPlant}>{savingPlant ? 'Saving...' : 'Save'}</Button>
+                        <Button type="button" size="sm" disabled={savingPlant} onClick={handleUpdatePlant}>{savingPlant ? 'Saving...' : 'Save'}</Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => { setEditingPlantId(null); setEditingPlantForm({}); }}>Cancel</Button>
                       </div>
-                    </form>
+                    </div>
                   ) : (
                     <div className="flex items-center gap-2 flex-wrap">
                       <MapPin size={14} className="text-slate-400 shrink-0" />
@@ -537,37 +556,43 @@ export const OrganizationFormPage: React.FC = () => {
                       )}
                       <div className="ml-auto flex items-center gap-1">
                         {canEditPlant && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setEditingPlantId(p.id);
-                              setEditingPlantForm({
-                                plant_name: p.plant_name || '',
-                                address_line1: p.address_line1 || '',
-                                city: p.city || '',
-                                country: p.country || '',
-                                postal_code: p.postal_code || '',
-                                region_id: p.region_id ?? undefined,
-                              });
-                            }}
-                            title="Edit plant"
-                          >
-                            <Pencil size={14} />
-                          </Button>
+                          <Tooltip content="Edit Plant">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="xs"
+                              className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent transition-colors"
+                              onClick={() => {
+                                setEditingPlantId(p.id);
+                                setEditingPlantForm({
+                                  plant_name: p.plant_name || '',
+                                  address_line1: p.address_line1 || '',
+                                  address_line2: p.address_line2 || '',
+                                  city: p.city || '',
+                                  state: p.state || '',
+                                  country: p.country || '',
+                                  postal_code: p.postal_code || '',
+                                  domain_id: p.domain_id ?? undefined,
+                                  region_id: p.region_id ?? undefined,
+                                });
+                              }}
+                            >
+                              <Pencil size={15} strokeWidth={2} />
+                            </Button>
+                          </Tooltip>
                         )}
                         {canDeletePlant && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                            onClick={() => handleDeletePlant(p.id)}
-                            title="Remove plant"
-                          >
-                            <Trash2 size={14} />
-                          </Button>
+                          <Tooltip content="Remove Plant">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="xs"
+                              className="w-8 h-8 p-0 text-rose-500 hover:text-rose-600 hover:bg-transparent transition-colors"
+                              onClick={() => handleDeletePlant(p.id)}
+                            >
+                              <Trash2 size={15} strokeWidth={2} />
+                            </Button>
+                          </Tooltip>
                         )}
                       </div>
                     </div>
@@ -595,6 +620,17 @@ export const OrganizationFormPage: React.FC = () => {
                   value={plantForm.address_line2 || ''}
                   onChange={(e) => setPlantForm({ ...plantForm, address_line2: e.target.value })}
                   placeholder="Address line 2"
+                />
+                <Select
+                  label="Domain"
+                  options={[
+                    { value: '', label: 'None' },
+                    ...domains.map(d => ({ value: String(d.id), label: d.name })),
+                  ]}
+                  value={plantForm.domain_id ? String(plantForm.domain_id) : ''}
+                  onChange={(val) => setPlantForm({ ...plantForm, domain_id: val ? Number(val) : undefined, region_id: undefined })}
+                  placeholder="Select Domain"
+                  searchable
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <Input
