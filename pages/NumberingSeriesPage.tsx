@@ -166,6 +166,7 @@ export const NumberingSeriesPage: React.FC = () => {
       setFormPattern(s.pattern);
       setFormEntityType(s.entity_type ?? '');
       setFormNextValue(s.next_value);
+      setFormResetPeriod((s.reset_period as 'none' | 'day' | 'week' | 'month' | 'year') ?? 'none');
       setFormActive(s.is_active);
     } catch (e: any) {
       showToast(e.message || 'Failed to load series', 'error');
@@ -208,6 +209,7 @@ export const NumberingSeriesPage: React.FC = () => {
           pattern: formPattern.trim(),
           entity_type: formEntityType || undefined,
           next_value: formNextValue,
+          reset_period: formResetPeriod,
           is_active: formActive,
         });
         showToast('Series updated', 'success');

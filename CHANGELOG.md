@@ -5,6 +5,29 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-07-05] — Bug Fixes: Quote Numbers, Series Update & Value Validation (v1.1.6)
+
+### 🖥️ Frontend
+
+#### Lead Form — Quote Number Preservation on Add to List
+- Fixed quote number being reset to null when using "Add to list" — `generatedQuoteNumber` is now carried forward into each quotation entry
+- Removed `setGeneratedQuoteSeriesCode(null)` call that was incorrectly clearing the series after selection
+
+#### Lead Form — Quote Value Validation on Submit
+- Added validation to block submission when "Create Quotation" is enabled but quote value is empty
+- Added per-quotation validation for empty values in multi-quotation mode
+
+#### Numbering Series — Reset Period Now Saved on Edit
+- Fixed `reset_period` (e.g. Monthly/Yearly) not being loaded when editing a series
+- Fixed `reset_period` not being sent in the update payload
+
+### 🐍 Backend
+
+#### Series Update — Fix NameError Crash
+- Fixed `NameError: name 'user' is not defined` when updating a numbering series — `user` → `user_info` (line 334)
+
+---
+
 ## [2026-07-05] — Contact Domain/Region Auto-Derived from Plant & UI Cleanup (v1.1.5)
 
 ### 🖥️ Frontend

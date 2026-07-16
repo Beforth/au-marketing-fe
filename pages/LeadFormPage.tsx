@@ -1238,6 +1238,14 @@ export const LeadFormPage: React.FC = () => {
         showToast('Domain is required', 'error');
         return;
       }
+      if (!isEdit && createQuoteFile && !createQuoteValue.trim()) {
+        showToast('Quote value is mandatory. Please enter a value before submitting.', 'error');
+        return;
+      }
+      if (!isEdit && createQuotations.some(q => !q.value || !q.value.trim())) {
+        showToast('Quote value is mandatory for all quotations in the list.', 'error');
+        return;
+      }
       let effectiveContactId = formData.contact_id ?? undefined;
       let effectiveCustomerId = formData.customer_id ?? undefined;
       let effectiveThroughContactId = formData.through_contact_id ?? undefined;
@@ -2548,14 +2556,13 @@ export const LeadFormPage: React.FC = () => {
                             showToast('Quote number already exists in the list', 'error');
                             return;
                           }
-                          setCreateQuotations(prev => [...prev, { id: crypto.randomUUID(), file: createQuoteFile, value: createQuoteValue, number: createQuoteNumber }]);
+                          const effectiveNumber = createQuoteNumber.trim() || generatedQuoteNumber || '';
+                          setCreateQuotations(prev => [...prev, { id: crypto.randomUUID(), file: createQuoteFile, value: createQuoteValue, number: effectiveNumber }]);
                           setCreateQuoteFile(null);
                           setCreateQuoteValue('');
                           setCreateQuoteNumber('');
                           setCreateFormQuoteSeriesCode('');
                           setCustomCreateQuoteNumber('');
-                          setGeneratedQuoteNumber(null);
-                          setGeneratedQuoteSeriesCode(null);
                         }
                       }}
                     >
