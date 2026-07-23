@@ -10,11 +10,12 @@ import { DataTable, Column } from '../components/ui/DataTable';
 import { marketingAPI, QuotationListItem, QuotationLeadOption } from '../lib/marketing-api';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { Download, ExternalLink, Eye } from 'lucide-react';
+import { Download, ExternalLink, Eye, AlertTriangle, Upload } from 'lucide-react';
 import { Tooltip } from '../UI/Tooltip';
 import { Button } from '../components/ui/Button';
 import { SearchInput } from '../components/ui/SearchInput';
 import { PdfPreviewModal } from '../components/ui/PdfPreviewModal';
+import { useApp } from '../App';
 
 type SortField = 'quotation_number' | 'file_name' | 'lead_name' | 'inquiry_number' | 'activity_date';
 type SortOrder = 'asc' | 'desc';
@@ -23,6 +24,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 export const EnquiryQuotationsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useApp();
   const canViewLead = useAppSelector(selectHasPermission('marketing.view_lead'));
   const [quotations, setQuotations] = useState<QuotationListItem[]>([]);
   const [leadOptions, setLeadOptions] = useState<QuotationLeadOption[]>([]);
@@ -35,14 +37,10 @@ export const EnquiryQuotationsPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortField>('quotation_number');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [reattachingId, setReattachingId] = useState<number | null>(null);
+  const reattachInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
 
-  useEffect(() => {
-    if (!canViewLead) return;
-    marketingAPI.getQuotationLeadOptions().then(setLeadOptions).catch(() => setLeadOptions([]));
-  }, [canViewLead]);
-
-  useEffect(() => {
-    if (!canViewLead) return;
+  const loadQuotations = () => {
     setLoading(true);
     marketingAPI
       .getMyQuotations({
@@ -54,6 +52,16 @@ export const EnquiryQuotationsPage: React.FC = () => {
       .then(setQuotations)
       .catch(() => setQuotations([]))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (!canViewLead) return;
+    marketingAPI.getQuotationLeadOptions().then(setLeadOptions).catch(() => setLeadOptions([]));
+  }, [canViewLead]);
+
+  useEffect(() => {
+    if (!canViewLead) return;
+    loadQuotations();
   }, [canViewLead, searchQuery, filterLeadId, dateFrom, dateTo, sortBy, sortOrder]);
 
   useEffect(() => {
@@ -82,6 +90,19 @@ export const EnquiryQuotationsPage: React.FC = () => {
     }
   };
 
+  const handleReattach = async (q: QuotationListItem, file: File) => {
+    setReattachingId(q.id);
+    try {
+      await marketingAPI.reattachLeadActivityAttachment(q.lead_id, q.activity_id, q.id, file);
+      showToast('File reattached successfully', 'success');
+      loadQuotations();
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to reattach file', 'error');
+    } finally {
+      setReattachingId(null);
+    }
+  };
+
   const hasActiveFilters = !!(searchInput.trim() || filterLeadId !== '' || dateFrom || dateTo);
 
   const columns: Column<QuotationListItem>[] = [
@@ -98,7 +119,14 @@ export const EnquiryQuotationsPage: React.FC = () => {
       label: 'File',
       sortable: false,
       render: (q) => (
-        <span className="text-slate-600">{q.file_name}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-slate-600">{q.file_name}</span>
+          {q.media_exists === false && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-600 border border-red-200">
+              <AlertTriangle size={10} /> Media Missing
+            </span>
+          )}
+        </div>
       ),
     },
     {
@@ -146,26 +174,59 @@ export const EnquiryQuotationsPage: React.FC = () => {
       align: 'right',
       render: (q) => (
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-          <Tooltip content="Preview">
-            <Button
-              variant="ghost"
-              size="xs"
-              className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent transition-colors"
-              onClick={() => handleViewFile(q.lead_id, q.activity_id, q.id, q.file_name)}
-            >
-              <Eye size={15} strokeWidth={2} />
-            </Button>
-          </Tooltip>
-          <Tooltip content="Download Quotation">
-            <Button
-              variant="ghost"
-              size="xs"
-              className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent transition-colors"
-              onClick={() => handleDownload(q.lead_id, q.activity_id, q.id, q.file_name)}
-            >
-              <Download size={15} strokeWidth={2} />
-            </Button>
-          </Tooltip>
+          {q.media_exists === false ? (
+            <>
+              <input
+                type="file"
+                className="hidden"
+                ref={(el) => { if (el) reattachInputRefs.current.set(q.id, el); }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleReattach(q, file);
+                  e.target.value = '';
+                }}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.csv,.txt"
+              />
+              <Tooltip content="Reattach missing file">
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="w-8 h-8 p-0 text-amber-600 hover:text-amber-700 hover:bg-transparent transition-colors"
+                  disabled={reattachingId === q.id}
+                  onClick={() => reattachInputRefs.current.get(q.id)?.click()}
+                >
+                  {reattachingId === q.id ? (
+                    <span className="animate-spin w-3.5 h-3.5 border-2 border-amber-600 border-t-transparent rounded-full" />
+                  ) : (
+                    <Upload size={15} strokeWidth={2} />
+                  )}
+                </Button>
+              </Tooltip>
+            </>
+          ) : (
+            <>
+              <Tooltip content="Preview">
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent transition-colors"
+                  onClick={() => handleViewFile(q.lead_id, q.activity_id, q.id, q.file_name)}
+                >
+                  <Eye size={15} strokeWidth={2} />
+                </Button>
+              </Tooltip>
+              <Tooltip content="Download Quotation">
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent transition-colors"
+                  onClick={() => handleDownload(q.lead_id, q.activity_id, q.id, q.file_name)}
+                >
+                  <Download size={15} strokeWidth={2} />
+                </Button>
+              </Tooltip>
+            </>
+          )}
           <Tooltip content="Open Lead Details">
             <Button
               variant="ghost"

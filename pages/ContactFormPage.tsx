@@ -213,8 +213,8 @@ export const ContactFormPage: React.FC = () => {
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
-      if (!formData.first_name?.trim() || !formData.last_name?.trim()) {
-        showToast('First name and last name are required', 'error');
+      if (!formData.first_name?.trim()) {
+        showToast('First name is required', 'error');
         return;
       }
       const fullPhone = serializePhoneWithCountryCode(contactPhoneCountryCode, contactPhonePart);
@@ -339,7 +339,6 @@ export const ContactFormPage: React.FC = () => {
                   value={formData.last_name || ''}
                   onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                   placeholder="Last name"
-                  required
                 />
               </div>
             </div>

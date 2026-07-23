@@ -278,7 +278,7 @@ export const CustomerFormPage: React.FC = () => {
         showToast('Domain and region are required', 'error');
         return;
       }
-      const inlineContactFilled = createContactForm.first_name?.trim() && createContactForm.last_name?.trim() && serializePhoneWithCountryCode(createContactForm.phone_country_code, createContactForm.contact_phone)?.trim();
+      const inlineContactFilled = createContactForm.first_name?.trim() && serializePhoneWithCountryCode(createContactForm.phone_country_code, createContactForm.contact_phone)?.trim();
       if (!primaryContactContactId && !inlineContactFilled) {
         showToast('Please link an existing contact or fill the contact details below to create one on save', 'error');
         return;

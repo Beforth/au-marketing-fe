@@ -405,8 +405,8 @@ export const ODPlanPage: React.FC = () => {
   };
 
   const handleCreateContact = async () => {
-    if (!createContactForm.first_name?.trim() || !createContactForm.last_name?.trim()) {
-      showToast('First name and last name are required', 'error');
+    if (!createContactForm.first_name?.trim()) {
+      showToast('First name is required', 'error');
       return;
     }
     const fullPhone = serializePhoneWithCountryCode(createContactForm.phone_country_code, createContactForm.contact_phone);
@@ -867,7 +867,7 @@ export const ODPlanPage: React.FC = () => {
               <Select label="Title" options={NAME_PREFIXES} value={createContactForm.name_prefix} onChange={(v) => setCreateContactForm((f) => ({ ...f, name_prefix: (v ?? '') as string }))} searchable={false} />
             </div>
             <div className="flex-1"><Input label="First name" value={createContactForm.first_name} onChange={(e) => setCreateContactForm((f) => ({ ...f, first_name: e.target.value }))} placeholder="First name" required /></div>
-            <div className="flex-1"><Input label="Last name" value={createContactForm.last_name} onChange={(e) => setCreateContactForm((f) => ({ ...f, last_name: e.target.value }))} placeholder="Last name" required /></div>
+            <div className="flex-1"><Input label="Last name" value={createContactForm.last_name} onChange={(e) => setCreateContactForm((f) => ({ ...f, last_name: e.target.value }))} placeholder="Last name" /></div>
           </div>
           <div className="flex gap-2">
             <div className="w-28 shrink-0">
@@ -1015,7 +1015,7 @@ export const ODPlanPage: React.FC = () => {
           )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" size="sm" onClick={() => setAddContactModalOpen(false)}>Cancel</Button>
-            <Button size="sm" disabled={creatingContact || !createContactForm.first_name?.trim() || !createContactForm.last_name?.trim() || !(serializePhoneWithCountryCode(createContactForm.phone_country_code, createContactForm.contact_phone)?.trim()) || !createContactForm.domain_id} onClick={handleCreateContact}>
+            <Button size="sm" disabled={creatingContact || !createContactForm.first_name?.trim() || !(serializePhoneWithCountryCode(createContactForm.phone_country_code, createContactForm.contact_phone)?.trim()) || !createContactForm.domain_id} onClick={handleCreateContact}>
               {creatingContact ? 'Creating…' : 'Create'}
             </Button>
           </div>

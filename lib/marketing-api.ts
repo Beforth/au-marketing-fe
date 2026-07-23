@@ -321,6 +321,7 @@ export interface LeadActivityAttachment {
   quote_value?: number | null;
   file_size?: number;
   content_type?: string;
+  media_exists?: boolean;
   created_at: string;
 }
 
@@ -789,6 +790,22 @@ class MarketingAPIService {
 
   async deleteLeadActivityAttachment(leadId: number, activityId: number, attachmentId: number): Promise<void> {
     return apiClient.delete<void>(`/api/leads/${leadId}/activities/${activityId}/attachments/${attachmentId}`);
+  }
+
+  /** Replace the file for an existing attachment (reattach). Preserves metadata. */
+  async reattachLeadActivityAttachment(
+    leadId: number,
+    activityId: number,
+    attachmentId: number,
+    file: File
+  ): Promise<LeadActivityAttachment> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiClient.post<LeadActivityAttachment>(
+      `/api/leads/${leadId}/activities/${activityId}/attachments/${attachmentId}/replace`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
   }
 
   async updateLeadActivity(
@@ -1913,6 +1930,7 @@ export interface QuotationListItem {
   lead_name: string;
   activity_title: string;
   activity_date: string | null;
+  media_exists?: boolean;
 }
 
 export interface QuotationLeadOption {

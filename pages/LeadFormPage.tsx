@@ -43,7 +43,7 @@ import { Modal } from '../components/ui/Modal';
 import { PdfPreviewModal } from '../components/ui/PdfPreviewModal';
 import { DeleteButton } from '../components/ui/DeleteButton';
 import { Tooltip } from '../UI/Tooltip';
-import { ArrowLeft, ArrowRight, Clock, ChevronDown, ChevronRight, Globe, User, Building2, FileText, History, Edit2, Trash2, Paperclip, Download, Plus, Upload, X, Package, Trophy, XCircle, Search, Network, Info, Mail, List, Factory, MessageSquare, Eye } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Clock, ChevronDown, ChevronRight, Globe, User, Building2, FileText, History, Edit2, Trash2, Paperclip, Download, Plus, Upload, X, Package, Trophy, XCircle, Search, Network, Info, Mail, List, Factory, MessageSquare, Eye, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface LeadFormData extends Partial<Lead> {
@@ -183,6 +183,8 @@ export const LeadFormPage: React.FC = () => {
   const [quickAddUploadProgress, setQuickAddUploadProgress] = useState<number | null>(null);
   const [attachmentUploadProgress, setAttachmentUploadProgress] = useState<number | null>(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<number | null>(null);
+  const [reattachingId, setReattachingId] = useState<number | null>(null);
+  const reattachInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   /** When creating lead: multiple quotations added one at a time */
   const [createQuotations, setCreateQuotations] = useState<{ id: string; file: File | null; value: string; number: string; }[]>([]);
   const [createQuoteFile, setCreateQuoteFile] = useState<File | null>(null);
@@ -710,8 +712,8 @@ export const LeadFormPage: React.FC = () => {
   }, [createContactForm.organization_id, newPlantForm, showToast]);
 
   const handleCreateContact = useCallback(async () => {
-    if (!createContactForm.first_name?.trim() || !createContactForm.last_name?.trim()) {
-      showToast('First name and last name are required', 'error');
+    if (!createContactForm.first_name?.trim()) {
+      showToast('First name is required', 'error');
       return;
     }
     const fullPhone = serializePhoneWithCountryCode(createContactForm.contact_phone_code, createContactForm.contact_phone);
@@ -754,6 +756,20 @@ export const LeadFormPage: React.FC = () => {
       setPreviewFile({ url, name: fileName });
     } catch (err: any) {
       showToast(err?.message || 'Failed to load file', 'error');
+    }
+  };
+
+  const handleReattach = async (activityId: number, attachmentId: number, file: File) => {
+    if (!leadId) return;
+    setReattachingId(attachmentId);
+    try {
+      await marketingAPI.reattachLeadActivityAttachment(leadId, activityId, attachmentId, file);
+      showToast('File reattached successfully', 'success');
+      loadActivities();
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to reattach file', 'error');
+    } finally {
+      setReattachingId(null);
     }
   };
 
@@ -1279,7 +1295,7 @@ export const LeadFormPage: React.FC = () => {
       const referredByContactSubmit = referredByType === 'contact';
 
       if (!isEdit && !effectiveContactId && !effectiveCustomerId) {
-        const inlineContactFilled = inlineContactForm.first_name?.trim() && inlineContactForm.last_name?.trim() && serializePhoneWithCountryCode(inlineContactForm.contact_phone_code, inlineContactForm.contact_phone)?.trim();
+        const inlineContactFilled = inlineContactForm.first_name?.trim() && serializePhoneWithCountryCode(inlineContactForm.contact_phone_code, inlineContactForm.contact_phone)?.trim();
         const companyOrOrgName = (formData.company || inlineContactOrgQuery || newOrgForm.name || '').trim();
 
         if (!primaryContactContactId && !inlineContactFilled) {
@@ -1747,20 +1763,53 @@ export const LeadFormPage: React.FC = () => {
                 <span className="font-medium">{latestQuotation.att.quotation_number || '—'}</span>
                 {isValidId && (
                   <>
-                    <button
-                      type="button"
-                      onClick={() => handleViewFile(latestQuotation.activity.id, latestQuotation.att.id, latestQuotation.att.file_name || 'download')}
-                      className="ml-2 text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-0.5"
-                    >
-                      <Eye size={12} /> Preview
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, latestQuotation.activity.id, latestQuotation.att.id, latestQuotation.att.file_name || 'download')}
-                      className="text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-0.5"
-                    >
-                      <Download size={12} /> Download
-                    </button>
+                    {latestQuotation.att.media_exists === false ? (
+                      <>
+                        <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-600 border border-red-200">
+                          <AlertTriangle size={10} /> Media Missing
+                        </span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          ref={(el) => { if (el) reattachInputRefs.current.set(latestQuotation.att.id, el); }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleReattach(latestQuotation.activity.id, latestQuotation.att.id, file);
+                            e.target.value = '';
+                          }}
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.csv,.txt"
+                        />
+                        <button
+                          type="button"
+                          disabled={reattachingId === latestQuotation.att.id}
+                          onClick={() => reattachInputRefs.current.get(latestQuotation.att.id)?.click()}
+                          className="ml-2 text-xs text-amber-600 hover:text-amber-700 font-medium inline-flex items-center gap-0.5"
+                        >
+                          {reattachingId === latestQuotation.att.id ? (
+                            <span className="animate-spin w-3 h-3 border-2 border-amber-600 border-t-transparent rounded-full" />
+                          ) : (
+                            <Upload size={12} />
+                          )} Reattach
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleViewFile(latestQuotation.activity.id, latestQuotation.att.id, latestQuotation.att.file_name || 'download')}
+                          className="ml-2 text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-0.5"
+                        >
+                          <Eye size={12} /> Preview
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, latestQuotation.activity.id, latestQuotation.att.id, latestQuotation.att.file_name || 'download')}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-0.5"
+                        >
+                          <Download size={12} /> Download
+                        </button>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -3248,20 +3297,53 @@ export const LeadFormPage: React.FC = () => {
                                           <span className="font-medium text-slate-600 shrink-0">{att.quotation_number}</span>
                                         )}
                                         {att.quotation_number && <span className="text-slate-400">·</span>}
-                                        <button
-                                          type="button"
-                                          onClick={() => handleViewFile(a.id, att.id, att.file_name)}
-                                          className="text-blue-600 hover:underline flex items-center gap-1"
-                                        >
-                                          <Eye size={12} />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, a.id, att.id, att.file_name)}
-                                          className="text-blue-600 hover:underline flex items-center gap-1"
-                                        >
-                                          <Download size={12} /> {att.quotation_number || att.file_name}
-                                        </button>
+                                        {att.media_exists === false ? (
+                                          <>
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-600 border border-red-200">
+                                              <AlertTriangle size={10} /> Media Missing
+                                            </span>
+                                            <input
+                                              type="file"
+                                              className="hidden"
+                                              ref={(el) => { if (el) reattachInputRefs.current.set(att.id, el); }}
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleReattach(a.id, att.id, file);
+                                                e.target.value = '';
+                                              }}
+                                              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.csv,.txt"
+                                            />
+                                            <button
+                                              type="button"
+                                              disabled={reattachingId === att.id}
+                                              onClick={() => reattachInputRefs.current.get(att.id)?.click()}
+                                              className="text-amber-600 hover:underline flex items-center gap-1 font-medium"
+                                            >
+                                              {reattachingId === att.id ? (
+                                                <span className="animate-spin w-3 h-3 border-2 border-amber-600 border-t-transparent rounded-full" />
+                                              ) : (
+                                                <Upload size={12} />
+                                              )} Reattach
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleViewFile(a.id, att.id, att.file_name)}
+                                              className="text-blue-600 hover:underline flex items-center gap-1"
+                                            >
+                                              <Eye size={12} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, a.id, att.id, att.file_name)}
+                                              className="text-blue-600 hover:underline flex items-center gap-1"
+                                            >
+                                              <Download size={12} /> {att.quotation_number || att.file_name}
+                                            </button>
+                                          </>
+                                        )}
                                         {canEditDelete && (
                                           <button
                                             type="button"
@@ -3297,20 +3379,53 @@ export const LeadFormPage: React.FC = () => {
                                       <li key={att.id} className="flex items-center gap-2 text-xs">
                                         {att.title && <span className="font-medium text-slate-600 shrink-0">{att.title}</span>}
                                         {att.title && <span className="text-slate-400">·</span>}
-                                        <button
-                                          type="button"
-                                          onClick={() => handleViewFile(a.id, att.id, att.file_name)}
-                                          className="text-blue-600 hover:underline flex items-center gap-1"
-                                        >
-                                          <Eye size={12} />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, a.id, att.id, att.file_name)}
-                                          className="text-blue-600 hover:underline flex items-center gap-1"
-                                        >
-                                          <Download size={12} /> {att.title || att.file_name}
-                                        </button>
+                                        {att.media_exists === false ? (
+                                          <>
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-600 border border-red-200">
+                                              <AlertTriangle size={10} /> Media Missing
+                                            </span>
+                                            <input
+                                              type="file"
+                                              className="hidden"
+                                              ref={(el) => { if (el) reattachInputRefs.current.set(att.id, el); }}
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleReattach(a.id, att.id, file);
+                                                e.target.value = '';
+                                              }}
+                                              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.csv,.txt"
+                                            />
+                                            <button
+                                              type="button"
+                                              disabled={reattachingId === att.id}
+                                              onClick={() => reattachInputRefs.current.get(att.id)?.click()}
+                                              className="text-amber-600 hover:underline flex items-center gap-1 font-medium"
+                                            >
+                                              {reattachingId === att.id ? (
+                                                <span className="animate-spin w-3 h-3 border-2 border-amber-600 border-t-transparent rounded-full" />
+                                              ) : (
+                                                <Upload size={12} />
+                                              )} Reattach
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleViewFile(a.id, att.id, att.file_name)}
+                                              className="text-blue-600 hover:underline flex items-center gap-1"
+                                            >
+                                              <Eye size={12} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, a.id, att.id, att.file_name)}
+                                              className="text-blue-600 hover:underline flex items-center gap-1"
+                                            >
+                                              <Download size={12} /> {att.title || att.file_name}
+                                            </button>
+                                          </>
+                                        )}
                                         {canEditDelete && (
                                           <button
                                             type="button"
@@ -3595,7 +3710,7 @@ export const LeadFormPage: React.FC = () => {
                   <Input label="First name" value={createContactForm.first_name} onChange={(e) => setCreateContactForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="First name" required inputSize="sm" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <Input label="Last name" value={createContactForm.last_name} onChange={(e) => setCreateContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Last name" required inputSize="sm" />
+                  <Input label="Last name" value={createContactForm.last_name} onChange={(e) => setCreateContactForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Last name" inputSize="sm" />
                 </div>
               </div>
               <div className="flex gap-2 items-end">
@@ -3817,7 +3932,7 @@ export const LeadFormPage: React.FC = () => {
               </div>
               <div className="flex gap-2 pt-2 border-t border-slate-200">
                 <Button type="button" variant="outline" onClick={() => setShowCreateContactModal(false)}>Cancel</Button>
-                <Button type="button" onClick={handleCreateContact} disabled={creatingContact || !createContactForm.first_name?.trim() || !createContactForm.last_name?.trim() || !(serializePhoneWithCountryCode(createContactForm.contact_phone_code, createContactForm.contact_phone)?.trim()) || createContactForm.domain_id == null}>
+                <Button type="button" onClick={handleCreateContact} disabled={creatingContact || !createContactForm.first_name?.trim() || !(serializePhoneWithCountryCode(createContactForm.contact_phone_code, createContactForm.contact_phone)?.trim()) || createContactForm.domain_id == null}>
                   {creatingContact ? 'Creating...' : 'Create contact & link to lead'}
                 </Button>
               </div>
@@ -3889,7 +4004,7 @@ export const LeadFormPage: React.FC = () => {
                   <Input label="First Name" value={formData.first_name || ''} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} placeholder="First name" required inputSize="sm" />
                 </div>
                 <div className="md:col-span-5">
-                  <Input label="Last Name" value={formData.last_name || ''} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} placeholder="Last name" required inputSize="sm" />
+                  <Input label="Last Name" value={formData.last_name || ''} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} placeholder="Last name" inputSize="sm" />
                 </div>
 
                 <div className="md:col-span-6">
