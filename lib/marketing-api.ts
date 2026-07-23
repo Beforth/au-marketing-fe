@@ -801,10 +801,9 @@ class MarketingAPIService {
   ): Promise<LeadActivityAttachment> {
     const formData = new FormData();
     formData.append('file', file);
-    return apiClient.post<LeadActivityAttachment>(
+    return apiClient.postFormData<LeadActivityAttachment>(
       `/api/leads/${leadId}/activities/${activityId}/attachments/${attachmentId}/replace`,
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } }
+      formData
     );
   }
 
