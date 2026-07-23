@@ -761,6 +761,10 @@ export const LeadFormPage: React.FC = () => {
 
   const handleReattach = async (activityId: number, attachmentId: number, file: File) => {
     if (!leadId) return;
+    if (!file || file.size === 0) {
+      showToast('Please select a file', 'error');
+      return;
+    }
     setReattachingId(attachmentId);
     try {
       await marketingAPI.reattachLeadActivityAttachment(leadId, activityId, attachmentId, file);

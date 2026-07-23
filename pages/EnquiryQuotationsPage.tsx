@@ -91,6 +91,10 @@ export const EnquiryQuotationsPage: React.FC = () => {
   };
 
   const handleReattach = async (q: QuotationListItem, file: File) => {
+    if (!file || file.size === 0) {
+      showToast('Please select a file', 'error');
+      return;
+    }
     setReattachingId(q.id);
     try {
       await marketingAPI.reattachLeadActivityAttachment(q.lead_id, q.activity_id, q.id, file);
