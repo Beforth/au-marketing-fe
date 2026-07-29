@@ -5,6 +5,35 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-07-29] — PQ Platform Support Tickets Integration (v1.1.7)
+
+### 🖥️ Frontend
+
+#### Support Tickets Page — Replace FAQ with Ticket Dashboard
+- Replaced old `SupportPage.tsx` (FAQ/help center) with new `SupportTicketsPage.tsx`
+- Inline ticket creation form with `<Select>` for type (Bug / Feature), title input, description textarea, and submit button
+- Tickets history table showing ID, title, type, and date — links to CRM for external tracking
+- Empty state when no tickets exist
+- Nav link renamed from "Support" → "Support & Tickets"
+- Ticket icon button in Navbar with custom `Tooltip` component
+
+#### API Client
+- Added `getTickets()`, `createTicket()`, `sendFeedback()` and `SupportTicket` interface to `marketing-api.ts`
+
+### 🐍 Backend
+
+#### PQ Platform Integration
+- Added `pq-befu==0.1.0` to requirements and installed in virtual environment
+- Added PQ config env vars (`PQ_API_KEY`, `PQ_BASE_URL`, `PQ_CRM_TICKETS_URL`, `PQ_PRODUCT_ID`) to `app/config.py`
+- Initialized `PQClient` in lifespan and `FastAPIMiddleware` at module level in `app/main.py`
+- Added `SupportTicket` model to `app/models.py` with fields: `id`, `user_employee_id`, `user_username`, `ticket_id`, `title`, `description`, `ticket_type`, `rating`, `created_at`, `updated_at`
+
+#### Tickets Router
+- Created `app/routers/tickets.py` with endpoints: `GET /api/tickets/`, `POST /api/tickets/`, `POST /api/tickets/feedback`
+- Fixed `user_info` field extraction to use nested structure (`employee.id`, `user.username`) matching other routers
+
+---
+
 ## [2026-07-05] — Bug Fixes: Quote Numbers, Series Update & Value Validation (v1.1.6)
 
 ### 🖥️ Frontend

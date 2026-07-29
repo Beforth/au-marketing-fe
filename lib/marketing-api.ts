@@ -1903,6 +1903,29 @@ class MarketingAPIService {
   async deleteEventFile(eventId: number, fileId: number): Promise<void> {
     return apiClient.delete<void>(`/api/events/${eventId}/files/${fileId}`);
   }
+
+  // Support Tickets (PQ Platform)
+  async getTickets(limit: number = 20): Promise<{ success: boolean; tickets: SupportTicket[] }> {
+    return apiClient.get<{ success: boolean; tickets: SupportTicket[] }>(`/api/tickets/?limit=${limit}`);
+  }
+
+  async createTicket(data: { title: string; description?: string; ticket_type: string }): Promise<{ success: boolean; ticket: SupportTicket }> {
+    return apiClient.post<{ success: boolean; ticket: SupportTicket }>('/api/tickets/', data);
+  }
+
+  async sendFeedback(data: { rating: number; comment?: string }): Promise<{ success: boolean; ticket: SupportTicket }> {
+    return apiClient.post<{ success: boolean; ticket: SupportTicket }>('/api/tickets/feedback', data);
+  }
+}
+
+export interface SupportTicket {
+  id: number;
+  ticket_id: string | null;
+  title: string;
+  description?: string;
+  ticket_type: string;
+  rating?: number;
+  created_at: string;
 }
 
 export interface ChangelogSection {

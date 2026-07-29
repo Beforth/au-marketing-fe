@@ -43,7 +43,7 @@ export const DEFAULT_LEAD_SERIES_STORAGE_KEY = 'marketing_default_lead_series_co
 
 export const SECONDARY_LINKS: NavItem[] = [
   { title: 'Settings', icon: Settings, href: '/settings' },
-  { title: 'Support', icon: HelpCircle, href: '/support' },
+  { title: 'Support & Tickets', icon: HelpCircle, href: '/support' },
 ];
 
 // Dashboard stats are now loaded dynamically in DashboardPage (marketing API)

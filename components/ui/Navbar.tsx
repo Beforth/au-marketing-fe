@@ -2,12 +2,13 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SearchInput } from './SearchInput';
-import { Search, Bell, Settings, Command, ShoppingBag, ShieldAlert, Package, MessageSquare, User, ArrowRight, LayoutDashboard, FileText, PieChart, CreditCard, X, LogOut, UserCircle, Users, Globe, Quote, Building2, Database, ClipboardList, CheckCircle2, Clock, RefreshCw } from 'lucide-react';
+import { Search, Bell, Settings, Command, ShoppingBag, ShieldAlert, Package, MessageSquare, User, ArrowRight, LayoutDashboard, FileText, PieChart, CreditCard, X, LogOut, UserCircle, Users, Globe, Quote, Building2, Database, ClipboardList, CheckCircle2, Clock, RefreshCw, Ticket } from 'lucide-react';
 import { useApp } from '../../App';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout, selectUserDisplayName, selectUserInitials, selectEmployee, selectHasPermission, selectToken } from '../../store/slices/authSlice';
 import { setDSRTasks, selectDSRTasks, selectDSRIsStale } from '../../store/slices/dsrSlice';
 import { hrmsRBACClient } from '../../lib/hrms-rbac';
+import { Tooltip } from '../../UI/Tooltip';
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
@@ -340,6 +341,11 @@ export const Navbar: React.FC = () => {
             </div>
           )}
         </div>
+        <Tooltip content="Support & Tickets">
+          <button onClick={() => navigate('/support')} className="p-2 text-slate-400 hover:text-blue-600 transition-all rounded-lg hover:bg-blue-50">
+            <Ticket size={20} strokeWidth={1.5} />
+          </button>
+        </Tooltip>
         <button onClick={() => navigate('/settings')} className="p-2 text-slate-400 hover:text-slate-900 transition-all rounded-lg hover:bg-slate-100">
           <Settings size={20} strokeWidth={1.5} />
         </button>

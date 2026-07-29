@@ -32,7 +32,7 @@ import { ReportsPage } from './pages/ReportsPage';
 import { ExpectedOrderNewPage } from './pages/ExpectedOrderNewPage';
 import { ODPlanPage } from './pages/ODPlanPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { SupportPage } from './pages/SupportPage';
+import { SupportTicketsPage } from './pages/SupportTicketsPage';
 import { SchemaPage } from './pages/SchemaPage';
 import { ReportTemplatesPage } from './pages/ReportTemplatesPage';
 import { MyTeamPage } from './pages/MyTeamPage';
@@ -283,7 +283,7 @@ const AppMain: React.FC = () => {
               <Route path="reports/expected-order/new" element={<ExpectedOrderNewPage />} />
               <Route path="reports/od-plan" element={<ODPlanPage />} />
               <Route path="settings" element={<SettingsPage />} />
-              <Route path="support" element={<SupportPage />} />
+              <Route path="support" element={<SupportTicketsPage />} />
               <Route path="numbering-series" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
               <Route path="numbering-series/new" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
               <Route path="numbering-series/:id/edit" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
