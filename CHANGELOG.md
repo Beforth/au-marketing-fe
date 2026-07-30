@@ -25,6 +25,14 @@ Format: `[Date] — Category: Description`
 - Fixed Select import — was using HTML `<select>` wrapper instead of custom dropdown component
 - Fixed duplicate `filteredVisibilityUsers` declaration
 - Fixed `page_size: 200` (was 1000 causing API validation error) in employee search
+- Fixed TypeScript type errors on `DomainsPage.tsx` and `SettingsPage.tsx` during build
+
+### 🐍 Backend
+
+#### Production Dashboard Seeding
+- Added `scripts/seed_production_dashboards.py` and `.server-operator/seed_dashboards.serop` task to seed role-based dashboards (Super Admin, Domain Head, Domain Coordinator, Region Head, Sales Rep) in production without seeding demo leads or contacts.
+
+---
 
 ## [2026-07-29] — PQ Platform Support Tickets Integration (v1.1.7)
 

@@ -85,7 +85,7 @@ export const SettingsPage: React.FC = () => {
   const canSyncHRMS = useAppSelector(selectHasPermission('marketing.admin'));
 
   // Visibility settings state
-  const [visibilityUsers, setVisibilityUsers] = useState<MarketingEmployee[]>([]);
+  const [visibilityUsers, setVisibilityUsers] = useState<any[]>([]);
   const [visibilityAssignments, setVisibilityAssignments] = useState<{ quarter: string; user_ids: number[] }[]>([]);
   const [visibilitySelectedUserIds, setVisibilitySelectedUserIds] = useState<number[]>([]);
   const [visibilitySearch, setVisibilitySearch] = useState('');
@@ -272,18 +272,26 @@ export const SettingsPage: React.FC = () => {
   useEffect(() => {
     if (activeTab !== 'Visibility' || !canManageVisibility) return;
     setVisibilityLoading(true);
+
+    const fetchUsers = marketingAPI
+      .getEmployees({ page: 1, page_size: 500, status: 'active' })
+      .then((res) => (res.employees || []) as any[])
+      .catch(() =>
+        marketingAPI
+          .getLocalEmployees({ is_active: true, page_size: 200 })
+          .then((res) => (res.items || []) as any[])
+          .catch(() => [])
+      );
+
     Promise.all([
-      marketingAPI.getLocalEmployees({ is_active: true, page_size: 200 }).catch((err: any) => {
-        showToast(err?.message || 'Failed to load users', 'error');
-        return { items: [] };
-      }),
+      fetchUsers,
       marketingAPI.getMarketingSettings().catch((err: any) => {
         showToast(err?.message || 'Failed to load visibility settings', 'error');
         return null;
       }),
     ])
-      .then(([empRes, settings]) => {
-        setVisibilityUsers((empRes as any)?.items || []);
+      .then(([users, settings]) => {
+        setVisibilityUsers(users);
         const access = (settings as any)?.past_quarter_access || [];
         setVisibilityAssignments(access);
       })
@@ -614,7 +622,9 @@ export const SettingsPage: React.FC = () => {
         }
         const filteredVisibilityUsers = visibilityUsers.filter((u) => {
           if (!visibilitySearch.trim()) return true;
-          const q = visibilitySearch.toLowerCase();
+          const q = visibilitySearch.toLowerCase().trim();
+          const fullName = [u.first_name, u.last_name].filter(Boolean).join(' ').toLowerCase();
+          if (fullName.includes(q)) return true;
           return [u.first_name, u.last_name, u.email, u.username].filter(Boolean).some((f) => f!.toLowerCase().includes(q));
         });
         const currentMonth = new Date().getMonth() + 1;
