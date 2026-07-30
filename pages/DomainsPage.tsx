@@ -1116,9 +1116,16 @@ export const DomainsPage: React.FC = () => {
               };
 
               // If user not allowed to see past quarter data, hide past quarter fills
-              const currentEmployeeId = employee?.id ?? user?.id;
+              const candidateUserIds = [
+                employee?.id,
+                (employee as any)?.hrms_employee_id,
+                user?.id,
+                (user as any)?.employee_id,
+                getStoredMarketingScope()?.employee_id,
+                getStoredMarketingScope()?.user_id,
+              ].filter((id): id is number => typeof id === 'number' && !isNaN(id));
               const hasQuarterAccess = (q: string) =>
-                pastQuarterAccess.some(a => a.quarter === q && currentEmployeeId !== undefined && a.user_ids.includes(currentEmployeeId));
+                pastQuarterAccess.some(a => a.quarter === q && candidateUserIds.some(uid => a.user_ids.includes(uid)));
               const hideQ = (state: string, q: string) => state === 'past' && !hasQuarterAccess(q);
               const effectiveQ1Achieved = hideQ(q1State, 'Q1') ? 0 : q1Achieved;
               const effectiveQ2Achieved = hideQ(q2State, 'Q2') ? 0 : q2Achieved;
@@ -1373,9 +1380,16 @@ export const DomainsPage: React.FC = () => {
                 qq4State = 'active';
               }
 
-              const qCurrentEmployeeId = employee?.id ?? user?.id;
+              const qCandidateUserIds = [
+                employee?.id,
+                (employee as any)?.hrms_employee_id,
+                user?.id,
+                (user as any)?.employee_id,
+                getStoredMarketingScope()?.employee_id,
+                getStoredMarketingScope()?.user_id,
+              ].filter((id): id is number => typeof id === 'number' && !isNaN(id));
               const qHasQuarterAccess = (q: string) =>
-                pastQuarterAccess.some(a => a.quarter === q && qCurrentEmployeeId !== undefined && a.user_ids.includes(qCurrentEmployeeId));
+                pastQuarterAccess.some(a => a.quarter === q && qCandidateUserIds.some(uid => a.user_ids.includes(uid)));
               const hideQ = (state: string, q: string) => state === 'past' && !qHasQuarterAccess(q);
               const effectiveQ1QuoteVal = hideQ(qq1State, 'Q1') ? 0 : q1QuoteVal;
               const effectiveQ2QuoteVal = hideQ(qq2State, 'Q2') ? 0 : q2QuoteVal;

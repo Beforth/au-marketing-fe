@@ -652,12 +652,26 @@ export const SettingsPage: React.FC = () => {
             </div>
           );
         }
+        const getVisibilityRoleLabel = (u: any) => {
+          const r = u.role || u.designation || u.department;
+          if (!r) return 'Employee';
+          if (r === 'domain_head') return 'Domain Head';
+          if (r === 'domain_coordinator') return 'Domain Coordinator';
+          if (r === 'region_head') return 'Region Head';
+          if (r === 'supervisor') return 'Supervisor';
+          if (r === 'sales_rep' || r === 'employee') return 'Sales Rep';
+          return r;
+        };
+
         const filteredVisibilityUsers = visibilityUsers.filter((u) => {
           if (!visibilitySearch.trim()) return true;
           const q = visibilitySearch.toLowerCase().trim();
           const fullName = [u.first_name, u.last_name].filter(Boolean).join(' ').toLowerCase();
-          if (fullName.includes(q)) return true;
-          return [u.first_name, u.last_name, u.email, u.username].filter(Boolean).some((f) => f!.toLowerCase().includes(q));
+          const roleLabel = getVisibilityRoleLabel(u).toLowerCase();
+          if (fullName.includes(q) || roleLabel.includes(q)) return true;
+          return [u.first_name, u.last_name, u.email, u.username, u.role, u.designation, u.department]
+            .filter(Boolean)
+            .some((f) => String(f).toLowerCase().includes(q));
         });
         const currentMonth = new Date().getMonth() + 1;
         const currentQ = currentMonth >= 4 && currentMonth <= 6 ? 1
@@ -704,17 +718,25 @@ export const SettingsPage: React.FC = () => {
                   size="sm"
                   className="text-xs shrink-0"
                   onClick={async () => {
-                    const ids = visibilitySelectedUserIds;
-                    if (!ids.length) return;
+                    const selectedUserObjs = visibilityUsers.filter(u => visibilitySelectedUserIds.includes(u.id));
+                    const newIds: number[] = [];
+                    selectedUserObjs.forEach(u => {
+                      if (typeof u.id === 'number') newIds.push(u.id);
+                      if (typeof u.hrms_employee_id === 'number') newIds.push(u.hrms_employee_id);
+                      if (typeof u.employee_id === 'number') newIds.push(u.employee_id);
+                      if (typeof u.user_id === 'number') newIds.push(u.user_id);
+                    });
+                    const uniqueNewIds = [...new Set([...visibilitySelectedUserIds, ...newIds])];
+                    if (!uniqueNewIds.length) return;
                     setVisibilityAssignments((prev) => {
                       const existing = prev.find(a => a.quarter === visibilityQuarter);
                       if (existing) {
                         return prev.map(a => a.quarter === visibilityQuarter
-                          ? { ...a, user_ids: [...new Set([...a.user_ids, ...ids])] }
+                          ? { ...a, user_ids: [...new Set([...a.user_ids, ...uniqueNewIds])] }
                           : a
                         );
                       }
-                      return [...prev, { quarter: visibilityQuarter, user_ids: ids }];
+                      return [...prev, { quarter: visibilityQuarter, user_ids: uniqueNewIds }];
                     });
                     setVisibilitySelectedUserIds([]);
                     setVisibilitySearch('');
@@ -760,9 +782,14 @@ export const SettingsPage: React.FC = () => {
                           <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-bold shrink-0 uppercase">
                             {u.first_name?.[0]}{u.last_name?.[0]}
                           </div>
-                          <span className="text-sm font-semibold text-slate-800 truncate flex-1">
-                            {[u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || `#${u.id}`}
-                          </span>
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-sm font-semibold text-slate-800 truncate">
+                              {[u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || `#${u.id}`}
+                            </span>
+                            <span className="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                              {getVisibilityRoleLabel(u)}
+                            </span>
+                          </div>
                           {alreadyAssigned && (
                             <span className="text-[10px] font-semibold text-emerald-600">Assigned</span>
                           )}
@@ -787,7 +814,7 @@ export const SettingsPage: React.FC = () => {
                 <div className="divide-y divide-slate-100">
                   {visibilityAssignments.map((a) => (
                     a.user_ids.map((uid) => {
-                      const u = visibilityUsers.find(u => u.id === uid);
+                      const u = visibilityUsers.find(u => u.id === uid || u.hrms_employee_id === uid || u.employee_id === uid);
                       return (
                         <div key={`${a.quarter}-${uid}`} className="flex items-center justify-between px-4 py-2.5">
                           <div className="flex items-center gap-3 min-w-0">
@@ -797,6 +824,11 @@ export const SettingsPage: React.FC = () => {
                             <span className="text-sm font-semibold text-slate-800 truncate">
                               {u ? [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || `#${u.id}` : `#${uid}`}
                             </span>
+                            {u && (
+                              <span className="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                {getVisibilityRoleLabel(u)}
+                              </span>
+                            )}
                           </div>
                           <button
                             onClick={() => {
