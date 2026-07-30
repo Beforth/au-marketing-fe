@@ -2392,12 +2392,18 @@ export interface GlobalRules {
   employee: EmployeeRules;
 }
 
+export interface PastQuarterAccess {
+  quarter: string;
+  user_ids: number[];
+  user_details?: { id: number; first_name: string; last_name: string; role?: string }[];
+}
+
 export interface MarketingSettingsPayload {
   schema_version: number;
   global_rules: GlobalRules;
   domain_overrides: Record<string, GlobalRules>;
   past_quarter_visible_user_ids?: number[];
-  past_quarter_access?: { quarter: string; user_ids: number[] }[];
+  past_quarter_access?: PastQuarterAccess[];
 }
 
 // ─── Exhibition / Roadshow (Event) Types ─────────────────────────────────

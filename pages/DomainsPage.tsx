@@ -20,7 +20,7 @@ import { selectHasPermission, selectUser, selectEmployee } from '../store/slices
 import { PageLayout } from '../components/layout/PageLayout';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { marketingAPI, Domain, Region, AssignmentWithEmployee, HRMSEmployee, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, DomainTargetSummaryResponse, MarketingSettingsPayload, ScopeTargetStats } from '../lib/marketing-api';
+import { marketingAPI, Domain, Region, AssignmentWithEmployee, HRMSEmployee, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, DomainTargetSummaryResponse, MarketingSettingsPayload, ScopeTargetStats, PastQuarterAccess } from '../lib/marketing-api';
 import { Target, List, Eye, Check, Save } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
@@ -49,6 +49,50 @@ function formatTargetAmount(amount: number): string {
   if (amount >= ONE_CRORE) return `₹${(amount / ONE_CRORE).toFixed(2)} Cr`;
   if (amount >= ONE_LAKH) return `₹${(amount / ONE_LAKH).toFixed(2)} L`;
   return `₹${amount.toLocaleString('en-IN')}`;
+}
+
+function checkManagementRoleOrQuarterAccess(
+  user: any,
+  employee: any,
+  q: string,
+  candidateUserIds: number[],
+  pastQuarterAccessList: PastQuarterAccess[]
+): boolean {
+  if (user?.is_superuser) return true;
+
+  const rawRoles: string[] = [];
+  if (Array.isArray(user?.roles)) {
+    for (const r of user.roles) {
+      if (typeof r === 'string') rawRoles.push(r.toLowerCase());
+      else if (r && typeof r === 'object') rawRoles.push(String(r.name || r.code || '').toLowerCase());
+    }
+  }
+  if (user?.primary_role) rawRoles.push(String(user.primary_role).toLowerCase());
+  if (user?.role_name) rawRoles.push(String(user.role_name).toLowerCase());
+  if (typeof user?.role === 'string') rawRoles.push(user.role.toLowerCase());
+  if (typeof employee?.role === 'string') rawRoles.push(employee.role.toLowerCase());
+  if (Array.isArray(employee?.roles)) {
+    for (const r of employee.roles) {
+      if (typeof r === 'string') rawRoles.push(r.toLowerCase());
+      else if (r && typeof r === 'object') rawRoles.push(String(r.name || r.code || '').toLowerCase());
+    }
+  }
+  const scopeRole = getStoredMarketingScope()?.role;
+  if (scopeRole) rawRoles.push(String(scopeRole).toLowerCase());
+
+  const managementRoles = ['domain_head', 'domain_coordinator', 'region_head', 'admin', 'super_admin'];
+  if (rawRoles.some(r => managementRoles.includes(r))) {
+    return true;
+  }
+
+  return pastQuarterAccessList.some(a => {
+    if (a.quarter !== q) return false;
+    const allowedIds = [
+      ...(a.user_ids || []),
+      ...((a as any).user_details || []).map((d: any) => d.id),
+    ].map(Number);
+    return candidateUserIds.some(uid => allowedIds.includes(Number(uid)));
+  });
 }
 
 const getProgressMessage = (
@@ -1124,20 +1168,7 @@ export const DomainsPage: React.FC = () => {
                 getStoredMarketingScope()?.employee_id,
                 getStoredMarketingScope()?.user_id,
               ].filter((id): id is number => typeof id === 'number' && !isNaN(id));
-              const hasQuarterAccess = (q: string) => {
-                const userRole = (user as any)?.role || (employee as any)?.role || getStoredMarketingScope()?.role;
-                if (['domain_head', 'domain_coordinator', 'region_head', 'admin'].includes(userRole)) {
-                  return true;
-                }
-                return pastQuarterAccess.some(a => {
-                  if (a.quarter !== q) return false;
-                  const allowedIds = [
-                    ...(a.user_ids || []),
-                    ...((a as any).user_details || []).map((d: any) => d.id),
-                  ].map(Number);
-                  return candidateUserIds.some(uid => allowedIds.includes(Number(uid)));
-                });
-              };
+              const hasQuarterAccess = (q: string) => checkManagementRoleOrQuarterAccess(user, employee, q, candidateUserIds, pastQuarterAccess);
               const hideQ = (state: string, q: string) => state === 'past' && !hasQuarterAccess(q);
               const effectiveQ1Achieved = hideQ(q1State, 'Q1') ? 0 : q1Achieved;
               const effectiveQ2Achieved = hideQ(q2State, 'Q2') ? 0 : q2Achieved;
@@ -1400,20 +1431,7 @@ export const DomainsPage: React.FC = () => {
                 getStoredMarketingScope()?.employee_id,
                 getStoredMarketingScope()?.user_id,
               ].filter((id): id is number => typeof id === 'number' && !isNaN(id));
-              const qHasQuarterAccess = (q: string) => {
-                const userRole = (user as any)?.role || (employee as any)?.role || getStoredMarketingScope()?.role;
-                if (['domain_head', 'domain_coordinator', 'region_head', 'admin'].includes(userRole)) {
-                  return true;
-                }
-                return pastQuarterAccess.some(a => {
-                  if (a.quarter !== q) return false;
-                  const allowedIds = [
-                    ...(a.user_ids || []),
-                    ...((a as any).user_details || []).map((d: any) => d.id),
-                  ].map(Number);
-                  return qCandidateUserIds.some(uid => allowedIds.includes(Number(uid)));
-                });
-              };
+              const qHasQuarterAccess = (q: string) => checkManagementRoleOrQuarterAccess(user, employee, q, qCandidateUserIds, pastQuarterAccess);
               const hideQ = (state: string, q: string) => state === 'past' && !qHasQuarterAccess(q);
               const effectiveQ1QuoteVal = hideQ(qq1State, 'Q1') ? 0 : q1QuoteVal;
               const effectiveQ2QuoteVal = hideQ(qq2State, 'Q2') ? 0 : q2QuoteVal;
