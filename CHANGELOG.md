@@ -5,6 +5,26 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-07-30] — Kanban Column Sorting, Live Quotation Tooltips & Domain Target Fixes (v1.1.9)
+
+### 🖥️ Frontend
+
+#### Lead Kanban — Latest Leads at Top & Empty Column Toggle
+- Sorted each Kanban column descending by timestamp (`updated_at`, `last_activity_date`, `created_at`) so the most recent leads appear at the top.
+- Added **Hide Empty Boards** toolbar toggle to collapse empty Kanban status columns.
+
+#### Lead Tooltip — Live Uploaded Quotations & Rich Details
+- Live fetching of lead activities & uploaded quotation files (`getLeadActivities`) on hover.
+- Lists uploaded quotation files with quote reference number (`#QUO-...`), quote amount (`₹X,XX,XXX`), and a direct **`Open ↗`** download/view link button.
+- Added rich metadata: Contact Designation & Location, Phone, Email, Owner, Plant Name, Domain/Region badges, Source, Target Closing Date, Next Follow-Up, Last Inquiry, and Lead Notes snippet.
+- Refined tooltip container per `@design.md` with a clean, 1px non-distracting Slate border (`border border-slate-200 shadow-xl shadow-slate-200/80 rounded-xl p-3`).
+
+#### Settings & Domains — Visibility & Quotation Target Fixes
+- Saved `user_details` (`id`, `first_name`, `last_name`, `role`) alongside `user_ids` in `past_quarter_access` so assigned users persist on page refresh.
+- Management role bypass (`domain_head`, `domain_coordinator`, `region_head`, `admin`) for Domain past-quarter target & quotation progress bars.
+
+---
+
 ## [2026-07-30] — Past Quarter Progress Visibility Controls (v1.1.8)
 
 ### 🖥️ Frontend

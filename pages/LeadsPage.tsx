@@ -13,7 +13,7 @@ import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
-import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash } from 'lucide-react';
+import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash, Phone, Mail, Building2, Tag, Clock, FileText } from 'lucide-react';
 import { useApp } from '../App';
 import { Tooltip } from '../UI/Tooltip';
 import { useAppSelector } from '../store/hooks';
@@ -22,7 +22,7 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarte
 import { PageLayout } from '../components/layout/PageLayout';
 
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadStatusGroup, LeadTypeOption, Domain, Region, Contact, Customer, Organization, Plant, Series, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
+import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadStatusGroup, LeadTypeOption, Domain, Region, Contact, Customer, Organization, Plant, Series, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail, LeadActivityAttachment } from '../lib/marketing-api';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, DEFAULT_LEAD_SERIES_STORAGE_KEY } from '../constants';
 import { serializeNameWithPrefix, serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import { Modal } from '../components/ui/Modal';
@@ -58,6 +58,243 @@ function getContrastColor(hex: string): string {
   return luminance < 0.5 ? '#fff' : '#111';
 }
 
+const LeadTooltipContent: React.FC<{ lead: Lead; onViewQuotation?: (leadId: number) => void }> = ({ lead, onViewQuotation }) => {
+  const [quotationFiles, setQuotationFiles] = useState<LeadActivityAttachment[]>([]);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    setLoadingFiles(true);
+    marketingAPI.getLeadActivities(lead.id)
+      .then((activities) => {
+        if (!isMounted) return;
+        const files: LeadActivityAttachment[] = [];
+        for (const act of activities) {
+          for (const att of (act.attachments || [])) {
+            files.push(att);
+          }
+        }
+        setQuotationFiles(files);
+      })
+      .catch(() => {
+        if (isMounted) setQuotationFiles([]);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingFiles(false);
+      });
+    return () => { isMounted = false; };
+  }, [lead.id]);
+
+  const daysOld = lead.created_at ? Math.floor((Date.now() - new Date(lead.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+  const contactName = leadDisplayName(lead);
+  const companyName = leadDisplayCompany(lead);
+  const contactDesignation = (lead.contact as any)?.designation || (lead.contact as any)?.department;
+  const contactLocation = [(lead.contact as any)?.city, (lead.contact as any)?.state].filter(Boolean).join(', ');
+  const phone = (lead as any).phone || (lead as any).mobile || (lead as any).contact_phone || (lead.contact as any)?.mobile || (lead.contact as any)?.phone;
+  const email = leadDisplayEmail(lead);
+  const assignedName = (lead as any).assigned_to_name || (lead as any).assigned_to_user?.first_name || (lead as any).assigned_to?.name;
+  const domainName = (lead as any).domain_name || (lead as any).domain?.name;
+  const regionName = (lead as any).region_name || (lead as any).region?.name;
+  const plantName = (lead as any).plant_name || (lead as any).plant?.name || (lead.plant as any)?.plant_code;
+  const sourceName = (lead as any).source_name || (lead as any).source?.name || (lead as any).lead_source;
+  const statusLabel = lead.status_option?.label || (lead as any).status_name || (lead as any).status;
+  const leadTypeName = lead.lead_type_option?.label || (lead as any).lead_type_name || (lead as any).lead_type;
+  const quoteNumber = lead.quote_number || (lead as any).quote_series_code;
+  const hasQuotation = (lead.quote_value != null && lead.quote_value > 0) || (lead.quotation_count != null && lead.quotation_count > 0) || Boolean(quoteNumber) || quotationFiles.length > 0;
+
+  return (
+    <div className="p-1 space-y-2 text-xs text-slate-700 font-sans min-w-[260px]">
+      {/* Header */}
+      <div className="border-b border-slate-200 pb-2 flex items-start justify-between gap-2">
+        <div>
+          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+            {lead.series && (
+              <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">{lead.series}</span>
+            )}
+            {quoteNumber && (
+              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                {quoteNumber}
+              </span>
+            )}
+          </div>
+          <div className="font-bold text-slate-900 text-sm leading-snug">{contactName}</div>
+          {contactDesignation && <div className="text-xs text-slate-500 font-medium">{contactDesignation}</div>}
+          {companyName && <div className="text-xs text-slate-600 font-medium mt-0.5">{companyName}</div>}
+          {contactLocation && <div className="text-xs text-slate-400">{contactLocation}</div>}
+        </div>
+        {statusLabel && (
+          <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+            {statusLabel}
+          </span>
+        )}
+      </div>
+
+      {/* Details List */}
+      <div className="space-y-1.5 text-xs">
+        {phone && (
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <Phone size={13} className="text-slate-400 shrink-0" />
+            <span className="truncate">{phone}</span>
+          </div>
+        )}
+        {email && (
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <Mail size={13} className="text-slate-400 shrink-0" />
+            <span className="truncate">{email}</span>
+          </div>
+        )}
+        {assignedName && (
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <User size={13} className="text-slate-400 shrink-0" />
+            <span>Owner: <strong className="text-slate-800 font-semibold">{assignedName}</strong></span>
+          </div>
+        )}
+        {plantName && (
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <Building2 size={13} className="text-slate-400 shrink-0" />
+            <span className="truncate">Plant: {plantName}</span>
+          </div>
+        )}
+
+        {/* Uploaded Quotation Documents & Financials */}
+        {hasQuotation ? (
+          <div className="p-2.5 rounded-lg bg-slate-50/80 border border-slate-200 space-y-2 my-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                <FileText size={13} className="text-blue-600" /> Submitted Quotations
+              </span>
+              <span className="text-xs font-semibold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                {lead.quotation_count ? `${lead.quotation_count} quote${lead.quotation_count > 1 ? 's' : ''}` : '1 quote'}
+              </span>
+            </div>
+
+            {lead.quote_value != null && lead.quote_value > 0 && (
+              <div className="text-base font-bold text-slate-900 tabular-nums">
+                ₹{Number(lead.quote_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            )}
+
+            {/* Uploaded Quotation Files List */}
+            {loadingFiles ? (
+              <div className="text-xs text-slate-400 animate-pulse">Loading documents...</div>
+            ) : quotationFiles.length > 0 ? (
+              <div className="space-y-1 pt-1.5 border-t border-slate-200/60 max-h-28 overflow-y-auto pr-1">
+                {quotationFiles.map((att) => (
+                  <div key={att.id} className="flex items-center justify-between gap-2 text-xs bg-white p-1.5 rounded border border-slate-200">
+                    <div className="min-w-0 flex-1 truncate">
+                      <div className="font-semibold text-slate-800 truncate flex items-center gap-1">
+                        <FileText size={11} className="text-blue-500 shrink-0" />
+                        <span className="truncate">{att.file_name || (att as any).filename || 'Quotation Document'}</span>
+                      </div>
+                      {att.quotation_number && (
+                        <div className="text-xs text-slate-400 font-mono">#{att.quotation_number}</div>
+                      )}
+                    </div>
+                    {att.file_path && (
+                      <a
+                        href={att.file_path.startsWith('http') ? att.file_path : `${window.location.origin}${att.file_path}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs transition-colors"
+                      >
+                        <Upload size={10} className="rotate-180" /> Open
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : quoteNumber ? (
+              <div className="text-xs text-slate-500 font-mono">Quote Ref: {quoteNumber}</div>
+            ) : null}
+
+            {onViewQuotation && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewQuotation(lead.id);
+                }}
+                className="w-full text-center py-1.5 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-xs cursor-pointer"
+              >
+                View & Manage Lead →
+              </button>
+            )}
+          </div>
+        ) : lead.potential_value != null ? (
+          <div className="p-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Est. Value</span>
+            <span className="font-bold text-slate-900 tabular-nums">
+              ₹{Number(lead.potential_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        ) : null}
+
+        {/* Timestamps & Follow-ups */}
+        {lead.next_follow_up_at && (
+          <div className="flex items-center gap-1.5 text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 text-xs">
+            <Calendar size={12} className="shrink-0 text-amber-600" />
+            <span>Next follow-up: <strong>{new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}</strong></span>
+          </div>
+        )}
+        {lead.last_activity_date && (
+          <div className="flex items-center gap-1.5 text-slate-600 text-xs">
+            <Clock size={12} className="text-slate-400 shrink-0" />
+            <span>Last inquiry: {new Date(lead.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}</span>
+          </div>
+        )}
+        {lead.expected_closing_date && (
+          <div className="flex items-center gap-1.5 text-slate-600 text-xs">
+            <Calendar size={12} className="text-slate-400 shrink-0" />
+            <span>Target Closing: {new Date(lead.expected_closing_date).toLocaleDateString(undefined, { dateStyle: 'short' })}</span>
+          </div>
+        )}
+
+        {/* Domain, Region, Lead Type Badges */}
+        {(domainName || regionName || leadTypeName) && (
+          <div className="flex items-center gap-1 flex-wrap pt-0.5">
+            {domainName && (
+              <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-100">
+                {domainName}
+              </span>
+            )}
+            {regionName && (
+              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200">
+                {regionName}
+              </span>
+            )}
+            {leadTypeName && (
+              <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-semibold border border-purple-100">
+                {leadTypeName}
+              </span>
+            )}
+          </div>
+        )}
+
+        {sourceName && (
+          <div className="flex items-center gap-1.5 text-slate-500 text-xs">
+            <Tag size={12} className="text-slate-400 shrink-0" />
+            <span>Source: {sourceName}</span>
+          </div>
+        )}
+
+        {lead.notes && (
+          <div className="p-2 rounded bg-slate-50 text-xs text-slate-600 italic border border-slate-200 leading-relaxed max-h-20 overflow-y-auto">
+            &ldquo;{lead.notes}&rdquo;
+          </div>
+        )}
+
+        {lead.created_at && (
+          <div className="flex items-center gap-1.5 text-slate-400 text-xs pt-1.5 border-t border-slate-100">
+            <Clock size={12} className="shrink-0" />
+            <span>Created {daysOld === 0 ? 'today' : `${daysOld} day${daysOld === 1 ? '' : 's'} ago`}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const LeadsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -78,6 +315,7 @@ export const LeadsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [hideEmptyColumns, setHideEmptyColumns] = useState(false);
   const [tempSelectedStatus, setTempSelectedStatus] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [deleteLeadId, setDeleteLeadId] = useState<number | null>(null);
@@ -346,6 +584,14 @@ export const LeadsPage: React.FC = () => {
       const code = lead.status_option?.code ?? leadStatuses.find((s) => s.id === lead.status_id)?.code ?? lead.status ?? 'new';
       if (!map[code]) map[code] = [];
       map[code].push(lead);
+    });
+    // Sort each status column so latest leads appear at the top
+    Object.keys(map).forEach((code) => {
+      map[code].sort((a, b) => {
+        const timeA = new Date(a.updated_at || a.last_activity_date || a.created_at || 0).getTime() || a.id;
+        const timeB = new Date(b.updated_at || b.last_activity_date || b.created_at || 0).getTime() || b.id;
+        return timeB - timeA;
+      });
     });
     return map;
   }, [filteredLeads, leadStatuses]);
@@ -1226,15 +1472,26 @@ export const LeadsPage: React.FC = () => {
                     <div className="h-4 w-12 bg-slate-200 rounded" />
                   </div>
                 ) : (
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={createdByMeOnly}
-                      onChange={(e) => setCreatedByMeOnly(e.target.checked)}
-                      className="rounded border-slate-300 text-blue-600 w-4 h-4"
-                    />
-                    <span className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Only mine</span>
-                  </label>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={createdByMeOnly}
+                        onChange={(e) => setCreatedByMeOnly(e.target.checked)}
+                        className="rounded border-slate-300 text-blue-600 w-4 h-4"
+                      />
+                      <span className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Only mine</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none border-l border-slate-200 pl-4">
+                      <input
+                        type="checkbox"
+                        checked={hideEmptyColumns}
+                        onChange={(e) => setHideEmptyColumns(e.target.checked)}
+                        className="rounded border-slate-300 text-blue-600 w-4 h-4"
+                      />
+                      <span className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Hide Empty Boards</span>
+                    </label>
+                  </div>
                 )}
               </div>
             )}
@@ -1398,11 +1655,15 @@ export const LeadsPage: React.FC = () => {
             ) : (
               <div className="flex flex-row gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-220px)]">
                 {statusGroupsForBoard.map(({ groupId, groupLabel, statuses }) => {
+                  const visibleStatuses = hideEmptyColumns
+                    ? statuses.filter((s) => (leadsByStatus[s.code]?.length ?? 0) > 0)
+                    : statuses;
+                  if (hideEmptyColumns && visibleStatuses.length === 0) return null;
                   const group = groupId !== 'none' ? leadStatusGroups.find((g) => g.id === groupId) : null;
                   const groupBgStyle = group?.hex_color && /^#[0-9A-Fa-f]{6}$/.test(group.hex_color) ? { backgroundColor: `${group.hex_color}18` } : undefined;
                   const collapseKey = groupId === 'none' ? 'nogroup' : `group-${groupId}`;
                   const isCollapsed = collapsedGroups.has(collapseKey);
-                  const groupLeadCount = statuses.reduce((sum, s) => sum + (leadsByStatus[s.code]?.length ?? 0), 0);
+                  const groupLeadCount = visibleStatuses.reduce((sum, s) => sum + (leadsByStatus[s.code]?.length ?? 0), 0);
                   return (
                     <div
                       key={groupId === 'none' ? 'nogroup' : groupId}
@@ -1423,14 +1684,14 @@ export const LeadsPage: React.FC = () => {
                         ) : (
                           <>
                             <span className="text-sm font-semibold text-slate-700">{groupLabel}</span>
-                            <span className="text-xs text-slate-400">({statuses.length} status{statuses.length !== 1 ? 'es' : ''} • {groupLeadCount} leads)</span>
+                            <span className="text-xs text-slate-400">({visibleStatuses.length} status{visibleStatuses.length !== 1 ? 'es' : ''} • {groupLeadCount} leads)</span>
                             <ChevronRight size={16} className="text-slate-400 ml-auto" />
                           </>
                         )}
                       </button>
                       {!isCollapsed && (
                         <div className="flex gap-4 overflow-x-auto pb-2">
-                          {statuses.map((status) => {
+                          {visibleStatuses.map((status) => {
                             const columnLeads = leadsByStatus[status.code] || [];
                             const useStatusHex = status.hex_color && /^#[0-9A-Fa-f]{6}$/.test(status.hex_color);
                             const statusColor = !useStatusHex ? (STATUS_COLORS[status.code] || DEFAULT_STATUS_COLOR) : null;
@@ -1471,87 +1732,93 @@ export const LeadsPage: React.FC = () => {
                                   {columnLeads.map((lead) => {
                                     const leadDraggable = canEdit && !isWonOrLostLead(lead);
                                     return (
-                                    <div
-                                      key={lead.id}
-                                      draggable={leadDraggable}
-                                      onDragStart={(e) => handleLeadDragStart(e, lead)}
-                                      onDragEnd={handleLeadDragEnd}
-                                      onClick={() => canEdit && !didDragRef.current && navigate(`/leads/${lead.id}/edit`)}
-                                      className={`rounded-lg border p-3 shadow-sm transition-all hover:shadow-md ${isDueForFollowUp(lead)
-                                        ? 'bg-amber-50 border-amber-300 hover:bg-amber-100/80'
-                                        : 'bg-white border-slate-200 hover:shadow-md'
-                                        } ${leadDraggable ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedLeadId === lead.id ? 'opacity-50' : ''} ${updatingLeadId === lead.id ? 'animate-pulse' : ''}`}
-                                    >
-                                      {lead.series && (
-                                        <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mb-0.5">{lead.series}</div>
-                                      )}
-                                      <div className="font-medium text-slate-900 text-sm truncate">
-                                        {leadDisplayName(lead)}
-                                      </div>
-                                      {leadDisplayCompany(lead) && (
-                                        <div className="text-xs text-slate-500 truncate mt-0.5">{leadDisplayCompany(lead)}</div>
-                                      )}
-                                      <div className="text-xs text-slate-400 truncate mt-0.5">{leadDisplayEmail(lead) || '—'}</div>
-                                      {lead.next_follow_up_at && (
-                                        <div className="text-[10px] text-slate-500 mt-1">
-                                          Next follow-up: {new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}
+                                    <Tooltip
+                                       key={lead.id}
+                                       content={<LeadTooltipContent lead={lead} onViewQuotation={(id) => navigate(`/leads/${id}/edit`)} />}
+                                       side="right"
+                                       className="border border-slate-200 bg-white shadow-xl shadow-slate-200/80 rounded-xl p-3 font-sans border-solid max-w-xs"
+                                     >
+                                      <div
+                                        draggable={leadDraggable}
+                                        onDragStart={(e) => handleLeadDragStart(e, lead)}
+                                        onDragEnd={handleLeadDragEnd}
+                                        onClick={() => canEdit && !didDragRef.current && navigate(`/leads/${lead.id}/edit`)}
+                                        className={`rounded-lg border p-3 shadow-sm transition-all hover:shadow-md ${isDueForFollowUp(lead)
+                                          ? 'bg-amber-50 border-amber-300 hover:bg-amber-100/80'
+                                          : 'bg-white border-slate-200 hover:shadow-md'
+                                          } ${leadDraggable ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedLeadId === lead.id ? 'opacity-50' : ''} ${updatingLeadId === lead.id ? 'animate-pulse' : ''}`}
+                                      >
+                                        {lead.series && (
+                                          <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mb-0.5">{lead.series}</div>
+                                        )}
+                                        <div className="font-medium text-slate-900 text-sm truncate">
+                                          {leadDisplayName(lead)}
                                         </div>
-                                      )}
-                                      {lead.last_activity_date && (
-                                        <div className="text-[10px] text-slate-500 mt-0.5">
-                                          Last inquiry: {new Date(lead.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}
-                                        </div>
-                                      )}
-                                      {lead.quote_value != null && lead.quote_value > 0 ? (
-                                        <div className="text-xs font-semibold text-blue-700 mt-1.5 inline-flex items-center gap-1 flex-wrap">
-                                          <span className="text-[9px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 px-1 py-0.5 rounded">Quote</span>
-                                          {lead.quotation_count != null && lead.quotation_count > 1
-                                            ? `${lead.quotation_count} quotes · ₹${Number(lead.quote_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                                            : `1 quote · ₹${Number(lead.quote_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                        </div>
-                                      ) : lead.potential_value != null ? (
-                                        <div className="text-xs font-medium text-slate-600 mt-1.5 inline-flex items-center">
-                                          <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-1 py-0.5 rounded mr-1">Est</span>
-                                          ₹{Number(lead.potential_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </div>
-                                      ) : null}
-                                      <div className="flex items-center gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                                        {canEdit && wonStatusId && lead.status_id !== wonStatusId && !lead.status_option?.is_lost && (
-                                          <Tooltip content="Mark as Won">
+                                        {leadDisplayCompany(lead) && (
+                                          <div className="text-xs text-slate-500 truncate mt-0.5">{leadDisplayCompany(lead)}</div>
+                                        )}
+                                        <div className="text-xs text-slate-400 truncate mt-0.5">{leadDisplayEmail(lead) || '—'}</div>
+                                        {lead.next_follow_up_at && (
+                                          <div className="text-[10px] text-slate-500 mt-1">
+                                            Next follow-up: {new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}
+                                          </div>
+                                        )}
+                                        {lead.last_activity_date && (
+                                          <div className="text-[10px] text-slate-500 mt-0.5">
+                                            Last inquiry: {new Date(lead.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}
+                                          </div>
+                                        )}
+                                        {lead.quote_value != null && lead.quote_value > 0 ? (
+                                          <div className="text-xs font-semibold text-blue-700 mt-1.5 inline-flex items-center gap-1 flex-wrap">
+                                            <span className="text-[9px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 px-1 py-0.5 rounded">Quote</span>
+                                            {lead.quotation_count != null && lead.quotation_count > 1
+                                              ? `${lead.quotation_count} quotes · ₹${Number(lead.quote_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                              : `1 quote · ₹${Number(lead.quote_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                          </div>
+                                        ) : lead.potential_value != null ? (
+                                          <div className="text-xs font-medium text-slate-600 mt-1.5 inline-flex items-center">
+                                            <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-1 py-0.5 rounded mr-1">Est</span>
+                                            ₹{Number(lead.potential_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </div>
+                                        ) : null}
+                                        <div className="flex items-center gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                                          {canEdit && wonStatusId && lead.status_id !== wonStatusId && !lead.status_option?.is_lost && (
+                                            <Tooltip content="Mark as Won">
+                                              <Button
+                                                variant="ghost"
+                                                size="xs"
+                                                onClick={() => openMarkAsWonModal(lead.id)}
+                                                className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700"
+                                              >
+                                                <Trophy size={12} className="mr-0.5" /> Won
+                                              </Button>
+                                            </Tooltip>
+                                          )}
+                                          {canEdit && lostStatusId && lead.status_id !== lostStatusId && !lead.status_option?.is_final && (
+                                            <Tooltip content="Mark as Lost">
+                                              <Button
+                                                variant="ghost"
+                                                size="xs"
+                                                onClick={() => setLeadToMarkLost(lead.id)}
+                                                className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700"
+                                              >
+                                                <XCircle size={12} className="mr-0.5" /> Lost
+                                              </Button>
+                                            </Tooltip>
+                                          )}
+                                          {canDelete && (
                                             <Button
                                               variant="ghost"
                                               size="xs"
-                                              onClick={() => openMarkAsWonModal(lead.id)}
-                                              className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700"
+                                              onClick={() => openDeleteConfirm(lead.id)}
+                                              className="h-7 px-2 text-xs text-slate-500 hover:text-rose-700"
                                             >
-                                              <Trophy size={12} className="mr-0.5" /> Won
+                                              Delete
                                             </Button>
-                                          </Tooltip>
-                                        )}
-                                        {canEdit && lostStatusId && lead.status_id !== lostStatusId && !lead.status_option?.is_final && (
-                                          <Tooltip content="Mark as Lost">
-                                            <Button
-                                              variant="ghost"
-                                              size="xs"
-                                              onClick={() => setLeadToMarkLost(lead.id)}
-                                              className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700"
-                                            >
-                                              <XCircle size={12} className="mr-0.5" /> Lost
-                                            </Button>
-                                          </Tooltip>
-                                        )}
-                                        {canDelete && (
-                                          <Button
-                                            variant="ghost"
-                                            size="xs"
-                                            onClick={() => openDeleteConfirm(lead.id)}
-                                            className="h-7 px-2 text-xs text-slate-500 hover:text-rose-700"
-                                          >
-                                            Delete
-                                          </Button>
-                                        )}
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
+                                    </Tooltip>
                                   ); })}
                                 </div>
                               </div>

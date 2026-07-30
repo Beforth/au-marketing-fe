@@ -13,7 +13,8 @@ import { API_CONFIG } from '../../lib/api';
 export const Sidebar: React.FC = () => {
   const [showChangelog, setShowChangelog] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState('v1.1.3');
+  const [appVersion, setAppVersion] = useState('v1.1.9');
+  const [versionLoaded, setVersionLoaded] = useState(false);
   const userDisplayName = useAppSelector(selectUserDisplayName);
   const userInitials = useAppSelector(selectUserInitials);
   const employee = useAppSelector(selectEmployee);
@@ -25,8 +26,12 @@ export const Sidebar: React.FC = () => {
       .then(data => {
         if (data.version) setAppVersion(`v${data.version}`);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        setVersionLoaded(true);
+      });
   }, []);
+
   const changelogSeenKey = useMemo(
     () => `marketing_changelog_seen_${appVersion}_${user?.id ?? 'anon'}`,
     [appVersion, user?.id]
@@ -92,14 +97,16 @@ export const Sidebar: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !versionLoaded) return;
     try {
       const seen = localStorage.getItem(changelogSeenKey);
-      if (!seen) setShowChangelog(true);
+      if (!seen) {
+        setShowChangelog(true);
+      }
     } catch {
-      setShowChangelog(true);
+      // ignore storage errors
     }
-  }, [user?.id, changelogSeenKey]);
+  }, [user?.id, versionLoaded, changelogSeenKey]);
 
   return (
     <aside className="w-60 h-screen bg-white border-r border-slate-200/60 flex flex-col fixed left-0 top-0 z-30">
