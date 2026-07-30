@@ -5,6 +5,27 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-07-30] — Past Quarter Progress Visibility Controls (v1.1.8)
+
+### 🖥️ Frontend
+
+#### Settings — Visibility Tab
+- Added new `Visibility` tab in SettingsPage for managing who sees past quarter data
+- Quarter selector (past quarters only) + employee search with multi-select checkboxes
+- Assignments list with quarter badge, employee name, and remove button
+- Save/clear buttons to persist to `past_quarter_access` settings
+
+#### Domains Page — Conditional Past Quarter Bars
+- Fetches `past_quarter_access` from settings on page load
+- Each quarter's target and quotation bar fills respect per-quarter, per-user access
+- Removed active quarter highlight rings from bar columns (cleaner design)
+
+#### Bug Fixes
+- Fixed `visibilityQuarter` not being declared in state — added missing `useState('Q1')`
+- Fixed Select import — was using HTML `<select>` wrapper instead of custom dropdown component
+- Fixed duplicate `filteredVisibilityUsers` declaration
+- Fixed `page_size: 200` (was 1000 causing API validation error) in employee search
+
 ## [2026-07-29] — PQ Platform Support Tickets Integration (v1.1.7)
 
 ### 🖥️ Frontend

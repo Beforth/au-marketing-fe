@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
+  Eye,
   User,
   Bell,
   Shield,
@@ -49,14 +50,15 @@ import {
   TableCell,
   SegmentToggle,
 } from '../UI';
+import { Select } from '../components/ui/Select';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { refreshUserInfo, selectUser, selectEmployee, selectHasPermission } from '../store/slices/authSlice';
-import { marketingAPI, AuditLog, MarketingEmployee } from '../lib/marketing-api';
+import { marketingAPI, AuditLog, MarketingEmployee, MarketingSettingsPayload } from '../lib/marketing-api';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type SettingsTab = 'Profile' | 'Audit Logs' | 'Versions';
+type SettingsTab = 'Profile' | 'Audit Logs' | 'Versions' | 'Visibility';
 
 export const SettingsPage: React.FC = () => {
   const { showToast } = useApp();
@@ -82,6 +84,15 @@ export const SettingsPage: React.FC = () => {
   const [syncResultsOpen, setSyncResultsOpen] = useState(true);
   const canSyncHRMS = useAppSelector(selectHasPermission('marketing.admin'));
 
+  // Visibility settings state
+  const [visibilityUsers, setVisibilityUsers] = useState<MarketingEmployee[]>([]);
+  const [visibilityAssignments, setVisibilityAssignments] = useState<{ quarter: string; user_ids: number[] }[]>([]);
+  const [visibilitySelectedUserIds, setVisibilitySelectedUserIds] = useState<number[]>([]);
+  const [visibilitySearch, setVisibilitySearch] = useState('');
+  const [visibilityQuarter, setVisibilityQuarter] = useState('Q1');
+  const [visibilityLoading, setVisibilityLoading] = useState(false);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
+  const canManageVisibility = useAppSelector(selectHasPermission('marketing.admin'));
 
   // Audit Logs state
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -256,6 +267,45 @@ export const SettingsPage: React.FC = () => {
       })
       .finally(() => setLogsLoading(false));
   }, [activeTab, logsPage, logsPageSize, debouncedSearch]);
+
+  // Load visibility data when tab is active
+  useEffect(() => {
+    if (activeTab !== 'Visibility' || !canManageVisibility) return;
+    setVisibilityLoading(true);
+    Promise.all([
+      marketingAPI.getLocalEmployees({ is_active: true, page_size: 200 }).catch((err: any) => {
+        showToast(err?.message || 'Failed to load users', 'error');
+        return { items: [] };
+      }),
+      marketingAPI.getMarketingSettings().catch((err: any) => {
+        showToast(err?.message || 'Failed to load visibility settings', 'error');
+        return null;
+      }),
+    ])
+      .then(([empRes, settings]) => {
+        setVisibilityUsers((empRes as any)?.items || []);
+        const access = (settings as any)?.past_quarter_access || [];
+        setVisibilityAssignments(access);
+      })
+      .finally(() => setVisibilityLoading(false));
+  }, [activeTab, canManageVisibility]);
+
+  const handleSaveVisibility = async () => {
+    setVisibilitySaving(true);
+    try {
+      const settings = await marketingAPI.getMarketingSettings();
+      await marketingAPI.updateMarketingSettings({
+        ...settings,
+        past_quarter_access: visibilityAssignments,
+      });
+      window.dispatchEvent(new CustomEvent('marketing:settings-version-changed'));
+      showToast('Visibility settings updated', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to save visibility settings', 'error');
+    } finally {
+      setVisibilitySaving(false);
+    }
+  };
 
   const handleSave = () => {
     setIsSaving(true);
@@ -550,6 +600,203 @@ export const SettingsPage: React.FC = () => {
           </div>
         );
 
+      case 'Visibility':
+        if (!canManageVisibility) {
+          return (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 mb-4 border border-slate-200">
+                <Eye size={26} />
+              </div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Access Restricted</p>
+              <p className="text-sm text-slate-400 mt-2 max-w-xs">You don't have permission to manage visibility settings. Contact an administrator for access.</p>
+            </div>
+          );
+        }
+        const filteredVisibilityUsers = visibilityUsers.filter((u) => {
+          if (!visibilitySearch.trim()) return true;
+          const q = visibilitySearch.toLowerCase();
+          return [u.first_name, u.last_name, u.email, u.username].filter(Boolean).some((f) => f!.toLowerCase().includes(q));
+        });
+        const currentMonth = new Date().getMonth() + 1;
+        const currentQ = currentMonth >= 4 && currentMonth <= 6 ? 1
+          : currentMonth >= 7 && currentMonth <= 9 ? 2
+          : currentMonth >= 10 && currentMonth <= 12 ? 3 : 4;
+        const quarterOpts = [
+          { value: 'Q1', label: `Q1 (Apr-Jun)${1 === currentQ ? ' — Now' : ''}`, disabled: currentQ <= 1 },
+          { value: 'Q2', label: `Q2 (Jul-Sep)${2 === currentQ ? ' — Now' : ''}`, disabled: currentQ <= 2 },
+          { value: 'Q3', label: `Q3 (Oct-Dec)${3 === currentQ ? ' — Now' : ''}`, disabled: currentQ <= 3 },
+          { value: 'Q4', label: `Q4 (Jan-Mar)${4 === currentQ ? ' — Now' : ''}`, disabled: currentQ <= 4 },
+        ];
+        const selectedQuarterUsers = visibilityAssignments.find(a => a.quarter === visibilityQuarter)?.user_ids || [];
+        return (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div>
+              <h4 className="text-sm font-semibold text-slate-900">Past Quarter Progress Visibility</h4>
+              <p className="text-xs text-slate-500 mt-1">
+                Assign users who can see actual achieved data for each past quarter.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Select
+                label="Quarter"
+                value={visibilityQuarter}
+                onChange={(v) => setVisibilityQuarter(v || 'Q1')}
+                options={quarterOpts}
+                searchable={false}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <SearchInput
+                  placeholder="Search users..."
+                  value={visibilitySearch}
+                  onChange={(e) => setVisibilitySearch(e.target.value)}
+                  onClear={() => setVisibilitySearch('')}
+                  containerClassName="flex-1 shadow-none"
+                  inputSize="sm"
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="text-xs shrink-0"
+                  onClick={async () => {
+                    const ids = visibilitySelectedUserIds;
+                    if (!ids.length) return;
+                    setVisibilityAssignments((prev) => {
+                      const existing = prev.find(a => a.quarter === visibilityQuarter);
+                      if (existing) {
+                        return prev.map(a => a.quarter === visibilityQuarter
+                          ? { ...a, user_ids: [...new Set([...a.user_ids, ...ids])] }
+                          : a
+                        );
+                      }
+                      return [...prev, { quarter: visibilityQuarter, user_ids: ids }];
+                    });
+                    setVisibilitySelectedUserIds([]);
+                    setVisibilitySearch('');
+                  }}
+                >
+                  Add {visibilitySelectedUserIds.length ? `(${visibilitySelectedUserIds.length})` : ''}
+                </Button>
+              </div>
+
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                {visibilityLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+                  </div>
+                ) : filteredVisibilityUsers.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <p className="text-xs font-semibold text-slate-400">No users found</p>
+                  </div>
+                ) : (
+                  <div className="max-h-[240px] overflow-y-auto divide-y divide-slate-100">
+                    {filteredVisibilityUsers.map((u) => {
+                      const checked = visibilitySelectedUserIds.includes(u.id);
+                      const alreadyAssigned = selectedQuarterUsers.includes(u.id);
+                      return (
+                        <label
+                          key={u.id}
+                          className={cn(
+                            "flex items-center gap-3 px-4 py-2 cursor-pointer transition-colors",
+                            alreadyAssigned ? "opacity-40 cursor-not-allowed" : "hover:bg-slate-50"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={alreadyAssigned}
+                            onChange={() => {
+                              setVisibilitySelectedUserIds((prev) =>
+                                prev.includes(u.id) ? prev.filter((id) => id !== u.id) : [...prev, u.id]
+                              );
+                            }}
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-bold shrink-0 uppercase">
+                            {u.first_name?.[0]}{u.last_name?.[0]}
+                          </div>
+                          <span className="text-sm font-semibold text-slate-800 truncate flex-1">
+                            {[u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || `#${u.id}`}
+                          </span>
+                          {alreadyAssigned && (
+                            <span className="text-[10px] font-semibold text-emerald-600">Assigned</span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 flex items-center justify-between">
+                <span>Assigned Users</span>
+                <span className="text-[10px] text-slate-400">{visibilityAssignments.flatMap(a => a.user_ids).length} total</span>
+              </div>
+              {visibilityAssignments.length === 0 ? (
+                <div className="py-8 text-center">
+                  <p className="text-xs font-semibold text-slate-400">No assignments yet</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {visibilityAssignments.map((a) => (
+                    a.user_ids.map((uid) => {
+                      const u = visibilityUsers.find(u => u.id === uid);
+                      return (
+                        <div key={`${a.quarter}-${uid}`} className="flex items-center justify-between px-4 py-2.5">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                              {a.quarter}
+                            </span>
+                            <span className="text-sm font-semibold text-slate-800 truncate">
+                              {u ? [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || `#${u.id}` : `#${uid}`}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setVisibilityAssignments((prev) => prev.map((x) =>
+                                x.quarter === a.quarter
+                                  ? { ...x, user_ids: x.user_ids.filter((id) => id !== uid) }
+                                  : x
+                              ).filter((x) => x.user_ids.length > 0));
+                            }}
+                            className="text-rose-500 hover:text-rose-700 text-xs font-semibold shrink-0"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      );
+                    })
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setVisibilityAssignments([])}
+                className="text-xs font-semibold text-slate-400"
+              >
+                Clear All
+              </Button>
+              <Button
+                onClick={handleSaveVisibility}
+                isLoading={visibilitySaving}
+                size="sm"
+                className="px-8 text-xs uppercase font-semibold tracking-wide"
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        );
+
       default:
         return (
           <div className="py-20 flex flex-col items-center justify-center text-center opacity-40">
@@ -567,6 +814,7 @@ export const SettingsPage: React.FC = () => {
     { label: 'Profile', icon: User },
     { label: 'Audit Logs', icon: History },
     { label: 'Versions', icon: Tag },
+    { label: 'Visibility', icon: Eye },
   ];
 
   const breadcrumbs: BreadcrumbItem[] = [
@@ -584,7 +832,7 @@ export const SettingsPage: React.FC = () => {
         {/* Horizontal Navigation Control */}
         <div className="flex items-center justify-between gap-4 py-1 border-b border-slate-100 mb-2">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth">
-            {tabs.filter(t => (t.label !== 'Audit Logs' || canViewAuditLogs) && (t.label !== 'Versions' || canSyncHRMS)).map((item) => (
+            {tabs.filter(t => (t.label !== 'Audit Logs' || canViewAuditLogs) && (t.label !== 'Versions' || canSyncHRMS) && (t.label !== 'Visibility' || canManageVisibility)).map((item) => (
               <button
                 key={item.label}
                 onClick={() => setActiveTab(item.label)}

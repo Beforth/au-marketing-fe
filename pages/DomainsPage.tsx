@@ -564,6 +564,7 @@ export const DomainsPage: React.FC = () => {
   const [q2Stats, setQ2Stats] = useState<ScopeTargetStats | null>(null);
   const [q3Stats, setQ3Stats] = useState<ScopeTargetStats | null>(null);
   const [q4Stats, setQ4Stats] = useState<ScopeTargetStats | null>(null);
+  const [pastQuarterAccess, setPastQuarterAccess] = useState<{ quarter: string; user_ids: number[] }[]>([]);
 
   const isLoading = reviewLoading || scopeStatsLoading || targetSummaryLoading;
 
@@ -696,8 +697,15 @@ export const DomainsPage: React.FC = () => {
     }
   }, [canView, targetYear, targetMonth, targetQuarter, viewMode]);
 
-
-
+  useEffect(() => {
+    if (!canView) return;
+    marketingAPI.getMarketingSettings().then((settings) => {
+      setPastQuarterAccess(settings?.past_quarter_access || []);
+    }).catch((err) => {
+      console.error('Failed to load marketing settings:', err);
+      setPastQuarterAccess([]);
+    });
+  }, [canView]);
 
   const openDeleteDomainConfirm = (id: number) => {
     if (!canDelete) {
@@ -1036,8 +1044,6 @@ export const DomainsPage: React.FC = () => {
               const achievedVal = scopeStats.achieved_this_month;
               const roleLabel = scopeStats.scope_label;
 
-              const pct = targetVal > 0 ? (achievedVal / targetVal) * 100 : 0;
-
               const q1Target = q1Stats?.monthly_target ?? (targetVal * 0.25);
               const q1Achieved = q1Stats?.achieved_this_month ?? 0;
 
@@ -1109,40 +1115,52 @@ export const DomainsPage: React.FC = () => {
                 };
               };
 
-              const q1Info = getQuarterStatus(q1Achieved >= q1Target && q1Target > 0, q1State);
-              const q2Info = getQuarterStatus(q2Achieved >= q2Target && q2Target > 0, q2State);
-              const q3Info = getQuarterStatus(q3Achieved >= q3Target && q3Target > 0, q3State);
-              const q4Info = getQuarterStatus(q4Achieved >= q4Target && q4Target > 0, q4State);
+              // If user not allowed to see past quarter data, hide past quarter fills
+              const currentEmployeeId = employee?.id ?? user?.id;
+              const hasQuarterAccess = (q: string) =>
+                pastQuarterAccess.some(a => a.quarter === q && a.user_ids.includes(currentEmployeeId));
+              const hideQ = (state: string, q: string) => state === 'past' && !hasQuarterAccess(q);
+              const effectiveQ1Achieved = hideQ(q1State, 'Q1') ? 0 : q1Achieved;
+              const effectiveQ2Achieved = hideQ(q2State, 'Q2') ? 0 : q2Achieved;
+              const effectiveQ3Achieved = hideQ(q3State, 'Q3') ? 0 : q3Achieved;
+              const effectiveQ4Achieved = hideQ(q4State, 'Q4') ? 0 : q4Achieved;
+              const effectiveAchievedVal = effectiveQ1Achieved + effectiveQ2Achieved + effectiveQ3Achieved + effectiveQ4Achieved;
+              const pct = targetVal > 0 ? (effectiveAchievedVal / targetVal) * 100 : 0;
+
+              const q1Info = getQuarterStatus(effectiveQ1Achieved >= q1Target && q1Target > 0, q1State);
+              const q2Info = getQuarterStatus(effectiveQ2Achieved >= q2Target && q2Target > 0, q2State);
+              const q3Info = getQuarterStatus(effectiveQ3Achieved >= q3Target && q3Target > 0, q3State);
+              const q4Info = getQuarterStatus(effectiveQ4Achieved >= q4Target && q4Target > 0, q4State);
 
               // Build dynamic status message
               const getQuarterlyMessage = () => {
                 let completed = 0;
-                if (q1Achieved >= q1Target && q1Target > 0) completed++;
-                if (q2Achieved >= q2Target && q2Target > 0) completed++;
-                if (q3Achieved >= q3Target && q3Target > 0) completed++;
-                if (q4Achieved >= q4Target && q4Target > 0) completed++;
+                if (effectiveQ1Achieved >= q1Target && q1Target > 0) completed++;
+                if (effectiveQ2Achieved >= q2Target && q2Target > 0) completed++;
+                if (effectiveQ3Achieved >= q3Target && q3Target > 0) completed++;
+                if (effectiveQ4Achieved >= q4Target && q4Target > 0) completed++;
 
                 let currentQName = 'Q1';
-                let currentQAchieved = q1Achieved;
+                let currentQAchieved = effectiveQ1Achieved;
                 let currentQTarget = q1Target;
 
                 if (q2State === 'active') {
                   currentQName = 'Q2';
-                  currentQAchieved = q2Achieved;
+                  currentQAchieved = effectiveQ2Achieved;
                   currentQTarget = q2Target;
                 } else if (q3State === 'active') {
                   currentQName = 'Q3';
-                  currentQAchieved = q3Achieved;
+                  currentQAchieved = effectiveQ3Achieved;
                   currentQTarget = q3Target;
                 } else if (q4State === 'active') {
                   currentQName = 'Q4';
-                  currentQAchieved = q4Achieved;
+                  currentQAchieved = effectiveQ4Achieved;
                   currentQTarget = q4Target;
                 }
 
                 if (completed === 4) {
                   return {
-                    text: `All quarters completed successfully! Grand Slam achieved! 🏆🎉 (Total: ${formatTargetAmount(achievedVal)})`,
+                    text: `All quarters completed successfully! Grand Slam achieved! 🏆🎉 (Total: ${formatTargetAmount(effectiveAchievedVal)})`,
                     colorClass: "text-emerald-700",
                     iconColor: "text-emerald-500"
                   };
@@ -1177,7 +1195,7 @@ export const DomainsPage: React.FC = () => {
                         </h3>
                       </div>
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-lg font-bold text-slate-900">{formatTargetAmount(achievedVal)}</span>
+                        <span className="text-lg font-bold text-slate-900">{formatTargetAmount(effectiveAchievedVal)}</span>
                         <span className="text-sm font-bold text-slate-600">/ {formatTargetAmount(targetVal)}</span>
                       </div>
                     </div>
@@ -1191,7 +1209,7 @@ export const DomainsPage: React.FC = () => {
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
                             getBarGradient(pct)
                           )}
-                          style={{ width: `${Math.min(100, q1Target > 0 ? (q1Achieved / q1Target) * 100 : 0)}%` }}
+                          style={{ width: `${Math.min(100, q1Target > 0 ? (effectiveQ1Achieved / q1Target) * 100 : 0)}%` }}
                         />
                       </div>
 
@@ -1202,7 +1220,7 @@ export const DomainsPage: React.FC = () => {
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
                             getBarGradient(pct)
                           )}
-                          style={{ width: `${Math.min(100, q2Target > 0 ? (q2Achieved / q2Target) * 100 : 0)}%` }}
+                          style={{ width: `${Math.min(100, q2Target > 0 ? (effectiveQ2Achieved / q2Target) * 100 : 0)}%` }}
                         />
                       </div>
 
@@ -1213,7 +1231,7 @@ export const DomainsPage: React.FC = () => {
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
                             getBarGradient(pct)
                           )}
-                          style={{ width: `${Math.min(100, q3Target > 0 ? (q3Achieved / q3Target) * 100 : 0)}%` }}
+                          style={{ width: `${Math.min(100, q3Target > 0 ? (effectiveQ3Achieved / q3Target) * 100 : 0)}%` }}
                         />
                       </div>
 
@@ -1224,7 +1242,7 @@ export const DomainsPage: React.FC = () => {
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
                             getBarGradient(pct)
                           )}
-                          style={{ width: `${Math.min(100, q4Target > 0 ? (q4Achieved / q4Target) * 100 : 0)}%` }}
+                          style={{ width: `${Math.min(100, q4Target > 0 ? (effectiveQ4Achieved / q4Target) * 100 : 0)}%` }}
                         />
                       </div>
 
@@ -1332,7 +1350,39 @@ export const DomainsPage: React.FC = () => {
               const qQ4Target = q4Stats?.monthly_target ?? (qTarget * 0.25);
 
               const quoteTarget = qTarget * 4;
-              const quotePct = quoteTarget > 0 ? (totalQuoteVal / quoteTarget) * 100 : 0;
+
+              // Quarter states for quotation card
+              let qq1State: 'past' | 'active' | 'future' = 'future';
+              let qq2State: 'past' | 'active' | 'future' = 'future';
+              let qq3State: 'past' | 'active' | 'future' = 'future';
+              let qq4State: 'past' | 'active' | 'future' = 'future';
+              const qCurrentMonth = getCurrentYearMonth().month;
+              if (qCurrentMonth >= 4 && qCurrentMonth <= 6) {
+                qq1State = 'active';
+              } else if (qCurrentMonth >= 7 && qCurrentMonth <= 9) {
+                qq1State = 'past';
+                qq2State = 'active';
+              } else if (qCurrentMonth >= 10 && qCurrentMonth <= 12) {
+                qq1State = 'past';
+                qq2State = 'past';
+                qq3State = 'active';
+              } else {
+                qq1State = 'past';
+                qq2State = 'past';
+                qq3State = 'past';
+                qq4State = 'active';
+              }
+
+              const qCurrentEmployeeId = employee?.id ?? user?.id;
+              const qHasQuarterAccess = (q: string) =>
+                pastQuarterAccess.some(a => a.quarter === q && a.user_ids.includes(qCurrentEmployeeId));
+              const hideQ = (state: string, q: string) => state === 'past' && !qHasQuarterAccess(q);
+              const effectiveQ1QuoteVal = hideQ(qq1State, 'Q1') ? 0 : q1QuoteVal;
+              const effectiveQ2QuoteVal = hideQ(qq2State, 'Q2') ? 0 : q2QuoteVal;
+              const effectiveQ3QuoteVal = hideQ(qq3State, 'Q3') ? 0 : q3QuoteVal;
+              const effectiveQ4QuoteVal = hideQ(qq4State, 'Q4') ? 0 : q4QuoteVal;
+              const effectiveTotalQuoteVal = effectiveQ1QuoteVal + effectiveQ2QuoteVal + effectiveQ3QuoteVal + effectiveQ4QuoteVal;
+              const quotePct = quoteTarget > 0 ? (effectiveTotalQuoteVal / quoteTarget) * 100 : 0;
 
               const qScopeText = qRoleLabel === 'All'
                 ? `All Domains Quotation (FY ${targetYear}-${targetYear + 1})`
@@ -1350,7 +1400,7 @@ export const DomainsPage: React.FC = () => {
                         </h3>
                       </div>
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-lg font-bold text-slate-900">{formatTargetAmount(totalQuoteVal)}</span>
+                        <span className="text-lg font-bold text-slate-900">{formatTargetAmount(effectiveTotalQuoteVal)}</span>
                         <span className="text-sm font-bold text-slate-600">/ {formatTargetAmount(quoteTarget)}</span>
                       </div>
                     </div>
@@ -1364,7 +1414,7 @@ export const DomainsPage: React.FC = () => {
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
                             getBarGradient(quotePct)
                           )}
-                          style={{ width: `${Math.min(100, qQ1Target > 0 ? (q1QuoteVal / (qQ1Target * 4)) * 100 : 0)}%` }}
+                          style={{ width: `${Math.min(100, qQ1Target > 0 ? (effectiveQ1QuoteVal / (qQ1Target * 4)) * 100 : 0)}%` }}
                         />
                       </div>
 
@@ -1375,7 +1425,7 @@ export const DomainsPage: React.FC = () => {
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
                             getBarGradient(quotePct)
                           )}
-                          style={{ width: `${Math.min(100, qQ2Target > 0 ? (q2QuoteVal / (qQ2Target * 4)) * 100 : 0)}%` }}
+                          style={{ width: `${Math.min(100, qQ2Target > 0 ? (effectiveQ2QuoteVal / (qQ2Target * 4)) * 100 : 0)}%` }}
                         />
                       </div>
 
@@ -1386,7 +1436,7 @@ export const DomainsPage: React.FC = () => {
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
                             getBarGradient(quotePct)
                           )}
-                          style={{ width: `${Math.min(100, qQ3Target > 0 ? (q3QuoteVal / (qQ3Target * 4)) * 100 : 0)}%` }}
+                          style={{ width: `${Math.min(100, qQ3Target > 0 ? (effectiveQ3QuoteVal / (qQ3Target * 4)) * 100 : 0)}%` }}
                         />
                       </div>
 
@@ -1397,7 +1447,7 @@ export const DomainsPage: React.FC = () => {
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
                             getBarGradient(quotePct)
                           )}
-                          style={{ width: `${Math.min(100, qQ4Target > 0 ? (q4QuoteVal / (qQ4Target * 4)) * 100 : 0)}%` }}
+                          style={{ width: `${Math.min(100, qQ4Target > 0 ? (effectiveQ4QuoteVal / (qQ4Target * 4)) * 100 : 0)}%` }}
                         />
                       </div>
 
@@ -1434,19 +1484,19 @@ export const DomainsPage: React.FC = () => {
                           <div className="absolute left-[25%] -translate-x-1/2 flex flex-col items-center">
                             <div className="w-1.5 h-1.5 rounded-full mb-1 bg-sky-400" />
                             <span className="px-1.5 py-0.5 rounded border border-sky-200 bg-sky-50 text-sky-700 whitespace-nowrap">
-                              Q1: {formatTargetAmount(q1QuoteVal)} / {formatTargetAmount(qQ1Target * 4)}
+                              Q1: {formatTargetAmount(effectiveQ1QuoteVal)} / {formatTargetAmount(qQ1Target * 4)}
                             </span>
                           </div>
                           <div className="absolute left-[50%] -translate-x-1/2 flex flex-col items-center">
                             <div className="w-1.5 h-1.5 rounded-full mb-1 bg-sky-400" />
                             <span className="px-1.5 py-0.5 rounded border border-sky-200 bg-sky-50 text-sky-700 whitespace-nowrap">
-                              Q2: {formatTargetAmount(q2QuoteVal)} / {formatTargetAmount(qQ2Target * 4)}
+                              Q2: {formatTargetAmount(effectiveQ2QuoteVal)} / {formatTargetAmount(qQ2Target * 4)}
                             </span>
                           </div>
                           <div className="absolute left-[75%] -translate-x-1/2 flex flex-col items-center">
                             <div className="w-1.5 h-1.5 rounded-full mb-1 bg-sky-400" />
                             <span className="px-1.5 py-0.5 rounded border border-sky-200 bg-sky-50 text-sky-700 whitespace-nowrap">
-                              Q3: {formatTargetAmount(q3QuoteVal)} / {formatTargetAmount(qQ3Target * 4)}
+                              Q3: {formatTargetAmount(effectiveQ3QuoteVal)} / {formatTargetAmount(qQ3Target * 4)}
                             </span>
                           </div>
                         </div>
@@ -1459,9 +1509,9 @@ export const DomainsPage: React.FC = () => {
                         <Target size={12} />
                       </span>
                       <span>
-                        {totalQuoteVal === 0
+                        {effectiveTotalQuoteVal === 0
                           ? "No quotations submitted yet. Start quoting to track progress!"
-                          : `Quotation value: ${formatTargetAmount(totalQuoteVal)} / ${formatTargetAmount(quoteTarget)} (${quotePct.toFixed(0)}% of 4x target)`}
+                          : `Quotation value: ${formatTargetAmount(effectiveTotalQuoteVal)} / ${formatTargetAmount(quoteTarget)} (${quotePct.toFixed(0)}% of 4x target)`}
                       </span>
                     </div>
                   </div>

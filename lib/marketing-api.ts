@@ -2396,6 +2396,8 @@ export interface MarketingSettingsPayload {
   schema_version: number;
   global_rules: GlobalRules;
   domain_overrides: Record<string, GlobalRules>;
+  past_quarter_visible_user_ids?: number[];
+  past_quarter_access?: { quarter: string; user_ids: number[] }[];
 }
 
 // ─── Exhibition / Roadshow (Event) Types ─────────────────────────────────
