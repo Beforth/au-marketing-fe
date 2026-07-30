@@ -653,14 +653,16 @@ export const SettingsPage: React.FC = () => {
           );
         }
         const getVisibilityRoleLabel = (u: any) => {
-          const r = u.role || u.designation || u.department;
-          if (!r) return 'Employee';
-          if (r === 'domain_head') return 'Domain Head';
-          if (r === 'domain_coordinator') return 'Domain Coordinator';
-          if (r === 'region_head') return 'Region Head';
-          if (r === 'supervisor') return 'Supervisor';
-          if (r === 'sales_rep' || r === 'employee') return 'Sales Rep';
-          return r;
+          if (Array.isArray(u?.roles) && u.roles.length > 0) {
+            const primary = u.roles.find((r: any) => r.is_primary) || u.roles[0];
+            if (primary?.name) return primary.name;
+          }
+          if (u?.role_name) return u.role_name;
+          if (typeof u?.primary_role === 'string' && u.primary_role) return u.primary_role;
+          if (u?.primary_role?.name) return u.primary_role.name;
+          if (typeof u?.role === 'string' && u.role) return u.role;
+          if (u?.role?.name) return u.role.name;
+          return 'Employee';
         };
 
         const filteredVisibilityUsers = visibilityUsers.filter((u) => {
@@ -669,7 +671,7 @@ export const SettingsPage: React.FC = () => {
           const fullName = [u.first_name, u.last_name].filter(Boolean).join(' ').toLowerCase();
           const roleLabel = getVisibilityRoleLabel(u).toLowerCase();
           if (fullName.includes(q) || roleLabel.includes(q)) return true;
-          return [u.first_name, u.last_name, u.email, u.username, u.role, u.designation, u.department]
+          return [u.first_name, u.last_name, u.email, u.username, u.role]
             .filter(Boolean)
             .some((f) => String(f).toLowerCase().includes(q));
         });
@@ -718,25 +720,17 @@ export const SettingsPage: React.FC = () => {
                   size="sm"
                   className="text-xs shrink-0"
                   onClick={async () => {
-                    const selectedUserObjs = visibilityUsers.filter(u => visibilitySelectedUserIds.includes(u.id));
-                    const newIds: number[] = [];
-                    selectedUserObjs.forEach(u => {
-                      if (typeof u.id === 'number') newIds.push(u.id);
-                      if (typeof u.hrms_employee_id === 'number') newIds.push(u.hrms_employee_id);
-                      if (typeof u.employee_id === 'number') newIds.push(u.employee_id);
-                      if (typeof u.user_id === 'number') newIds.push(u.user_id);
-                    });
-                    const uniqueNewIds = [...new Set([...visibilitySelectedUserIds, ...newIds])];
-                    if (!uniqueNewIds.length) return;
+                    const ids = visibilitySelectedUserIds;
+                    if (!ids.length) return;
                     setVisibilityAssignments((prev) => {
                       const existing = prev.find(a => a.quarter === visibilityQuarter);
                       if (existing) {
                         return prev.map(a => a.quarter === visibilityQuarter
-                          ? { ...a, user_ids: [...new Set([...a.user_ids, ...uniqueNewIds])] }
+                          ? { ...a, user_ids: [...new Set([...a.user_ids, ...ids])] }
                           : a
                         );
                       }
-                      return [...prev, { quarter: visibilityQuarter, user_ids: uniqueNewIds }];
+                      return [...prev, { quarter: visibilityQuarter, user_ids: ids }];
                     });
                     setVisibilitySelectedUserIds([]);
                     setVisibilitySearch('');
