@@ -298,6 +298,31 @@ export const SettingsPage: React.FC = () => {
       .finally(() => setVisibilityLoading(false));
   }, [activeTab, canManageVisibility]);
 
+  // Debounced search to query HRMS server live for Visibility tab
+  useEffect(() => {
+    if (activeTab !== 'Visibility' || !canManageVisibility || !visibilitySearch.trim()) return;
+    const timer = setTimeout(() => {
+      setVisibilityLoading(true);
+      marketingAPI
+        .getEmployees({ page: 1, page_size: 100, search: visibilitySearch.trim(), status: 'active' })
+        .then((res) => {
+          const newEmps = res.employees || [];
+          if (newEmps.length > 0) {
+            setVisibilityUsers((prev) => {
+              const map = new Map(prev.map((e) => [e.id, e]));
+              newEmps.forEach((e) => {
+                if (!map.has(e.id)) map.set(e.id, e);
+              });
+              return Array.from(map.values());
+            });
+          }
+        })
+        .catch(() => {})
+        .finally(() => setVisibilityLoading(false));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [visibilitySearch, activeTab, canManageVisibility]);
+
   const handleSaveVisibility = async () => {
     setVisibilitySaving(true);
     try {
@@ -456,6 +481,13 @@ export const SettingsPage: React.FC = () => {
                           updated: result.updated,
                           synced: result.synced,
                         });
+                        if (result.employees && result.employees.length > 0) {
+                          setVisibilityUsers((prev) => {
+                            const map = new Map(prev.map((e) => [e.id, e]));
+                            result.employees.forEach((e) => map.set(e.id, e));
+                            return Array.from(map.values());
+                          });
+                        }
                         setSyncResultsOpen(true);
                         showToast(`Synced ${result.synced} employees (${result.created} new, ${result.updated} updated)`, 'success');
                       } catch (err: any) {
