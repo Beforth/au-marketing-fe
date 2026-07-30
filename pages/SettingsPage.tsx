@@ -86,7 +86,7 @@ export const SettingsPage: React.FC = () => {
 
   // Visibility settings state
   const [visibilityUsers, setVisibilityUsers] = useState<any[]>([]);
-  const [visibilityAssignments, setVisibilityAssignments] = useState<{ quarter: string; user_ids: number[] }[]>([]);
+  const [visibilityAssignments, setVisibilityAssignments] = useState<{ quarter: string; user_ids: number[]; user_details?: { id: number; first_name: string; last_name: string; role: string }[] }[]>([]);
   const [visibilitySelectedUserIds, setVisibilitySelectedUserIds] = useState<number[]>([]);
   const [visibilitySearch, setVisibilitySearch] = useState('');
   const [visibilityQuarter, setVisibilityQuarter] = useState('Q1');
@@ -273,25 +273,46 @@ export const SettingsPage: React.FC = () => {
     if (activeTab !== 'Visibility' || !canManageVisibility) return;
     setVisibilityLoading(true);
 
-    const fetchUsers = marketingAPI
+    const fetchHrmsUsers = marketingAPI
       .getEmployees({ page: 1, page_size: 500, status: 'active' })
       .then((res) => (res.employees || []) as any[])
-      .catch(() =>
-        marketingAPI
-          .getLocalEmployees({ is_active: true, page_size: 200 })
-          .then((res) => (res.items || []) as any[])
-          .catch(() => [])
-      );
+      .catch(() => [] as any[]);
+
+    const fetchLocalUsers = marketingAPI
+      .getLocalEmployees({ is_active: true, page_size: 500 })
+      .then((res) => (res.items || []) as any[])
+      .catch(() => [] as any[]);
 
     Promise.all([
-      fetchUsers,
+      fetchHrmsUsers,
+      fetchLocalUsers,
       marketingAPI.getMarketingSettings().catch((err: any) => {
         showToast(err?.message || 'Failed to load visibility settings', 'error');
         return null;
       }),
     ])
-      .then(([users, settings]) => {
-        setVisibilityUsers(users);
+      .then(([hrmsUsers, localUsers, settings]) => {
+        // Build role lookup from local marketing employees (keyed by hrms_employee_id and id)
+        const roleMap = new Map<number, string>();
+        localUsers.forEach((le: any) => {
+          if (le.role) {
+            if (le.hrms_employee_id) roleMap.set(le.hrms_employee_id, le.role);
+            if (le.id) roleMap.set(le.id, le.role);
+          }
+        });
+        // Enrich HRMS employees with role from local data
+        const enriched = hrmsUsers.map((u: any) => ({
+          ...u,
+          role: u.role || roleMap.get(u.id) || roleMap.get(u.hrms_employee_id) || '',
+        }));
+        // Merge any local-only employees not present in HRMS list
+        const hrmsIds = new Set(enriched.map((u: any) => u.id));
+        localUsers.forEach((le: any) => {
+          if (!hrmsIds.has(le.id) && !hrmsIds.has(le.hrms_employee_id)) {
+            enriched.push(le);
+          }
+        });
+        setVisibilityUsers(enriched);
         const access = (settings as any)?.past_quarter_access || [];
         setVisibilityAssignments(access);
       })
@@ -722,15 +743,29 @@ export const SettingsPage: React.FC = () => {
                   onClick={async () => {
                     const ids = visibilitySelectedUserIds;
                     if (!ids.length) return;
+                    const selectedObjs = visibilityUsers.filter(u => ids.includes(u.id));
+                    const newDetails = selectedObjs.map(u => ({
+                      id: u.id,
+                      first_name: u.first_name || '',
+                      last_name: u.last_name || '',
+                      role: getVisibilityRoleLabel(u),
+                    }));
                     setVisibilityAssignments((prev) => {
                       const existing = prev.find(a => a.quarter === visibilityQuarter);
                       if (existing) {
+                        const existingDetails = existing.user_details || [];
+                        const mergedDetailsMap = new Map(existingDetails.map(d => [d.id, d]));
+                        newDetails.forEach(d => mergedDetailsMap.set(d.id, d));
                         return prev.map(a => a.quarter === visibilityQuarter
-                          ? { ...a, user_ids: [...new Set([...a.user_ids, ...ids])] }
+                          ? {
+                              ...a,
+                              user_ids: [...new Set([...a.user_ids, ...ids])],
+                              user_details: Array.from(mergedDetailsMap.values()),
+                            }
                           : a
                         );
                       }
-                      return [...prev, { quarter: visibilityQuarter, user_ids: ids }];
+                      return [...prev, { quarter: visibilityQuarter, user_ids: ids, user_details: newDetails }];
                     });
                     setVisibilitySelectedUserIds([]);
                     setVisibilitySearch('');
@@ -809,6 +844,11 @@ export const SettingsPage: React.FC = () => {
                   {visibilityAssignments.map((a) => (
                     a.user_ids.map((uid) => {
                       const u = visibilityUsers.find(u => u.id === uid || u.hrms_employee_id === uid || u.employee_id === uid);
+                      const detail = a.user_details?.find(d => d.id === uid);
+                      const displayName = u ? [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username
+                        : detail ? [detail.first_name, detail.last_name].filter(Boolean).join(' ')
+                        : `#${uid}`;
+                      const displayRole = u ? getVisibilityRoleLabel(u) : detail?.role || '';
                       return (
                         <div key={`${a.quarter}-${uid}`} className="flex items-center justify-between px-4 py-2.5">
                           <div className="flex items-center gap-3 min-w-0">
@@ -816,11 +856,11 @@ export const SettingsPage: React.FC = () => {
                               {a.quarter}
                             </span>
                             <span className="text-sm font-semibold text-slate-800 truncate">
-                              {u ? [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || `#${u.id}` : `#${uid}`}
+                              {displayName}
                             </span>
-                            {u && (
+                            {displayRole && (
                               <span className="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                                {getVisibilityRoleLabel(u)}
+                                {displayRole}
                               </span>
                             )}
                           </div>
@@ -828,7 +868,11 @@ export const SettingsPage: React.FC = () => {
                             onClick={() => {
                               setVisibilityAssignments((prev) => prev.map((x) =>
                                 x.quarter === a.quarter
-                                  ? { ...x, user_ids: x.user_ids.filter((id) => id !== uid) }
+                                  ? {
+                                      ...x,
+                                      user_ids: x.user_ids.filter((id) => id !== uid),
+                                      user_details: x.user_details?.filter((d) => d.id !== uid),
+                                    }
                                   : x
                               ).filter((x) => x.user_ids.length > 0));
                             }}
