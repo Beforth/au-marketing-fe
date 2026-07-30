@@ -641,7 +641,7 @@ export const SettingsPage: React.FC = () => {
               <Select
                 label="Quarter"
                 value={visibilityQuarter}
-                onChange={(v) => setVisibilityQuarter(v || 'Q1')}
+                onChange={(v) => setVisibilityQuarter(String(v || 'Q1'))}
                 options={quarterOpts}
                 searchable={false}
               />

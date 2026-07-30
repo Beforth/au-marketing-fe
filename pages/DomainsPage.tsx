@@ -1118,7 +1118,7 @@ export const DomainsPage: React.FC = () => {
               // If user not allowed to see past quarter data, hide past quarter fills
               const currentEmployeeId = employee?.id ?? user?.id;
               const hasQuarterAccess = (q: string) =>
-                pastQuarterAccess.some(a => a.quarter === q && a.user_ids.includes(currentEmployeeId));
+                pastQuarterAccess.some(a => a.quarter === q && currentEmployeeId !== undefined && a.user_ids.includes(currentEmployeeId));
               const hideQ = (state: string, q: string) => state === 'past' && !hasQuarterAccess(q);
               const effectiveQ1Achieved = hideQ(q1State, 'Q1') ? 0 : q1Achieved;
               const effectiveQ2Achieved = hideQ(q2State, 'Q2') ? 0 : q2Achieved;
@@ -1375,7 +1375,7 @@ export const DomainsPage: React.FC = () => {
 
               const qCurrentEmployeeId = employee?.id ?? user?.id;
               const qHasQuarterAccess = (q: string) =>
-                pastQuarterAccess.some(a => a.quarter === q && a.user_ids.includes(qCurrentEmployeeId));
+                pastQuarterAccess.some(a => a.quarter === q && qCurrentEmployeeId !== undefined && a.user_ids.includes(qCurrentEmployeeId));
               const hideQ = (state: string, q: string) => state === 'past' && !qHasQuarterAccess(q);
               const effectiveQ1QuoteVal = hideQ(qq1State, 'Q1') ? 0 : q1QuoteVal;
               const effectiveQ2QuoteVal = hideQ(qq2State, 'Q2') ? 0 : q2QuoteVal;
