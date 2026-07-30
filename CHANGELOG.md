@@ -5,7 +5,7 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-07-30] — Kanban Column Sorting, Live Quotation Tooltips & Domain Target Fixes (v1.1.9)
+## [2026-07-30] — Kanban Column Sorting, Live Quotation Tooltips & Domain Target Fixes (v1.1.8)
 
 ### 🖥️ Frontend
 
@@ -19,9 +19,21 @@ Format: `[Date] — Category: Description`
 - Added rich metadata: Contact Designation & Location, Phone, Email, Owner, Plant Name, Domain/Region badges, Source, Target Closing Date, Next Follow-Up, Last Inquiry, and Lead Notes snippet.
 - Refined tooltip container per `@design.md` with a clean, 1px non-distracting Slate border (`border border-slate-200 shadow-xl shadow-slate-200/80 rounded-xl p-3`).
 
+#### Sidebar & Modal Fixes
+- Fixed version log modal auto-open bug in `Sidebar.tsx`: initialized state to current app version (`v1.1.8`) and deferred `localStorage` check until version is loaded.
+- Release modal now auto-opens strictly once on new releases and remains accessible on demand via the sidebar version badge.
+
 #### Settings & Domains — Visibility & Quotation Target Fixes
+- Added `checkManagementRoleOrQuarterAccess` helper to extract user roles across Redux user shapes (`user.roles`, `is_superuser`, `primary_role`, `role_name`, `employee.role`, `scope.role`).
 - Saved `user_details` (`id`, `first_name`, `last_name`, `role`) alongside `user_ids` in `past_quarter_access` so assigned users persist on page refresh.
-- Management role bypass (`domain_head`, `domain_coordinator`, `region_head`, `admin`) for Domain past-quarter target & quotation progress bars.
+- Management role bypass (`domain_head`, `domain_coordinator`, `region_head`, `admin`, `super_admin`) for Domain past-quarter target & quotation progress bars.
+
+### ⚙️ Backend
+
+#### Dashboard & Quotation Stats
+- Expanded `getScopeTargetStats` in `dashboard.py` to count quotations from all quotation-related statuses (`set_when_quotation_added`, `set_when_quote_number_generated`, `code == "quotation_submitted"`).
+- Wrapped all timestamp columns (`Lead.closed_at`, `Lead.updated_at`, `Activity.activity_date`, `Lead.created_at`) with `func.date(...)` to fix PostgreSQL type mismatch errors and prevent HTTP 500 crashes.
+- Added fallback calculation to `Lead.potential_value` for leads in quotation statuses.
 
 ---
 
