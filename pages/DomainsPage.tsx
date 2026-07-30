@@ -1124,8 +1124,20 @@ export const DomainsPage: React.FC = () => {
                 getStoredMarketingScope()?.employee_id,
                 getStoredMarketingScope()?.user_id,
               ].filter((id): id is number => typeof id === 'number' && !isNaN(id));
-              const hasQuarterAccess = (q: string) =>
-                pastQuarterAccess.some(a => a.quarter === q && candidateUserIds.some(uid => a.user_ids.includes(uid)));
+              const hasQuarterAccess = (q: string) => {
+                const userRole = (user as any)?.role || (employee as any)?.role || getStoredMarketingScope()?.role;
+                if (['domain_head', 'domain_coordinator', 'region_head', 'admin'].includes(userRole)) {
+                  return true;
+                }
+                return pastQuarterAccess.some(a => {
+                  if (a.quarter !== q) return false;
+                  const allowedIds = [
+                    ...(a.user_ids || []),
+                    ...((a as any).user_details || []).map((d: any) => d.id),
+                  ].map(Number);
+                  return candidateUserIds.some(uid => allowedIds.includes(Number(uid)));
+                });
+              };
               const hideQ = (state: string, q: string) => state === 'past' && !hasQuarterAccess(q);
               const effectiveQ1Achieved = hideQ(q1State, 'Q1') ? 0 : q1Achieved;
               const effectiveQ2Achieved = hideQ(q2State, 'Q2') ? 0 : q2Achieved;
@@ -1388,8 +1400,20 @@ export const DomainsPage: React.FC = () => {
                 getStoredMarketingScope()?.employee_id,
                 getStoredMarketingScope()?.user_id,
               ].filter((id): id is number => typeof id === 'number' && !isNaN(id));
-              const qHasQuarterAccess = (q: string) =>
-                pastQuarterAccess.some(a => a.quarter === q && qCandidateUserIds.some(uid => a.user_ids.includes(uid)));
+              const qHasQuarterAccess = (q: string) => {
+                const userRole = (user as any)?.role || (employee as any)?.role || getStoredMarketingScope()?.role;
+                if (['domain_head', 'domain_coordinator', 'region_head', 'admin'].includes(userRole)) {
+                  return true;
+                }
+                return pastQuarterAccess.some(a => {
+                  if (a.quarter !== q) return false;
+                  const allowedIds = [
+                    ...(a.user_ids || []),
+                    ...((a as any).user_details || []).map((d: any) => d.id),
+                  ].map(Number);
+                  return qCandidateUserIds.some(uid => allowedIds.includes(Number(uid)));
+                });
+              };
               const hideQ = (state: string, q: string) => state === 'past' && !qHasQuarterAccess(q);
               const effectiveQ1QuoteVal = hideQ(qq1State, 'Q1') ? 0 : q1QuoteVal;
               const effectiveQ2QuoteVal = hideQ(qq2State, 'Q2') ? 0 : q2QuoteVal;
