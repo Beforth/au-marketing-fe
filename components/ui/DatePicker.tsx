@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, ChevronDown, X, Clock } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-interface DatePickerProps {
+export interface DatePickerProps {
   value?: string; // YYYY-MM-DD or YYYY-MM-DDTHH:mm
   onChange: (value: string | undefined) => void;
   placeholder?: string;
@@ -21,6 +21,9 @@ interface DatePickerProps {
   /** Enable multi-select mode — calendar stays open, clicking dates toggles them */
   selectedDates?: Set<string>;
   onSelectedDatesChange?: (dates: Set<string>) => void;
+  /** YYYY-MM-DD bounds — dates outside this range are greyed out and unclickable. */
+  minDate?: string;
+  maxDate?: string;
 }
 
 const MONTHS = [
@@ -50,6 +53,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   timePanelPosition = 'bottom',
   selectedDates,
   onSelectedDatesChange,
+  minDate,
+  maxDate,
 }) => {
   const isMulti = !!selectedDates && !!onSelectedDatesChange;
   const timeOnRight = showTime && timePanelPosition === 'right';
@@ -88,10 +93,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     }
     const rect = containerRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
-    const dropdownHeight = showTime && timePanelPosition === 'bottom' ? 380 : showTime && timeOnRight ? 320 : 280;
+    const dropdownHeight = showTime && timePanelPosition === 'bottom' ? 340 : showTime && timeOnRight ? 290 : 250;
     const openUp = spaceBelow < dropdownHeight && rect.top > spaceBelow;
-    const minWidth = timeOnRight ? 320 : 260;
-    const maxWidth = timeOnRight ? 380 : 300;
+    const minWidth = timeOnRight ? 300 : 240;
+    const maxWidth = timeOnRight ? 360 : 280;
     const targetWidth = Math.min(Math.max(rect.width, minWidth), maxWidth);
 
     setDropdownRect({
@@ -148,7 +153,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     setIsYearPickerOpen(false);
   };
 
+  const isDateDisabled = (date: Date) => {
+    const key = dateToKey(date);
+    if (minDate && key < minDate) return true;
+    if (maxDate && key > maxDate) return true;
+    return false;
+  };
+
   const handleSelectDate = (date: Date) => {
+    if (isDateDisabled(date)) return;
     if (isMulti && onSelectedDatesChange) {
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
       const next = new Set(selectedDates);
@@ -214,7 +227,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   for (let i = 1; i <= daysInMonth; i++) {
     calendarDays.push({ date: new Date(year, month, i), currentMonth: true });
   }
-  const remaining = 42 - calendarDays.length;
+  // Fill out only to the next full week (5 rows most months) instead of always padding to 6 — keeps the grid compact.
+  const remaining = Math.ceil(calendarDays.length / 7) * 7 - calendarDays.length;
   for (let i = 1; i <= remaining; i++) {
     calendarDays.push({ date: new Date(year, month + 1, i), currentMonth: false });
   }
@@ -288,12 +302,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         {isOpen && dropdownRect && createPortal(
           <div
             ref={dropdownRef}
-            className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl p-3 shadow-blue-100/20 animate-spring-in"
+            className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl p-2.5 shadow-blue-100/20 animate-spring-in"
             style={{ top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width }}
           >
             <div className={cn(timeOnRight && !isYearPickerOpen && 'flex flex-row gap-3 items-stretch')}>
               <div className={cn(timeOnRight && !isYearPickerOpen && 'min-w-0 flex-1')}>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex flex-col gap-0.5 pointer-events-auto">
                     <span className="text-xs font-bold text-slate-900 leading-none">{MONTHS[month]}</span>
                     <button type="button" onClick={(e) => { e.stopPropagation(); setIsYearPickerOpen(!isYearPickerOpen); }} className={cn("text-[11px] flex items-center gap-1 mt-0.5 transition-colors font-medium rounded px-1 -ml-1", isYearPickerOpen ? "bg-blue-600 text-white" : "text-slate-500 hover:text-blue-600 hover:bg-blue-50")}>
@@ -307,7 +321,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 </div>
 
                 {isYearPickerOpen ? (
-                  <div className="grid grid-cols-4 gap-1 h-[200px] overflow-y-auto pr-1 customize-scrollbar">
+                  <div className="grid grid-cols-4 gap-1 h-[180px] overflow-y-auto pr-1 customize-scrollbar">
                     {Array.from({ length: 41 }, (_, i) => today.getFullYear() - 20 + i).map(y => (
                       <button key={y} type="button" onClick={() => handleYearChange(y)} className={cn("py-1.5 text-xs rounded-lg transition-all", y === year ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20" : "text-slate-600 hover:bg-blue-50 hover:text-blue-600")}>
                         {y}
@@ -323,8 +337,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                       {calendarDays.map((day, idx) => {
                         const selected = isSelected(day.date);
                         const current = isToday(day.date);
+                        const disabled = isDateDisabled(day.date);
                         return (
-                          <button key={idx} type="button" onClick={() => handleSelectDate(day.date)} className={cn('aspect-square flex items-center justify-center text-xs rounded-lg transition-all relative', !day.currentMonth && 'text-slate-300', day.currentMonth && !selected && 'text-slate-700 hover:bg-blue-50 hover:text-blue-600', selected && 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20', current && !selected && 'text-blue-600 font-bold')}>
+                          <button key={idx} type="button" disabled={disabled} onClick={() => handleSelectDate(day.date)} className={cn('aspect-square flex items-center justify-center text-xs rounded-lg transition-all relative', !day.currentMonth && 'text-slate-300', day.currentMonth && !selected && !disabled && 'text-slate-700 hover:bg-blue-50 hover:text-blue-600', selected && 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20', current && !selected && 'text-blue-600 font-bold', disabled && 'text-slate-200 cursor-not-allowed hover:bg-transparent')}>
                             {day.date.getDate()}
                             {current && !selected && <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-600" />}
                           </button>
@@ -337,7 +352,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
               {showTime && !isYearPickerOpen && timeOnRight && (
                 <div className="shrink-0 w-[104px] border-l border-slate-100 pl-3 flex flex-col justify-center pt-0.5 pb-1">
-                  <div className="flex items-center gap-1.5 mb-3">
+                  <div className="flex items-center gap-1.5 mb-2">
                     <Clock size={14} className="text-slate-400 shrink-0" />
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-tight">Time</span>
                   </div>
@@ -354,8 +369,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             </div>
 
             {showTime && !isYearPickerOpen && !timeOnRight && (
-              <div className="mt-3 pt-3 border-t border-slate-100">
-                <div className="flex items-center gap-2 mb-3">
+              <div className="mt-2.5 pt-2.5 border-t border-slate-100">
+                <div className="flex items-center gap-2 mb-2">
                   <Clock size={14} className="text-slate-400" />
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Set Time</span>
                 </div>
@@ -375,7 +390,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               </div>
             )}
 
-            <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
+            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button type="button" onClick={() => { if (isMulti && onSelectedDatesChange) { const key = dateToKey(today); const next = new Set(selectedDates); if (next.has(key)) next.delete(key); else next.add(key); onSelectedDatesChange(next); } else { handleSelectDate(today); } }} className="text-xs font-semibold text-blue-600 hover:underline">Today</button>
                 {showTime && showNow && <button type="button" onClick={() => updateValue(new Date())} className="text-xs font-semibold text-emerald-600 hover:underline">Now</button>}

@@ -19,6 +19,13 @@ Format: `[Date] — Category: Description`
 #### Won Flow — Backdated Won Date
 - Added an optional "Won date" field to the Won modal (`WonClosedValueModal`), visible only to users with `marketing.create_lead`; defaults to today and blocks future dates.
 - The backdated date is sent as both `closed_at` (on the lead) and `activity_date` (on the Won status-change activity) so downstream reporting stays consistent.
+- Added the same backdated "Won date" field to the Edit Lead page's "Mark as Won" modal (`LeadFormPage.tsx`), which previously had no way to backdate at all — it only sent closed value + PO with no date.
+- Both Won-date fields now render via the shared `DatePicker` component (see below) instead of a raw `<input type="date">`, with future dates disabled directly in the calendar.
+
+#### DatePicker — Unified, Compacted & Range-Aware
+- `UI/DatePicker.tsx` was a dead, unused native-input implementation completely diverged from `components/ui/DatePicker.tsx` (the one actually used across all 11 pages that render a date picker). Consolidated into a single implementation — `UI/DatePicker.tsx` now just re-exports `components/ui/DatePicker.tsx`.
+- Made the calendar more compact: the day grid now pads to only as many rows as the month needs (5 rows most months, not a fixed 6), and dropdown padding/margins were tightened throughout.
+- Added `minDate`/`maxDate` props — out-of-range days are greyed out and unclickable in the calendar, instead of only being caught by validation after the fact.
 
 #### Orders — Backdated Won Date Visibility
 - New Order form shows the selected lead's Won date next to the lead picker.
@@ -36,12 +43,12 @@ Format: `[Date] — Category: Description`
 
 ### ⚙️ Backend
 
-#### Lead Backdating — Permission & Visibility Gated
+#### Lead Backdating — Permission Gated
 - `update_lead` now honors a client-supplied `closed_at` when moving a lead to a Won status, instead of always forcing `datetime.now()`.
 - Rejects future dates.
 - Requires `marketing.create_lead` to backdate at all.
-- For dates in an already-ended fiscal quarter, additionally requires the requester to be on that quarter's `past_quarter_access` list (Settings → Visibility) — the same list that already gates who can view past-quarter numbers on the Domains page.
 - Backdated Won transitions are recorded in the audit log with the chosen date.
+- **Fix (same day):** an initial version of this change additionally required the requester to be on that fiscal quarter's `past_quarter_access` list (Settings → Visibility) before allowing a backdate into an already-ended quarter. That list only controls whether historical numbers are *displayed* on the Domains page — it's not an authorization mechanism — so requiring it on a write path incorrectly blocked users who had the right permission but weren't on that display allow-list. Removed; backdating is now gated on `marketing.create_lead` alone.
 
 ---
 

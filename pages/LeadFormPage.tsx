@@ -57,6 +57,19 @@ interface LeadFormData extends Partial<Lead> {
   plant_id?: number;
 }
 
+/** Today's date as a YYYY-MM-DD string, for date input defaults/limits. */
+function getTodayDateInputValue(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+/** Combine a YYYY-MM-DD date with the current time-of-day into an ISO datetime string. */
+function combineDateWithCurrentTime(dateStr: string): string {
+  const now = new Date();
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
+}
+
 export const LeadFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -328,6 +341,7 @@ export const LeadFormPage: React.FC = () => {
   const [showMarkWonModal, setShowMarkWonModal] = useState(false);
   const [markWonClosedValue, setMarkWonClosedValue] = useState('');
   const [markWonPO, setMarkWonPO] = useState('');
+  const [markWonDateInput, setMarkWonDateInput] = useState('');
   const [markWonSubmitting, setMarkWonSubmitting] = useState(false);
   const [markLostReason, setMarkLostReason] = useState('');
   const [markLostCompetitor, setMarkLostCompetitor] = useState('');
@@ -1637,21 +1651,33 @@ export const LeadFormPage: React.FC = () => {
       showToast('Please enter a valid positive number for closed value', 'error');
       return;
     }
+    const isBackdated = canCreate && markWonDateInput && markWonDateInput !== getTodayDateInputValue();
+    if (isBackdated && markWonDateInput > getTodayDateInputValue()) {
+      showToast('Won date cannot be in the future', 'error');
+      return;
+    }
+    const backdatedIso = isBackdated ? combineDateWithCurrentTime(markWonDateInput) : undefined;
     setMarkWonSubmitting(true);
     try {
-      await marketingAPI.updateLead(leadId, { status_id: wonStatusId ?? undefined, closed_value: value } as UpdateLeadRequest);
-      const description = `Closed value: ₹${value.toLocaleString()}${markWonPO.trim() ? `\nPO: ${markWonPO.trim()}` : ''}`;
+      await marketingAPI.updateLead(leadId, {
+        status_id: wonStatusId ?? undefined,
+        closed_value: value,
+        ...(backdatedIso ? { closed_at: backdatedIso } : {}),
+      } as UpdateLeadRequest);
+      const description = `Closed value: ₹${value.toLocaleString()}${markWonPO.trim() ? `\nPO: ${markWonPO.trim()}` : ''}${backdatedIso ? ' (Backdated Won date)' : ''}`;
       await marketingAPI.createLeadActivity(leadId, {
         activity_type: 'lead_status_change',
         title: 'Marked as Won',
         description,
         from_status_id: formData.status_id ?? undefined,
         to_status_id: wonStatusId,
+        activity_date: backdatedIso,
       });
-      showToast('Lead marked as Won', 'success');
+      showToast(backdatedIso ? 'Lead marked as Won with a backdated Won date' : 'Lead marked as Won', 'success');
       setShowMarkWonModal(false);
       setMarkWonClosedValue('');
       setMarkWonPO('');
+      setMarkWonDateInput('');
       loadLead();
       loadActivities();
       navigate(`/orders/new?lead_id=${id}`);
@@ -1840,7 +1866,7 @@ export const LeadFormPage: React.FC = () => {
           {!viewMode && canEdit && (wonStatusId || lostStatusId) && formData.status_id !== wonStatusId && formData.status_id !== lostStatusId && (
             <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap gap-2">
               {wonStatusId && (
-                <Button variant="outline" size="sm" className="text-emerald-600 border-emerald-200 hover:bg-emerald-50" leftIcon={<Trophy size={14} />} onClick={() => setShowMarkWonModal(true)}>
+                <Button variant="outline" size="sm" className="text-emerald-600 border-emerald-200 hover:bg-emerald-50" leftIcon={<Trophy size={14} />} onClick={() => { setMarkWonDateInput(getTodayDateInputValue()); setShowMarkWonModal(true); }}>
                   Mark as Won
                 </Button>
               )}
@@ -4159,12 +4185,12 @@ export const LeadFormPage: React.FC = () => {
       {isEdit && (
         <Modal
           isOpen={showMarkWonModal}
-          onClose={() => { setShowMarkWonModal(false); setMarkWonClosedValue(''); setMarkWonPO(''); }}
+          onClose={() => { setShowMarkWonModal(false); setMarkWonClosedValue(''); setMarkWonPO(''); setMarkWonDateInput(''); }}
           title="Mark as Won"
           footer={
             <div className="flex justify-end gap-2 w-full">
-              <Button variant="outline" size="sm" onClick={() => { setShowMarkWonModal(false); setMarkWonClosedValue(''); setMarkWonPO(''); }}>Cancel</Button>
-              <Button size="sm" onClick={handleMarkWonSubmit} disabled={!markWonClosedValue.trim() || markWonSubmitting}>
+              <Button variant="outline" size="sm" onClick={() => { setShowMarkWonModal(false); setMarkWonClosedValue(''); setMarkWonPO(''); setMarkWonDateInput(''); }}>Cancel</Button>
+              <Button size="sm" onClick={handleMarkWonSubmit} disabled={!markWonClosedValue.trim() || markWonSubmitting || (canCreate && markWonDateInput > getTodayDateInputValue())}>
                 {markWonSubmitting ? 'Saving...' : 'Submit'}
               </Button>
             </div>
@@ -4191,6 +4217,20 @@ export const LeadFormPage: React.FC = () => {
               containerClassName="max-w-xs"
               inputSize="sm"
             />
+            {canCreate && (
+              <div className="max-w-xs">
+                <DatePicker
+                  label="Won date"
+                  value={markWonDateInput}
+                  onChange={(v) => setMarkWonDateInput(v || '')}
+                  maxDate={getTodayDateInputValue()}
+                  inputSize="sm"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  Defaults to today. Only change this to backdate an older lead that was actually won earlier, so it counts toward that quarter.
+                </p>
+              </div>
+            )}
           </div>
         </Modal>
       )}

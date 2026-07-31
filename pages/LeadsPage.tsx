@@ -2218,20 +2218,16 @@ export const LeadsPage: React.FC = () => {
         />
         {canCreate && (
           <div className="mt-3 max-w-xs">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Won date</label>
-            <input
-              type="date"
+            <DatePicker
+              label="Won date"
               value={wonDateInput}
-              max={getTodayDateInputValue()}
-              onChange={(e) => setWonDateInput(e.target.value)}
-              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              onChange={(v) => setWonDateInput(v || '')}
+              maxDate={getTodayDateInputValue()}
+              inputSize="sm"
             />
             <p className="mt-1 text-xs text-slate-500">
               Defaults to today. Only change this to backdate an older lead that was actually won earlier, so it counts toward that quarter.
             </p>
-            {wonDateInput > getTodayDateInputValue() && (
-              <p className="mt-1 text-xs text-rose-600">Won date cannot be in the future.</p>
-            )}
           </div>
         )}
         <div className="mt-3">
