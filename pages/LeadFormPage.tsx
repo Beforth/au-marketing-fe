@@ -3019,6 +3019,7 @@ export const LeadFormPage: React.FC = () => {
                                   value={activityDraftCustomNumber}
                                   onChange={(e) => { setActivityDraftCustomNumber(e.target.value); setActivityDraftGeneratedNumber(null); setActivityDraftGeneratedSeriesCode(null); setActivityDraftNumber(e.target.value); }}
                                   placeholder="e.g. AP/QUOTE-N/001"
+                                  maxLength={1000}
                                 />
                               )}
                             </div>
