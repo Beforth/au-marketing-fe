@@ -58,29 +58,31 @@ function checkManagementRoleOrQuarterAccess(
   candidateUserIds: number[],
   pastQuarterAccessList: PastQuarterAccess[]
 ): boolean {
-  if (user?.is_superuser) return true;
+  if (user?.is_superuser || user?.is_staff || employee?.is_superuser || employee?.is_staff) return true;
+
+  const normalizeRole = (r: string) => r.trim().toLowerCase().replace(/[\s-]+/g, '_');
 
   const rawRoles: string[] = [];
   if (Array.isArray(user?.roles)) {
     for (const r of user.roles) {
-      if (typeof r === 'string') rawRoles.push(r.toLowerCase());
-      else if (r && typeof r === 'object') rawRoles.push(String(r.name || r.code || '').toLowerCase());
+      if (typeof r === 'string') rawRoles.push(normalizeRole(r));
+      else if (r && typeof r === 'object') rawRoles.push(normalizeRole(String(r.name || r.code || '')));
     }
   }
-  if (user?.primary_role) rawRoles.push(String(user.primary_role).toLowerCase());
-  if (user?.role_name) rawRoles.push(String(user.role_name).toLowerCase());
-  if (typeof user?.role === 'string') rawRoles.push(user.role.toLowerCase());
-  if (typeof employee?.role === 'string') rawRoles.push(employee.role.toLowerCase());
+  if (user?.primary_role) rawRoles.push(normalizeRole(String(user.primary_role)));
+  if (user?.role_name) rawRoles.push(normalizeRole(String(user.role_name)));
+  if (typeof user?.role === 'string') rawRoles.push(normalizeRole(user.role));
+  if (typeof employee?.role === 'string') rawRoles.push(normalizeRole(employee.role));
   if (Array.isArray(employee?.roles)) {
     for (const r of employee.roles) {
-      if (typeof r === 'string') rawRoles.push(r.toLowerCase());
-      else if (r && typeof r === 'object') rawRoles.push(String(r.name || r.code || '').toLowerCase());
+      if (typeof r === 'string') rawRoles.push(normalizeRole(r));
+      else if (r && typeof r === 'object') rawRoles.push(normalizeRole(String(r.name || r.code || '')));
     }
   }
   const scopeRole = getStoredMarketingScope()?.role;
-  if (scopeRole) rawRoles.push(String(scopeRole).toLowerCase());
+  if (scopeRole) rawRoles.push(normalizeRole(String(scopeRole)));
 
-  const managementRoles = ['domain_head', 'domain_coordinator', 'region_head', 'admin', 'super_admin'];
+  const managementRoles = ['domain_head', 'domain_coordinator', 'region_head', 'admin', 'super_admin', 'superadmin'];
   if (rawRoles.some(r => managementRoles.includes(r))) {
     return true;
   }

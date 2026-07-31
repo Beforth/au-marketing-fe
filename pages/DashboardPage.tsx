@@ -928,6 +928,8 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
   const [sqlPreviewLoading, setSqlPreviewLoading] = useState(false);
   const [sqlWidgetData, setSqlWidgetData] = useState<Record<string, { data?: unknown[]; chart_type?: string; error?: string }>>({});
   const lastPersistedLayoutRef = useRef<string>('');
+  /** True once the real saved layout has finished loading for the current selectedDashboardId — guards the auto-save effect from firing on the transient default layout before it. */
+  const layoutReadyRef = useRef(false);
   const [editingWidgetId, setEditingWidgetId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1063,6 +1065,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
   }, [savedDashboards]);
 
   useEffect(() => {
+    layoutReadyRef.current = false;
     if (selectedDashboardId == null) {
       setSqlWidgetData({});
       return;
@@ -1075,6 +1078,7 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
       const nextLayout = ensureDefaultWidgets(migrateLayout(layoutFromApi));
       setLayout(nextLayout);
       lastPersistedLayoutRef.current = JSON.stringify(nextLayout);
+      layoutReadyRef.current = true;
       setSqlWidgetData(res.widget_data ?? {});
       if (selectedDashboardId != null) localStorage.setItem('lastDashboardId', String(selectedDashboardId));
     }).catch((e: unknown) => {
@@ -1981,6 +1985,10 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
   useEffect(() => {
     if (selectedDashboardId == null) return;
     if (!canEditSelectedDashboard) return;
+    // Don't auto-save until the real saved layout has loaded for this dashboard — otherwise the
+    // transient default layout (shown while that fetch is still in flight) can win the race and
+    // overwrite the real saved widgets.
+    if (!layoutReadyRef.current) return;
 
     const serialized = JSON.stringify(layout);
     if (serialized === lastPersistedLayoutRef.current) return;
