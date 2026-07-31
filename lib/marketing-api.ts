@@ -394,6 +394,8 @@ export interface CreateLeadRequest {
 
 export interface UpdateLeadRequest extends Partial<CreateLeadRequest> {
   closed_value?: number;
+  /** Backdate the Won date (ISO datetime). Requires marketing.create_lead; ignored/rejected otherwise. */
+  closed_at?: string;
   series?: string;
   /** Required (min 100 chars) when moving lead to Lost status. Stored in enquiry log. */
   status_change_reason?: string;

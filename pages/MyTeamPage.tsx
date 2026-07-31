@@ -135,22 +135,25 @@ function mergeSummaries(summaries: ReportSummaryResponse[]): ReportSummaryRespon
 }
 
 const SummaryContent: React.FC<{ loading: boolean; summary: ReportSummaryResponse | null }> = ({ loading, summary }) => {
-  if (loading || !summary) {
+  if (loading) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
-        {[
-          { icon: MessageSquare, label: 'Inquiries' },
-          { icon: FileText, label: 'Quotations' },
-          { icon: BarChart3, label: 'Total Leads' },
-          { icon: Phone, label: 'Contacts' },
-          { icon: Building2, label: 'Customers' }
-        ].map((item, idx) => (
+        {Array.from({ length: 5 }).map((_, idx) => (
           <div key={idx} className="bg-slate-50 rounded-lg p-3 text-center">
-            <item.icon size={18} className="text-blue-400 mx-auto mb-1 opacity-60" />
-            <div className="h-6 w-12 mx-auto rounded shimmer-block mb-1.5 mt-0.5" />
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{item.label}</p>
+            <div className="w-[18px] h-[18px] mx-auto mb-1.5 rounded-full shimmer-block" />
+            <div className="h-6 w-14 mx-auto rounded shimmer-block mb-1.5" />
+            <div className="h-2.5 w-16 mx-auto rounded shimmer-block" />
           </div>
         ))}
+      </div>
+    );
+  }
+  if (!summary) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-center mb-4">
+        <BarChart3 size={28} className="text-slate-300 mb-2" />
+        <p className="text-sm font-medium text-slate-500">No data for this filter and period.</p>
+        <p className="text-xs text-slate-400 mt-0.5">Try a different domain/region or date range.</p>
       </div>
     );
   }
@@ -655,9 +658,9 @@ export const MyTeamPage: React.FC = () => {
               }
             }
             .shimmer-block {
-              background: linear-gradient(90deg, #eff6ff 25%, #dbeafe 50%, #eff6ff 75%);
+              background: linear-gradient(90deg, #eef1f5 20%, #e2e8f0 40%, #e2e8f0 60%, #eef1f5 80%);
               background-size: 200% 100%;
-              animation: shimmer-sweep 1.5s infinite linear;
+              animation: shimmer-sweep 1.8s infinite ease-in-out;
             }
           `}</style>
           <Card className="mb-6">

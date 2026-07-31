@@ -13,7 +13,7 @@ import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
-import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash, Phone, Mail, Building2, Tag, Clock, FileText } from 'lucide-react';
+import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash, Phone, Mail, Building2, Tag, Clock, FileText, FileImage, FileSpreadsheet, FileArchive, File as FileIconGeneric, AlertTriangle } from 'lucide-react';
 import { useApp } from '../App';
 import { Tooltip } from '../UI/Tooltip';
 import { useAppSelector } from '../store/hooks';
@@ -58,7 +58,32 @@ function getContrastColor(hex: string): string {
   return luminance < 0.5 ? '#fff' : '#111';
 }
 
+/** Today's date as a YYYY-MM-DD string, for date input defaults/limits. */
+function getTodayDateInputValue(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+/** Combine a YYYY-MM-DD date with the current time-of-day into an ISO datetime string. */
+function combineDateWithCurrentTime(dateStr: string): string {
+  const now = new Date();
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
+}
+
+/** Pick an icon + color for an attachment based on its file extension. */
+function getFileTypeIcon(fileName: string): { Icon: typeof FileText; className: string } {
+  const ext = (fileName.split('.').pop() || '').toLowerCase();
+  if (ext === 'pdf') return { Icon: FileText, className: 'text-red-500' };
+  if (['doc', 'docx', 'rtf', 'txt'].includes(ext)) return { Icon: FileText, className: 'text-blue-500' };
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return { Icon: FileSpreadsheet, className: 'text-emerald-600' };
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return { Icon: FileImage, className: 'text-purple-500' };
+  if (['zip', 'rar', '7z'].includes(ext)) return { Icon: FileArchive, className: 'text-amber-600' };
+  return { Icon: FileIconGeneric, className: 'text-slate-400' };
+}
+
 const LeadTooltipContent: React.FC<{ lead: Lead; onViewQuotation?: (leadId: number) => void }> = ({ lead, onViewQuotation }) => {
+  const { showToast } = useApp();
   const [quotationFiles, setQuotationFiles] = useState<LeadActivityAttachment[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
 
@@ -179,30 +204,44 @@ const LeadTooltipContent: React.FC<{ lead: Lead; onViewQuotation?: (leadId: numb
               <div className="text-xs text-slate-400 animate-pulse">Loading documents...</div>
             ) : quotationFiles.length > 0 ? (
               <div className="space-y-1 pt-1.5 border-t border-slate-200/60 max-h-28 overflow-y-auto pr-1">
-                {quotationFiles.map((att) => (
+                {quotationFiles.map((att) => {
+                  const fileName = att.file_name || (att as any).filename || 'Quotation Document';
+                  const { Icon: FileIcon, className: fileIconClass } = getFileTypeIcon(fileName);
+                  return (
                   <div key={att.id} className="flex items-center justify-between gap-2 text-xs bg-white p-1.5 rounded border border-slate-200">
                     <div className="min-w-0 flex-1 truncate">
                       <div className="font-semibold text-slate-800 truncate flex items-center gap-1">
-                        <FileText size={11} className="text-blue-500 shrink-0" />
-                        <span className="truncate">{att.file_name || (att as any).filename || 'Quotation Document'}</span>
+                        <FileIcon size={11} className={`${fileIconClass} shrink-0`} />
+                        <span className="truncate">{fileName}</span>
                       </div>
                       {att.quotation_number && (
                         <div className="text-xs text-slate-400 font-mono">#{att.quotation_number}</div>
                       )}
                     </div>
-                    {att.file_path && (
-                      <a
-                        href={att.file_path.startsWith('http') ? att.file_path : `${window.location.origin}${att.file_path}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                    {att.media_exists === false ? (
+                      <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 font-semibold text-xs">
+                        <AlertTriangle size={10} /> Missing
+                      </span>
+                    ) : att.file_path && (
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            const url = await marketingAPI.getLeadActivityAttachmentUrl(lead.id, att.activity_id, att.id);
+                            window.open(url, '_blank', 'noopener,noreferrer');
+                          } catch (err: any) {
+                            showToast(err?.message || 'File not found on server', 'error');
+                          }
+                        }}
                         className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs transition-colors"
                       >
                         <Upload size={10} className="rotate-180" /> Open
-                      </a>
+                      </button>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : quoteNumber ? (
               <div className="text-xs text-slate-500 font-mono">Quote Ref: {quoteNumber}</div>
@@ -230,51 +269,59 @@ const LeadTooltipContent: React.FC<{ lead: Lead; onViewQuotation?: (leadId: numb
           </div>
         ) : null}
 
-        {/* Timestamps & Follow-ups */}
-        {lead.next_follow_up_at && (
-          <div className="flex items-center gap-1.5 text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 text-xs">
-            <Calendar size={12} className="shrink-0 text-amber-600" />
-            <span>Next follow-up: <strong>{new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}</strong></span>
-          </div>
-        )}
-        {lead.last_activity_date && (
-          <div className="flex items-center gap-1.5 text-slate-600 text-xs">
-            <Clock size={12} className="text-slate-400 shrink-0" />
-            <span>Last inquiry: {new Date(lead.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}</span>
-          </div>
-        )}
-        {lead.expected_closing_date && (
-          <div className="flex items-center gap-1.5 text-slate-600 text-xs">
-            <Calendar size={12} className="text-slate-400 shrink-0" />
-            <span>Target Closing: {new Date(lead.expected_closing_date).toLocaleDateString(undefined, { dateStyle: 'short' })}</span>
-          </div>
-        )}
-
-        {/* Domain, Region, Lead Type Badges */}
-        {(domainName || regionName || leadTypeName) && (
-          <div className="flex items-center gap-1 flex-wrap pt-0.5">
-            {domainName && (
-              <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-100">
-                {domainName}
-              </span>
+        {/* Actionable tier: follow-up & dates */}
+        {(lead.next_follow_up_at || lead.expected_closing_date || lead.last_activity_date) && (
+          <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+            {lead.next_follow_up_at && (
+              <div className="flex items-center gap-1.5 text-amber-700 bg-amber-50 px-2 py-1.5 text-xs">
+                <Calendar size={12} className="shrink-0 text-amber-600" />
+                <span>Next follow-up: <strong>{new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}</strong></span>
+              </div>
             )}
-            {regionName && (
-              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200">
-                {regionName}
-              </span>
+            {lead.expected_closing_date && (
+              <div className="flex items-center gap-1.5 text-slate-600 bg-white px-2 py-1.5 text-xs">
+                <Calendar size={12} className="text-slate-400 shrink-0" />
+                <span>Target closing: {new Date(lead.expected_closing_date).toLocaleDateString(undefined, { dateStyle: 'short' })}</span>
+              </div>
             )}
-            {leadTypeName && (
-              <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-semibold border border-purple-100">
-                {leadTypeName}
-              </span>
+            {lead.last_activity_date && (
+              <div className="flex items-center gap-1.5 text-slate-600 bg-white px-2 py-1.5 text-xs">
+                <Clock size={12} className="text-slate-400 shrink-0" />
+                <span>Last inquiry: {new Date(lead.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}</span>
+              </div>
             )}
           </div>
         )}
 
-        {sourceName && (
-          <div className="flex items-center gap-1.5 text-slate-500 text-xs">
-            <Tag size={12} className="text-slate-400 shrink-0" />
-            <span>Source: {sourceName}</span>
+        {/* Reference tier: classification & source */}
+        {(domainName || regionName || leadTypeName || sourceName) && (
+          <div className="pt-1.5 border-t border-slate-100 space-y-1.5">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Details</div>
+            {(domainName || regionName || leadTypeName) && (
+              <div className="flex items-center gap-1 flex-wrap">
+                {domainName && (
+                  <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-100">
+                    {domainName}
+                  </span>
+                )}
+                {regionName && (
+                  <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200">
+                    {regionName}
+                  </span>
+                )}
+                {leadTypeName && (
+                  <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-semibold border border-purple-100">
+                    {leadTypeName}
+                  </span>
+                )}
+              </div>
+            )}
+            {sourceName && (
+              <div className="flex items-center gap-1.5 text-slate-500 text-xs">
+                <Tag size={12} className="text-slate-400 shrink-0" />
+                <span>Source: {sourceName}</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -339,6 +386,7 @@ export const LeadsPage: React.FC = () => {
   const [pendingWonStatusId, setPendingWonStatusId] = useState<number | null>(null);
   const [closedValueInput, setClosedValueInput] = useState('');
   const [wonPoFile, setWonPoFile] = useState<File | null>(null);
+  const [wonDateInput, setWonDateInput] = useState('');
   const [leadToMarkLost, setLeadToMarkLost] = useState<number | null>(null);
   const [markLostReason, setMarkLostReason] = useState('');
   const [markLostCompetitor, setMarkLostCompetitor] = useState('');
@@ -854,6 +902,7 @@ export const LeadsPage: React.FC = () => {
       setPendingWonStatusId(newStatusId);
       setClosedValueInput('');
       setWonPoFile(null);
+      setWonDateInput(getTodayDateInputValue());
       setShowWonClosedValueModal(true);
       setDraggedLeadId(null);
       return;
@@ -986,6 +1035,12 @@ export const LeadsPage: React.FC = () => {
       showToast('PO file is required to mark lead as Won', 'error');
       return;
     }
+    const isBackdated = canCreate && wonDateInput && wonDateInput !== getTodayDateInputValue();
+    if (isBackdated && wonDateInput > getTodayDateInputValue()) {
+      showToast('Won date cannot be in the future', 'error');
+      return;
+    }
+    const backdatedIso = isBackdated ? combineDateWithCurrentTime(wonDateInput) : undefined;
     setUpdatingLeadId(pendingWonLeadId);
     setWonPoUploadProgress(0);
     try {
@@ -993,9 +1048,10 @@ export const LeadsPage: React.FC = () => {
       const created = await marketingAPI.createLeadActivity(pendingWonLeadId, {
         activity_type: 'lead_status_change',
         title: 'Lead marked as Won',
-        description: `Closed value: ₹${value.toLocaleString()}. PO file attached.`,
+        description: `Closed value: ₹${value.toLocaleString()}. PO file attached.${backdatedIso ? ' (Backdated Won date)' : ''}`,
         from_status_id: fromStatusId ?? undefined,
         to_status_id: pendingWonStatusId,
+        activity_date: backdatedIso,
       });
       await marketingAPI.uploadLeadActivityAttachments(
         pendingWonLeadId,
@@ -1009,8 +1065,12 @@ export const LeadsPage: React.FC = () => {
         undefined,
         setWonPoUploadProgress
       );
-      await marketingAPI.updateLead(pendingWonLeadId, { status_id: pendingWonStatusId, closed_value: value } as UpdateLeadRequest);
-      showToast('Lead marked as Won with closed value and PO file', 'success');
+      await marketingAPI.updateLead(pendingWonLeadId, {
+        status_id: pendingWonStatusId,
+        closed_value: value,
+        ...(backdatedIso ? { closed_at: backdatedIso } : {}),
+      } as UpdateLeadRequest);
+      showToast(backdatedIso ? 'Lead marked as Won with a backdated Won date' : 'Lead marked as Won with closed value and PO file', 'success');
       setLeads((prev) =>
         prev.map((l) =>
           l.id === pendingWonLeadId
@@ -1023,6 +1083,7 @@ export const LeadsPage: React.FC = () => {
       setPendingWonStatusId(null);
       setClosedValueInput('');
       setWonPoFile(null);
+      setWonDateInput('');
       navigate(`/orders/new?lead_id=${pendingWonLeadId}`);
     } catch (err: any) {
       showToast(err.message || 'Failed to update lead', 'error');
@@ -1034,6 +1095,7 @@ export const LeadsPage: React.FC = () => {
       setPendingWonStatusId(null);
       setClosedValueInput('');
       setWonPoFile(null);
+      setWonDateInput('');
     }
   };
 
@@ -1065,6 +1127,7 @@ export const LeadsPage: React.FC = () => {
     setPendingWonStatusId(wonStatusId);
     setClosedValueInput('');
     setWonPoFile(null);
+    setWonDateInput(getTodayDateInputValue());
     setShowWonClosedValueModal(true);
   };
 
@@ -1757,7 +1820,6 @@ export const LeadsPage: React.FC = () => {
                                         {leadDisplayCompany(lead) && (
                                           <div className="text-xs text-slate-500 truncate mt-0.5">{leadDisplayCompany(lead)}</div>
                                         )}
-                                        <div className="text-xs text-slate-400 truncate mt-0.5">{leadDisplayEmail(lead) || '—'}</div>
                                         {lead.next_follow_up_at && (
                                           <div className="text-[10px] text-slate-500 mt-1">
                                             Next follow-up: {new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}
@@ -2106,6 +2168,7 @@ export const LeadsPage: React.FC = () => {
           setPendingWonStatusId(null);
           setClosedValueInput('');
           setWonPoFile(null);
+          setWonDateInput('');
         }}
         title="Closed value (required)"
         footer={
@@ -2125,14 +2188,15 @@ export const LeadsPage: React.FC = () => {
                   setPendingWonStatusId(null);
                   setClosedValueInput('');
                   setWonPoFile(null);
+                  setWonDateInput('');
                 }}
               >
                 Cancel
               </Button>
-              <Button 
-                size="sm" 
-                onClick={handleWonClosedValueSubmit} 
-                disabled={updatingLeadId !== null || !closedValueInput.trim() || !wonPoFile}
+              <Button
+                size="sm"
+                onClick={handleWonClosedValueSubmit}
+                disabled={updatingLeadId !== null || !closedValueInput.trim() || !wonPoFile || (canCreate && wonDateInput > getTodayDateInputValue())}
               >
                 {updatingLeadId !== null ? (wonPoUploadProgress !== null ? `Uploading (${wonPoUploadProgress}%)...` : 'Submitting...') : 'Submit'}
               </Button>
@@ -2152,6 +2216,24 @@ export const LeadsPage: React.FC = () => {
           onChange={(e) => setClosedValueInput(e.target.value)}
           containerClassName="max-w-xs"
         />
+        {canCreate && (
+          <div className="mt-3 max-w-xs">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Won date</label>
+            <input
+              type="date"
+              value={wonDateInput}
+              max={getTodayDateInputValue()}
+              onChange={(e) => setWonDateInput(e.target.value)}
+              className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Defaults to today. Only change this to backdate an older lead that was actually won earlier, so it counts toward that quarter.
+            </p>
+            {wonDateInput > getTodayDateInputValue() && (
+              <p className="mt-1 text-xs text-rose-600">Won date cannot be in the future.</p>
+            )}
+          </div>
+        )}
         <div className="mt-3">
           <label className="block text-sm font-medium text-slate-700 mb-1">PO file (required)</label>
           <input

@@ -14,12 +14,12 @@ import { Modal } from '../components/ui/Modal';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
 import { Tooltip } from '../UI/Tooltip';
-import { Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, FileText, Upload, Eye, Trophy, XCircle } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, FileText, Upload, Eye, Trophy, XCircle, Phone, Mail, Calendar, FileImage, FileSpreadsheet, FileArchive, File as FileIconGeneric, AlertTriangle } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
-import { marketingAPI, type Order, type OrderStatusOption, type OrderStatusGroup, type Lead, leadDisplayName, leadDisplayCompany } from '../lib/marketing-api';
+import { marketingAPI, type Order, type OrderStatusOption, type OrderStatusGroup, type Lead, type LeadActivity, type LeadActivityAttachment, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
 
 type ViewMode = 'kanban' | 'table';
@@ -32,6 +32,131 @@ function getContrastColor(hex: string): string {
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return luminance < 0.5 ? '#fff' : '#111';
 }
+
+/** Pick an icon + color for an attachment based on its file extension. */
+function getFileTypeIcon(fileName: string): { Icon: typeof FileText; className: string } {
+  const ext = (fileName.split('.').pop() || '').toLowerCase();
+  if (ext === 'pdf') return { Icon: FileText, className: 'text-red-500' };
+  if (['doc', 'docx', 'rtf', 'txt'].includes(ext)) return { Icon: FileText, className: 'text-blue-500' };
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return { Icon: FileSpreadsheet, className: 'text-emerald-600' };
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return { Icon: FileImage, className: 'text-purple-500' };
+  if (['zip', 'rar', '7z'].includes(ext)) return { Icon: FileArchive, className: 'text-amber-600' };
+  return { Icon: FileIconGeneric, className: 'text-slate-400' };
+}
+
+/** Hover tooltip for an Order kanban card: lead contact info + Won date + the lead's uploaded files (e.g. the PO uploaded when marked Won). */
+const OrderTooltipContent: React.FC<{ order: Order }> = ({ order }) => {
+  const { showToast } = useApp();
+  const [leadFiles, setLeadFiles] = useState<{ att: LeadActivityAttachment; activity: LeadActivity }[]>([]);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  const lead = order.lead;
+
+  useEffect(() => {
+    if (!order.lead_id) return;
+    let isMounted = true;
+    setLoadingFiles(true);
+    marketingAPI.getLeadActivities(order.lead_id)
+      .then((leadActivities) => {
+        if (!isMounted) return;
+        const files: { att: LeadActivityAttachment; activity: LeadActivity }[] = [];
+        for (const activity of leadActivities) {
+          for (const att of (activity.attachments || [])) {
+            files.push({ att, activity });
+          }
+        }
+        setLeadFiles(files);
+      })
+      .catch(() => {
+        if (isMounted) setLeadFiles([]);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingFiles(false);
+      });
+    return () => { isMounted = false; };
+  }, [order.lead_id]);
+
+  const phone = lead ? ((lead as any).phone || (lead as any).mobile || (lead as any).contact_phone || (lead.contact as any)?.mobile || (lead.contact as any)?.phone) : undefined;
+  const email = lead ? leadDisplayEmail(lead) : '';
+
+  const handleOpenFile = async (activityId: number, attachmentId: number) => {
+    try {
+      const url = await marketingAPI.getLeadActivityAttachmentUrl(order.lead_id, activityId, attachmentId);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err: any) {
+      showToast(err?.message || 'File not found on server', 'error');
+    }
+  };
+
+  return (
+    <div className="p-1 space-y-2 text-xs text-slate-700 font-sans min-w-[260px]">
+      <div className="border-b border-slate-200 pb-2">
+        <div className="font-bold text-slate-900 text-sm leading-snug">{order.series || `#${order.id}`}</div>
+        {lead && (
+          <div className="text-xs text-slate-600 font-medium mt-0.5 truncate">
+            {leadDisplayName(lead)}{leadDisplayCompany(lead) ? ` · ${leadDisplayCompany(lead)}` : ''}
+          </div>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        {phone && (
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <Phone size={13} className="text-slate-400 shrink-0" />
+            <span className="truncate">{phone}</span>
+          </div>
+        )}
+        {email && (
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <Mail size={13} className="text-slate-400 shrink-0" />
+            <span className="truncate">{email}</span>
+          </div>
+        )}
+        {lead?.closed_at && (
+          <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
+            <Calendar size={12} className="shrink-0 text-emerald-600" />
+            <span>Won: <strong>{new Date(lead.closed_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}</strong></span>
+          </div>
+        )}
+      </div>
+      <div className="pt-1.5 border-t border-slate-100">
+        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1 mb-1">
+          <FileText size={12} className="text-blue-600" /> Files
+        </span>
+        {loadingFiles ? (
+          <div className="text-xs text-slate-400 animate-pulse">Loading documents...</div>
+        ) : leadFiles.length > 0 ? (
+          <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+            {leadFiles.map(({ att, activity }) => {
+              const { Icon: FileIcon, className: fileIconClass } = getFileTypeIcon(att.file_name);
+              return (
+                <div key={att.id} className="flex items-center justify-between gap-2 bg-white p-1.5 rounded border border-slate-200">
+                  <div className="min-w-0 flex-1 truncate flex items-center gap-1">
+                    <FileIcon size={11} className={`${fileIconClass} shrink-0`} />
+                    <span className="truncate">{att.file_name}</span>
+                  </div>
+                  {att.media_exists === false ? (
+                    <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 font-semibold text-xs">
+                      <AlertTriangle size={10} /> Missing
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleOpenFile(activity.id, att.id); }}
+                      className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs transition-colors"
+                    >
+                      <Upload size={10} className="rotate-180" /> Open
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-xs text-slate-400">No files uploaded</div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const DEFAULT_STATUS_COLOR = { bg: 'bg-slate-100/50', text: 'text-slate-700' };
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -756,8 +881,13 @@ export const OrdersPage: React.FC = () => {
                           onDrop={(e) => handleColumnDrop(e, null)}
                         >
                           {ordersByStatus[''].map((o) => (
-                            <div
+                            <Tooltip
                               key={o.id}
+                              content={<OrderTooltipContent order={o} />}
+                              side="right"
+                              className="border border-slate-200 bg-white shadow-xl shadow-slate-200/80 rounded-xl p-3 font-sans border-solid max-w-xs"
+                            >
+                            <div
                               draggable={canEdit && !isWonOrLostOrderStatus(o.status_id ?? null)}
                               onDragStart={(e) => handleOrderDragStart(e, o)}
                               onDragEnd={handleOrderDragEnd}
@@ -817,6 +947,7 @@ export const OrdersPage: React.FC = () => {
                                 <div className="text-[10px] text-slate-500 mt-0.5 truncate" title={o.notes}>{o.notes}</div>
                               )}
                             </div>
+                            </Tooltip>
                           ))}
                         </div>
                       </div>
@@ -882,8 +1013,13 @@ export const OrdersPage: React.FC = () => {
                               onDrop={(e) => handleColumnDrop(e, status.id)}
                             >
                               {columnOrders.map((o) => (
-                                <div
+                                <Tooltip
                                   key={o.id}
+                                  content={<OrderTooltipContent order={o} />}
+                                  side="right"
+                                  className="border border-slate-200 bg-white shadow-xl shadow-slate-200/80 rounded-xl p-3 font-sans border-solid max-w-xs"
+                                >
+                                <div
                                   draggable={canEdit && !isWonOrLostOrderStatus(o.status_id ?? null)}
                                   onDragStart={(e) => handleOrderDragStart(e, o)}
                                   onDragEnd={handleOrderDragEnd}
@@ -943,6 +1079,7 @@ export const OrdersPage: React.FC = () => {
                                     <div className="text-[10px] text-slate-500 mt-0.5 truncate" title={o.notes}>{o.notes}</div>
                                   )}
                                 </div>
+                                </Tooltip>
                               ))}
                             </div>
                           </div>

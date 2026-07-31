@@ -209,6 +209,50 @@ const getBarGradient = (pct: number): string => {
   return "from-emerald-500 via-teal-400 to-yellow-400 animate-pulse";
 };
 
+/** Gradient for a single quarter's bar segment: emerald at target, the app's original ≥100% gradient once past it, else the shared whole-bar gradient. */
+const getSegmentGradient = (achievedVal: number, targetVal: number, fallbackPct: number): string => {
+  if (targetVal > 0 && achievedVal > targetVal) return "from-emerald-500 via-teal-400 to-yellow-400";
+  if (targetVal > 0 && achievedVal >= targetVal) return "from-emerald-600 to-emerald-500";
+  return getBarGradient(fallbackPct);
+};
+
+/** Status/badge for a single quarter: Pending / Active / Missed / Achieved / Overachieved (teal accent, shows the surplus over target; badge glints continuously so it's always noticeable, not just on mount). */
+const getQuarterStatus = (achievedVal: number, targetVal: number, state: 'past' | 'active' | 'future') => {
+  if (targetVal > 0 && achievedVal > targetVal) {
+    return {
+      label: `+${formatTargetAmount(achievedVal - targetVal)} over target`,
+      dotClass: "bg-teal-500 scale-125 shadow-[0_0_4px_rgba(20,184,166,0.6)]",
+      badgeClass: "bg-teal-50 text-teal-700 border-teal-200 font-extrabold shadow-sm glint-badge"
+    };
+  }
+  if (targetVal > 0 && achievedVal >= targetVal) {
+    return {
+      label: "Achieved",
+      dotClass: "bg-emerald-500 scale-125 shadow-[0_0_4px_rgba(16,185,129,0.6)]",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 font-extrabold shadow-sm"
+    };
+  }
+  if (state === 'active') {
+    return {
+      label: "Active",
+      dotClass: "bg-blue-500 scale-110 animate-pulse",
+      badgeClass: "bg-blue-50 text-blue-700 border-blue-200 font-bold shadow-sm"
+    };
+  }
+  if (state === 'past') {
+    return {
+      label: "Missed",
+      dotClass: "bg-rose-400",
+      badgeClass: "bg-rose-50 text-rose-600 border-rose-100 font-semibold"
+    };
+  }
+  return {
+    label: "Pending",
+    dotClass: "bg-slate-300",
+    badgeClass: "bg-slate-50 text-slate-400 border-slate-200/50 font-medium"
+  };
+};
+
 type RoleKey = 'domain_head' | 'domain_coordinator' | 'region_head' | 'region_coordinator' | 'employee';
 
 // ─── Schema: single source of truth for every toggle ───────────────────────
@@ -1075,6 +1119,27 @@ export const DomainsPage: React.FC = () => {
 
   return (
     <PageLayout title="Domains" actions={actions} breadcrumbs={breadcrumbs}>
+      <style>{`
+        @keyframes glint-sweep {
+          0% { transform: translateX(-150%) skewX(-20deg); }
+          60%, 100% { transform: translateX(250%) skewX(-20deg); }
+        }
+        .glint-badge {
+          position: relative;
+          overflow: hidden;
+        }
+        .glint-badge::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 35%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.85), transparent);
+          animation: glint-sweep 2.2s ease-in-out infinite;
+          pointer-events: none;
+        }
+      `}</style>
       <div className="w-full space-y-4">
         {/* ——— Review: hierarchy (domain heads → region heads → region employees) + target amounts ——— */}
         <div className="space-y-4">
@@ -1130,35 +1195,6 @@ export const DomainsPage: React.FC = () => {
                 q4State = 'active';
               }
 
-              const getQuarterStatus = (isAchieved: boolean, state: 'past' | 'active' | 'future') => {
-                if (isAchieved) {
-                  return {
-                    label: "Completed",
-                    dotClass: "bg-emerald-500 scale-125 shadow-[0_0_4px_rgba(16,185,129,0.6)]",
-                    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 font-extrabold shadow-sm"
-                  };
-                }
-                if (state === 'active') {
-                  return {
-                    label: "Active",
-                    dotClass: "bg-blue-500 scale-110 animate-pulse",
-                    badgeClass: "bg-blue-50 text-blue-700 border-blue-200 font-bold shadow-sm"
-                  };
-                }
-                if (state === 'past') {
-                  return {
-                    label: "Missed",
-                    dotClass: "bg-rose-400",
-                    badgeClass: "bg-rose-50 text-rose-600 border-rose-100 font-semibold"
-                  };
-                }
-                return {
-                  label: "Pending",
-                  dotClass: "bg-slate-300",
-                  badgeClass: "bg-slate-50 text-slate-400 border-slate-200/50 font-medium"
-                };
-              };
-
               // If user not allowed to see past quarter data, hide past quarter fills
               const candidateUserIds = [
                 employee?.id,
@@ -1177,10 +1213,10 @@ export const DomainsPage: React.FC = () => {
               const effectiveAchievedVal = effectiveQ1Achieved + effectiveQ2Achieved + effectiveQ3Achieved + effectiveQ4Achieved;
               const pct = targetVal > 0 ? (effectiveAchievedVal / targetVal) * 100 : 0;
 
-              const q1Info = getQuarterStatus(effectiveQ1Achieved >= q1Target && q1Target > 0, q1State);
-              const q2Info = getQuarterStatus(effectiveQ2Achieved >= q2Target && q2Target > 0, q2State);
-              const q3Info = getQuarterStatus(effectiveQ3Achieved >= q3Target && q3Target > 0, q3State);
-              const q4Info = getQuarterStatus(effectiveQ4Achieved >= q4Target && q4Target > 0, q4State);
+              const q1Info = getQuarterStatus(effectiveQ1Achieved, q1Target, q1State);
+              const q2Info = getQuarterStatus(effectiveQ2Achieved, q2Target, q2State);
+              const q3Info = getQuarterStatus(effectiveQ3Achieved, q3Target, q3State);
+              const q4Info = getQuarterStatus(effectiveQ4Achieved, q4Target, q4State);
 
               // Build dynamic status message
               const getQuarterlyMessage = () => {
@@ -1257,7 +1293,7 @@ export const DomainsPage: React.FC = () => {
                         <div
                           className={cn(
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
-                            getBarGradient(pct)
+                            getSegmentGradient(effectiveQ1Achieved, q1Target, pct)
                           )}
                           style={{ width: `${Math.min(100, q1Target > 0 ? (effectiveQ1Achieved / q1Target) * 100 : 0)}%` }}
                         />
@@ -1268,7 +1304,7 @@ export const DomainsPage: React.FC = () => {
                         <div
                           className={cn(
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
-                            getBarGradient(pct)
+                            getSegmentGradient(effectiveQ2Achieved, q2Target, pct)
                           )}
                           style={{ width: `${Math.min(100, q2Target > 0 ? (effectiveQ2Achieved / q2Target) * 100 : 0)}%` }}
                         />
@@ -1279,7 +1315,7 @@ export const DomainsPage: React.FC = () => {
                         <div
                           className={cn(
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
-                            getBarGradient(pct)
+                            getSegmentGradient(effectiveQ3Achieved, q3Target, pct)
                           )}
                           style={{ width: `${Math.min(100, q3Target > 0 ? (effectiveQ3Achieved / q3Target) * 100 : 0)}%` }}
                         />
@@ -1290,7 +1326,7 @@ export const DomainsPage: React.FC = () => {
                         <div
                           className={cn(
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
-                            getBarGradient(pct)
+                            getSegmentGradient(effectiveQ4Achieved, q4Target, pct)
                           )}
                           style={{ width: `${Math.min(100, q4Target > 0 ? (effectiveQ4Achieved / q4Target) * 100 : 0)}%` }}
                         />
@@ -1328,7 +1364,7 @@ export const DomainsPage: React.FC = () => {
                         {/* The labels container */}
                         <div className="absolute inset-0 text-[9px] font-bold text-slate-400">
                           {/* Q1 Marker (25%) */}
-                          <div className="absolute left-[25%] -translate-x-1/2 flex flex-col items-center group cursor-help transition-all duration-300">
+                          <div key={`q1-${q1Info.label}`} className="absolute left-[25%] -translate-x-1/2 flex flex-col items-center group cursor-help transition-all duration-300">
                             <div className={cn(
                               "w-1.5 h-1.5 rounded-full mb-1 transition-all duration-300",
                               q1Info.dotClass
@@ -1342,7 +1378,7 @@ export const DomainsPage: React.FC = () => {
                           </div>
 
                           {/* Q2 Marker (50%) */}
-                          <div className="absolute left-[50%] -translate-x-1/2 flex flex-col items-center group cursor-help transition-all duration-300">
+                          <div key={`q2-${q2Info.label}`} className="absolute left-[50%] -translate-x-1/2 flex flex-col items-center group cursor-help transition-all duration-300">
                             <div className={cn(
                               "w-1.5 h-1.5 rounded-full mb-1 transition-all duration-300",
                               q2Info.dotClass
@@ -1356,7 +1392,7 @@ export const DomainsPage: React.FC = () => {
                           </div>
 
                           {/* Q3 Marker (75%) */}
-                          <div className="absolute left-[75%] -translate-x-1/2 flex flex-col items-center group cursor-help transition-all duration-300">
+                          <div key={`q3-${q3Info.label}`} className="absolute left-[75%] -translate-x-1/2 flex flex-col items-center group cursor-help transition-all duration-300">
                             <div className={cn(
                               "w-1.5 h-1.5 rounded-full mb-1 transition-all duration-300",
                               q3Info.dotClass
@@ -1440,6 +1476,11 @@ export const DomainsPage: React.FC = () => {
               const effectiveTotalQuoteVal = effectiveQ1QuoteVal + effectiveQ2QuoteVal + effectiveQ3QuoteVal + effectiveQ4QuoteVal;
               const quotePct = quoteTarget > 0 ? (effectiveTotalQuoteVal / quoteTarget) * 100 : 0;
 
+              const qq1Info = getQuarterStatus(effectiveQ1QuoteVal, qQ1Target * 4, qq1State);
+              const qq2Info = getQuarterStatus(effectiveQ2QuoteVal, qQ2Target * 4, qq2State);
+              const qq3Info = getQuarterStatus(effectiveQ3QuoteVal, qQ3Target * 4, qq3State);
+              const qq4Info = getQuarterStatus(effectiveQ4QuoteVal, qQ4Target * 4, qq4State);
+
               const qScopeText = qRoleLabel === 'All'
                 ? `All Domains Quotation (FY ${targetYear}-${targetYear + 1})`
                 : qRoleLabel === 'My'
@@ -1468,7 +1509,7 @@ export const DomainsPage: React.FC = () => {
                         <div
                           className={cn(
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
-                            getBarGradient(quotePct)
+                            getSegmentGradient(effectiveQ1QuoteVal, qQ1Target * 4, quotePct)
                           )}
                           style={{ width: `${Math.min(100, qQ1Target > 0 ? (effectiveQ1QuoteVal / (qQ1Target * 4)) * 100 : 0)}%` }}
                         />
@@ -1479,7 +1520,7 @@ export const DomainsPage: React.FC = () => {
                         <div
                           className={cn(
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
-                            getBarGradient(quotePct)
+                            getSegmentGradient(effectiveQ2QuoteVal, qQ2Target * 4, quotePct)
                           )}
                           style={{ width: `${Math.min(100, qQ2Target > 0 ? (effectiveQ2QuoteVal / (qQ2Target * 4)) * 100 : 0)}%` }}
                         />
@@ -1490,7 +1531,7 @@ export const DomainsPage: React.FC = () => {
                         <div
                           className={cn(
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
-                            getBarGradient(quotePct)
+                            getSegmentGradient(effectiveQ3QuoteVal, qQ3Target * 4, quotePct)
                           )}
                           style={{ width: `${Math.min(100, qQ3Target > 0 ? (effectiveQ3QuoteVal / (qQ3Target * 4)) * 100 : 0)}%` }}
                         />
@@ -1501,7 +1542,7 @@ export const DomainsPage: React.FC = () => {
                         <div
                           className={cn(
                             "h-full bg-gradient-to-r transition-all duration-300 ease-out shadow-md",
-                            getBarGradient(quotePct)
+                            getSegmentGradient(effectiveQ4QuoteVal, qQ4Target * 4, quotePct)
                           )}
                           style={{ width: `${Math.min(100, qQ4Target > 0 ? (effectiveQ4QuoteVal / (qQ4Target * 4)) * 100 : 0)}%` }}
                         />
@@ -1537,22 +1578,22 @@ export const DomainsPage: React.FC = () => {
                     {viewMode === 'yearly' && (
                       <div className="mt-2.5 mb-1 px-0.5 relative h-8">
                         <div className="absolute inset-0 text-[9px] font-bold text-sky-400">
-                          <div className="absolute left-[25%] -translate-x-1/2 flex flex-col items-center">
-                            <div className="w-1.5 h-1.5 rounded-full mb-1 bg-sky-400" />
-                            <span className="px-1.5 py-0.5 rounded border border-sky-200 bg-sky-50 text-sky-700 whitespace-nowrap">
-                              Q1: {formatTargetAmount(effectiveQ1QuoteVal)} / {formatTargetAmount(qQ1Target * 4)}
+                          <div key={`qq1-${qq1Info.label}`} className="absolute left-[25%] -translate-x-1/2 flex flex-col items-center group cursor-help transition-all duration-300">
+                            <div className={cn("w-1.5 h-1.5 rounded-full mb-1 transition-all duration-300", qq1Info.dotClass)} />
+                            <span className={cn("px-1.5 py-0.5 rounded transition-all duration-300 border whitespace-nowrap", qq1Info.badgeClass)}>
+                              Q1: {formatTargetAmount(effectiveQ1QuoteVal)} / {formatTargetAmount(qQ1Target * 4)} ({qq1Info.label})
                             </span>
                           </div>
-                          <div className="absolute left-[50%] -translate-x-1/2 flex flex-col items-center">
-                            <div className="w-1.5 h-1.5 rounded-full mb-1 bg-sky-400" />
-                            <span className="px-1.5 py-0.5 rounded border border-sky-200 bg-sky-50 text-sky-700 whitespace-nowrap">
-                              Q2: {formatTargetAmount(effectiveQ2QuoteVal)} / {formatTargetAmount(qQ2Target * 4)}
+                          <div key={`qq2-${qq2Info.label}`} className="absolute left-[50%] -translate-x-1/2 flex flex-col items-center group cursor-help transition-all duration-300">
+                            <div className={cn("w-1.5 h-1.5 rounded-full mb-1 transition-all duration-300", qq2Info.dotClass)} />
+                            <span className={cn("px-1.5 py-0.5 rounded transition-all duration-300 border whitespace-nowrap", qq2Info.badgeClass)}>
+                              Q2: {formatTargetAmount(effectiveQ2QuoteVal)} / {formatTargetAmount(qQ2Target * 4)} ({qq2Info.label})
                             </span>
                           </div>
-                          <div className="absolute left-[75%] -translate-x-1/2 flex flex-col items-center">
-                            <div className="w-1.5 h-1.5 rounded-full mb-1 bg-sky-400" />
-                            <span className="px-1.5 py-0.5 rounded border border-sky-200 bg-sky-50 text-sky-700 whitespace-nowrap">
-                              Q3: {formatTargetAmount(effectiveQ3QuoteVal)} / {formatTargetAmount(qQ3Target * 4)}
+                          <div key={`qq3-${qq3Info.label}`} className="absolute left-[75%] -translate-x-1/2 flex flex-col items-center group cursor-help transition-all duration-300">
+                            <div className={cn("w-1.5 h-1.5 rounded-full mb-1 transition-all duration-300", qq3Info.dotClass)} />
+                            <span className={cn("px-1.5 py-0.5 rounded transition-all duration-300 border whitespace-nowrap", qq3Info.badgeClass)}>
+                              Q3: {formatTargetAmount(effectiveQ3QuoteVal)} / {formatTargetAmount(qQ3Target * 4)} ({qq3Info.label})
                             </span>
                           </div>
                         </div>

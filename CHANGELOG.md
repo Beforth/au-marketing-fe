@@ -5,6 +5,46 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-07-31] — Won-Date Backdating, Orders Kanban Tooltips & Domain Achievement Indicators (v1.1.9)
+
+### 🖥️ Frontend
+
+#### Leads Kanban — Card Cleanup & Tooltip Fixes
+- Removed the redundant email line from Kanban cards (still shown on hover via the tooltip).
+- Fixed the attachment **Open** link — it was pointing at a raw server storage path on the wrong origin with no auth and always failed; now fetches an authenticated blob URL (`getLeadActivityAttachmentUrl`) and opens it in a new tab.
+- Added file-type-specific icons for attachments (`FileText` for PDF/Doc, `FileSpreadsheet` for Excel/CSV, `FileImage` for images, `FileArchive` for zips) via a new `getFileTypeIcon` helper.
+- Reorganized the tooltip into two tiers: a bordered "actionable" card (next follow-up, target closing, last inquiry) and a "Details" reference section (domain/region/lead-type badges, source).
+- Attachments missing on the server now show a red "Missing" badge instead of a dead Open button; a genuine open failure now shows a toast instead of failing silently.
+
+#### Won Flow — Backdated Won Date
+- Added an optional "Won date" field to the Won modal (`WonClosedValueModal`), visible only to users with `marketing.create_lead`; defaults to today and blocks future dates.
+- The backdated date is sent as both `closed_at` (on the lead) and `activity_date` (on the Won status-change activity) so downstream reporting stays consistent.
+
+#### Orders — Backdated Won Date Visibility
+- New Order form shows the selected lead's Won date next to the lead picker.
+- Order detail page shows both "Won date" (from the lead, reflects any backdating) and "Order created" (always today) as separate fields.
+- Order detail page and Orders Kanban now surface the lead's uploaded files (incl. the PO uploaded at Won) via a new hover tooltip (`OrderTooltipContent`) matching the Leads Kanban tooltip — same file-type icons, Open button, and "Missing"/error handling.
+
+#### My Team — Fixed Stuck Skeleton & Redesigned Shimmer
+- Fixed `SummaryContent` treating "no data for this filter" the same as "still loading" — it showed the loading skeleton forever whenever a domain/region filter matched zero employees. Now shows a proper empty state.
+- Retuned `.shimmer-block`'s gradient from a bluish tint to a neutral slate gradient, and rebuilt the Performance Summary skeleton cards so icon, value, and label all shimmer together instead of a static icon beside an animated bar.
+
+#### Domains — Achieved / Overachieved Quarter Indicators
+- Split the binary "Completed" quarter badge into two tiers: **Achieved** (emerald, exactly at target) and **Overachieved** (teal, shows the real surplus e.g. "+₹2.4L over target", with a continuous glint sweep).
+- Applied the same per-quarter status badges to the Quotation Submitted bar (previously had no achievement indicator at all).
+- Bar segments now render with a per-quarter gradient reflecting that quarter's own achievement, instead of every segment sharing the whole-bar gradient.
+
+### ⚙️ Backend
+
+#### Lead Backdating — Permission & Visibility Gated
+- `update_lead` now honors a client-supplied `closed_at` when moving a lead to a Won status, instead of always forcing `datetime.now()`.
+- Rejects future dates.
+- Requires `marketing.create_lead` to backdate at all.
+- For dates in an already-ended fiscal quarter, additionally requires the requester to be on that quarter's `past_quarter_access` list (Settings → Visibility) — the same list that already gates who can view past-quarter numbers on the Domains page.
+- Backdated Won transitions are recorded in the audit log with the chosen date.
+
+---
+
 ## [2026-07-30] — Kanban Column Sorting, Live Quotation Tooltips & Domain Target Fixes (v1.1.8)
 
 ### 🖥️ Frontend

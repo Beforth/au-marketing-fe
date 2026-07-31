@@ -11,9 +11,9 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { marketingAPI, type Order, type OrderStatusOption, type OrderActivity, type Lead, type Series, leadDisplayName, leadDisplayCompany } from '../lib/marketing-api';
+import { marketingAPI, type Order, type OrderStatusOption, type OrderActivity, type Lead, type LeadActivity, type LeadActivityAttachment, type Series, leadDisplayName, leadDisplayCompany } from '../lib/marketing-api';
 import { Select } from '../components/ui/Select';
-import { ArrowLeft, History, Plus, Edit2, Trash2, Paperclip, Upload, Download } from 'lucide-react';
+import { ArrowLeft, History, Plus, Edit2, Trash2, Paperclip, Upload, Download, Calendar, FileText, Eye, AlertTriangle } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Modal } from '../components/ui/Modal';
 import { Tooltip } from '../UI/Tooltip';
@@ -31,6 +31,7 @@ export const OrderFormPage: React.FC = () => {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [activities, setActivities] = useState<OrderActivity[]>([]);
+  const [leadFiles, setLeadFiles] = useState<{ att: LeadActivityAttachment; activity: LeadActivity }[]>([]);
   const [statuses, setStatuses] = useState<OrderStatusOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -72,6 +73,19 @@ export const OrderFormPage: React.FC = () => {
       });
       const acts = await marketingAPI.getOrderActivities(orderId);
       setActivities(acts);
+      if (o.lead_id) {
+        marketingAPI.getLeadActivities(o.lead_id)
+          .then((leadActivities) => {
+            const files: { att: LeadActivityAttachment; activity: LeadActivity }[] = [];
+            for (const activity of leadActivities) {
+              for (const att of (activity.attachments || [])) {
+                files.push({ att, activity });
+              }
+            }
+            setLeadFiles(files);
+          })
+          .catch(() => setLeadFiles([]));
+      }
     } catch (e: any) {
       showToast(e?.message || 'Failed to load order', 'error');
       navigate('/orders');
@@ -203,6 +217,16 @@ export const OrderFormPage: React.FC = () => {
     }
   };
 
+  const handleViewLeadFile = async (activityId: number, attachmentId: number) => {
+    if (!order?.lead_id) return;
+    try {
+      const url = await marketingAPI.getLeadActivityAttachmentUrl(order.lead_id, activityId, attachmentId);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err: any) {
+      showToast(err?.message || 'File not found on server', 'error');
+    }
+  };
+
   if (isNew) {
     const breadcrumbs = [{ label: 'Orders', href: '/orders' }, { label: 'New Order', href: '/orders/new' }];
     return (
@@ -227,6 +251,15 @@ export const OrderFormPage: React.FC = () => {
                   </option>
                 ))}
               </select>
+              {createLeadId !== '' && (() => {
+                const selectedLead = wonLeads.find((l) => l.id === createLeadId);
+                return selectedLead?.closed_at ? (
+                  <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1.5 rounded-md border border-emerald-200">
+                    <Calendar size={14} className="text-emerald-600 shrink-0" />
+                    Won on {new Date(selectedLead.closed_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                  </p>
+                ) : null;
+              })()}
             </div>
             <Select
               label="Number series for order number"
@@ -284,10 +317,43 @@ export const OrderFormPage: React.FC = () => {
           </div>
           <div><span className="text-slate-500 block">Status</span>{order.status_option?.label ?? order.status ?? '—'}</div>
           <div><span className="text-slate-500 block">Value</span>{order.order_value != null ? `₹${Number(order.order_value).toLocaleString()}` : '—'}</div>
+          <div><span className="text-slate-500 block">Won date</span>{lead?.closed_at ? new Date(lead.closed_at).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '—'}</div>
+          <div><span className="text-slate-500 block">Order created</span>{order.created_at ? new Date(order.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '—'}</div>
           <div><span className="text-slate-500 block">Expected delivery</span>{order.expected_delivery_at ? new Date(order.expected_delivery_at).toLocaleDateString() : '—'}</div>
           <div><span className="text-slate-500 block">Inquiry log</span>{activities.length} entries{activities.some((x) => (x.attachments?.length ?? 0) > 0) ? ` · ${activities.filter((x) => (x.attachments?.length ?? 0) > 0).length} with attachments` : ''}</div>
           <div className="md:col-span-2"><span className="text-slate-500 block">Notes</span>{order.notes || '—'}</div>
         </div>
+        {leadFiles.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <span className="text-slate-500 block text-sm mb-2">Files from lead (incl. PO uploaded when marked Won)</span>
+            <ul className="space-y-1.5">
+              {leadFiles.map(({ att, activity }) => (
+                <li key={att.id} className="flex items-center justify-between gap-2 text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                  <div className="min-w-0 flex items-center gap-2">
+                    <FileText size={14} className="text-blue-500 shrink-0" />
+                    <div className="min-w-0">
+                      <div className="font-medium text-slate-800 truncate">{att.file_name}</div>
+                      <div className="text-xs text-slate-400 truncate">{activity.title}</div>
+                    </div>
+                  </div>
+                  {att.media_exists === false ? (
+                    <span className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded bg-red-50 text-red-600 border border-red-200 font-semibold text-xs">
+                      <AlertTriangle size={12} /> Missing
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleViewLeadFile(activity.id, att.id)}
+                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs transition-colors"
+                    >
+                      <Eye size={12} /> Open
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="flex gap-2 mt-3">
           <Button variant="outline" size="sm" leftIcon={<Edit2 size={14} />} onClick={() => setShowEditModal(true)}>
             Edit order
