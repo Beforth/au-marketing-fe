@@ -46,12 +46,16 @@ export const SupportTicketsPage: React.FC = () => {
     if (!title.trim()) return;
     setSubmitting(true);
     try {
-      await marketingAPI.createTicket({
+      const res = await marketingAPI.createTicket({
         title: title.trim(),
         description: description.trim() || undefined,
         ticket_type: ticketType,
       });
-      showToast('Ticket submitted successfully', 'success');
+      if (res.crm_synced) {
+        showToast('Ticket submitted successfully', 'success');
+      } else {
+        showToast(`Ticket saved, but couldn't reach the CRM (${res.crm_sync_error || 'unknown error'}). Our team will follow up manually.`, 'error');
+      }
       setTitle('');
       setDescription('');
       await loadTickets();

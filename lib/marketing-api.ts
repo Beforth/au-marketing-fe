@@ -1911,12 +1911,12 @@ class MarketingAPIService {
     return apiClient.get<{ success: boolean; tickets: SupportTicket[] }>(`/api/tickets/?limit=${limit}`);
   }
 
-  async createTicket(data: { title: string; description?: string; ticket_type: string }): Promise<{ success: boolean; ticket: SupportTicket }> {
-    return apiClient.post<{ success: boolean; ticket: SupportTicket }>('/api/tickets/', data);
+  async createTicket(data: { title: string; description?: string; ticket_type: string }): Promise<{ success: boolean; crm_synced: boolean; crm_sync_error: string | null; ticket: SupportTicket }> {
+    return apiClient.post<{ success: boolean; crm_synced: boolean; crm_sync_error: string | null; ticket: SupportTicket }>('/api/tickets/', data);
   }
 
-  async sendFeedback(data: { rating: number; comment?: string }): Promise<{ success: boolean; ticket: SupportTicket }> {
-    return apiClient.post<{ success: boolean; ticket: SupportTicket }>('/api/tickets/feedback', data);
+  async sendFeedback(data: { rating: number; comment?: string }): Promise<{ success: boolean; crm_synced: boolean; crm_sync_error: string | null; ticket: SupportTicket }> {
+    return apiClient.post<{ success: boolean; crm_synced: boolean; crm_sync_error: string | null; ticket: SupportTicket }>('/api/tickets/feedback', data);
   }
 }
 
