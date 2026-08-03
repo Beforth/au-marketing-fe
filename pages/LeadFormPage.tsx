@@ -160,6 +160,7 @@ export const LeadFormPage: React.FC = () => {
   const [activityDraftGeneratedSeriesCode, setActivityDraftGeneratedSeriesCode] = useState<string | null>(null);
   const [activityDraftCustomNumber, setActivityDraftCustomNumber] = useState('');
   const [activityDraftGenerating, setActivityDraftGenerating] = useState(false);
+  const [savingActivityDraftQuoteNumber, setSavingActivityDraftQuoteNumber] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
   const [activitySubmitting, setActivitySubmitting] = useState(false);
   const [uploadPhase, setUploadPhase] = useState<'idle' | 'creating' | 'uploading'>('idle');
@@ -360,6 +361,10 @@ export const LeadFormPage: React.FC = () => {
   const [customCreateQuoteNumber, setCustomCreateQuoteNumber] = useState('');
   const [editQuoteSeriesCode, setEditQuoteSeriesCode] = useState('');
   const [generatingQuoteNumberInEdit, setGeneratingQuoteNumberInEdit] = useState(false);
+  const [editGeneratedQuoteNumber, setEditGeneratedQuoteNumber] = useState<string | null>(null);
+  const [editCustomQuoteNumber, setEditCustomQuoteNumber] = useState('');
+  const [savingQuoteNumberInEdit, setSavingQuoteNumberInEdit] = useState(false);
+  const [quoteNumberWidgetOpen, setQuoteNumberWidgetOpen] = useState(false);
 
   useEffect(() => {
     if (isEdit) {
@@ -1641,6 +1646,87 @@ export const LeadFormPage: React.FC = () => {
     }
   };
 
+  /** Log Activity form, new-quotation mode: persist the generated/manual number directly on the lead without requiring a file. */
+  const handleSaveActivityDraftQuoteNumberToLead = async () => {
+    if (!isValidId) return;
+    const manual = activityDraftCustomNumber.trim();
+    if (!activityDraftGeneratedNumber && !manual) {
+      showToast('Generate a quote number or type one manually first', 'error');
+      return;
+    }
+    setSavingActivityDraftQuoteNumber(true);
+    try {
+      const updated = await marketingAPI.updateLead(leadId!, {
+        quote_series_code: activityDraftGeneratedNumber ? (activityDraftGeneratedSeriesCode?.trim() || undefined) : undefined,
+        quote_number: activityDraftGeneratedNumber || manual,
+      });
+      setCurrentLead(updated);
+      setActivityDraftSeriesCode('');
+      setActivityDraftGeneratedNumber(null);
+      setActivityDraftGeneratedSeriesCode(null);
+      setActivityDraftCustomNumber('');
+      setActivityDraftNumber('');
+      showToast('Quote number saved to lead', 'success');
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to save quote number', 'error');
+    } finally {
+      setSavingActivityDraftQuoteNumber(false);
+    }
+  };
+
+  /** Edit lead: generate a quote number preview from a series (does not save until handleSaveEditQuoteNumber is called). */
+  const handleGenerateQuoteNumberInEdit = async () => {
+    const code = editQuoteSeriesCode.trim();
+    if (!code) {
+      showToast('Select a quotation numbering series', 'error');
+      return;
+    }
+    const company = effectiveCompanyNameForQuote || formData.company?.trim();
+    if (!company) {
+      showToast('Link an organization in the contact section first (quote patterns often use company name).', 'error');
+      return;
+    }
+    setGeneratingQuoteNumberInEdit(true);
+    try {
+      const res = await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company } });
+      const generated = res.generated_value ?? null;
+      setEditGeneratedQuoteNumber(generated);
+      setEditCustomQuoteNumber('');
+      showToast(generated ? 'Quote number generated' : 'No value returned from series', generated ? 'success' : 'error');
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to generate quote number', 'error');
+    } finally {
+      setGeneratingQuoteNumberInEdit(false);
+    }
+  };
+
+  /** Edit lead: persist a generated/manual quote number directly on the lead — no attachment required. */
+  const handleSaveEditQuoteNumber = async () => {
+    if (!isValidId) return;
+    const manual = editCustomQuoteNumber.trim();
+    if (!editGeneratedQuoteNumber && !manual) {
+      showToast('Generate a quote number or type one manually first', 'error');
+      return;
+    }
+    setSavingQuoteNumberInEdit(true);
+    try {
+      const updated = await marketingAPI.updateLead(leadId!, {
+        quote_series_code: editGeneratedQuoteNumber ? (editQuoteSeriesCode.trim() || undefined) : undefined,
+        quote_number: editGeneratedQuoteNumber || manual,
+      });
+      setCurrentLead(updated);
+      setEditGeneratedQuoteNumber(null);
+      setEditCustomQuoteNumber('');
+      setEditQuoteSeriesCode('');
+      setQuoteNumberWidgetOpen(false);
+      showToast('Quote number saved', 'success');
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to save quote number', 'error');
+    } finally {
+      setSavingQuoteNumberInEdit(false);
+    }
+  };
+
   const wonStatusId = useMemo(() => leadStatuses.find((s) => s.is_final && !s.is_lost)?.id ?? null, [leadStatuses]);
   const lostStatusId = useMemo(() => leadStatuses.find((s) => s.is_lost)?.id ?? null, [leadStatuses]);
 
@@ -1786,6 +1872,19 @@ export const LeadFormPage: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <div><span className="text-slate-500">Lead No.</span><br /><span className="font-medium tabular-nums">{formData.series?.trim() || '—'}</span></div>
+            <div>
+              <span className="text-slate-500">Quote No.</span><br />
+              <span className="font-medium font-mono tabular-nums">{currentLead?.quote_number?.trim() || '—'}</span>
+              {!viewMode && canEdit && isValidId && (
+                <button
+                  type="button"
+                  onClick={() => setQuoteNumberWidgetOpen((v) => !v)}
+                  className="ml-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  {currentLead?.quote_number?.trim() ? 'Change' : 'Generate'}
+                </button>
+              )}
+            </div>
             {latestQuotation && (
               <div>
                 <span className="text-slate-500">Latest quotation</span>
@@ -1863,6 +1962,82 @@ export const LeadFormPage: React.FC = () => {
               </div>
             )}
           </div>
+          {!viewMode && canEdit && isValidId && quoteNumberWidgetOpen && (
+            <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
+              <p className="text-xs font-semibold text-slate-700">Quote number — generate from a series or type manually. No attachment needed.</p>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="min-w-[200px] flex-1">
+                  <Select
+                    label="Quotation series"
+                    options={[
+                      { value: '', label: '— None —' },
+                      ...seriesList
+                        .filter((s) => (s.entity_type ?? '').toLowerCase() === 'lead' || !s.entity_type || (s.code ?? '').includes('quote'))
+                        .map((s) => ({ value: s.code, label: `${s.name} (${s.code})` })),
+                    ]}
+                    value={editQuoteSeriesCode}
+                    onChange={(v) => { setEditQuoteSeriesCode(v != null ? String(v) : ''); setEditGeneratedQuoteNumber(null); }}
+                    placeholder="Series"
+                    searchable={seriesList.length > 8}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={generatingQuoteNumberInEdit || !editQuoteSeriesCode.trim() || !!editCustomQuoteNumber.trim()}
+                  onClick={handleGenerateQuoteNumberInEdit}
+                >
+                  {generatingQuoteNumberInEdit ? 'Generating…' : 'Generate quote number'}
+                </Button>
+              </div>
+              {editGeneratedQuoteNumber ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm text-slate-800">
+                    <span className="font-medium text-slate-500">New quote number:</span>{' '}
+                    <span className="font-mono tabular-nums">{editGeneratedQuoteNumber}</span>
+                  </p>
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                    onClick={() => setEditGeneratedQuoteNumber(null)}
+                  >
+                    Use manual number instead
+                  </button>
+                </div>
+              ) : (
+                <Input
+                  label="Manual quote number (only if not using generate)"
+                  value={editCustomQuoteNumber}
+                  onChange={(e) => { setEditCustomQuoteNumber(e.target.value); setEditGeneratedQuoteNumber(null); }}
+                  placeholder="e.g. AP/QUOTE-N/001"
+                  maxLength={1000}
+                />
+              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={savingQuoteNumberInEdit || (!editGeneratedQuoteNumber && !editCustomQuoteNumber.trim())}
+                  onClick={handleSaveEditQuoteNumber}
+                >
+                  {savingQuoteNumberInEdit ? 'Saving…' : 'Save quote number'}
+                </Button>
+                <button
+                  type="button"
+                  className="text-xs text-slate-500 hover:text-slate-700"
+                  onClick={() => {
+                    setQuoteNumberWidgetOpen(false);
+                    setEditGeneratedQuoteNumber(null);
+                    setEditCustomQuoteNumber('');
+                    setEditQuoteSeriesCode('');
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
           {!viewMode && canEdit && (wonStatusId || lostStatusId) && formData.status_id !== wonStatusId && formData.status_id !== lostStatusId && (
             <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap gap-2">
               {wonStatusId && (
@@ -2561,11 +2736,10 @@ export const LeadFormPage: React.FC = () => {
                         containerClassName="min-w-[160px] flex-1 !space-y-0"
                       />
                     </div>
-                    {(createQuoteFile || initialInquiryReceivedAtLocal.trim()) && (
-                      <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
-                        <p className="text-xs font-semibold text-slate-700">Quote number for this attachment (optional)</p>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                        <p className="text-xs font-semibold text-slate-700">Quote number (optional)</p>
                         <p className="text-xs text-slate-500">
-                          Use <strong>one</strong> of: generate from a quotation series, type a manual number, or leave both empty so the server can assign from the series you select below on upload.
+                          Generate a quote number from a numbering series or type one manually — no file needed. It's saved on the lead as soon as you create it; attaching a file above is optional.
                         </p>
                         <div className="flex flex-wrap items-end gap-2">
                           <div className="min-w-[200px] flex-1">
@@ -2621,8 +2795,7 @@ export const LeadFormPage: React.FC = () => {
                             placeholder="e.g. AP/QUOTE-N/001"
                           />
                         )}
-                      </div>
-                    )}
+                    </div>
                     <Button
                       type="button"
                       size="sm"
@@ -2989,9 +3162,9 @@ export const LeadFormPage: React.FC = () => {
                           )}
                           {activityAttachmentMode === 'new-quotation' && (
                             <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
-                              <p className="text-xs font-semibold text-slate-700">Quote number for this attachment (optional)</p>
+                              <p className="text-xs font-semibold text-slate-700">Quote number (optional)</p>
                               <p className="text-xs text-slate-500">
-                                Use <strong>one</strong> of: generate from a quotation series, type a manual number, or leave both empty so the server can assign from the series you select below on upload.
+                                Generate from a series or type a manual number. Save it to the lead directly below, with or without attaching a file — or leave both empty so the server can assign from the series you select below on upload.
                               </p>
                               <div className="flex flex-wrap items-end gap-2">
                                 <div className="min-w-[200px] flex-1">
@@ -3048,6 +3221,18 @@ export const LeadFormPage: React.FC = () => {
                                   maxLength={1000}
                                 />
                               )}
+                              <div className="flex items-center gap-2 pt-1 border-t border-slate-200/70 mt-1">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={savingActivityDraftQuoteNumber || (!activityDraftGeneratedNumber && !activityDraftCustomNumber.trim())}
+                                  onClick={handleSaveActivityDraftQuoteNumberToLead}
+                                >
+                                  {savingActivityDraftQuoteNumber ? 'Saving…' : 'Save to lead (no attachment)'}
+                                </Button>
+                                <span className="text-[11px] text-slate-500">Saves this number on the lead right away — attaching a file below is optional.</span>
+                              </div>
                             </div>
                           )}
                           <Button
