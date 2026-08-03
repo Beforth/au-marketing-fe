@@ -1,19 +1,17 @@
-# S&M Hub — Developer Guide
-
 This guide is for engineers working on the codebase. It assumes familiarity with React/TypeScript and Python/FastAPI, but not with this specific repo. For a non-technical walkthrough of what the app does, see the [User Guide](./USER_GUIDE.md).
 
 **Repo shape:** this is two coupled repos. `au-marketing-fe` (this repo) is the frontend. `au-marketing-api/` is the backend, embedded as a **nested git repo** (gitlink, own commit history and remote) — always use `git -C au-marketing-api ...` (not plain `git`) to inspect or commit backend changes; a `git log`/`git status` run from the frontend repo root does not cover it.
 
 ---
 
-## Local setup
+# Local setup
 
-### Prerequisites
+## Prerequisites
 - Node.js (for the Vite/React frontend)
 - Python 3.11 + Docker & Docker Compose (for the backend — Docker is the supported path; see below for running without it)
 - Access to an HRMS RBAC instance (the Marketing API cannot authenticate anyone without one — see [Auth flow](#auth--permission-flow))
 
-### Environment variables
+## Environment variables
 
 **Frontend** (`.env`, copy from `.env.example`):
 
@@ -44,7 +42,7 @@ This guide is for engineers working on the codebase. It assumes familiarity with
 | `BETTER_STACK_SOURCE_TOKEN`, `BETTER_STACK_INGESTING_HOST` | Consumed by the Vector Docker sidecar for log shipping, not by the app itself |
 | `PGADMIN_DEFAULT_EMAIL`, `PGADMIN_DEFAULT_PASSWORD`, `PGADMIN_PORT` | Optional pgAdmin container (commented out in `docker-compose.yml` by default) |
 
-### Running with Docker (backend)
+## Running with Docker (backend)
 
 ```bash
 cd au-marketing-api
@@ -54,7 +52,7 @@ docker compose up -d --build
 
 This starts three services: `db` (Postgres 16, host port `5435`), `web` (FastAPI, host port `8003`), `worker` (APScheduler background jobs), plus a `betterstack-vector` log-shipping sidecar (requires `BETTER_STACK_SOURCE_TOKEN` — will fail to start without it; safe to `docker compose stop betterstack-vector` locally). Tables are created automatically on `web` startup (`Base.metadata.create_all` in `app/main.py`'s lifespan, plus a handful of ad hoc `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` statements for columns added after initial deploy — see [Known limitations](#known-limitations--tech-debt)). Interactive API docs are served at `http://localhost:8003/docs`.
 
-### Running without Docker (backend)
+## Running without Docker (backend)
 
 ```bash
 cd au-marketing-api
@@ -66,7 +64,7 @@ uvicorn app.main:app --reload --port 8003
 python run_worker.py
 ```
 
-### Frontend
+## Frontend
 
 ```bash
 cp .env.example .env    # point VITE_API_BASE_URL at your backend
@@ -74,7 +72,7 @@ npm install
 npm run dev              # http://localhost:3000
 ```
 
-### Seed data
+## Seed data
 
 `au-marketing-api/scripts/` has 17 scripts for seeding/resetting data — the most relevant:
 - `populate_data.py` — reference data + sample data + dashboards + report templates (what the EC2 deploy pipeline runs after every deploy)
@@ -85,9 +83,9 @@ npm run dev              # http://localhost:3000
 
 ---
 
-## Folder / module structure
+# Folder / module structure
 
-### Frontend (`au-marketing-fe/`)
+## Frontend (`au-marketing-fe/`)
 
 | Path | Purpose |
 |---|---|
@@ -109,7 +107,7 @@ npm run dev              # http://localhost:3000
 
 Zustand is used separately (in specific pages, e.g. calendar-local state) — not for global app state, which lives in Redux.
 
-### Backend (`au-marketing-api/`)
+## Backend (`au-marketing-api/`)
 
 | Path | Purpose |
 |---|---|
@@ -133,55 +131,59 @@ Zustand is used separately (in specific pages, e.g. calendar-local state) — no
 
 ---
 
-## Architecture decisions & data flow
+# Architecture decisions & data flow
 
-### No BFF — the browser talks to two backends directly
+## No BFF — the browser talks to two backends directly
 
 There is no proxy/backend-for-frontend layer. The React SPA calls the Marketing API and HRMS RBAC independently, each over plain HTTP JSON with a Bearer JWT. This means:
 - The frontend must handle two different error/auth shapes (`lib/api.ts` vs `lib/hrms-rbac.ts`)
 - CORS is configured on both services independently
 - A permission check performed in the UI (`selectHasPermission`) is a **UX convenience only** — the backend independently re-validates every permission server-side (see below), so the two can drift if backend-only logic is added without a matching frontend gate, or vice versa
 
-### Auth / permission flow
+## Auth / permission flow
 
-1. `LoginPage` → `POST /api/auth/login` (Marketing API) → forwarded to HRMS RBAC → JWT + user + roles + permissions returned
-2. Frontend stores the JWT in Redux `authSlice` + `localStorage`
-3. Every subsequent Marketing API call sends `Authorization: Bearer <JWT>`
-4. The backend's `require_permission("marketing.xxx")` dependency (`app/dependencies.py`) checks a 60-second in-process cache; on a miss it calls HRMS's `check-permission` endpoint and caches the result
-5. Superusers/staff (`is_superuser`/`is_staff` on the HRMS user record) bypass permission checks entirely
-6. On top of RBAC permissions, most list/detail endpoints apply **row-level scope** (`app/scope.py`) — a domain head only sees their domain's records, a region head their region's, a plain employee only their own, unless a role's `view_other_domains`/`view_other_regions` visibility setting is enabled
+1. `LoginPage` dispatches the `login` thunk (`store/slices/authSlice.ts`), which calls `hrmsRBACClient.login()` (`lib/hrms-rbac.ts`) → **`POST {HRMS_RBAC_API_URL}/login/` directly, browser to HRMS, bypassing the Marketing API entirely**
+2. The same thunk then calls `hrmsRBACClient.getUserPermissionsList(token)` → `GET {HRMS}/user/permissions/list/` to get the flat permission-code list, and `apiClient.setToken(token)` to arm the Marketing API client
+3. Frontend stores the token, user, roles, and permissions in Redux `authSlice` + `localStorage`
+4. The thunk's last step, `fetchAndStoreMarketingScope()`, makes the **first** Marketing API call — `GET /api/auth/scope` (Bearer token) — to prefill the user's default domain/region on create forms
+5. Every subsequent Marketing API call sends `Authorization: Bearer <token>`; every subsequent HRMS call sends `Authorization: Token <token>` — same token string, different header scheme per service
+6. The backend's `require_permission("marketing.xxx")` dependency (`app/dependencies.py`) checks a 60-second in-process cache; on a miss it calls HRMS's `check-permission` endpoint and caches the result
+7. Superusers/staff (`is_superuser`/`is_staff` on the HRMS user record) bypass permission checks entirely
+8. On top of RBAC permissions, most list/detail endpoints apply **row-level scope** (`app/scope.py`) — a domain head only sees their domain's records, a region head their region's, a plain employee only their own, unless a role's `view_other_domains`/`view_other_regions` visibility setting is enabled
+
+> ⚠️ **Correction:** earlier versions of this guide (and `docs/README.md`/`docs/ARCHITECTURE.md`) showed login going `Frontend → POST /api/auth/login (Marketing API) → HRMS`. That's not what the running frontend does — confirmed by reading `lib/hrms-rbac.ts` and `store/slices/authSlice.ts`: there is no `login` method anywhere in `lib/marketing-api.ts`. The Marketing API's own `POST /api/auth/login` (see [API reference](#api-reference)) is real and does proxy to HRMS — it's just not called by this frontend, so treat it as available for other future clients rather than as this app's login path.
 
 **Two authorization concepts that are easy to conflate:**
 - **RBAC permissions** (`marketing.create_lead`, `marketing.edit_lead`, `marketing.admin`, ...) gate *actions* — who can create/edit/delete something.
 - **Visibility Settings** (`Settings → Visibility` tab, `MarketingSettingsPayload.past_quarter_access`) is an admin-curated, per-fiscal-quarter allow-list controlling only whether *already-recorded historical* numbers are *displayed*. It is a display filter, not a permission gate — using it to authorize a write has happened once already (a backend check on backdated Won-date writes wrongly required presence on this list) and had to be reverted. Never use it to gate a write.
 
-### State management
+## State management
 
 - **Redux Toolkit** for global app state: auth/session (`authSlice`), DSR (`dsrSlice`), org/plant lookups (`organizationPlantsSlice`). `store/middleware.ts` forces logout when the token expires.
 - **Zustand** for page-local state that doesn't belong in global Redux (e.g. calendar UI state on the OD Plan page).
 - **No React Query / SWR** — data fetching is done directly via `marketingAPI.*` calls inside components/pages, with local `useState`/`useEffect`.
 
-### Settings live-reload
+## Settings live-reload
 
 Backend responses carry an `X-Marketing-Settings-Version` header. The frontend compares it against the last-seen version (`lib/api.ts` / `lib/marketing-api.ts`) and reloads settings-dependent UI when it changes — this is how a Visibility Settings change by an admin propagates to other logged-in users without a page refresh.
 
-### Won-date / kanban status-change has multiple independent entry points
+## Won-date / kanban status-change has multiple independent entry points
 
 `pages/LeadsPage.tsx` (kanban drag-to-column, and a per-card "Won" button) and `pages/LeadFormPage.tsx` (a separate "Mark as Won" modal in Edit Lead) **each independently** trigger the status-change-to-Won flow (closed value + PO + optional backdated Won date), each calling `marketingAPI.updateLead` / `createLeadActivity` directly. There is no shared hook/component for this — changing Won-flow behavior (e.g. backdating rules) requires updating all entry points in lockstep, or they will silently diverge.
 
-### Quotation numbering is a small state machine
+## Quotation numbering is a small state machine
 
 Numbers can come from (a) an explicit numbering `series_code`, (b) the lead's own `quote_number`/`quote_series_code` (settable directly on the lead, independent of any file attachment), or (c) `is_revised=true`, which reuses the lead's existing base number and appends `(rev2)`, `(rev3)`, etc. Quote value is mandatory for quotation-type attachments and can auto-transition the lead's status via `LeadStatusOption.set_when_quotation_added` / `set_when_quote_number_generated`.
 
 ---
 
-## Database schema
+# Database schema
 
 Source: `au-marketing-api/app/models.py` (52 model classes, ~46 tables, 7 enums). A recurring convention: most "who did this" fields are **not** foreign keys — they're plain `Integer` HRMS employee IDs with a denormalized `*_username`/`*_email` snapshot, since the employee directory lives in HRMS, not this database.
 
 **Enums:** `CampaignStatus` (draft/active/paused/completed/cancelled), `EmployeeRegionRole` (head/employee/supervisor), `EventType` (exhibition/roadshow), `EventStatus` (active/ended), `FileType` (stall_design/banner_design/travel_ticket/local_travel_proof). `PaymentStatus` and `BannerSource` are defined but **not** applied to any column — the actual columns (`events.space_booking_payment_status`, `events.banner_design_source`) are plain strings with the same allowed values, not typed enums.
 
-### 1. Org Hierarchy — `domains`, `regions`, `employee_region_assignments`
+## 1. Org Hierarchy — `domains`, `regions`, `employee_region_assignments`
 
 | Table | Key columns | FKs |
 |---|---|---|
@@ -213,7 +215,7 @@ erDiagram
     }
 ```
 
-### 2. CRM — `organizations`, `contacts`, `customers`, `plants`
+## 2. CRM — `organizations`, `contacts`, `customers`, `plants`
 
 | Table | Key columns | FKs |
 |---|---|---|
@@ -260,7 +262,7 @@ erDiagram
     }
 ```
 
-### 3. Leads — `lead_status_groups`, `lead_statuses`, `lead_types`, `lead_through_options`, `leads`, `activities`, `activity_attachments`
+## 3. Leads — `lead_status_groups`, `lead_statuses`, `lead_types`, `lead_through_options`, `leads`, `activities`, `activity_attachments`
 
 | Table | Key columns | FKs |
 |---|---|---|
@@ -314,39 +316,39 @@ erDiagram
     }
 ```
 
-### 4. Campaigns — `campaigns`, `campaign_leads`
+## 4. Campaigns — `campaigns`, `campaign_leads`
 
 `campaigns.status` (enum), `campaigns.domain_id → domains.id`. `campaign_leads` is a many-to-many join between `campaigns` and `leads`.
 
-### 5. Orders — `order_status_groups`, `order_statuses`, `orders`, `order_activities`, `order_activity_attachments`
+## 5. Orders — `order_status_groups`, `order_statuses`, `orders`, `order_activities`, `order_activity_attachments`
 
 Structurally mirrors the Leads group exactly (status groups → statuses → orders → order_activities → order_activity_attachments), with `orders.lead_id → leads.id` linking an order back to the lead it was won from. Order activity attachments do **not** have quotation-numbering logic (unlike lead activity attachments).
 
-### 6. Numbering Series — `series`
+## 6. Numbering Series — `series`
 
 `series` (`code` unique, `pattern`, `entity_type`, `next_value`, `reset_period`) is **not** linked via FK to anything — other tables reference it *by code* only (`series_code` string columns on `contacts`/`customers`/`leads`/`orders`, plus `quote_series_code` on `leads`). This is a deliberate soft reference. Pattern placeholders: `{YYYY}`, `{YY}`, `{MM}`, `{DD}`, `{HH}`, `{mm}`, `{ss}`, `{0:N}` (zero-padded counter), `{S:code}` (recursive sub-series), `{customer.xxx}`/`{contact.xxx}`/`{lead.xxx}` (entity field injection). `reset_period` (day/week/month/year/none) auto-resets the counter to 1 on period change.
 
-### 7. Notifications & Push — `user_email_connections`, `user_notification_preferences`, `notifications`, `notification_devices`
+## 7. Notifications & Push — `user_email_connections`, `user_notification_preferences`, `notifications`, `notification_devices`
 
 None of these have real foreign keys — `user_employee_id` and `notifications.lead_id` are loose integer references, not DB-enforced.
 
-### 8. Targets / Performance — `employee_monthly_targets`, `region_monthly_targets`, `domain_monthly_targets`
+## 8. Targets / Performance — `employee_monthly_targets`, `region_monthly_targets`, `domain_monthly_targets`
 
 Each has a `UniqueConstraint(scope_id, year, month)`. `employee_monthly_targets.employee_id` is a loose HRMS reference; `region_monthly_targets.region_id → regions.id` and `domain_monthly_targets.domain_id → domains.id` are real FKs. An explicit region/domain target overrides the sum of employee targets underneath it in the UI.
 
-### 9. Tasks & Reports — `employee_tasks`, `expected_order_reports`, `expected_order_report_leads`, `od_plan_reports`, `od_plan_entries`, `saved_dashboards`, `saved_dashboard_assignments`, `report_templates`, `report_template_assignments`
+## 9. Tasks & Reports — `employee_tasks`, `expected_order_reports`, `expected_order_report_leads`, `od_plan_reports`, `od_plan_entries`, `saved_dashboards`, `saved_dashboard_assignments`, `report_templates`, `report_template_assignments`
 
 `expected_order_report_leads` and the assignment tables are M2M joins. `saved_dashboards.config`/`report_templates.config` are JSONB blobs holding the widget/section layout and SQL. Assignment tables cascade-delete when their parent dashboard/template is deleted.
 
-### 10. System / Settings — `marketing_employees`, `marketing_settings`, `marketing_settings_audit_logs`, `changelog_versions`, `audit_logs`, `support_tickets`
+## 10. System / Settings — `marketing_employees`, `marketing_settings`, `marketing_settings_audit_logs`, `changelog_versions`, `audit_logs`, `support_tickets`
 
 `marketing_employees` is a local cache/mirror of HRMS employee data (populated by `POST /api/employees/sync`), the only table in this group with real FKs (`domain_id`/`region_id`). `marketing_settings` is effectively a singleton row holding the active `MarketingSettingsPayload` JSONB config. `audit_logs.entity_type`/`entity_id` is a polymorphic reference (lead/customer/campaign/contact/setting/enquiry/activity), not a formal FK — deliberately, so audit history survives deletion of the referenced record.
 
-### 11. Events/Exhibitions — `events`, `event_files`
+## 11. Events/Exhibitions — `events`, `event_files`
 
 `events` is a large, mostly-denormalized table — most sub-workflow data (payment installments, stall vendors, local travel entries, gifting entries) is stored inline as JSONB arrays rather than normalized child tables. `event_files.event_id → events.id` (cascade delete); `vendor_id`/`employee_id`/`entry_index` on `event_files` are loose references into those JSONB arrays, not relational FKs.
 
-### Cross-group FK quick reference
+## Cross-group FK quick reference
 
 | From | To | Meaning |
 |---|---|---|
@@ -368,11 +370,11 @@ Each has a `UniqueConstraint(scope_id, year, month)`. `employee_monthly_targets.
 
 ---
 
-## API reference
+# API reference
 
 Base path `/api` (except `/health` and `/` at root). Auth: `Authorization: Bearer <JWT>` on every endpoint except `POST /api/auth/login`. "token only" = valid JWT required, no specific permission. "public" = no auth. Full interactive reference (always up to date) is served at **`/docs`** by the running API (Swagger UI) — the tables below are a stable reference for code review/onboarding, not a replacement for it.
 
-### auth.py — `/api/auth`
+## auth.py — `/api/auth`
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
@@ -386,7 +388,7 @@ Base path `/api` (except `/health` and `/` at root). Auth: `Authorization: Beare
 | GET | `/email/callback` | public (state carries token) | OAuth callback → redirects to frontend |
 | DELETE | `/email` | token only | Disconnect Gmail |
 
-### leads.py — `/api/leads` (31 endpoints — the largest router)
+## leads.py — `/api/leads` (31 endpoints — the largest router)
 
 Sub-resources: status groups (CRUD), statuses (CRUD), types (CRUD), through-options (read-only list), plus the core lead endpoints:
 
@@ -406,11 +408,11 @@ Sub-resources: status groups (CRUD), statuses (CRUD), types (CRUD), through-opti
 | POST | `.../attachments/{id}/replace` | `edit_lead` (+ creator-only, super admin bypass) | Reattach file, preserves quotation metadata |
 | DELETE | `.../attachments/{id}` | `edit_lead` (+ creator-only) | |
 
-### orders.py — `/api/orders` (22 endpoints)
+## orders.py — `/api/orders` (22 endpoints)
 
 Mirrors `leads.py`'s structure (status groups/statuses CRUD, orders CRUD, order activities, order activity attachments), and **deliberately reuses the same permission codes as leads** (`view_lead`/`create_lead`/`edit_lead`/`delete_lead`) rather than defining separate order permissions in HRMS — documented explicitly in the router's module docstring. Order attachments have no quotation-numbering logic (unlike lead attachments).
 
-### Other routers (summary — see `/docs` for full detail)
+## Other routers (summary — see `/docs` for full detail)
 
 | Router | Prefix | Highlights |
 |---|---|---|
@@ -433,7 +435,7 @@ Mirrors `leads.py`'s structure (status groups/statuses CRUD, orders CRUD, order 
 | `tasks.py` | `/api/tasks` | Today's follow-up tasks (auto-generated + manual) |
 | `notifications.py` | `/api/notifications` | In-app notifications, preferences, FCM device registration |
 
-### Notable patterns
+## Notable patterns
 
 - **Pagination**: most list endpoints return `PaginatedResponse[T] {items, total, page, page_size, total_pages}` (`page ≥1`, `page_size` typically 10–100, default 10). A few small/pre-scoped reference lists (lead statuses/types, saved dashboards, report templates, notifications) return a plain `List[T]`.
 - **Scope-based row-level security** applies to nearly every domain-object query via `app/scope.py`. Role cascade: super admin (all) → domain head (their domain, optionally others via visibility settings) → region head/supervisor (their region) → employee (only records they created/are assigned).
@@ -443,7 +445,9 @@ Mirrors `leads.py`'s structure (status groups/statuses CRUD, orders CRUD, order 
 - **Custom SQL widget engine** (`saved_dashboards.py`, reused by `report_templates.py`): user SQL is restricted to a single `SELECT` (regex + keyword-blocklist validated), compiled against scope placeholders (`{{employee_id}}`, `{{domain_id}}`, `{{region_id}}`, `{{date_from}}`, ...) and entity placeholders (`{{lead_id}}`, etc.), capped at 1000 rows. Direct client-supplied SQL via `POST /execute-widget` is explicitly disabled — SQL only ever runs from a saved dashboard's stored config.
 - **Audit logging is pervasive** — nearly every create/edit/delete calls `log_action()`. Marketing-settings changes additionally get a dedicated audit trail (`MarketingSettingsAuditLog`) separate from the general one.
 
-### Example: authenticate and create a lead
+## Example: authenticate and create a lead
+
+This uses the Marketing API's own `/api/auth/login` (it proxies to HRMS and works fine standalone) — note this is **not** the path the actual frontend takes for login (see [Auth / permission flow](#auth--permission-flow) above), but it's the simplest way to get a token from the command line.
 
 ```bash
 # 1. Log in
@@ -469,7 +473,7 @@ curl -X POST http://localhost:8003/api/leads/ \
 
 ---
 
-## Coding conventions
+# Coding conventions
 
 - **Permission gating**: UI elements gate on `useAppSelector(selectHasPermission('marketing.xxx'))` (`store/slices/authSlice.ts`); routes gate via `<ProtectedRoute requiredPermission=... />`. When adding a new gated action, copy an existing `selectHasPermission('marketing.xxx')` call from the same page rather than inventing a new pattern.
 - **RBAC vs. Visibility Settings**: never use `past_quarter_access` (or any Visibility Settings field) to authorize a write — it's a display filter only (see [Auth flow](#auth--permission-flow)).
@@ -481,9 +485,9 @@ curl -X POST http://localhost:8003/api/leads/ \
 
 ---
 
-## How to add a new feature
+# How to add a new feature
 
-### Adding a new backend API route
+## Adding a new backend API route
 1. Add/extend the Pydantic request & response models in `app/schemas.py`.
 2. Add the endpoint to the relevant file in `app/routers/` (or create a new router file for a genuinely new resource area, and register it in `app/main.py` with `app.include_router(..., prefix="/api", tags=[...])`).
 3. Pick the right auth dependency (`require_permission`, `require_any_permission`, or `get_authenticated_user`) — check `REQUIRED_PERMISSIONS.md` (backend repo root) for existing permission codes before inventing a new one; new permission codes must also be created in HRMS, since the Marketing API doesn't own them.
@@ -492,7 +496,7 @@ curl -X POST http://localhost:8003/api/leads/ \
 6. Add a model change via Alembic if you touched `app/models.py`: `alembic revision --autogenerate -m "..."` then `alembic upgrade head`.
 7. Add a test in `tests/` (see [Testing](#testing) — coverage here is currently minimal, so any addition is valuable).
 
-### Adding a new frontend page/route
+## Adding a new frontend page/route
 1. Add the page component under `pages/`. Follow the existing pattern: a list page (kanban/table) paired with a `*FormPage.tsx` for create/edit, if applicable.
 2. Register the route in `App.tsx`'s route table, wrapped in `<ProtectedRoute requiredPermission="marketing.xxx">` if it should be permission-gated.
 3. Add any new API calls as typed methods on `marketingAPI` in `lib/marketing-api.ts` (request/response interfaces live in the same file).
@@ -502,7 +506,7 @@ curl -X POST http://localhost:8003/api/leads/ \
 
 ---
 
-## Testing
+# Testing
 
 **Current coverage is minimal on both sides — be honest about this rather than assuming broader coverage exists.**
 
@@ -517,9 +521,9 @@ curl -X POST http://localhost:8003/api/leads/ \
 
 ---
 
-## Deployment
+# Deployment
 
-### Backend
+## Backend
 
 GitHub Actions workflow `au-marketing-api/.github/workflows/deploy-marketing-api.yml` triggers on every push to `main`: SSHes into an EC2 instance, `git pull`s, rebuilds and restarts the Docker Compose stack, then runs:
 ```bash
@@ -529,15 +533,15 @@ docker compose exec -T web python scripts/populate_data.py          # reseeds re
 
 ⚠️ **This means every push to `main` destroys and recreates the entire production database**, then reseeds it. This is unusual for a service handling real user-entered data (leads, orders, quotations) and is worth confirming is genuinely intended before treating it as "just how deploys work" — see [Known limitations](#known-limitations--tech-debt).
 
-### Frontend
+## Frontend
 
 No frontend CI/CD workflow exists in this repo. A `vercel.json` at the repo root defines an SPA rewrite rule (`/* → /index.html`), which is the standard pattern for a Vercel-hosted static SPA — but the exact hosting/deploy trigger wasn't confirmed while writing this guide.
 
-⚠️ **NEEDS CONFIRMATION:** frontend hosting provider, deploy trigger (Vercel git integration vs. manual `npm run build` + upload), and production URL.
+> ⚠️ **NEEDS CONFIRMATION:** frontend hosting provider, deploy trigger (Vercel git integration vs. manual `npm run build` + upload), and production URL.
 
 ---
 
-## Known limitations / tech debt
+# Known limitations / tech debt
 
 No `TODO`/`FIXME`/`HACK` markers exist in either codebase — the items below were found by reading the architecture, config, and test coverage directly, not from code comments.
 
@@ -551,3 +555,12 @@ No `TODO`/`FIXME`/`HACK` markers exist in either codebase — the items below we
 - **Test coverage is minimal on both sides** (see [Testing](#testing)) — one trivial frontend smoke test, two trivial backend smoke tests. There is no regression safety net for the actual business logic (lead/order lifecycle, permission scoping, quotation numbering, etc.).
 - **No frontend CI/CD workflow** in this repo, unlike the backend's GitHub Actions pipeline — deploy process is not self-documenting from the repo alone (see [Deployment](#deployment)).
 - **`app/main.py`'s startup runs ad hoc, hand-written `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` statements** for a number of columns added after initial deploy (events table, mostly), in addition to Alembic migrations and `Base.metadata.create_all`. This means there are effectively three overlapping mechanisms for schema evolution (create_all, Alembic, ad hoc startup ALTERs) — new columns should go through Alembic, not a fourth ad hoc statement added to `main.py`.
+
+---
+
+## What changed in this update
+
+- Fixed the "Auth / permission flow" section: it described login as `LoginPage → POST /api/auth/login (Marketing API) → HRMS`. Verified directly against `store/slices/authSlice.ts`'s `login` thunk and `lib/hrms-rbac.ts` — the frontend calls `hrmsRBACClient.login()` (browser → HRMS directly), then `hrmsRBACClient.getUserPermissionsList()` (also direct to HRMS), and only afterward makes its first Marketing API call (`GET /api/auth/scope`, to prefill form defaults). Rewrote the numbered flow to match and added a correction callout. Also confirmed HRMS calls use `Authorization: Token` while Marketing API calls use `Authorization: Bearer` — same token, different header scheme per service — and added that detail since it wasn't previously called out.
+- Added a note on the `POST /api/auth/login` curl example clarifying it's a real, working backend endpoint but not the path the actual frontend uses.
+- Everything else (env vars, folder structure, schema, API reference, coding conventions, testing, deployment, known limitations) was checked against the current code and left as-is — it was already accurate.
+- Formatting fixes to match house style: removed the standalone title-H1 at the top of the file and promoted every heading one level (old H2→H1, H3→H2), per the "start body content with your first real H1 section" rule. Also converted the "NEEDS CONFIRMATION: frontend hosting" line in Deployment into a proper `>` blockquote callout. Section text and internal anchors are unchanged — anchor IDs are derived from heading text, not level.

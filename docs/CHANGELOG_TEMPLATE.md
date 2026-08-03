@@ -67,3 +67,9 @@ Versioning reminder (SemVer): MAJOR.MINOR.PATCH
 - MINOR: backwards-compatible new functionality
 - PATCH: backwards-compatible bug fixes
 -->
+
+<!--
+What changed in this update: none. Re-checked against the current root `CHANGELOG.md`
+(still its own `[Date] — Category: Description` format, actively maintained, latest
+entry v1.2.0 / 2026-08-03) — this template intentionally stays separate and blank.
+-->

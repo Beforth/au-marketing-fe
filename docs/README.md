@@ -1,5 +1,3 @@
-# S&M Hub — Project Overview
-
 S&M Hub is Aureole Group's internal Sales & Marketing platform: a React single-page app backed by a standalone FastAPI microservice, covering the full sales lifecycle — leads, quotations, orders, contacts/organizations/customers, sales-territory hierarchy (domains & regions), exhibitions/roadshows, team performance & targets, and daily status reports. It authenticates against a separate company-wide HRMS system rather than owning its own user/permission store, so access control always reflects the same roles and permissions used elsewhere in the organization.
 
 This document is the entry point into `/docs`. See also:
@@ -10,7 +8,7 @@ This document is the entry point into `/docs`. See also:
 
 > **Note:** Both repos already had substantial docs before this `/docs` folder was written — root `README.md`, `CLAUDE.md`, `design.md`, `UI_COMPONENTS_LIBRARY.md`, `HRMS_RBAC_AND_PERMISSIONS.md` (frontend) and `README.md`, `QUICK_START.md`, `REQUIRED_PERMISSIONS.md` (backend, in `au-marketing-api/`). This `/docs` folder doesn't replace them — it's a single, consolidated pass covering both repos together, split for a technical vs. non-technical audience, and correcting a couple of inaccuracies found in the existing diagrams (see Known Limitations in the Developer Guide).
 
-## Key features
+# Key features
 
 - **Lead pipeline** — kanban board with configurable statuses/stages, drag-to-change-status, Won/Lost flows with backdating and audit trail, quotation attachments with automatic revision numbering
 - **Orders** — generated from Won leads, kanban + table views, fulfilment inquiry log
@@ -23,7 +21,7 @@ This document is the entry point into `/docs`. See also:
 - **Notifications** — in-app + web push (both Firebase Cloud Messaging and OneSignal are wired up)
 - **RBAC via HRMS** — every permission check is re-validated server-side against the external HRMS system, not just trusted from the frontend
 
-## Tech stack
+# Tech stack
 
 | Layer | Technology |
 |---|---|
@@ -46,7 +44,7 @@ This document is the entry point into `/docs`. See also:
 | Containerization | Docker Compose (db, web, worker, log sidecar) |
 | Deployment | Backend: GitHub Actions → EC2 via SSH. Frontend: static SPA build (`vercel.json` present for SPA rewrites) |
 
-## Architecture
+# Architecture
 
 The frontend talks to **two backends directly from the browser** — there is no BFF/proxy layer. The Marketing API is a separate microservice from HRMS and does not own authentication; it re-validates every permission check against HRMS on each request (with a short server-side cache).
 
@@ -93,35 +91,39 @@ graph TB
     ROUTERS -->|"Sync tickets"| PQ
 ```
 
-### Login / permission flow
+## Login / permission flow
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant FE as Frontend (Redux authSlice)
-    participant API as Marketing API
     participant HRMS as HRMS RBAC
+    participant API as Marketing API
 
     U->>FE: Enter username/password
-    FE->>API: POST /api/auth/login
-    API->>HRMS: Forward credentials
-    HRMS-->>API: JWT + user + roles + permissions
-    API-->>FE: LoginResponse
-    FE->>FE: Store JWT in Redux + localStorage
+    FE->>HRMS: POST /login/ (hrmsRBACClient.login)
+    HRMS-->>FE: token + user + roles
+    FE->>HRMS: GET /user/permissions/list/ (Authorization: Token)
+    HRMS-->>FE: permissions[]
+    FE->>FE: Store token + permissions in Redux + localStorage
+    FE->>API: GET /api/auth/scope (Authorization: Bearer) — prefill domain/region for forms
+    API-->>FE: role/domain/region scope
     Note over FE: UI also self-gates via selectHasPermission()<br/>and <ProtectedRoute requiredPermission=.../>
 
     U->>FE: Perform an action (e.g. create a lead)
     FE->>API: POST /api/leads (Authorization: Bearer JWT)
     API->>API: Check 60s permission cache
     alt cache miss
-        API->>HRMS: check-permission(marketing.create_lead)
+        API->>HRMS: POST /check-permission/ (Authorization: Token)
         HRMS-->>API: allow/deny
         API->>API: Cache result
     end
     API-->>FE: 201 Created (or 403 Forbidden)
 ```
 
-## Quick start
+> ⚠️ **Correction:** login goes **browser → HRMS directly** (`lib/hrms-rbac.ts`) — the frontend never calls the Marketing API's own `POST /api/auth/login` (that endpoint exists on the backend and works, it's just not what this frontend uses). Earlier versions of this diagram showed login routed through the Marketing API first; that was wrong.
+
+# Quick start
 
 Prerequisites: Node.js (for the frontend), Python 3.11 + Docker (for the backend). This starts the backend stack via Docker Compose and the frontend dev server directly.
 
@@ -149,3 +151,11 @@ npm run dev
 ```
 
 For full local-setup detail (env var reference, running without Docker, running tests, seeding data), see the [Developer Guide](./DEVELOPER_GUIDE.md#local-setup).
+
+---
+
+## What changed in this update
+
+- Fixed the "Login / permission flow" sequence diagram: it previously showed the frontend calling the Marketing API's `POST /api/auth/login` first. Verified against `lib/hrms-rbac.ts` and `store/slices/authSlice.ts` — login actually goes browser → HRMS directly (`hrmsRBACClient.login()`), with the Marketing API only entering the picture afterward (`GET /api/auth/scope`, to prefill form defaults). The top architecture diagram already had this right; only the sequence diagram was wrong.
+- Everything else (tech stack, key features, router/endpoint/table counts, quick start commands) was checked against the current code and left as-is — still accurate.
+- Formatting fix to match house style: removed the standalone title-H1 at the top of the file and promoted every heading one level (old H2→H1, H3→H2), so major sections (Key features, Tech stack, Architecture, Quick start) are H1 rather than nested under a title. Applied for consistency with the same fix in `USER_GUIDE.md`/`DEVELOPER_GUIDE.md`. Section text is unchanged, so nothing else links here by anchor.

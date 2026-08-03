@@ -1,8 +1,6 @@
-# S&M Hub — System Architecture
-
 What connects to what, and why. This is a diagram-first companion to [`README.md`](./README.md) and [`DEVELOPER_GUIDE.md`](./DEVELOPER_GUIDE.md) — those cover setup, the full API, and the full schema; this one is for understanding the shape of the system before you go read code.
 
-## Contents
+# Contents
 
 1. [Executive summary](#1-executive-summary)
 2. [System landscape](#2-system-landscape)
@@ -17,7 +15,7 @@ What connects to what, and why. This is a diagram-first companion to [`README.md
 
 ---
 
-## 1. Executive summary
+# 1. Executive summary
 
 S&M Hub is Aureole Group's internal Sales & Marketing platform — leads, quotations, orders, contacts, territory management, exhibitions, and team performance, in one tool.
 
@@ -38,7 +36,7 @@ This document was compiled by reading the running codebase directly — route ta
 
 ---
 
-## 2. System landscape
+# 2. System landscape
 
 One browser session, and the two backends it calls directly. Blue = this application's own services. Grey/external = systems it depends on but doesn't own.
 
@@ -80,7 +78,7 @@ flowchart TB
 
 ---
 
-## 3. Component directory
+# 3. Component directory
 
 Every node from Figure 1, explained.
 
@@ -95,7 +93,7 @@ Every node from Figure 1, explained.
 
 ---
 
-## 4. External integrations
+# 4. External integrations
 
 Five services the Marketing API reaches outward to, each wired in for one specific job.
 
@@ -134,7 +132,7 @@ flowchart TB
 
 ---
 
-## 5. Request & auth flow
+# 5. Request & auth flow
 
 The same JWT is used against both backends — but each one decides access independently.
 
@@ -148,27 +146,28 @@ The same JWT is used against both backends — but each one decides access indep
 sequenceDiagram
     participant U as User
     participant FE as Frontend
-    participant API as Marketing API
     participant HRMS as HRMS RBAC
+    participant API as Marketing API
 
     U->>FE: Enter username + password
-    FE->>API: POST /api/auth/login
-    API->>HRMS: Forward credentials
-    HRMS-->>API: JWT + roles + permissions
-    API-->>FE: token, user, permissions
+    FE->>HRMS: POST /login/ (hrmsRBACClient, direct)
+    HRMS-->>FE: token + user + roles
+    FE->>HRMS: GET /user/permissions/list/ (Authorization: Token)
+    HRMS-->>FE: permissions[]
     Note over FE: Session stored in Redux + localStorage.<br/>UI self-gates — a convenience, not the real gate.
+    FE->>API: GET /api/auth/scope (Bearer) — first authenticated call, prefills domain/region
 
     U->>FE: Take an action, e.g. create a lead
     FE->>API: POST /api/leads (Bearer JWT)
     API->>API: Check 60s permission cache
     alt cache miss
-        API->>HRMS: check-permission(marketing.create_lead)
+        API->>HRMS: POST /check-permission/ (Authorization: Token)
         HRMS-->>API: allow / deny
     end
     API-->>FE: 201 Created — or 403 Forbidden
 ```
 
-**Fig. 3** — Login establishes the session; every subsequent write is independently re-authorized server-side, regardless of what the UI already decided to show.
+**Fig. 3** — Login establishes the session; every subsequent write is independently re-authorized server-side, regardless of what the UI already decided to show. **Correction:** login is browser → HRMS directly, never routed through the Marketing API — the Marketing API does have its own `POST /api/auth/login` (which proxies to HRMS), but this frontend doesn't call it; it calls `hrmsRBACClient` directly instead. An earlier version of this diagram showed the FE-through-API path; that was wrong.
 
 **Two authorization layers, not one:**
 - **RBAC permissions** (`marketing.create_lead`, etc.) gate *actions* — enforced identically on frontend (hides the button) and backend (rejects the request).
@@ -180,7 +179,7 @@ sequenceDiagram
 
 ---
 
-## 6. Data layer
+# 6. Data layer
 
 Full column-level schema lives in [`DEVELOPER_GUIDE.md`](./DEVELOPER_GUIDE.md#database-schema). This is the shape of it — how ~46 tables group into six domains.
 
@@ -223,7 +222,7 @@ flowchart LR
 
 ---
 
-## 7. Deployment & infrastructure
+# 7. Deployment & infrastructure
 
 The backend ships as four Docker Compose services on a single EC2 host; the frontend ships as a static build.
 
@@ -262,7 +261,7 @@ flowchart TB
 
 ---
 
-## 8. Integration reference table
+# 8. Integration reference table
 
 A flattened view of Figures 1, 2, and 5 for quick lookup.
 
@@ -283,7 +282,7 @@ A flattened view of Figures 1, 2, and 5 for quick lookup.
 
 ---
 
-## 9. Tech stack
+# 9. Tech stack
 
 | Frontend | | Backend | |
 |---|---|---|---|
@@ -296,7 +295,7 @@ A flattened view of Figures 1, 2, and 5 for quick lookup.
 
 ---
 
-## 10. Glossary
+# 10. Glossary
 
 | Term | Meaning |
 |---|---|
@@ -309,3 +308,11 @@ A flattened view of Figures 1, 2, and 5 for quick lookup.
 ---
 
 *Go deeper: [`DEVELOPER_GUIDE.md`](./DEVELOPER_GUIDE.md) has the full API reference, complete schema, coding conventions, and "how to add a feature" checklists. [`USER_GUIDE.md`](./USER_GUIDE.md) has a screen-by-screen walkthrough for end users.*
+
+---
+
+## What changed in this update
+
+- Fixed the §5 "Request & auth flow" sequence diagram (Fig. 3): it showed `Frontend → POST /api/auth/login (Marketing API) → HRMS`. Verified against `lib/hrms-rbac.ts`/`store/slices/authSlice.ts` — the frontend logs in against HRMS directly and never calls the Marketing API's own login endpoint; the Marketing API's first real involvement is the post-login `GET /api/auth/scope` call. §2's system-landscape diagram already modeled this correctly (`SPA -->|"login · permissions"| HRMS`), so only §5 needed the fix.
+- All other sections (system landscape, component directory, integrations, data layer, deployment, integration table, tech stack, glossary) were checked against the current code (routers, models, `docker-compose.yml`, the deploy workflow, `requirements.txt`) and left as-is.
+- Formatting fix to match house style: removed the standalone title-H1 at the top of the file and promoted every heading one level (old H2→H1, H3→H2, e.g. "1. Executive summary" is now H1), for consistency with the same fix in `USER_GUIDE.md`/`DEVELOPER_GUIDE.md`/`README.md`. The numbered anchors in the Contents section (`#1-executive-summary`, etc.) are text-derived and unaffected by the level change, so all internal links still resolve.

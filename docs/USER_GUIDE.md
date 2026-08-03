@@ -1,6 +1,4 @@
-# S&M Hub — User Guide
-
-## Who this is for
+# Who this is for
 
 This guide is for the people who use S&M Hub day to day: salespeople, sales/regional/domain managers, and admins who manage territory structure, numbering, and access. It assumes **no technical background at all** — no code, no jargon, nothing you need to have used before. If you're looking for how the system is *built*, see the [Developer Guide](./DEVELOPER_GUIDE.md) instead.
 
@@ -8,7 +6,7 @@ New here? Read the next four sections in order first — **How to log in**, **Ge
 
 ---
 
-## How to log in
+# How to log in
 
 S&M Hub is a website — you open it in your browser, there's nothing to install.
 
@@ -20,11 +18,11 @@ S&M Hub is a website — you open it in your browser, there's nothing to install
 
 What you see once you're in depends on your **role** (Employee, Region Head, Domain Head, Super Admin, etc.). Two people can look at the exact same page and see different buttons, or different items in the sidebar — that's expected, not a bug. See [Words you'll see in the app](#words-youll-see-in-the-app) below for what a "role" means, and the [FAQ](#faq--troubleshooting) if something you expect to see is missing.
 
-⚠️ **NEEDS CONFIRMATION:** the exact web address for S&M Hub wasn't confirmed for this guide — ask your system administrator for the correct link for your environment (production vs. demo/staging).
+> ⚠️ **NEEDS CONFIRMATION:** the exact web address for S&M Hub wasn't confirmed for this guide — ask your system administrator for the correct link for your environment (production vs. demo/staging).
 
 ---
 
-## Getting to know the screen
+# Getting to know the screen
 
 Every page in S&M Hub is built from the same handful of patterns. Learn these once and you'll be able to find your way around any screen, even one this guide doesn't mention by name.
 
@@ -73,7 +71,7 @@ Clicking a button like **Add Contact** or **New Lead** either opens a full page 
 
 ---
 
-## Words you'll see in the app
+# Words you'll see in the app
 
 S&M Hub uses a handful of business terms throughout. Here's what each one means in plain language.
 
@@ -100,7 +98,7 @@ S&M Hub uses a handful of business terms throughout. Here's what each one means 
 
 ---
 
-## Quick Start — the 5 things you'll do most
+# Quick Start — the 5 things you'll do most
 
 New to the app? Here's exactly what to click for the most common daily tasks. Each links to the full walkthrough further down.
 
@@ -114,9 +112,9 @@ New to the app? Here's exactly what to click for the most common daily tasks. Ea
 
 ---
 
-## Dashboard
+# Dashboard
 
-### Dashboard (Home)
+## Dashboard (Home)
 
 📍 **Where to find it:** This is the first screen you land on after logging in. To come back to it any time, click **Dashboard** at the very top of the sidebar.
 
@@ -140,9 +138,9 @@ What you can do:
 
 ---
 
-## Leads & Quotations
+# Leads & Quotations
 
-### Leads (Leads Board)
+## Leads (Leads Board)
 
 📍 **Where to find it:** Click **Leads** in the sidebar.
 
@@ -172,7 +170,7 @@ What you can do:
 3. Confirm — the lead moves to Won, the value and PO are logged, and you can now create an Order from it.
 4. Dragging a lead onto a "Lost" column instead opens a reason prompt (this mirrors the fuller Lost flow on the lead's own page — see below).
 
-### Add/Edit Lead (Lead Detail Page)
+## Add/Edit Lead (Lead Detail Page)
 
 📍 **Where to find it:** Click **New Lead** on the Leads board to create one, or click any existing lead card to open it.
 
@@ -226,7 +224,7 @@ What you can do:
 4. Add more than one quotation the same way if you're sending revised pricing — each is tracked separately with its own revision number.
 5. Save — the quotation now shows on the lead, on the Quotations screen, and counts toward the lead's total quote value.
 
-### Quotations
+## Quotations
 
 📍 **Where to find it:** Click **Quotations** in the sidebar.
 
@@ -243,9 +241,9 @@ What you can do:
 
 ---
 
-## Orders
+# Orders
 
-### Orders (Orders Board)
+## Orders (Orders Board)
 
 📍 **Where to find it:** Click **Orders** in the sidebar.
 
@@ -268,7 +266,7 @@ What you can do:
 4. Set the order value and, if known, an expected delivery date.
 5. Save — the order now appears on the Orders board in its starting column, and you can start logging fulfilment activity against it.
 
-### New/Edit Order (Order Detail Page)
+## New/Edit Order (Order Detail Page)
 
 📍 **Where to find it:** Click any order card or row on the Orders board.
 
@@ -282,11 +280,11 @@ What you can do:
 
 ---
 
-## Contacts & Organizations
+# Contacts & Organizations
 
 📍 **Where to find this whole section:** Click **Database** in the sidebar. It opens with three tabs across the top — **Organizations**, **Customers**, **Contacts** — click a tab to switch between them; whichever one you have access to opens by default.
 
-### Organizations
+## Organizations
 
 [SCREENSHOT: Organizations list]
 
@@ -304,7 +302,7 @@ What you can do:
 3. Switch to the **Organization Plants** tab if you already know one or more physical locations (address, city, state, postal code, and which Domain/Region it belongs to). You can skip this and add locations later.
 4. Click **Save**.
 
-### Add/Edit Organization
+## Add/Edit Organization
 
 📍 **Where to find it:** From the **Organizations** tab under Database, click **Add Organization**, or click an existing row to edit it.
 
@@ -313,7 +311,7 @@ What you can do:
 - Switch to the **Organization Plants** tab to add one or more site locations (name, address, city, state, postal code) tied to a Domain and Region.
 - When creating a brand-new organization, you can add several plants in the same form before saving; when editing, add/edit/remove plants inline at any time.
 
-### Contacts
+## Contacts
 
 📍 **Where to find it:** Click **Database** in the sidebar, then the **Contacts** tab.
 
@@ -332,7 +330,7 @@ What you can do:
 5. Optionally note how you found them (source of contact) and any extra notes.
 6. Click **Save**.
 
-### Add/Edit Contact
+## Add/Edit Contact
 
 📍 **Where to find it:** From the **Contacts** tab under Database, click **Add Contact**, or click an existing row to edit it.
 
@@ -342,7 +340,7 @@ What you can do:
 - Pick which plant/location at that company this person is based at, or add a new plant inline.
 - Add notes and a "source of contact" (e.g. Website, Referral).
 
-### Customers
+## Customers
 
 📍 **Where to find it:** Click **Database** in the sidebar, then the **Customers** tab.
 
@@ -364,7 +362,7 @@ What you can do:
 5. Open the Domain & Region section and assign the correct territory.
 6. Click **Save**.
 
-### Add/Edit Customer
+## Add/Edit Customer
 
 📍 **Where to find it:** From the **Customers** tab under Database, click **New Client Account**, or click an existing row to edit it.
 
@@ -375,9 +373,9 @@ What you can do:
 
 ---
 
-## Domains & Regions
+# Domains & Regions
 
-### Domains (Domains & Hierarchy)
+## Domains (Domains & Hierarchy)
 
 📍 **Where to find it:** Click **Domains** in the sidebar.
 
@@ -398,7 +396,7 @@ What you can do:
 3. Type the new goal amount.
 4. Save — the progress bars for that person/region/domain and everything above it update to reflect the new target.
 
-### Add/Edit Domain
+## Add/Edit Domain
 
 📍 **Where to find it:** On the **Domains** page, click **Add Domain**, or click the edit (pencil) icon on an existing domain's row.
 
@@ -413,7 +411,7 @@ What else you can do here:
 - Add a description.
 - Mark the domain active or inactive.
 
-### Add/Edit Region
+## Add/Edit Region
 
 📍 **Where to find it:** On the **Domains** page, hover a domain's row and click its "add region" icon, or click the edit (pencil) icon on an existing region.
 
@@ -426,9 +424,9 @@ What else you can do here:
 
 ---
 
-## Events/Exhibitions
+# Events/Exhibitions
 
-### Events
+## Events
 
 📍 **Where to find it:** Click **Events** in the sidebar.
 
@@ -451,7 +449,7 @@ What you can do:
 5. Search for and add the employees who'll be involved, so their travel and hotel costs can be tracked later.
 6. Click **Save** — you'll land on the event's detail page, ready to start filling in the budget tabs described below.
 
-### Add/Edit Event
+## Add/Edit Event
 
 📍 **Where to find it:** Click **Create Event** on the Events page, or open an existing event and click its edit option.
 
@@ -461,7 +459,7 @@ What you can do:
 - Enter name, location, start and end dates, and an overall budget.
 - Search and add the employees who will be involved (for tracking their travel/hotel costs later).
 
-### Event Detail (multi-tab budget & planning page)
+## Event Detail (multi-tab budget & planning page)
 
 📍 **Where to find it:** Click any event's name on the Events page.
 
@@ -488,9 +486,9 @@ What you can do on each tab:
 
 ---
 
-## Team & Performance
+# Team & Performance
 
-### My Team
+## My Team
 
 📍 **Where to find it:** Click **My Team** in the sidebar. (Only visible to Domain Heads, Region Heads, and Super Admins.)
 
@@ -510,7 +508,7 @@ What else you can do here:
 - See aggregated **Expected Orders** and **Outdoor (OD) Plans** across the whole team.
 - Drill into one person to see their individual performance summary, Expected Orders, OD Plans, and Daily Status Report tasks.
 
-### Employees
+## Employees
 
 📍 **Where to find it:** This page is **not in the sidebar**. Click the Quick search box in the top bar (or press **⌘K** / **Ctrl+K**), type "Employees," and press Enter on the result.
 
@@ -522,7 +520,7 @@ What you can do:
 - Click **Assign new user** to search HRMS for a person and give them a role in a chosen region or domain.
 - Remove someone from a region assignment or remove them as a Domain Head.
 
-### DSR (Daily Status Reports)
+## DSR (Daily Status Reports)
 
 📍 **Where to find it:** This page is **not in the sidebar**. Click the **DSR icon** (clipboard, with your pending task count) in the top bar, then click **View All DSR** at the bottom of the dropdown.
 
@@ -539,9 +537,9 @@ What you can do:
 
 ---
 
-## Reports
+# Reports
 
-### Reports (hub page)
+## Reports (hub page)
 
 📍 **Where to find it:** Click **Reports** in the sidebar.
 
@@ -553,7 +551,7 @@ What you can do:
 - Browse existing **Expected order reports** by month, with a colored breakdown (Won / Lost / Expected / Carried forward) and a **View** button that opens the full list of leads in that month's report.
 - Browse existing **Outdoor (OD) plans** by month and open one to view or edit.
 
-### Create Expected Order (next month)
+## Create Expected Order (next month)
 
 📍 **Where to find it:** On the Reports page, click **Create expected order in next month**.
 
@@ -566,7 +564,7 @@ A monthly ritual where salespeople flag which of their "hot" leads they realisti
 4. Use **Select all** if every hot lead listed applies.
 5. Click **Submit**. Once the deadline passes, submission locks — so don't leave it to the last minute.
 
-### Outdoor (OD) Plan
+## Outdoor (OD) Plan
 
 📍 **Where to find it:** On the Reports page, click **Create outdoor plan** (or open an existing month's plan from the list below it).
 
@@ -589,7 +587,7 @@ What you can do:
 4. Add any notes about the visit's purpose.
 5. Save — the entry appears as a colored chip on that date, and the plan auto-saves to the server.
 
-### Report Templates
+## Report Templates
 
 ⚠️ **Where to find it: nowhere in the app menus right now.** This page exists but currently has no link anywhere in S&M Hub — no sidebar entry, no Quick search result, no button on another page. It can only be reached if someone gives you the direct web address. Treat it as not generally available until that changes; don't rely on it being reachable for day-to-day work.
 
@@ -604,7 +602,7 @@ What you can do, if you're given a direct link:
 
 Writing the section queries requires technical (SQL) knowledge, so day-to-day salespeople would typically only view templates that have already been built for them, not create new ones.
 
-### Financials
+## Financials
 
 ⚠️ **Where to find it: nowhere in the app menus.** Like Report Templates, this page has no sidebar entry, no Quick search result, and no button linking to it anywhere. It's reachable only by direct web address.
 
@@ -612,9 +610,9 @@ A financial-style dashboard (net profit, operating expenses, credit risk, a reve
 
 ---
 
-## Admin/Settings
+# Admin/Settings
 
-### Settings
+## Settings
 
 📍 **Where to find it:** Click your profile picture (top right) or the gear icon in the top bar, or click **Settings** near the bottom of the sidebar.
 
@@ -636,13 +634,13 @@ What else you can do here:
 - **Versions tab** (admins): manage the "What's New" release notes shown to everyone in the app.
 - **Visibility tab** (admins): decide which users are allowed to see *past* quarters' actual achieved figures (by default only the current quarter is visible to some roles) — pick a quarter, search and select users, and add them to the allowed list.
 
-### Roles
+## Roles
 
 📍 **Where to find it:** In the sidebar, click **Administration** to expand it, then click **Roles**. (Only visible if you're an admin.)
 
 A read-only reference screen listing every role defined in the system (e.g. Super Admin, Domain Head, Region Head, Employee), color-coded by seniority level, with a description and how many permissions each role has. There's nothing to edit here — roles themselves are managed in the HRMS system, not in S&M Hub.
 
-### Numbering Series
+## Numbering Series
 
 📍 **Where to find it:** In the sidebar, click **Administration** to expand it, then click **Numbering Series**. (Only visible if you're an admin.)
 
@@ -665,13 +663,13 @@ What you can do:
 4. Set the starting "Next value" and choose a reset schedule if the counter should restart periodically.
 5. Save — the series is now available to be selected wherever that entity type generates numbers (e.g. the lead or order creation screens).
 
-### Schema
+## Schema
 
 📍 **Where to find it:** This page is **not in the sidebar**. Use the Quick search box in the top bar (⌘K / Ctrl+K) and type "Schema," or click the "Schema / ER diagram" link shown on the Dashboard.
 
 A database reference browser, useful only to whoever is writing Report Template queries or custom dashboard widgets. This screen has no relevance to day-to-day sales work.
 
-### Support & Tickets
+## Support & Tickets
 
 📍 **Where to find it:** Click **Support & Tickets** near the bottom of the sidebar, or click the ticket icon in the top bar.
 
@@ -685,7 +683,7 @@ A place to report a bug or request a new feature directly from inside the app, a
 5. Click **Submit Ticket**. You'll get a ticket number; if the connection to the support system fails, your ticket is still saved and the team will follow up manually.
 6. Check **My Tickets** any time to see its status.
 
-### Inventory
+## Inventory
 
 ⚠️ **Where to find it: nowhere in the app menus.** Like Financials, this page has no sidebar entry, no Quick search result, and no button linking to it — reachable only by direct web address.
 
@@ -693,7 +691,7 @@ A stock/inventory-style dashboard. **Like Financials, this currently shows fixed
 
 ---
 
-## Common workflows (end-to-end)
+# Common workflows (end-to-end)
 
 **From a cold enquiry to a won deal:**
 1. Create a lead on the **Leads** board (or via **Add Lead**), linking or creating the contact/organization as you go.
@@ -709,7 +707,7 @@ A stock/inventory-style dashboard. **Like Financials, this currently shows fixed
 
 ---
 
-## FAQ / Troubleshooting
+# FAQ / Troubleshooting
 
 **I don't know where to start.**
 Read [Quick Start](#quick-start--the-5-things-youll-do-most) above — it links straight to the five most common tasks with exactly what to click.
@@ -743,3 +741,11 @@ Try refreshing the page first. If that doesn't help, log out and back in. If it'
 
 **Something's broken, or I have an idea for a new feature.**
 Use **Support & Tickets** in the app to report it directly — no need to email anyone separately.
+
+---
+
+## What changed in this update
+
+No content changes. Re-verified against a fresh, independent read of `App.tsx`, `components/ui/Sidebar.tsx`, and `components/ui/Navbar.tsx`: the sidebar order, the Admin dropdown contents, the secondary links, and every "not in the sidebar — reached via search/top bar" claim (Employees, DSR, Schema) and every "no link anywhere" claim (Report Templates, Financials, Inventory) all still match the running code exactly. This guide was already current.
+
+Two formatting fixes to match the house style: removed the standalone title-H1 line at the top of the file (per the "start body content with your first real H1 section" rule — the Beforth PDF tool has a separate cover-title field) and promoted every heading one level (old H2→H1, H3→H2) so section headings are H1 throughout, not nested under a title. Also converted the NEEDS CONFIRMATION line under "How to log in" into a proper `>` blockquote callout. Section text and internal anchors are unchanged — GitHub/VS Code anchor IDs are derived from heading text, not level, so no cross-links broke.
