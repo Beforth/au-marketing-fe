@@ -1803,6 +1803,15 @@ class MarketingAPIService {
     return apiClient.get<PaginatedResponse<AuditLog>>(`/api/audit-logs/?${queryParams.toString()}`);
   }
 
+  // User presence (in-memory, nothing persisted)
+  async pingPresence(page: string): Promise<void> {
+    return apiClient.post('/api/presence/ping', { page });
+  }
+
+  async getActiveUsers(): Promise<PresenceActiveResponse> {
+    return apiClient.get<PresenceActiveResponse>('/api/presence/active');
+  }
+
   // Visibility Settings
   async getMarketingSettings(): Promise<MarketingSettingsPayload> {
     return apiClient.get<MarketingSettingsPayload>('/api/marketing/settings');
@@ -2153,6 +2162,20 @@ export interface PerformerOfMonthResponse {
   month: number;
   performers: PerformerOfMonthItem[];
   highest_absolute_achiever: PerformerOfMonthItem | null;
+}
+
+/** A user currently active on the platform (in-memory presence tracking). */
+export interface PresenceUser {
+  employee_id: number;
+  employee_name: string;
+  page: string;
+  last_seen_at: number;
+  seconds_ago: number;
+}
+
+export interface PresenceActiveResponse {
+  active_seconds: number;
+  users: PresenceUser[];
 }
 
 /** Quotation stats: region-wise counts per period label (month/quarter/all-time). */

@@ -41,6 +41,7 @@ import { EventsListPage } from './pages/EventsListPage';
 import { EventFormPage } from './pages/EventFormPage';
 import { EventDetailPage } from './pages/EventDetailPage';
 import { RolesPage } from './pages/RolesPage';
+import { LiveActivityPage } from './pages/LiveActivityPage';
 import { TooltipProvider } from './UI/Tooltip';
 import { Toast, ToastType } from './components/ui/Toast';
 
@@ -288,6 +289,11 @@ const AppMain: React.FC = () => {
               <Route path="numbering-series/new" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
               <Route path="numbering-series/:id/edit" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
               <Route path="roles" element={<RolesPage />} />
+              <Route path="live-activity" element={
+                <ProtectedRoute requiredPermission="presence.view_users">
+                  <LiveActivityPage />
+                </ProtectedRoute>
+              } />
               <Route path="schema" element={<SchemaPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

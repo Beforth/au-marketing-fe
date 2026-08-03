@@ -5,6 +5,19 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-08-03] — Backend Fixes: Region Assignment NameError & Top Performer Ranking (v1.2.0)
+
+### ⚙️ Backend
+
+#### Region → Employee Assignment — Fixed NameError
+- Fixed `NameError: name 'user' is not defined` on employee/region endpoints (assign employee, update assignment, remove from region, delete region) — `log_action(current_user=user, ...)` referenced a stale variable; now passes `current_user=user_info`.
+
+#### Top Performer — Correct Ranking & Zero-Won Guard
+- Fixed Top Performer selection breaking ties arbitrarily (ranked only by achievement %); now sorts by achievement % → won count → achieved value → name.
+- Added a guard so a "performer" with zero won deals is no longer shown.
+
+---
+
 ## [2026-07-31] — Won-Date Backdating, Orders Kanban Tooltips & Domain Achievement Indicators (v1.1.9)
 
 ### 🖥️ Frontend

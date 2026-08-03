@@ -9,6 +9,7 @@ import { logout, selectUserDisplayName, selectUserInitials, selectEmployee, sele
 import { setDSRTasks, selectDSRTasks, selectDSRIsStale } from '../../store/slices/dsrSlice';
 import { hrmsRBACClient } from '../../lib/hrms-rbac';
 import { Tooltip } from '../../UI/Tooltip';
+import { PresencePanel } from './PresencePanel';
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ export const Navbar: React.FC = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showDSR, setShowDSR] = useState(false);
+  const [showPresence, setShowPresence] = useState(false);
   const [dsrLoading, setDsrLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -109,6 +111,7 @@ export const Navbar: React.FC = () => {
   const hasViewOrganization = useAppSelector(selectHasPermission('marketing.view_organization'));
   const hasViewReport = useAppSelector(selectHasPermission('marketing.view_report'));
   const hasAdmin = useAppSelector(selectHasPermission('marketing.admin'));
+  const canViewPresence = useAppSelector(selectHasPermission('presence.view_users'));
 
   // Order: Dashboard > Domains > Leads > Quotations > Orders > Organizations > Customers > Contacts > Reports, then rest
   const SEARCHABLE_ITEMS = useMemo(() => {
@@ -152,7 +155,8 @@ export const Navbar: React.FC = () => {
   }, [globalSearch, SEARCHABLE_ITEMS]);
 
   return (
-    <header className="h-16 sticky top-0 bg-white/5 backdrop-blur-md z-40 ml-60 flex items-center justify-between relative transition-all duration-300">
+    <>
+      <header className="h-16 sticky top-0 bg-white/5 backdrop-blur-md z-40 ml-60 flex items-center justify-between relative transition-all duration-300">
       <div className="absolute bottom-0 left-8 right-8 h-px bg-slate-200/50" />
       <div className="flex-1 max-w-lg relative">
         <SearchInput
@@ -341,6 +345,20 @@ export const Navbar: React.FC = () => {
             </div>
           )}
         </div>
+        {canViewPresence && (
+          <Tooltip content="Who's online">
+            <button
+              onClick={() => setShowPresence(!showPresence)}
+              className={`relative p-2 transition-all rounded-lg ${
+                showPresence ? 'text-blue-600 bg-blue-50' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'
+              }`}
+              title="Who's online"
+            >
+              <Users size={20} strokeWidth={1.5} />
+              <span className="absolute bottom-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+            </button>
+          </Tooltip>
+        )}
         <Tooltip content="Support & Tickets">
           <button onClick={() => navigate('/support')} className="p-2 text-slate-400 hover:text-blue-600 transition-all rounded-lg hover:bg-blue-50">
             <Ticket size={20} strokeWidth={1.5} />
@@ -374,6 +392,10 @@ export const Navbar: React.FC = () => {
         </div>
       </div>
     </header>
+      {canViewPresence && (
+        <PresencePanel open={showPresence} onClose={() => setShowPresence(false)} />
+      )}
+    </>
   );
 };
 

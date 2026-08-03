@@ -13,7 +13,7 @@ import { API_CONFIG } from '../../lib/api';
 export const Sidebar: React.FC = () => {
   const [showChangelog, setShowChangelog] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState('v1.1.8');
+  const [appVersion, setAppVersion] = useState('v1.2.0');
   const [versionLoaded, setVersionLoaded] = useState(false);
   const userDisplayName = useAppSelector(selectUserDisplayName);
   const userInitials = useAppSelector(selectUserInitials);
@@ -223,6 +223,7 @@ export const Sidebar: React.FC = () => {
                       </>
                     )}
                   </NavLink>
+
                 </div>
               )}
             </div>

@@ -5,9 +5,11 @@ import { Sidebar } from '../ui/Sidebar';
 import Navbar from '../ui/Navbar';
 import { useApp } from '../../App';
 import { Toast } from '../ui/Toast';
+import { usePresence } from '../../hooks/usePresence';
 
 export const DashboardLayout: React.FC = () => {
   const { toast, onCloseToast } = useApp();
+  usePresence();
 
   return (
     <div className="min-h-screen flex bg-slate-50 font-sans selection:bg-blue-600 selection:text-white">

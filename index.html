@@ -215,6 +215,62 @@
         .expand-section.open .expand-section-content {
             visibility: visible;
         }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .animate-slide-in-right {
+            animation: slideInRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideOutRight {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+        }
+
+        .animate-slide-out-right {
+            animation: slideOutRight 0.22s cubic-bezier(0.4, 0, 1, 1) forwards;
+        }
+
+        @keyframes backdropFade {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .animate-backdrop-fade {
+            animation: backdropFade 0.2s ease-out forwards;
+        }
+
+        @keyframes backdropFadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+
+        .animate-backdrop-fade-out {
+            animation: backdropFadeOut 0.2s ease-in forwards;
+        }
     </style>
     <script type="importmap">
 {
