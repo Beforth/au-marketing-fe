@@ -61,6 +61,9 @@ export function DataTable<T>({
   className,
   bordered = false,
 }: DataTableProps<T>) {
+  // Guards a caller passing undefined/null (e.g. from a not-yet-loaded or malformed
+  // API response) so a bad `data` value degrades to an empty table instead of a crash.
+  const rows = Array.isArray(data) ? data : [];
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -149,13 +152,13 @@ export function DataTable<T>({
         <tbody className="relative bg-white">
 
           {/* Loading skeleton — shown when no data yet */}
-          {isLoading && data.length === 0 ? (
+          {isLoading && rows.length === 0 ? (
             <>
               {Array.from({ length: 6 }).map((_, i) => (
                 <SkeletonRow key={i} cols={columns.length} />
               ))}
             </>
-          ) : data.length === 0 ? (
+          ) : rows.length === 0 ? (
             /* Empty state */
             <tr>
               <td colSpan={columns.length} className="py-16 text-center bg-white">
@@ -182,8 +185,8 @@ export function DataTable<T>({
                 </tr>
               )}
 
-              {data.map((item, rowIndex) => {
-                const isLastRow = rowIndex === data.length - 1;
+              {rows.map((item, rowIndex) => {
+                const isLastRow = rowIndex === rows.length - 1;
                 return (
                   <tr
                     key={String(rowKey(item))}

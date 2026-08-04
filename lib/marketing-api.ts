@@ -1482,6 +1482,8 @@ class MarketingAPIService {
 
   /** List quotations with optional search, lead filter, date range, industry, series, region/domain (super admin only), and sort (API-side). */
   async getMyQuotations(params?: {
+    page?: number;
+    page_size?: number;
     search?: string;
     lead_id?: number;
     date_from?: string;
@@ -1492,8 +1494,10 @@ class MarketingAPIService {
     domain_id?: number;
     sort_by?: string;
     sort_order?: 'asc' | 'desc';
-  }): Promise<QuotationListItem[]> {
+  }): Promise<PaginatedResponse<QuotationListItem>> {
     const queryParams = new URLSearchParams();
+    queryParams.set('page', String(params?.page ?? 1));
+    queryParams.set('page_size', String(params?.page_size ?? DEFAULT_PAGE_SIZE));
     if (params?.search?.trim()) queryParams.set('search', params.search.trim());
     if (params?.lead_id != null) queryParams.set('lead_id', String(params.lead_id));
     if (params?.date_from?.trim()) queryParams.set('date_from', params.date_from.trim());
@@ -1504,8 +1508,7 @@ class MarketingAPIService {
     if (params?.domain_id != null) queryParams.set('domain_id', String(params.domain_id));
     if (params?.sort_by) queryParams.set('sort_by', params.sort_by);
     if (params?.sort_order) queryParams.set('sort_order', params.sort_order);
-    const qs = queryParams.toString();
-    return apiClient.get<QuotationListItem[]>(`/api/quotations/${qs ? `?${qs}` : ''}`);
+    return apiClient.get<PaginatedResponse<QuotationListItem>>(`/api/quotations/?${queryParams.toString()}`);
   }
 
   /** Distinct industry / numbering-series values available for the quotation filters, scoped like getMyQuotations. */

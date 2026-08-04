@@ -13,7 +13,7 @@ import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
-import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash, Phone, Mail, Building2, Tag, Clock, FileText, FileImage, FileSpreadsheet, FileArchive, File as FileIconGeneric, AlertTriangle } from 'lucide-react';
+import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash, Phone, Mail, Building2, Tag } from 'lucide-react';
 import { useApp } from '../App';
 import { Tooltip } from '../UI/Tooltip';
 import { useAppSelector } from '../store/hooks';
@@ -71,276 +71,6 @@ function combineDateWithCurrentTime(dateStr: string): string {
   return new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
 }
 
-/** Pick an icon + color for an attachment based on its file extension. */
-function getFileTypeIcon(fileName: string): { Icon: typeof FileText; className: string } {
-  const ext = (fileName.split('.').pop() || '').toLowerCase();
-  if (ext === 'pdf') return { Icon: FileText, className: 'text-red-500' };
-  if (['doc', 'docx', 'rtf', 'txt'].includes(ext)) return { Icon: FileText, className: 'text-blue-500' };
-  if (['xls', 'xlsx', 'csv'].includes(ext)) return { Icon: FileSpreadsheet, className: 'text-emerald-600' };
-  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return { Icon: FileImage, className: 'text-purple-500' };
-  if (['zip', 'rar', '7z'].includes(ext)) return { Icon: FileArchive, className: 'text-amber-600' };
-  return { Icon: FileIconGeneric, className: 'text-slate-400' };
-}
-
-const LeadTooltipContent: React.FC<{ lead: Lead; onViewQuotation?: (leadId: number) => void }> = ({ lead, onViewQuotation }) => {
-  const { showToast } = useApp();
-  const [quotationFiles, setQuotationFiles] = useState<LeadActivityAttachment[]>([]);
-  const [loadingFiles, setLoadingFiles] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    setLoadingFiles(true);
-    marketingAPI.getLeadActivities(lead.id)
-      .then((activities) => {
-        if (!isMounted) return;
-        const files: LeadActivityAttachment[] = [];
-        for (const act of activities) {
-          for (const att of (act.attachments || [])) {
-            files.push(att);
-          }
-        }
-        setQuotationFiles(files);
-      })
-      .catch(() => {
-        if (isMounted) setQuotationFiles([]);
-      })
-      .finally(() => {
-        if (isMounted) setLoadingFiles(false);
-      });
-    return () => { isMounted = false; };
-  }, [lead.id]);
-
-  const daysOld = lead.created_at ? Math.floor((Date.now() - new Date(lead.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-  const contactName = leadDisplayName(lead);
-  const companyName = leadDisplayCompany(lead);
-  const contactDesignation = (lead.contact as any)?.designation || (lead.contact as any)?.department;
-  const contactLocation = [(lead.contact as any)?.city, (lead.contact as any)?.state].filter(Boolean).join(', ');
-  const phone = leadDisplayPhone(lead);
-  const email = leadDisplayEmail(lead);
-  const assignedName = (lead as any).assigned_to_name || (lead as any).assigned_to_user?.first_name || (lead as any).assigned_to?.name;
-  const domainName = (lead as any).domain_name || (lead as any).domain?.name;
-  const regionName = (lead as any).region_name || (lead as any).region?.name;
-  const plantName = (lead as any).plant_name || (lead as any).plant?.name || (lead.plant as any)?.plant_code;
-  const sourceName = (lead as any).source_name || (lead as any).source?.name || (lead as any).lead_source;
-  const statusLabel = lead.status_option?.label || (lead as any).status_name || (lead as any).status;
-  const leadTypeName = lead.lead_type_option?.label || (lead as any).lead_type_name || (lead as any).lead_type;
-  const quoteNumber = lead.quote_number || (lead as any).quote_series_code;
-  const hasQuotation = (lead.quote_value != null && lead.quote_value > 0) || (lead.quotation_count != null && lead.quotation_count > 0) || Boolean(quoteNumber) || quotationFiles.length > 0;
-
-  return (
-    <div className="p-1 space-y-2 text-xs text-slate-700 font-sans min-w-[260px]">
-      {/* Header */}
-      <div className="border-b border-slate-200 pb-2 flex items-start justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-            {lead.series && (
-              <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">{lead.series}</span>
-            )}
-            {quoteNumber && (
-              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-                {quoteNumber}
-              </span>
-            )}
-          </div>
-          <div className="font-bold text-slate-900 text-sm leading-snug">{contactName}</div>
-          {contactDesignation && <div className="text-xs text-slate-500 font-medium">{contactDesignation}</div>}
-          {companyName && <div className="text-xs text-slate-600 font-medium mt-0.5">{companyName}</div>}
-          {contactLocation && <div className="text-xs text-slate-400">{contactLocation}</div>}
-        </div>
-        {statusLabel && (
-          <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
-            {statusLabel}
-          </span>
-        )}
-      </div>
-
-      {/* Details List */}
-      <div className="space-y-1.5 text-xs">
-        {phone && (
-          <div className="flex items-center gap-1.5 text-slate-600">
-            <Phone size={13} className="text-slate-400 shrink-0" />
-            <span className="truncate">{phone}</span>
-          </div>
-        )}
-        {email && (
-          <div className="flex items-center gap-1.5 text-slate-600">
-            <Mail size={13} className="text-slate-400 shrink-0" />
-            <span className="truncate">{email}</span>
-          </div>
-        )}
-        {assignedName && (
-          <div className="flex items-center gap-1.5 text-slate-600">
-            <User size={13} className="text-slate-400 shrink-0" />
-            <span>Owner: <strong className="text-slate-800 font-semibold">{assignedName}</strong></span>
-          </div>
-        )}
-        {plantName && (
-          <div className="flex items-center gap-1.5 text-slate-600">
-            <Building2 size={13} className="text-slate-400 shrink-0" />
-            <span className="truncate">Plant: {plantName}</span>
-          </div>
-        )}
-
-        {/* Uploaded Quotation Documents & Financials */}
-        {hasQuotation ? (
-          <div className="p-2.5 rounded-lg bg-slate-50/80 border border-slate-200 space-y-2 my-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                <FileText size={13} className="text-blue-600" /> Submitted Quotations
-              </span>
-              <span className="text-xs font-semibold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
-                {lead.quotation_count ? `${lead.quotation_count} quote${lead.quotation_count > 1 ? 's' : ''}` : '1 quote'}
-              </span>
-            </div>
-
-            {lead.quote_value != null && lead.quote_value > 0 && (
-              <div className="text-base font-bold text-slate-900 tabular-nums">
-                ₹{Number(lead.quote_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-            )}
-
-            {/* Uploaded Quotation Files List */}
-            {loadingFiles ? (
-              <div className="text-xs text-slate-400 animate-pulse">Loading documents...</div>
-            ) : quotationFiles.length > 0 ? (
-              <div className="space-y-1 pt-1.5 border-t border-slate-200/60 max-h-28 overflow-y-auto pr-1">
-                {quotationFiles.map((att) => {
-                  const fileName = att.file_name || (att as any).filename || 'Quotation Document';
-                  const { Icon: FileIcon, className: fileIconClass } = getFileTypeIcon(fileName);
-                  return (
-                  <div key={att.id} className="flex items-center justify-between gap-2 text-xs bg-white p-1.5 rounded border border-slate-200">
-                    <div className="min-w-0 flex-1 truncate">
-                      <div className="font-semibold text-slate-800 truncate flex items-center gap-1">
-                        <FileIcon size={11} className={`${fileIconClass} shrink-0`} />
-                        <span className="truncate">{fileName}</span>
-                      </div>
-                      {att.quotation_number && (
-                        <div className="text-xs text-slate-400 font-mono">#{att.quotation_number}</div>
-                      )}
-                    </div>
-                    {att.media_exists === false ? (
-                      <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 font-semibold text-xs">
-                        <AlertTriangle size={10} /> Missing
-                      </span>
-                    ) : att.file_path && (
-                      <button
-                        type="button"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          try {
-                            const url = await marketingAPI.getLeadActivityAttachmentUrl(lead.id, att.activity_id, att.id);
-                            window.open(url, '_blank', 'noopener,noreferrer');
-                          } catch (err: any) {
-                            showToast(err?.message || 'File not found on server', 'error');
-                          }
-                        }}
-                        className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs transition-colors"
-                      >
-                        <Upload size={10} className="rotate-180" /> Open
-                      </button>
-                    )}
-                  </div>
-                  );
-                })}
-              </div>
-            ) : quoteNumber ? (
-              <div className="text-xs text-slate-500 font-mono">Quote Ref: {quoteNumber}</div>
-            ) : null}
-
-            {onViewQuotation && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onViewQuotation(lead.id);
-                }}
-                className="w-full text-center py-1.5 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-xs cursor-pointer"
-              >
-                View & Manage Lead →
-              </button>
-            )}
-          </div>
-        ) : lead.potential_value != null ? (
-          <div className="p-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Est. Value</span>
-            <span className="font-bold text-slate-900 tabular-nums">
-              ₹{Number(lead.potential_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          </div>
-        ) : null}
-
-        {/* Actionable tier: follow-up & dates */}
-        {(lead.next_follow_up_at || lead.expected_closing_date || lead.last_activity_date) && (
-          <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-            {lead.next_follow_up_at && (
-              <div className="flex items-center gap-1.5 text-amber-700 bg-amber-50 px-2 py-1.5 text-xs">
-                <Calendar size={12} className="shrink-0 text-amber-600" />
-                <span>Next follow-up: <strong>{new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}</strong></span>
-              </div>
-            )}
-            {lead.expected_closing_date && (
-              <div className="flex items-center gap-1.5 text-slate-600 bg-white px-2 py-1.5 text-xs">
-                <Calendar size={12} className="text-slate-400 shrink-0" />
-                <span>Target closing: {new Date(lead.expected_closing_date).toLocaleDateString(undefined, { dateStyle: 'short' })}</span>
-              </div>
-            )}
-            {lead.last_activity_date && (
-              <div className="flex items-center gap-1.5 text-slate-600 bg-white px-2 py-1.5 text-xs">
-                <Clock size={12} className="text-slate-400 shrink-0" />
-                <span>Last inquiry: {new Date(lead.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Reference tier: classification & source */}
-        {(domainName || regionName || leadTypeName || sourceName) && (
-          <div className="pt-1.5 border-t border-slate-100 space-y-1.5">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Details</div>
-            {(domainName || regionName || leadTypeName) && (
-              <div className="flex items-center gap-1 flex-wrap">
-                {domainName && (
-                  <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-100">
-                    {domainName}
-                  </span>
-                )}
-                {regionName && (
-                  <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200">
-                    {regionName}
-                  </span>
-                )}
-                {leadTypeName && (
-                  <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-semibold border border-purple-100">
-                    {leadTypeName}
-                  </span>
-                )}
-              </div>
-            )}
-            {sourceName && (
-              <div className="flex items-center gap-1.5 text-slate-500 text-xs">
-                <Tag size={12} className="text-slate-400 shrink-0" />
-                <span>Source: {sourceName}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {lead.notes && (
-          <div className="p-2 rounded bg-slate-50 text-xs text-slate-600 italic border border-slate-200 leading-relaxed max-h-20 overflow-y-auto">
-            &ldquo;{lead.notes}&rdquo;
-          </div>
-        )}
-
-        {lead.created_at && (
-          <div className="flex items-center gap-1.5 text-slate-400 text-xs pt-1.5 border-t border-slate-100">
-            <Clock size={12} className="shrink-0" />
-            <span>Created {daysOld === 0 ? 'today' : `${daysOld} day${daysOld === 1 ? '' : 's'} ago`}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 export const LeadsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -351,6 +81,7 @@ export const LeadsPage: React.FC = () => {
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_lead'));
   const canDelete = useAppSelector(selectHasPermission('marketing.delete_lead'));
   const canManageNumberSeries = useAppSelector(selectHasPermission('marketing.admin'));
+  const canViewOwner = useAppSelector(selectHasPermission('marketing.admin'));
 
   const [leadStatuses, setLeadStatuses] = useState<LeadStatusOption[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -381,6 +112,7 @@ export const LeadsPage: React.FC = () => {
   const [draggedLeadId, setDraggedLeadId] = useState<number | null>(null);
   const [dragOverStatusId, setDragOverStatusId] = useState<number | null>(null);
   const [updatingLeadId, setUpdatingLeadId] = useState<number | null>(null);
+  const [viewingAttachmentLeadId, setViewingAttachmentLeadId] = useState<number | null>(null);
   const [showWonClosedValueModal, setShowWonClosedValueModal] = useState(false);
   const [pendingWonLeadId, setPendingWonLeadId] = useState<number | null>(null);
   const [pendingWonStatusId, setPendingWonStatusId] = useState<number | null>(null);
@@ -523,6 +255,9 @@ export const LeadsPage: React.FC = () => {
   const employeeFilterRef = React.useRef<HTMLDivElement>(null);
   const didDragRef = React.useRef(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  // Auto-scroll while dragging a lead card near the edge of a kanban scroll container (board row or a group's status row).
+  const autoScrollTargetRef = React.useRef<{ el: HTMLDivElement; velocity: number } | null>(null);
+  const autoScrollRafRef = React.useRef<number | null>(null);
 
   const isHeadOrAdmin = reportScope?.role !== 'self' && reportScope?.role !== undefined;
 
@@ -669,6 +404,29 @@ export const LeadsPage: React.FC = () => {
       return;
     }
     setDeleteLeadId(id);
+  };
+
+  /** Opens the most recently uploaded quotation attachment for a lead, fetched on demand (not pre-loaded per card). */
+  const handleViewLatestAttachment = async (lead: Lead) => {
+    setViewingAttachmentLeadId(lead.id);
+    try {
+      const activities = await marketingAPI.getLeadActivities(lead.id);
+      const files: LeadActivityAttachment[] = [];
+      for (const act of activities) {
+        for (const att of (act.attachments || [])) files.push(att);
+      }
+      if (files.length === 0) {
+        showToast('No attachment found for this lead', 'error');
+        return;
+      }
+      const latest = files[files.length - 1];
+      const url = await marketingAPI.getLeadActivityAttachmentUrl(lead.id, latest.activity_id, latest.id);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to open attachment', 'error');
+    } finally {
+      setViewingAttachmentLeadId(null);
+    }
   };
 
   const handleConfirmDeleteLead = async () => {
@@ -858,9 +616,51 @@ export const LeadsPage: React.FC = () => {
     e.dataTransfer.effectAllowed = 'move';
     setDraggedLeadId(lead.id);
   };
+
+  const runAutoScroll = () => {
+    const target = autoScrollTargetRef.current;
+    if (!target || target.velocity === 0) {
+      autoScrollRafRef.current = null;
+      return;
+    }
+    target.el.scrollLeft += target.velocity;
+    autoScrollRafRef.current = requestAnimationFrame(runAutoScroll);
+  };
+
+  /** Scrolls a kanban scroll container (board row or a group's status row) when a dragged card nears its left/right edge. */
+  const handleBoardDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    const rect = container.getBoundingClientRect();
+    const EDGE = 80; // px from the edge that starts auto-scrolling
+    const MAX_SPEED = 16; // px per animation frame at the very edge
+    let velocity = 0;
+    if (e.clientX < rect.left + EDGE) {
+      velocity = -MAX_SPEED * (1 - Math.max(0, e.clientX - rect.left) / EDGE);
+    } else if (e.clientX > rect.right - EDGE) {
+      velocity = MAX_SPEED * (1 - Math.max(0, rect.right - e.clientX) / EDGE);
+    }
+    if (velocity === 0) {
+      if (autoScrollTargetRef.current?.el === container) autoScrollTargetRef.current = null;
+      return;
+    }
+    autoScrollTargetRef.current = { el: container, velocity };
+    if (autoScrollRafRef.current == null) {
+      autoScrollRafRef.current = requestAnimationFrame(runAutoScroll);
+    }
+  };
+
+  const stopAutoScroll = () => {
+    autoScrollTargetRef.current = null;
+    if (autoScrollRafRef.current != null) {
+      cancelAnimationFrame(autoScrollRafRef.current);
+      autoScrollRafRef.current = null;
+    }
+  };
+
   const handleLeadDragEnd = () => {
     setDraggedLeadId(null);
     setDragOverStatusId(null);
+    stopAutoScroll();
     setTimeout(() => { didDragRef.current = false; }, 0);
   };
   const handleColumnDragOver = (e: React.DragEvent, statusId: number) => {
@@ -1716,7 +1516,7 @@ export const LeadsPage: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="flex flex-row gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-220px)]">
+              <div className="flex flex-row gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-220px)] -mx-16 px-4" onDragOver={handleBoardDragOver}>
                 {statusGroupsForBoard.map(({ groupId, groupLabel, statuses }) => {
                   const visibleStatuses = hideEmptyColumns
                     ? statuses.filter((s) => (leadsByStatus[s.code]?.length ?? 0) > 0)
@@ -1753,7 +1553,7 @@ export const LeadsPage: React.FC = () => {
                         )}
                       </button>
                       {!isCollapsed && (
-                        <div className="flex gap-4 overflow-x-auto pb-2">
+                        <div className="flex gap-4 overflow-x-auto pb-2" onDragOver={handleBoardDragOver}>
                           {visibleStatuses.map((status) => {
                             const columnLeads = leadsByStatus[status.code] || [];
                             const useStatusHex = status.hex_color && /^#[0-9A-Fa-f]{6}$/.test(status.hex_color);
@@ -1761,7 +1561,7 @@ export const LeadsPage: React.FC = () => {
                             return (
                               <div
                                 key={status.id}
-                                className={`flex-shrink-0 w-72 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${dragOverStatusId === status.id ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 bg-slate-50/50'
+                                className={`flex-shrink-0 w-80 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${dragOverStatusId === status.id ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 bg-slate-50/50'
                                   }`}
                                 onDragOver={(e) => handleColumnDragOver(e, status.id)}
                                 onDragLeave={handleColumnDragLeave}
@@ -1795,13 +1595,8 @@ export const LeadsPage: React.FC = () => {
                                   {columnLeads.map((lead) => {
                                     const leadDraggable = canEdit && !isWonOrLostLead(lead);
                                     return (
-                                    <Tooltip
-                                       key={lead.id}
-                                       content={<LeadTooltipContent lead={lead} onViewQuotation={(id) => navigate(`/leads/${id}/edit`)} />}
-                                       side="right"
-                                       className="border border-slate-200 bg-white shadow-xl shadow-slate-200/80 rounded-xl p-3 font-sans border-solid max-w-xs"
-                                     >
-                                      <div
+                                    <div
+                                        key={lead.id}
                                         draggable={leadDraggable}
                                         onDragStart={(e) => handleLeadDragStart(e, lead)}
                                         onDragEnd={handleLeadDragEnd}
@@ -1817,19 +1612,104 @@ export const LeadsPage: React.FC = () => {
                                         <div className="font-medium text-slate-900 text-sm truncate">
                                           {leadDisplayName(lead)}
                                         </div>
-                                        {leadDisplayCompany(lead) && (
-                                          <div className="text-xs text-slate-500 truncate mt-0.5">{leadDisplayCompany(lead)}</div>
-                                        )}
-                                        {lead.next_follow_up_at && (
-                                          <div className="text-[10px] text-slate-500 mt-1">
-                                            Next follow-up: {new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}
+                                        <div className="text-xs text-slate-500 truncate mt-0.5">
+                                          {leadDisplayCompany(lead) || <span className="italic text-slate-400">No company</span>}
+                                        </div>
+                                        {(() => {
+                                          const designation = (lead.contact as any)?.designation || (lead.contact as any)?.department;
+                                          const location = [(lead.contact as any)?.city, (lead.contact as any)?.state].filter(Boolean).join(', ');
+                                          return (designation || location) ? (
+                                            <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                                              {designation}{designation && location && ' · '}{location}
+                                            </div>
+                                          ) : null;
+                                        })()}
+                                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
+                                          <Building2 size={11} className="text-slate-400 shrink-0" />
+                                          <span className="truncate">
+                                            {(lead as any).plant_name || (lead as any).plant?.name || (lead.plant as any)?.plant_code || <span className="italic text-slate-400">No plant</span>}
+                                          </span>
+                                        </div>
+                                        {canViewOwner && (
+                                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
+                                            <User size={11} className="text-slate-400 shrink-0" />
+                                            <span className="truncate">
+                                              Owner: {(lead as any).assigned_to_name || (lead as any).assigned_to_user?.first_name || (lead as any).assigned_to?.name || lead.assigned_to_username || <span className="italic text-slate-400">Unassigned</span>}
+                                            </span>
                                           </div>
                                         )}
-                                        {lead.last_activity_date && (
-                                          <div className="text-[10px] text-slate-500 mt-0.5">
-                                            Last inquiry: {new Date(lead.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}
+                                        <div className="grid grid-cols-2 gap-x-2 mt-1">
+                                          <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium min-w-0">
+                                            <Phone size={11} className="text-slate-400 shrink-0" />
+                                            <span className="truncate">
+                                              {leadDisplayPhone(lead) || <span className="italic text-slate-400 font-normal">Not entered</span>}
+                                            </span>
                                           </div>
-                                        )}
+                                          <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium min-w-0">
+                                            <Mail size={11} className="text-slate-400 shrink-0" />
+                                            <span className="truncate">
+                                              {leadDisplayEmail(lead) || <span className="italic text-slate-400 font-normal">Not entered</span>}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-1 flex-wrap mt-1.5">
+                                          {lead.domain?.name && (
+                                            <span className="px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-semibold border border-blue-100">
+                                              {lead.domain.name}
+                                            </span>
+                                          )}
+                                          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${lead.region?.name ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-slate-50 text-slate-400 border-slate-100 italic font-normal'}`}>
+                                            {lead.region?.name || 'No region'}
+                                          </span>
+                                          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${lead.lead_type_option?.label ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-slate-50 text-slate-400 border-slate-100 italic font-normal'}`}>
+                                            {lead.lead_type_option?.label || 'No type'}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-xs text-slate-600 mt-1.5">
+                                          <Tag size={11} className="text-slate-400 shrink-0" />
+                                          <span className="truncate">
+                                            Source: {(lead as any).source_name || (lead as any).source?.name || (lead as any).lead_source || <span className="italic text-slate-400">Not entered</span>}
+                                          </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-x-2 mt-1.5">
+                                          <div className="text-[11px] text-slate-500 min-w-0">
+                                            <span className="text-slate-400">Next follow-up</span><br />
+                                            {lead.next_follow_up_at
+                                              ? `${new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} ${new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}`
+                                              : <span className="italic text-slate-400">Not scheduled</span>}
+                                          </div>
+                                          <div className="text-[11px] text-slate-500 min-w-0">
+                                            <span className="text-slate-400">Last inquiry</span><br />
+                                            {lead.last_activity_date
+                                              ? `${new Date(lead.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} ${new Date(lead.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}`
+                                              : <span className="italic text-slate-400">No activity yet</span>}
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 mt-1.5" onClick={(e) => e.stopPropagation()}>
+                                          {lead.quote_number ? (
+                                            <span className="text-[11px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-100 rounded px-1 py-0.5 truncate max-w-full">
+                                              {lead.quote_number}
+                                            </span>
+                                          ) : lead.quotation_count != null && lead.quotation_count > 0 ? (
+                                            <span className="text-[11px] font-medium text-slate-600">
+                                              {lead.quotation_count} quotation{lead.quotation_count > 1 ? 's' : ''} uploaded
+                                            </span>
+                                          ) : (
+                                            <span className="text-[11px] italic text-slate-400">No quotation yet</span>
+                                          )}
+                                          {((lead.quotation_count != null && lead.quotation_count > 0) || lead.quote_number) && (
+                                            <Tooltip content="View latest attachment">
+                                              <button
+                                                type="button"
+                                                disabled={viewingAttachmentLeadId === lead.id}
+                                                onClick={() => handleViewLatestAttachment(lead)}
+                                                className={`shrink-0 text-blue-600 hover:text-blue-800 ${viewingAttachmentLeadId === lead.id ? 'animate-pulse' : ''}`}
+                                              >
+                                                <Eye size={14} />
+                                              </button>
+                                            </Tooltip>
+                                          )}
+                                        </div>
                                         {lead.quote_value != null && lead.quote_value > 0 ? (
                                           <div className="text-xs font-semibold text-blue-700 mt-1.5 inline-flex items-center gap-1 flex-wrap">
                                             <span className="text-[9px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 px-1 py-0.5 rounded">Quote</span>
@@ -1842,7 +1722,9 @@ export const LeadsPage: React.FC = () => {
                                             <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-1 py-0.5 rounded mr-1">Est</span>
                                             ₹{Number(lead.potential_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </div>
-                                        ) : null}
+                                        ) : (
+                                          <div className="text-[11px] italic text-slate-400 mt-1.5">No value estimated</div>
+                                        )}
                                         <div className="flex items-center gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                                           {canEdit && wonStatusId && lead.status_id !== wonStatusId && !lead.status_option?.is_lost && (
                                             <Tooltip content="Mark as Won">
@@ -1880,7 +1762,6 @@ export const LeadsPage: React.FC = () => {
                                           )}
                                         </div>
                                       </div>
-                                    </Tooltip>
                                   ); })}
                                 </div>
                               </div>

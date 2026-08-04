@@ -5,7 +5,7 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-08-04] — Who's Online: Reconnecting Panel & Record Labels, CLAUDE.md Guidance (v1.2.1)
+## [2026-08-04] — Who's Online, Leads Kanban Redesign, Quotations Pagination & RBAC Filters, Top Performer Fix (v1.2.1)
 
 ### 🖥️ Frontend
 
@@ -17,10 +17,39 @@ Format: `[Date] — Category: Description`
 - The presence panel and Live Activity page now show which specific record someone's viewing (e.g. "Editing Lead — Acme Corp") instead of just a generic page category (e.g. "Editing Lead"), so you can tell at a glance who's on the same record as you.
 - New `lib/presence-label-store.ts` lets any page announce a short label for what it's showing; only `LeadFormPage.tsx` uses it so far — extending to Orders/Events would take the same small change.
 
+#### Leads Kanban — Card Redesign
+- Cards now show phone, email, domain/region/lead-type badges, source, contact designation, contact location, and plant name directly on the card face — previously only visible by hovering a tooltip.
+- Every field always renders, with a muted placeholder ("Not entered", "No region", "Not scheduled", etc.) instead of silently disappearing when empty, so the card gives a complete at-a-glance overview without needing to open Edit Lead.
+- Quote number now shown as its own badge with an adjacent "view latest attachment" icon that fetches the file on click (not pre-loaded per card, to avoid a request-per-card on every board load).
+- Owner (assignee) is shown only to users with `marketing.admin`.
+- Removed the old hover tooltip (`LeadTooltipContent`) entirely, along with the now-dead `getFileTypeIcon` helper and its unused icon imports. Note: the tooltip's itemized list of *every* uploaded quotation file (each with its own "Open" link) is gone — the card's icon only opens the single latest attachment.
+- Kanban columns widened (`w-72` → `w-80`) and the board now bleeds to the page edge instead of sitting inside the standard page gutter, to fit the extra card content comfortably.
+- Dragging a card near the left/right edge of a scroll container (the board row, or a group's status row) now auto-scrolls smoothly instead of requiring a separate manual scroll step first.
+
+#### Quotations Page — Pagination & Admin-Gated Filters
+- Added pagination (page/page-size controls) to the quotations table — previously loaded every matching row at once with no paging UI.
+- The Domain/Region filters (previously gated only by a raw `is_superuser` check, bypassing the permission system) now require `marketing.admin` on both frontend and backend.
+- The Series filter dropdown now lists every active numbering series system-wide instead of only series that happen to appear on quotations already visible in the user's scope.
+- Fixed the Series dropdown's opened list being clipped to the narrow filter panel width, truncating series names.
+
+#### Bug Fixes
+- `DataTable` now defaults its `data` prop to an empty array instead of crashing when passed `undefined`/`null` (e.g. from a stale or mismatched API response) — protects every page using the shared table component, not just Quotations.
+- `EnquiryQuotationsPage` guards the paginated response shape before writing it to state, so a backend that hasn't yet picked up the new response format degrades gracefully instead of crashing the page.
+
 ### ⚙️ Backend
 
 #### Presence Ping — Optional Record Label
 - `POST /api/presence/ping` now accepts an optional `label` field (trimmed, capped at 80 characters) alongside the existing `page`, and returns it in the active-users list. Fully backward-compatible — omitting `label` behaves exactly as before.
+
+#### Quotations — Pagination & Admin Gate
+- `GET /api/quotations/` now accepts `page`/`page_size` and returns the standard paginated envelope instead of a bare list.
+- Domain/region filtering now requires `marketing.admin` (checked inline via `HRMSRBACClient`) in addition to the existing super-admin bypass.
+
+#### Top Performer — Explicit Month-to-Date Window
+- `performer-of-month`'s date filter now runs through the current moment (`end = now`) instead of the start of next month — same practical result, but now explicitly correct rather than incidentally correct.
+
+### 🛠️ Tooling
+- `scripts/populate_changelog.py` now prints exactly which versions were newly added vs. already-existed-and-refreshed, instead of just counts.
 
 ### 📄 Documentation
 - `CLAUDE.md`: added a role-scoping model summary (RBAC permissions vs. the separate per-role data-visibility layer) pointing to `ROLE_SCOPING_RULES.md`, a note flagging the AI-dashboard feature as intentionally-disabled-not-dead code (see `ai_dashboard_restoration.md`), a note on why `<StrictMode>` is disabled in `index.tsx`, and a new "Working with this user" section covering check-before-building, naming what's modified, and explaining fixes in plain language.
@@ -33,10 +62,16 @@ Format: `[Date] — Category: Description`
 | `hooks/usePresence.ts` | Sends optional label with heartbeat; immediate heartbeat on label change |
 | `lib/presence-label-store.ts` | New — pub/sub store for a page to announce its current record's label |
 | `lib/presence-utils.ts` | New `presenceDetailLabel()` helper |
-| `lib/marketing-api.ts` | `pingPresence()` accepts `label`; `PresenceUser.label` field added |
+| `lib/marketing-api.ts` | `pingPresence()` accepts `label`; `getMyQuotations()` returns paginated envelope, accepts `page`/`page_size` |
 | `pages/LeadFormPage.tsx` | Announces the open lead's company/name as the presence label; clears on unmount |
+| `pages/LeadsPage.tsx` | Kanban card redesign (new fields, placeholders, admin-gated owner); removed hover tooltip + dead helper/imports; wider edge-to-edge board; drag auto-scroll |
+| `pages/EnquiryQuotationsPage.tsx` | Pagination UI; admin-gated domain/region filters; full series list; wider series dropdown; response-shape guard |
+| `components/ui/DataTable.tsx` | Defaults `data` prop to `[]` instead of crashing on `undefined`/`null` |
 | `au-marketing-api/app/presence.py` | `mark_presence()`/`get_active_users()` store and return optional `label` (trimmed, capped at 80 chars) |
 | `au-marketing-api/app/routers/presence.py` | `PresencePing` accepts `label`; ping endpoint passes it through |
+| `au-marketing-api/app/routers/quotations.py` | Pagination; `marketing.admin`-gated domain/region filters |
+| `au-marketing-api/app/routers/dashboard.py` | `performer-of-month` date window now explicitly month-to-date |
+| `au-marketing-api/scripts/populate_changelog.py` | Prints newly-added vs. updated version list |
 | `CLAUDE.md` | Role scoping model section, disabled-AI-dashboard note, StrictMode note, "Working with this user" section |
 | `package.json` | Version 1.2.0 → 1.2.1 |
 

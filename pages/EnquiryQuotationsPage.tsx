@@ -8,11 +8,12 @@ import { Card } from '../components/ui/Card';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { DataTable, Column } from '../components/ui/DataTable';
+import { Pagination } from '../components/ui/Pagination';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { Badge } from '../components/ui/Badge';
-import { marketingAPI, QuotationListItem, QuotationFilterOptions, Domain, Region } from '../lib/marketing-api';
+import { marketingAPI, QuotationListItem, QuotationFilterOptions, Domain, Region, Series, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
 import { useAppSelector } from '../store/hooks';
-import { selectHasPermission, selectUser } from '../store/slices/authSlice';
+import { selectHasPermission } from '../store/slices/authSlice';
 import { Download, ExternalLink, Eye, AlertTriangle, Upload, SlidersHorizontal } from 'lucide-react';
 import { Tooltip } from '../UI/Tooltip';
 import { Button } from '../components/ui/Button';
@@ -29,13 +30,17 @@ export const EnquiryQuotationsPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useApp();
   const canViewLead = useAppSelector(selectHasPermission('marketing.view_lead'));
-  const user = useAppSelector(selectUser);
-  const isSuperAdmin = !!user?.is_superuser;
+  const canFilterByDomainRegion = useAppSelector(selectHasPermission('marketing.admin'));
   const [quotations, setQuotations] = useState<QuotationListItem[]>([]);
   const [filterOptions, setFilterOptions] = useState<QuotationFilterOptions>({ industries: [], quote_series_codes: [] });
+  const [seriesList, setSeriesList] = useState<Series[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -56,19 +61,37 @@ export const EnquiryQuotationsPage: React.FC = () => {
     setLoading(true);
     marketingAPI
       .getMyQuotations({
+        page,
+        page_size: pageSize,
         search: searchQuery.trim() || undefined,
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
         industry: filterIndustry || undefined,
         quote_series_code: filterSeriesCode || undefined,
-        domain_id: isSuperAdmin && filterDomainId !== '' ? filterDomainId : undefined,
-        region_id: isSuperAdmin && filterRegionId !== '' ? filterRegionId : undefined,
+        domain_id: canFilterByDomainRegion && filterDomainId !== '' ? filterDomainId : undefined,
+        region_id: canFilterByDomainRegion && filterRegionId !== '' ? filterRegionId : undefined,
         sort_by: sortBy,
         sort_order: sortOrder,
       })
-      .then(setQuotations)
-      .catch(() => setQuotations([]))
+      .then((res) => {
+        // Guard against an older/mismatched API response shape (e.g. a backend that
+        // hasn't picked up the paginated response yet) so the page can't crash on it.
+        setQuotations(Array.isArray(res?.items) ? res.items : []);
+        setTotal(res?.total ?? 0);
+        setTotalPages(res?.total_pages ?? 0);
+        setPage(res?.page ?? 1);
+      })
+      .catch(() => {
+        setQuotations([]);
+        setTotal(0);
+        setTotalPages(0);
+      })
       .finally(() => setLoading(false));
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
   };
 
   useEffect(() => {
@@ -77,22 +100,27 @@ export const EnquiryQuotationsPage: React.FC = () => {
   }, [canViewLead]);
 
   useEffect(() => {
-    if (!canViewLead || !isSuperAdmin) return;
-    marketingAPI.getDomains({ page_size: 100 }).then((res) => setDomains(res.items ?? [])).catch(() => setDomains([]));
-  }, [canViewLead, isSuperAdmin]);
+    if (!canViewLead) return;
+    marketingAPI.getSeries({ page: 1, page_size: 100, is_active: true }).then((r) => setSeriesList(r.items)).catch(() => setSeriesList([]));
+  }, [canViewLead]);
 
   useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (!canViewLead || !canFilterByDomainRegion) return;
+    marketingAPI.getDomains({ page_size: 100 }).then((res) => setDomains(res.items ?? [])).catch(() => setDomains([]));
+  }, [canViewLead, canFilterByDomainRegion]);
+
+  useEffect(() => {
+    if (!canFilterByDomainRegion) return;
     marketingAPI
       .getRegions({ page_size: 100, domain_id: filterDomainId === '' ? undefined : filterDomainId })
       .then((res) => setRegions(res.items ?? []))
       .catch(() => setRegions([]));
-  }, [isSuperAdmin, filterDomainId]);
+  }, [canFilterByDomainRegion, filterDomainId]);
 
   useEffect(() => {
     if (!canViewLead) return;
     loadQuotations();
-  }, [canViewLead, searchQuery, dateFrom, dateTo, filterIndustry, filterSeriesCode, filterDomainId, filterRegionId, sortBy, sortOrder]);
+  }, [canViewLead, page, pageSize, searchQuery, dateFrom, dateTo, filterIndustry, filterSeriesCode, filterDomainId, filterRegionId, sortBy, sortOrder]);
 
   useEffect(() => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -387,7 +415,7 @@ export const EnquiryQuotationsPage: React.FC = () => {
                     <Select
                       options={[
                         { value: '', label: 'All' },
-                        ...filterOptions.quote_series_codes.map((code) => ({ value: code, label: code })),
+                        ...seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` })),
                       ]}
                       value={filterSeriesCode}
                       onChange={(val) => setFilterSeriesCode((val as string) ?? '')}
@@ -395,11 +423,12 @@ export const EnquiryQuotationsPage: React.FC = () => {
                       inputSize="sm"
                       searchable={true}
                       clearable={false}
+                      dropdownWidth="auto"
                     />
                   </div>
                 </div>
 
-                {isSuperAdmin && (
+                {canFilterByDomainRegion && (
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Domain <span className="normal-case font-medium">(admin)</span></label>
@@ -492,7 +521,7 @@ export const EnquiryQuotationsPage: React.FC = () => {
           )}
 
           <span className="ml-auto self-end pb-1 text-xs text-slate-400 shrink-0">
-            {!loading && `${quotations.length} quotation${quotations.length !== 1 ? 's' : ''}`}
+            {!loading && `${total} quotation${total !== 1 ? 's' : ''}`}
           </span>
         </div>
 
@@ -504,6 +533,18 @@ export const EnquiryQuotationsPage: React.FC = () => {
           isLoading={loading}
           bordered={false}
         />
+
+        <div className="border-t border-slate-200 px-4 py-3">
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            onPageSizeChange={handlePageSizeChange}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+          />
+        </div>
       </Card>
 
       <PdfPreviewModal
