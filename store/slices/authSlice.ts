@@ -5,6 +5,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { hrmsRBACClient, HRMSUser, HRMSEmployee, HRMSRole } from '../../lib/hrms-rbac';
 import { apiClient } from '../../lib/api';
+import { marketingAPI } from '../../lib/marketing-api';
 import { clearStoredAuth } from '../../lib/auth-utils';
 import { setStoredMarketingScope } from '../../lib/marketing-scope';
 
@@ -183,6 +184,13 @@ export const refreshUserInfo = createAsyncThunk(
     const token = state.auth.token;
     if (!token) return null;
     try {
+      // Clear the Marketing API's server-side RBAC cache first, so its next
+      // permission check re-fetches from HRMS instead of serving a stale (cached) result.
+      try {
+        await marketingAPI.refreshPermissions();
+      } catch {
+        // Non-fatal: still proceed to refresh the frontend's own copy of permissions.
+      }
       const userInfo = await hrmsRBACClient.getUserInfo(token);
       if (userInfo && userInfo.success) {
         const permList = await hrmsRBACClient.getUserPermissionsList(token);

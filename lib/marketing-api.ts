@@ -1466,6 +1466,11 @@ class MarketingAPIService {
     return apiClient.delete<{ success: boolean; connected: boolean }>('/api/auth/email');
   }
 
+  /** Invalidate this token's server-side RBAC permission cache; next request refetches from HRMS. */
+  async refreshPermissions(): Promise<{ success: boolean; message?: string }> {
+    return apiClient.post<{ success: boolean; message?: string }>('/api/auth/refresh-permissions');
+  }
+
   /** List quotations with optional search, lead filter, date range, and sort (API-side). */
   async getMyQuotations(params?: {
     search?: string;
