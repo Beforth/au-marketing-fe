@@ -4,8 +4,9 @@ import { NavLink, Link } from 'react-router-dom';
 import { SIDEBAR_LINKS, SECONDARY_LINKS } from '../../constants';
 import { NavItem } from '../../types';
 import { useAppSelector } from '../../store/hooks';
-import { selectUserDisplayName, selectUserInitials, selectEmployee, selectUser, selectHasPermission } from '../../store/slices/authSlice';
+import { selectUserDisplayName, selectEmployee, selectUser, selectHasPermission } from '../../store/slices/authSlice';
 import { VersionsModal } from '../VersionsModal';
+import { Avatar } from './Avatar';
 import { ChevronDown, ShieldCheck, Hash, Users } from 'lucide-react';
 import { API_CONFIG } from '../../lib/api';
 
@@ -16,7 +17,6 @@ export const Sidebar: React.FC = () => {
   const [appVersion, setAppVersion] = useState('v1.2.0');
   const [versionLoaded, setVersionLoaded] = useState(false);
   const userDisplayName = useAppSelector(selectUserDisplayName);
-  const userInitials = useAppSelector(selectUserInitials);
   const employee = useAppSelector(selectEmployee);
   const user = useAppSelector(selectUser);
 
@@ -237,11 +237,11 @@ export const Sidebar: React.FC = () => {
           </div>
 
           <div className="mt-4 flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100/80 bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0 border border-blue-200/50">
-              <span className="text-blue-600 font-bold text-xs">
-                {userInitials}
-              </span>
-            </div>
+            <Avatar
+              src={employee?.profile_picture || user?.profile_picture}
+              name={userDisplayName}
+              className="w-8 h-8 rounded-lg bg-blue-100 border border-blue-200/50 text-blue-600 text-xs"
+            />
             <div className="flex-1 min-w-0">
               <p className="text-[12px] font-semibold text-slate-900 truncate">
                 {userDisplayName}

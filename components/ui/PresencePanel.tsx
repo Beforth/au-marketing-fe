@@ -1,13 +1,19 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Users, X, Radio } from 'lucide-react';
 import { marketingAPI, PresenceUser } from '../../lib/marketing-api';
+import { API_CONFIG } from '../../lib/api';
+import { Avatar } from './Avatar';
 import {
-  PRESENCE_REFRESH_MS,
   presencePageLabel,
   presenceTimeAgo,
-  presenceInitials,
   PRESENCE_AVATAR_COLORS,
 } from '../../lib/presence-utils';
+
+function presenceWebSocketUrl(): string {
+  const token = localStorage.getItem('auth_token') || '';
+  const wsBase = API_CONFIG.BASE_URL.replace(/^http/, 'ws');
+  return `${wsBase}/api/presence/ws?token=${encodeURIComponent(token)}`;
+}
 
 interface PresencePanelProps {
   open: boolean;
@@ -32,8 +38,10 @@ export const PresencePanel: React.FC<PresencePanelProps> = ({ open, onClose }) =
     }
   }, [open]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // One-shot REST fallback, used only if the WebSocket can't connect (e.g. blocked by a proxy).
+  const loadOnce = useCallback(async () => {
     try {
       const res = await marketingAPI.getActiveUsers();
       setUsers(res.users);
@@ -47,10 +55,32 @@ export const PresencePanel: React.FC<PresencePanelProps> = ({ open, onClose }) =
 
   useEffect(() => {
     if (!open) return;
-    load();
-    const id = window.setInterval(load, PRESENCE_REFRESH_MS);
-    return () => window.clearInterval(id);
-  }, [open, load]);
+    setLoading(true);
+    setError(null);
+
+    const ws = new WebSocket(presenceWebSocketUrl());
+    wsRef.current = ws;
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        setUsers(data.users || []);
+        setError(null);
+      } catch {
+        // ignore malformed frame
+      } finally {
+        setLoading(false);
+      }
+    };
+    ws.onerror = () => {
+      loadOnce();
+    };
+
+    return () => {
+      wsRef.current = null;
+      ws.close();
+    };
+  }, [open, loadOnce]);
 
   useEffect(() => {
     if (!open) return;
@@ -116,13 +146,13 @@ export const PresencePanel: React.FC<PresencePanelProps> = ({ open, onClose }) =
                 className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors"
               >
                 <div className="relative shrink-0">
-                  <div
-                    className={`w-9 h-9 rounded-xl border flex items-center justify-center font-bold text-xs ${
+                  <Avatar
+                    src={u.profile_picture}
+                    name={u.employee_name}
+                    className={`w-9 h-9 rounded-xl border font-bold text-xs ${
                       PRESENCE_AVATAR_COLORS[u.employee_id % PRESENCE_AVATAR_COLORS.length]
                     }`}
-                  >
-                    {presenceInitials(u.employee_name)}
-                  </div>
+                  />
                   <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -145,7 +175,7 @@ export const PresencePanel: React.FC<PresencePanelProps> = ({ open, onClose }) =
         </div>
 
         <footer className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 text-[10px] text-slate-400 font-medium">
-          Auto-refreshes every {PRESENCE_REFRESH_MS / 1000}s · presence is in-memory only (not stored)
+          Updates live · presence is in-memory only (not stored)
         </footer>
       </aside>
     </>

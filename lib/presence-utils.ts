@@ -31,17 +31,6 @@ export function presenceTimeAgo(secondsAgo: number): string {
   return `${Math.floor(m / 60)}h ago`;
 }
 
-export function presenceInitials(name: string): string {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? '')
-      .join('') || '?'
-  );
-}
-
 export const PRESENCE_AVATAR_COLORS = [
   'bg-blue-100 text-blue-600 border-blue-200/60',
   'bg-emerald-100 text-emerald-600 border-emerald-200/60',

@@ -3,11 +3,11 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Activity, Radio, Users } from 'lucide-react';
 import { PageLayout } from '../components/layout/PageLayout';
 import { marketingAPI, PresenceUser } from '../lib/marketing-api';
+import { Avatar } from '../components/ui/Avatar';
 import {
   PRESENCE_REFRESH_MS,
   presencePageLabel,
   presenceTimeAgo,
-  presenceInitials,
   PRESENCE_AVATAR_COLORS,
 } from '../lib/presence-utils';
 
@@ -18,9 +18,11 @@ const PresenceCard: React.FC<{ user: PresenceUser }> = ({ user }) => {
   return (
     <div className="bg-white border border-slate-200/60 rounded-2xl p-4 flex items-center gap-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_10px_30px_-18px_rgba(0,0,0,0.08)]">
       <div className="relative shrink-0">
-        <div className={`w-11 h-11 rounded-xl border flex items-center justify-center font-bold text-sm ${color}`}>
-          {presenceInitials(user.employee_name)}
-        </div>
+        <Avatar
+          src={user.profile_picture}
+          name={user.employee_name}
+          className={`w-11 h-11 rounded-xl border font-bold text-sm ${color}`}
+        />
         <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
       </div>
       <div className="min-w-0 flex-1">

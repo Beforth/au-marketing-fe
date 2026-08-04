@@ -16,7 +16,7 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission, selectUser, selectEmployee } from '../store/slices/authSlice';
-import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadThroughOption, LeadActivity, LeadActivityAttachment, Domain, Region, Customer, Contact, Plant, Series, Organization, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
+import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadThroughOption, LeadActivity, LeadActivityAttachment, Domain, Region, Customer, Contact, Plant, Series, Organization, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail, leadDisplayPhone } from '../lib/marketing-api';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, DEFAULT_LEAD_SERIES_STORAGE_KEY, INDIAN_STATES, INDUSTRY_OPTIONS } from '../constants';
 import CountryList from 'country-list-with-dial-code-and-flag';
 
@@ -884,6 +884,23 @@ export const LeadFormPage: React.FC = () => {
           readyEntries.map((entry) => (entry.kind === 'quotation' && entry.quoteValue ? Number(entry.quoteValue) : undefined)),
           setLogUploadProgress
         );
+        // If the lead has no quote number yet, adopt the first new (non-revised)
+        // quotation's number as the lead's own — so it stays in sync going forward
+        // instead of only living on this one file.
+        if (!currentLead?.quote_number?.trim()) {
+          const firstNewQuotation = readyEntries.find((entry) => entry.kind === 'quotation' && !entry.isRevised && entry.quotationNumber.trim());
+          if (firstNewQuotation) {
+            try {
+              const updated = await marketingAPI.updateLead(leadId, {
+                quote_number: firstNewQuotation.quotationNumber.trim(),
+                quote_series_code: hasNewQuotation ? (quotationSeriesCode.trim() || undefined) : undefined,
+              } as UpdateLeadRequest);
+              setCurrentLead(updated);
+            } catch {
+              // Non-fatal: the file's own number is already saved; lead-level sync can be retried later.
+            }
+          }
+        }
       }
       showToast('Log added', 'success');
       setActivityForm({
@@ -1945,6 +1962,7 @@ export const LeadFormPage: React.FC = () => {
             )}
             <div><span className="text-slate-500">Name</span><br /><span className="font-medium">{currentLead ? leadDisplayName(currentLead) : '—'}</span></div>
             <div><span className="text-slate-500">Email</span><br /><span className="font-medium">{currentLead ? leadDisplayEmail(currentLead) || '—' : '—'}</span></div>
+            <div><span className="text-slate-500">Phone</span><br /><span className="font-medium">{currentLead ? leadDisplayPhone(currentLead) || '—' : '—'}</span></div>
             <div><span className="text-slate-500">Company</span><br /><span className="font-medium">{currentLead ? leadDisplayCompany(currentLead) || '—' : '—'}</span></div>
             <div><span className="text-slate-500">Status</span><br /><span className="font-medium">{leadStatuses.find(s => s.id === formData.status_id)?.label ?? '—'}</span></div>
             <div><span className="text-slate-500">Domain · Region</span><br /><span className="font-medium">{domains.find(d => d.id === formData.domain_id)?.name ?? '—'}{formData.region_id ? ` · ${regions.find(r => r.id === formData.region_id)?.name ?? ''}` : ''}</span></div>
@@ -3094,7 +3112,9 @@ export const LeadFormPage: React.FC = () => {
                                   setActivityDraftSeriesCode('');
                                   setActivityDraftGeneratedNumber(null);
                                   setActivityDraftGeneratedSeriesCode(null);
-                                  setActivityDraftCustomNumber('');
+                                  // Default to the lead's already-generated quote number, so attaching the
+                                  // file here just reuses it instead of leaving the box blank.
+                                  setActivityDraftCustomNumber(mode === 'new-quotation' ? (currentLead?.quote_number?.trim() || '') : '');
                                 }}
                                 className="w-full"
                                 searchable={false}
@@ -3254,7 +3274,7 @@ export const LeadFormPage: React.FC = () => {
                               const effectiveNumber = isRevise
                                 ? activityReviseTargetQuotation
                                 : isNewQuotation
-                                  ? (activityDraftNumber.trim() || activityDraftGeneratedNumber || activityDraftCustomNumber.trim())
+                                  ? (activityDraftNumber.trim() || activityDraftGeneratedNumber || activityDraftCustomNumber.trim() || currentLead?.quote_number?.trim() || '')
                                   : '';
                               setAttachmentEntries((prev) => [
                                 ...prev,

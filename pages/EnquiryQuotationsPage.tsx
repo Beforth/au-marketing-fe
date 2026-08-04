@@ -6,11 +6,14 @@ import { useNavigate } from 'react-router-dom';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Card } from '../components/ui/Card';
 import { Select } from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
 import { DataTable, Column } from '../components/ui/DataTable';
-import { marketingAPI, QuotationListItem, QuotationLeadOption } from '../lib/marketing-api';
+import { FilterPopover } from '../components/ui/FilterPopover';
+import { Badge } from '../components/ui/Badge';
+import { marketingAPI, QuotationListItem, QuotationFilterOptions, Domain, Region } from '../lib/marketing-api';
 import { useAppSelector } from '../store/hooks';
-import { selectHasPermission } from '../store/slices/authSlice';
-import { Download, ExternalLink, Eye, AlertTriangle, Upload } from 'lucide-react';
+import { selectHasPermission, selectUser } from '../store/slices/authSlice';
+import { Download, ExternalLink, Eye, AlertTriangle, Upload, SlidersHorizontal } from 'lucide-react';
 import { Tooltip } from '../UI/Tooltip';
 import { Button } from '../components/ui/Button';
 import { SearchInput } from '../components/ui/SearchInput';
@@ -26,16 +29,25 @@ export const EnquiryQuotationsPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useApp();
   const canViewLead = useAppSelector(selectHasPermission('marketing.view_lead'));
+  const user = useAppSelector(selectUser);
+  const isSuperAdmin = !!user?.is_superuser;
   const [quotations, setQuotations] = useState<QuotationListItem[]>([]);
-  const [leadOptions, setLeadOptions] = useState<QuotationLeadOption[]>([]);
+  const [filterOptions, setFilterOptions] = useState<QuotationFilterOptions>({ industries: [], quote_series_codes: [] });
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
-  const [filterLeadId, setFilterLeadId] = useState<number | ''>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [filterIndustry, setFilterIndustry] = useState('');
+  const [filterSeriesCode, setFilterSeriesCode] = useState('');
+  const [filterDomainId, setFilterDomainId] = useState<number | ''>('');
+  const [filterRegionId, setFilterRegionId] = useState<number | ''>('');
   const [sortBy, setSortBy] = useState<SortField>('quotation_number');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [showFilterPopover, setShowFilterPopover] = useState(false);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [reattachingId, setReattachingId] = useState<number | null>(null);
   const reattachInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
@@ -45,7 +57,12 @@ export const EnquiryQuotationsPage: React.FC = () => {
     marketingAPI
       .getMyQuotations({
         search: searchQuery.trim() || undefined,
-        lead_id: filterLeadId === '' ? undefined : filterLeadId,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        industry: filterIndustry || undefined,
+        quote_series_code: filterSeriesCode || undefined,
+        domain_id: isSuperAdmin && filterDomainId !== '' ? filterDomainId : undefined,
+        region_id: isSuperAdmin && filterRegionId !== '' ? filterRegionId : undefined,
         sort_by: sortBy,
         sort_order: sortOrder,
       })
@@ -56,13 +73,26 @@ export const EnquiryQuotationsPage: React.FC = () => {
 
   useEffect(() => {
     if (!canViewLead) return;
-    marketingAPI.getQuotationLeadOptions().then(setLeadOptions).catch(() => setLeadOptions([]));
+    marketingAPI.getQuotationFilterOptions().then(setFilterOptions).catch(() => setFilterOptions({ industries: [], quote_series_codes: [] }));
   }, [canViewLead]);
+
+  useEffect(() => {
+    if (!canViewLead || !isSuperAdmin) return;
+    marketingAPI.getDomains({ page_size: 100 }).then((res) => setDomains(res.items ?? [])).catch(() => setDomains([]));
+  }, [canViewLead, isSuperAdmin]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    marketingAPI
+      .getRegions({ page_size: 100, domain_id: filterDomainId === '' ? undefined : filterDomainId })
+      .then((res) => setRegions(res.items ?? []))
+      .catch(() => setRegions([]));
+  }, [isSuperAdmin, filterDomainId]);
 
   useEffect(() => {
     if (!canViewLead) return;
     loadQuotations();
-  }, [canViewLead, searchQuery, filterLeadId, dateFrom, dateTo, sortBy, sortOrder]);
+  }, [canViewLead, searchQuery, dateFrom, dateTo, filterIndustry, filterSeriesCode, filterDomainId, filterRegionId, sortBy, sortOrder]);
 
   useEffect(() => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -107,7 +137,14 @@ export const EnquiryQuotationsPage: React.FC = () => {
     }
   };
 
-  const hasActiveFilters = !!(searchInput.trim() || filterLeadId !== '' || dateFrom || dateTo);
+  const advancedFilterCount = [
+    !!(dateFrom || dateTo),
+    !!filterIndustry,
+    !!filterSeriesCode,
+    filterDomainId !== '' || filterRegionId !== '',
+  ].filter(Boolean).length;
+
+  const hasActiveFilters = !!searchInput.trim() || advancedFilterCount > 0;
 
   const columns: Column<QuotationListItem>[] = [
     {
@@ -277,21 +314,131 @@ export const EnquiryQuotationsPage: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-1.5 shrink-0">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5">Filter by Lead</label>
-            <Select
-              options={[
-                { value: '', label: 'All leads' },
-                ...leadOptions.map((opt) => ({
-                  value: String(opt.lead_id),
-                  label: [opt.lead_series, opt.lead_name].filter(Boolean).join(' – ') || `Lead #${opt.lead_id}`,
-                })),
-              ]}
-              value={filterLeadId === '' ? '' : String(filterLeadId)}
-              onChange={(val) => setFilterLeadId(val === '' ? '' : Number(val))}
-              className="min-w-[180px]"
-              searchable={true}
-              clearable={false}
-            />
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5">&nbsp;</label>
+            <button
+              ref={filterButtonRef}
+              type="button"
+              onClick={() => setShowFilterPopover((v) => !v)}
+              className="h-9 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition-colors"
+            >
+              <SlidersHorizontal size={14} />
+              Filters
+              {advancedFilterCount > 0 && (
+                <Badge variant="default" className="px-1.5 py-0 text-[10px] leading-4">
+                  {advancedFilterCount}
+                </Badge>
+              )}
+            </button>
+
+            <FilterPopover
+              isOpen={showFilterPopover}
+              onClose={() => setShowFilterPopover(false)}
+              triggerRef={filterButtonRef}
+              panelClassName="w-[300px] p-3"
+              onClear={() => {
+                setDateFrom('');
+                setDateTo('');
+                setFilterIndustry('');
+                setFilterSeriesCode('');
+                setFilterDomainId('');
+                setFilterRegionId('');
+              }}
+              onApply={() => setShowFilterPopover(false)}
+            >
+              <div className="space-y-2.5">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Date range</label>
+                  <div className="flex items-center gap-1.5">
+                    <DatePicker
+                      value={dateFrom}
+                      onChange={(v) => setDateFrom(v || '')}
+                      className="w-full h-8 text-xs"
+                      placeholder="From"
+                    />
+                    <span className="text-slate-300 text-[10px] font-bold uppercase shrink-0">to</span>
+                    <DatePicker
+                      value={dateTo}
+                      onChange={(v) => setDateTo(v || '')}
+                      className="w-full h-8 text-xs"
+                      placeholder="To"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Industry</label>
+                    <Select
+                      options={[
+                        { value: '', label: 'All' },
+                        ...filterOptions.industries.map((ind) => ({ value: ind, label: ind })),
+                      ]}
+                      value={filterIndustry}
+                      onChange={(val) => setFilterIndustry((val as string) ?? '')}
+                      className="w-full"
+                      inputSize="sm"
+                      searchable={true}
+                      clearable={false}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Series</label>
+                    <Select
+                      options={[
+                        { value: '', label: 'All' },
+                        ...filterOptions.quote_series_codes.map((code) => ({ value: code, label: code })),
+                      ]}
+                      value={filterSeriesCode}
+                      onChange={(val) => setFilterSeriesCode((val as string) ?? '')}
+                      className="w-full"
+                      inputSize="sm"
+                      searchable={true}
+                      clearable={false}
+                    />
+                  </div>
+                </div>
+
+                {isSuperAdmin && (
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Domain <span className="normal-case font-medium">(admin)</span></label>
+                      <Select
+                        options={[
+                          { value: '', label: 'All' },
+                          ...domains.map((d) => ({ value: String(d.id), label: d.name })),
+                        ]}
+                        value={filterDomainId === '' ? '' : String(filterDomainId)}
+                        onChange={(val) => {
+                          setFilterDomainId(val === '' ? '' : Number(val));
+                          setFilterRegionId('');
+                        }}
+                        className="w-full"
+                        inputSize="sm"
+                        searchable={true}
+                        clearable={false}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Region <span className="normal-case font-medium">(admin)</span></label>
+                      <Select
+                        options={[
+                          { value: '', label: 'All' },
+                          ...regions.map((r) => ({ value: String(r.id), label: r.name })),
+                        ]}
+                        value={filterRegionId === '' ? '' : String(filterRegionId)}
+                        onChange={(val) => setFilterRegionId(val === '' ? '' : Number(val))}
+                        className="w-full"
+                        inputSize="sm"
+                        searchable={true}
+                        clearable={false}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </FilterPopover>
           </div>
 
           <div className="flex flex-col gap-1.5 shrink-0">
@@ -331,9 +478,12 @@ export const EnquiryQuotationsPage: React.FC = () => {
               onClick={() => {
                 setSearchInput('');
                 setSearchQuery('');
-                setFilterLeadId('');
                 setDateFrom('');
                 setDateTo('');
+                setFilterIndustry('');
+                setFilterSeriesCode('');
+                setFilterDomainId('');
+                setFilterRegionId('');
               }}
               className="text-xs text-blue-600 hover:underline self-end pb-1"
             >

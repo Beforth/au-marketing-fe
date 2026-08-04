@@ -15,6 +15,8 @@ interface FilterPopoverProps {
   triggerRef: React.RefObject<HTMLElement | null>;
   onApply?: () => void;
   onClear?: () => void;
+  /** Overrides the panel's width/padding (default "w-80 p-4"). */
+  panelClassName?: string;
 }
 
 export const FilterPopover: React.FC<FilterPopoverProps> = ({
@@ -24,6 +26,7 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
   triggerRef,
   onApply,
   onClear,
+  panelClassName,
 }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -40,11 +43,19 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      // Select/DatePicker render their open dropdown in a portal at document.body,
+      // outside this popover's DOM subtree — without this check, clicking an option
+      // inside them looks like an "outside" click and closes the popover before it registers.
+      const inPortaledDropdown = (target as Element)?.closest?.(
+        '[data-marketing-select-dropdown], [data-marketing-datepicker-dropdown]'
+      );
       if (
         popoverRef.current &&
-        !popoverRef.current.contains(event.target as Node) &&
+        !popoverRef.current.contains(target) &&
         triggerRef.current &&
-        !triggerRef.current.contains(event.target as Node)
+        !triggerRef.current.contains(target) &&
+        !inPortaledDropdown
       ) {
         onClose();
       }
@@ -70,7 +81,7 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
         left: `${position.left}px`,
       }}
     >
-      <Card className="w-80 shadow-xl border-slate-200 p-4">
+      <Card className={cn('shadow-xl border-slate-200 p-4', panelClassName || 'w-80')}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-900">Filters</h3>
           <button

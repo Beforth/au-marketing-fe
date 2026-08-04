@@ -302,6 +302,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         {isOpen && dropdownRect && createPortal(
           <div
             ref={dropdownRef}
+            data-marketing-datepicker-dropdown
             className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl p-2.5 shadow-blue-100/20 animate-spring-in"
             style={{ top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width }}
           >

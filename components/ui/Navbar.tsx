@@ -5,11 +5,12 @@ import { SearchInput } from './SearchInput';
 import { Search, Bell, Settings, Command, ShoppingBag, ShieldAlert, Package, MessageSquare, User, ArrowRight, LayoutDashboard, FileText, PieChart, CreditCard, X, LogOut, UserCircle, Users, Globe, Quote, Building2, Database, ClipboardList, CheckCircle2, Clock, RefreshCw, Ticket } from 'lucide-react';
 import { useApp } from '../../App';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { logout, selectUserDisplayName, selectUserInitials, selectEmployee, selectHasPermission, selectToken } from '../../store/slices/authSlice';
+import { logout, selectUserDisplayName, selectEmployee, selectUser, selectHasPermission, selectToken } from '../../store/slices/authSlice';
 import { setDSRTasks, selectDSRTasks, selectDSRIsStale } from '../../store/slices/dsrSlice';
 import { hrmsRBACClient } from '../../lib/hrms-rbac';
 import { Tooltip } from '../../UI/Tooltip';
 import { PresencePanel } from './PresencePanel';
+import { Avatar } from './Avatar';
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
@@ -23,8 +24,8 @@ export const Navbar: React.FC = () => {
     markAllAsRead
   } = useApp();
   const userDisplayName = useAppSelector(selectUserDisplayName);
-  const userInitials = useAppSelector(selectUserInitials);
   const employee = useAppSelector(selectEmployee);
+  const currentUser = useAppSelector(selectUser);
 
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -369,9 +370,11 @@ export const Navbar: React.FC = () => {
         </button>
         <div className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-50 transition-colors">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm">
-              {userInitials}
-            </div>
+            <Avatar
+              src={employee?.profile_picture || currentUser?.profile_picture}
+              name={userDisplayName}
+              className="w-8 h-8 rounded-full bg-blue-600 text-white text-xs border-2 border-white shadow-sm"
+            />
             <div className="hidden md:block text-right">
               <p className="text-xs font-semibold text-slate-900">{userDisplayName}</p>
               {employee?.designation && (

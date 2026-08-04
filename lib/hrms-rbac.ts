@@ -11,6 +11,8 @@ export interface HRMSUser {
   last_name: string;
   is_active: boolean;
   is_superuser: boolean;
+  /** Absolute URL, from HRMS's UserProfile.profile_picture. */
+  profile_picture?: string | null;
 }
 
 export interface HRMSEmployee {
@@ -22,6 +24,8 @@ export interface HRMSEmployee {
   department: string | null;
   designation: string | null;
   is_active: boolean;
+  /** Absolute URL, from HRMS's Employee.profile_picture. */
+  profile_picture?: string | null;
 }
 
 export interface HRMSRole {

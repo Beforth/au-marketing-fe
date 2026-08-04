@@ -15,6 +15,8 @@ export interface HRMSEmployee {
   department: string | null;
   designation: string | null;
   is_active: boolean;
+  /** Absolute URL, from HRMS's Employee.profile_picture. */
+  profile_picture?: string | null;
 }
 
 // Local Marketing Employee (cached table)
@@ -434,6 +436,13 @@ export function contactCompanyName(contact: Contact): string {
 export function leadDisplayEmail(lead: Lead): string {
   if (lead.contact?.contact_email) return lead.contact.contact_email;
   if (lead.customer?.primary_contact_contact?.contact_email) return lead.customer.primary_contact_contact.contact_email;
+  return '';
+}
+
+/** Lead phone from contact or customer primary contact. */
+export function leadDisplayPhone(lead: Lead): string {
+  if (lead.contact?.contact_phone) return lead.contact.contact_phone;
+  if (lead.customer?.primary_contact_contact?.contact_phone) return lead.customer.primary_contact_contact.contact_phone;
   return '';
 }
 
@@ -1471,12 +1480,16 @@ class MarketingAPIService {
     return apiClient.post<{ success: boolean; message?: string }>('/api/auth/refresh-permissions');
   }
 
-  /** List quotations with optional search, lead filter, date range, and sort (API-side). */
+  /** List quotations with optional search, lead filter, date range, industry, series, region/domain (super admin only), and sort (API-side). */
   async getMyQuotations(params?: {
     search?: string;
     lead_id?: number;
     date_from?: string;
     date_to?: string;
+    industry?: string;
+    quote_series_code?: string;
+    region_id?: number;
+    domain_id?: number;
     sort_by?: string;
     sort_order?: 'asc' | 'desc';
   }): Promise<QuotationListItem[]> {
@@ -1485,15 +1498,19 @@ class MarketingAPIService {
     if (params?.lead_id != null) queryParams.set('lead_id', String(params.lead_id));
     if (params?.date_from?.trim()) queryParams.set('date_from', params.date_from.trim());
     if (params?.date_to?.trim()) queryParams.set('date_to', params.date_to.trim());
+    if (params?.industry?.trim()) queryParams.set('industry', params.industry.trim());
+    if (params?.quote_series_code?.trim()) queryParams.set('quote_series_code', params.quote_series_code.trim());
+    if (params?.region_id != null) queryParams.set('region_id', String(params.region_id));
+    if (params?.domain_id != null) queryParams.set('domain_id', String(params.domain_id));
     if (params?.sort_by) queryParams.set('sort_by', params.sort_by);
     if (params?.sort_order) queryParams.set('sort_order', params.sort_order);
     const qs = queryParams.toString();
     return apiClient.get<QuotationListItem[]>(`/api/quotations/${qs ? `?${qs}` : ''}`);
   }
 
-  /** Lead options for quotation filter dropdown (leads that have at least one quotation). */
-  async getQuotationLeadOptions(): Promise<QuotationLeadOption[]> {
-    return apiClient.get<QuotationLeadOption[]>('/api/quotations/lead-options');
+  /** Distinct industry / numbering-series values available for the quotation filters, scoped like getMyQuotations. */
+  async getQuotationFilterOptions(): Promise<QuotationFilterOptions> {
+    return apiClient.get<QuotationFilterOptions>('/api/quotations/filter-options');
   }
 
   /** Reports: who the current user can run reports for (self, or team if region/domain head) */
@@ -1971,10 +1988,9 @@ export interface QuotationListItem {
   media_exists?: boolean;
 }
 
-export interface QuotationLeadOption {
-  lead_id: number;
-  lead_series: string | null;
-  lead_name: string;
+export interface QuotationFilterOptions {
+  industries: string[];
+  quote_series_codes: string[];
 }
 
 // Reports types
@@ -2176,6 +2192,7 @@ export interface PresenceUser {
   page: string;
   last_seen_at: number;
   seconds_ago: number;
+  profile_picture?: string | null;
 }
 
 export interface PresenceActiveResponse {

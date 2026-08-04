@@ -22,7 +22,7 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarte
 import { PageLayout } from '../components/layout/PageLayout';
 
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadStatusGroup, LeadTypeOption, Domain, Region, Contact, Customer, Organization, Plant, Series, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail, LeadActivityAttachment } from '../lib/marketing-api';
+import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadStatusGroup, LeadTypeOption, Domain, Region, Contact, Customer, Organization, Plant, Series, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail, leadDisplayPhone, LeadActivityAttachment } from '../lib/marketing-api';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, DEFAULT_LEAD_SERIES_STORAGE_KEY } from '../constants';
 import { serializeNameWithPrefix, serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import { Modal } from '../components/ui/Modal';
@@ -115,7 +115,7 @@ const LeadTooltipContent: React.FC<{ lead: Lead; onViewQuotation?: (leadId: numb
   const companyName = leadDisplayCompany(lead);
   const contactDesignation = (lead.contact as any)?.designation || (lead.contact as any)?.department;
   const contactLocation = [(lead.contact as any)?.city, (lead.contact as any)?.state].filter(Boolean).join(', ');
-  const phone = (lead as any).phone || (lead as any).mobile || (lead as any).contact_phone || (lead.contact as any)?.mobile || (lead.contact as any)?.phone;
+  const phone = leadDisplayPhone(lead);
   const email = leadDisplayEmail(lead);
   const assignedName = (lead as any).assigned_to_name || (lead as any).assigned_to_user?.first_name || (lead as any).assigned_to?.name;
   const domainName = (lead as any).domain_name || (lead as any).domain?.name;
