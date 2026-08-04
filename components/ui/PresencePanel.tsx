@@ -4,7 +4,7 @@ import { marketingAPI, PresenceUser } from '../../lib/marketing-api';
 import { API_CONFIG } from '../../lib/api';
 import { Avatar } from './Avatar';
 import {
-  presencePageLabel,
+  presenceDetailLabel,
   presenceTimeAgo,
   PRESENCE_AVATAR_COLORS,
 } from '../../lib/presence-utils';
@@ -39,8 +39,13 @@ export const PresencePanel: React.FC<PresencePanelProps> = ({ open, onClose }) =
   }, [open]);
 
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const intentionalCloseRef = useRef(false);
+  const pollTimerRef = useRef<number | null>(null);
 
-  // One-shot REST fallback, used only if the WebSocket can't connect (e.g. blocked by a proxy).
+  // REST fallback, used when the WebSocket can't connect (e.g. blocked by a proxy).
+  // Polls every 15s so the panel keeps updating instead of freezing after one load.
   const loadOnce = useCallback(async () => {
     try {
       const res = await marketingAPI.getActiveUsers();
@@ -53,34 +58,79 @@ export const PresencePanel: React.FC<PresencePanelProps> = ({ open, onClose }) =
     }
   }, []);
 
+  const startPolling = useCallback(() => {
+    if (pollTimerRef.current != null) return;
+    loadOnce();
+    pollTimerRef.current = window.setInterval(loadOnce, 15000);
+  }, [loadOnce]);
+
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current != null) {
+      window.clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     setError(null);
+    reconnectAttemptsRef.current = 0;
+    intentionalCloseRef.current = false;
 
-    const ws = new WebSocket(presenceWebSocketUrl());
-    wsRef.current = ws;
+    const connect = () => {
+      const ws = new WebSocket(presenceWebSocketUrl());
+      wsRef.current = ws;
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        setUsers(data.users || []);
-        setError(null);
-      } catch {
-        // ignore malformed frame
-      } finally {
+      ws.onopen = () => {
+        reconnectAttemptsRef.current = 0;
+        stopPolling();
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          setUsers(data.users || []);
+          setError(null);
+        } catch {
+          // ignore malformed frame
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      ws.onclose = () => {
+        if (intentionalCloseRef.current) return;
+
+        // Keep the panel updating via REST while we retry the socket in the background.
+        startPolling();
+
+        const attempt = reconnectAttemptsRef.current;
+        const delay = Math.min(1000 * 2 ** attempt, 15000) + Math.random() * 500;
+        reconnectAttemptsRef.current = attempt + 1;
+        reconnectTimerRef.current = window.setTimeout(connect, delay);
+      };
+
+      ws.onerror = () => {
+        // onclose fires right after onerror for a failed connection, so reconnect
+        // scheduling happens there — this just ensures we're not stuck "loading".
         setLoading(false);
-      }
+      };
     };
-    ws.onerror = () => {
-      loadOnce();
-    };
+
+    connect();
 
     return () => {
+      intentionalCloseRef.current = true;
+      if (reconnectTimerRef.current != null) {
+        window.clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      stopPolling();
+      wsRef.current?.close();
       wsRef.current = null;
-      ws.close();
     };
-  }, [open, loadOnce]);
+  }, [open, startPolling, stopPolling]);
 
   useEffect(() => {
     if (!open) return;
@@ -159,7 +209,7 @@ export const PresencePanel: React.FC<PresencePanelProps> = ({ open, onClose }) =
                   <p className="text-xs font-semibold text-slate-900 truncate">{u.employee_name}</p>
                   <p className="text-[10px] text-slate-500 truncate flex items-center gap-1">
                     <Radio size={10} className="text-blue-500 shrink-0" />
-                    {presencePageLabel(u.page)}
+                    {presenceDetailLabel(u.page, u.label)}
                   </p>
                 </div>
                 <span

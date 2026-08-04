@@ -23,6 +23,15 @@ export function presencePageLabel(page: string): string {
   return page || 'On the app';
 }
 
+/**
+ * Combines the generic page category with the optional record-specific label
+ * a page announces (e.g. "Editing Lead" + "Acme Corp" -> "Editing Lead — Acme Corp").
+ */
+export function presenceDetailLabel(page: string, label?: string | null): string {
+  const category = presencePageLabel(page);
+  return label ? `${category} — ${label}` : category;
+}
+
 export function presenceTimeAgo(secondsAgo: number): string {
   if (secondsAgo < 5) return 'Active now';
   if (secondsAgo < 60) return `${secondsAgo}s ago`;

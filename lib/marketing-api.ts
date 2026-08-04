@@ -1826,8 +1826,8 @@ class MarketingAPIService {
   }
 
   // User presence (in-memory, nothing persisted)
-  async pingPresence(page: string): Promise<void> {
-    return apiClient.post('/api/presence/ping', { page });
+  async pingPresence(page: string, label?: string): Promise<void> {
+    return apiClient.post('/api/presence/ping', { page, label });
   }
 
   async getActiveUsers(): Promise<PresenceActiveResponse> {
@@ -2190,6 +2190,8 @@ export interface PresenceUser {
   employee_id: number;
   employee_name: string;
   page: string;
+  /** Optional human-readable detail for the current page, e.g. the record's name ("Acme Corp"). */
+  label?: string | null;
   last_seen_at: number;
   seconds_ago: number;
   profile_picture?: string | null;

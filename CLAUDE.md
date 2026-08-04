@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-S&M Hub frontend — a React 19 + TypeScript + Vite 6 SPA for Aureole Group's Sales & Marketing module: leads, orders, quotations, contacts/organizations/customers, domains & regions (org hierarchy), events/exhibitions, team performance/targets, DSR (daily status reports). `design.md` and `UI_COMPONENTS_LIBRARY.md` are the authoritative design-token/component-pattern references — consult them when building UI rather than guessing at colors/spacing.
+S&M Hub frontend — a React 19 + TypeScript + Vite 6 SPA for Aureole Group's Sales & Marketing module: leads, orders, quotations, contacts/organizations/customers, domains & regions (org hierarchy), events/exhibitions, team performance/targets, DSR (daily status reports). `design.md` and `UI_COMPONENTS_LIBRARY.md` are the authoritative design-token/component-pattern references — consult them when building UI rather than guessing at colors/spacing. `ROLE_SCOPING_RULES.md` is the authoritative reference for who-sees-what by role — consult it before changing any query filter, visibility check, or scoping logic rather than inferring rules from one page's behavior.
 
 ### How the system fits together
 Three independent backends, talked to directly from the browser — there is no BFF/proxy layer:
@@ -15,12 +15,19 @@ Three independent backends, talked to directly from the browser — there is no 
 Auth flow: browser POSTs credentials to HRMS RBAC → gets JWT + permissions/roles → stored in Redux (`authSlice`) and `localStorage` → every subsequent Marketing API call sends the JWT, and the Marketing API independently calls back to HRMS to verify the permission for that route (not just trusting the frontend's claim).
 
 ### Frontend structure
+- `index.tsx` — deliberately renders **without** `<StrictMode>` (see comment at `index.tsx:14-15`) to avoid React 18/19's dev-mode double-invoke of effects, which was firing duplicate API calls. If you re-add StrictMode, page-level `useEffect` fetches need `AbortController` cleanup first.
 - `App.tsx` — root: React Router setup (all routes registered here), `AppContext` (toast/notifications/demo-mode), providers.
 - `pages/` — ~34 route-level components, one per URL (Leads, Orders, Domains, Events, Settings, Reports, etc.). Most list pages follow a kanban-and/or-table pattern with a paired `*FormPage.tsx` for create/edit.
 - `components/layout/` — `DashboardLayout`, `DatabaseLayout`, `PageLayout` (page chrome/sidebar/breadcrumbs); `components/ui/` — ~28 shared building blocks (DataTable, Modal, Button, Sidebar, etc.); `UI/` — lower-level atoms (Button, Input, Badge, Tooltip).
 - `lib/api.ts` — base `APIClient` (fetch wrapper, XHR upload-progress, 401 handling, `ApiError`). `lib/marketing-api.ts` — the single `marketingAPI` object with ~150 typed methods + every request/response TS interface for the Marketing API. `lib/hrms-rbac.ts` — HRMS auth client. `lib/firebase-push.ts` — FCM registration.
 - `store/` — Redux Toolkit: `authSlice` (token/user/permissions), `dsrSlice`, `organizationPlantsSlice`, plus `middleware.ts` handling forced logout on token expiry. (Zustand is used separately for calendar-local state, not global app state.)
 - `components/ProtectedRoute.tsx` — route guard: redirects to `/login` if unauthenticated, renders an "Access Denied" screen if the route's `requiredPermission`/`requireAnyPermission`/`requireAllPermissions` prop isn't satisfied.
+
+## Working with this user
+
+- **Check before building.** Before writing new code for a request, search the codebase for anything that already does this (a helper, component, page, field, API method). Tell the user what you found either way — "this already exists at X, reusing it" or "nothing like this exists yet, so it'll be new." Never silently duplicate something that's already there.
+- **Say what you're touching.** If satisfying the request means modifying, removing, or deprecating existing code, name the specific file(s) and what's changing before (or as) you do it — don't make that call silently.
+- **Explain in plain language, not just code terms.** Alongside any technical detail (file paths, function names), give a short plain-English version: what the actual problem or gap was, and what will be different after the change — written so someone with no coding background can follow it. Lead with that; keep file:line references as supporting detail, not the main explanation.
 
 ## Commands
 
@@ -31,6 +38,14 @@ Auth flow: browser POSTs credentials to HRMS RBAC → gets JWT + permissions/rol
 - `npm run test:ui` — Vitest UI
 - Single test file: `npx vitest run path/to/file.test.ts`
 - No lint script/config exists in this repo (no ESLint/Prettier) — `tsc --noEmit` is the only automated correctness check.
+
+## Changelog convention
+
+`CHANGELOG.md` (repo root) is the single source of truth for release notes — not just a log, since the backend and the in-app "What's New" modal both derive from it. When a set of changes is done and the user asks for a changelog entry:
+- Check the **topmost** `## [date] — Title (vX.Y.Z)` entry in `CHANGELOG.md` first — don't assume a version number, confirm what's actually there. New entries go directly below the `---` under the title block, newest first. Each entry needs its own unique version — never reuse the top entry's version number for a different date's changes; bump it (patch for fixes/small additions, minor for new features) per semver.
+- Format: `## [YYYY-MM-DD] — Title (vX.Y.Z)` using an em dash (`—`), then `###`/`####` sub-headers (e.g. `### 🖥️ Frontend`, `#### Feature Name`) with `-` bullet items underneath. This isn't just style — `au-marketing-api/scripts/populate_changelog.py` parses this exact structure to sync entries into the `ChangelogVersion` DB table that backs the in-app changelog UI, and it specifically treats "Frontend"/"Backend"/"Backend (API)"/"Files Changed" as generic wrapper headers to skip — any other heading text becomes a real named section shown to users.
+- After adding the entry, keep the version number in sync in two more places: `package.json`'s `version` field, and the `useState('vX.Y.Z')` placeholder in `components/ui/Sidebar.tsx` (shown briefly before the real version loads from the backend `/health` check). The backend itself needs no manual bump — `au-marketing-api/app/version.py` reads its version live from whatever heading is topmost in `CHANGELOG.md`.
+- The database table is not updated automatically by editing the markdown file — `python scripts/populate_changelog.py` (run from `au-marketing-api/`) pushes new entries into the DB. That's a real write to the database, so confirm with the user before running it rather than running it as a matter of course.
 
 ## Repo layout
 
@@ -56,6 +71,12 @@ Two separate authorization concepts show up across this codebase and are easy to
 
 ### Settings live-reload
 Backend responses carry an `X-Marketing-Settings-Version` header; the frontend compares it against the last-seen version and reloads settings-dependent UI on change (`lib/api.ts` / `lib/marketing-api.ts`).
+
+### Role scoping model
+Access is governed by two independent layers that are easy to conflate: RBAC permissions (above) gate *actions*, while a separate **role-scoping** layer gates *which rows a query returns* — e.g. a `region_head` and an `employee` can both hold `marketing.view_lead` but see completely different lead sets. The five roles (`super_admin` → `domain_head` → `region_head`/`supervisor` → `region_coordinator` → `employee`) form a hierarchy of Domain → Region → Organization → Plant scoping, enforced primarily server-side (`au-marketing-api/app/scope.py` and per-router filters) with some display-only mirroring on the frontend (`pages/DomainsPage.tsx`). Full role-by-role visibility matrices for Domains, Leads/Orders, Database (Organizations/Customers/Contacts), and Events are in `ROLE_SCOPING_RULES.md` — read it before touching any scoping filter rather than reverse-engineering the rule from one role's observed behavior.
+
+### A disabled feature still lives in the tree
+The AI-generated dashboard widgets / report-template feature is currently commented out (not deleted) in both the frontend and `au-marketing-api/app/routers/saved_dashboards.py`. Don't mistake the commented blocks for dead code to clean up — `ai_dashboard_restoration.md` has the exact restore snippets and locations if this feature needs to come back.
 
 ## Testing
 

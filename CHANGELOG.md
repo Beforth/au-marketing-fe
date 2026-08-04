@@ -5,6 +5,43 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-08-04] — Who's Online: Reconnecting Panel & Record Labels, CLAUDE.md Guidance (v1.2.1)
+
+### 🖥️ Frontend
+
+#### Who's Online — Reconnecting WebSocket
+- The presence panel's WebSocket now reconnects automatically with exponential backoff (1s → 2s → 4s → up to a 15s cap, plus jitter) if the connection drops — previously a dropped connection just went silently stale until the panel was closed and reopened.
+- Added a 15s REST polling fallback that keeps the panel updating while a reconnect is pending, and stops automatically once the socket is back.
+
+#### Who's Online / Live Activity — Shows What Record Someone's On
+- The presence panel and Live Activity page now show which specific record someone's viewing (e.g. "Editing Lead — Acme Corp") instead of just a generic page category (e.g. "Editing Lead"), so you can tell at a glance who's on the same record as you.
+- New `lib/presence-label-store.ts` lets any page announce a short label for what it's showing; only `LeadFormPage.tsx` uses it so far — extending to Orders/Events would take the same small change.
+
+### ⚙️ Backend
+
+#### Presence Ping — Optional Record Label
+- `POST /api/presence/ping` now accepts an optional `label` field (trimmed, capped at 80 characters) alongside the existing `page`, and returns it in the active-users list. Fully backward-compatible — omitting `label` behaves exactly as before.
+
+### 📄 Documentation
+- `CLAUDE.md`: added a role-scoping model summary (RBAC permissions vs. the separate per-role data-visibility layer) pointing to `ROLE_SCOPING_RULES.md`, a note flagging the AI-dashboard feature as intentionally-disabled-not-dead code (see `ai_dashboard_restoration.md`), a note on why `<StrictMode>` is disabled in `index.tsx`, and a new "Working with this user" section covering check-before-building, naming what's modified, and explaining fixes in plain language.
+
+### 📁 Files Changed
+| File | Change |
+|------|--------|
+| `components/ui/PresencePanel.tsx` | WebSocket reconnect with backoff; REST polling fallback while disconnected; renders combined page + record label |
+| `pages/LiveActivityPage.tsx` | Renders combined page + record label |
+| `hooks/usePresence.ts` | Sends optional label with heartbeat; immediate heartbeat on label change |
+| `lib/presence-label-store.ts` | New — pub/sub store for a page to announce its current record's label |
+| `lib/presence-utils.ts` | New `presenceDetailLabel()` helper |
+| `lib/marketing-api.ts` | `pingPresence()` accepts `label`; `PresenceUser.label` field added |
+| `pages/LeadFormPage.tsx` | Announces the open lead's company/name as the presence label; clears on unmount |
+| `au-marketing-api/app/presence.py` | `mark_presence()`/`get_active_users()` store and return optional `label` (trimmed, capped at 80 chars) |
+| `au-marketing-api/app/routers/presence.py` | `PresencePing` accepts `label`; ping endpoint passes it through |
+| `CLAUDE.md` | Role scoping model section, disabled-AI-dashboard note, StrictMode note, "Working with this user" section |
+| `package.json` | Version 1.2.0 → 1.2.1 |
+
+---
+
 ## [2026-08-03] — Backend Fixes: Region Assignment NameError & Top Performer Ranking (v1.2.0)
 
 ### ⚙️ Backend

@@ -6,7 +6,7 @@ import { marketingAPI, PresenceUser } from '../lib/marketing-api';
 import { Avatar } from '../components/ui/Avatar';
 import {
   PRESENCE_REFRESH_MS,
-  presencePageLabel,
+  presenceDetailLabel,
   presenceTimeAgo,
   PRESENCE_AVATAR_COLORS,
 } from '../lib/presence-utils';
@@ -29,7 +29,7 @@ const PresenceCard: React.FC<{ user: PresenceUser }> = ({ user }) => {
         <p className="text-sm font-semibold text-slate-900 truncate">{user.employee_name}</p>
         <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5 flex items-center gap-1">
           <Radio size={11} className="text-blue-500 shrink-0" />
-          {presencePageLabel(user.page)}
+          {presenceDetailLabel(user.page, user.label)}
         </p>
       </div>
       <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${user.seconds_ago < 30 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>

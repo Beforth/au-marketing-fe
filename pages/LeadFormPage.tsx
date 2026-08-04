@@ -17,6 +17,7 @@ import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission, selectUser, selectEmployee } from '../store/slices/authSlice';
 import { marketingAPI, Lead, UpdateLeadRequest, LeadStatusOption, LeadThroughOption, LeadActivity, LeadActivityAttachment, Domain, Region, Customer, Contact, Plant, Series, Organization, ReportScopeResponse, leadDisplayName, leadDisplayCompany, leadDisplayEmail, leadDisplayPhone } from '../lib/marketing-api';
+import { setPresenceLabel } from '../lib/presence-label-store';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, DEFAULT_LEAD_SERIES_STORAGE_KEY, INDIAN_STATES, INDUSTRY_OPTIONS } from '../constants';
 import CountryList from 'country-list-with-dial-code-and-flag';
 
@@ -249,6 +250,19 @@ export const LeadFormPage: React.FC = () => {
   const [savingModal, setSavingModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentLead, setCurrentLead] = useState<Lead | null>(null);
+
+  // Announce which record is open so the Who's Online panel can show
+  // "Editing Lead — Acme Corp" instead of just "Editing Lead". Cleared on unmount.
+  useEffect(() => {
+    if (!isEdit) {
+      setPresenceLabel(null);
+      return;
+    }
+    const company = currentLead ? leadDisplayCompany(currentLead) : '';
+    const name = currentLead ? leadDisplayName(currentLead) : '';
+    setPresenceLabel(company || name || (leadId ? `#${leadId}` : null));
+    return () => setPresenceLabel(null);
+  }, [isEdit, leadId, currentLead]);
   const [selectedContactForDisplay, setSelectedContactForDisplay] = useState<Contact | null>(null);
   const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
   const [selectedPrimaryContact, setSelectedPrimaryContact] = useState<Contact | null>(null);
