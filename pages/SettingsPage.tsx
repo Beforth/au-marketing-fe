@@ -55,6 +55,8 @@ import { Select } from '../components/ui/Select';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { refreshUserInfo, selectUser, selectEmployee, selectHasPermission } from '../store/slices/authSlice';
 import { marketingAPI, AuditLog, MarketingEmployee, MarketingSettingsPayload } from '../lib/marketing-api';
+import { resolveHrmsMediaUrl } from '../lib/hrms-rbac';
+import { Avatar } from '../components/ui/Avatar';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -403,12 +405,12 @@ export const SettingsPage: React.FC = () => {
             {/* Header Section */}
             <div className="flex items-start gap-8">
               <div className="relative shrink-0">
-                <div className="w-20 h-20 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 overflow-hidden group">
-                  {employee?.first_name ? (
-                    <span className="text-2xl font-semibold uppercase tracking-widest text-slate-400">{employee.first_name[0]}{employee.last_name[0]}</span>
-                  ) : (
-                    <User size={40} />
-                  )}
+                <div className="w-20 h-20 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden group relative">
+                  <Avatar
+                    src={resolveHrmsMediaUrl(employee?.profile_picture || user?.profile_picture)}
+                    name={displayName}
+                    className="w-20 h-20 rounded-2xl text-2xl font-semibold uppercase tracking-widest text-slate-400 bg-slate-100"
+                  />
                   <button className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold uppercase tracking-widest">
                     Update
                   </button>
