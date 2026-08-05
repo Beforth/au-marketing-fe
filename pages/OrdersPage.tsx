@@ -14,12 +14,12 @@ import { Modal } from '../components/ui/Modal';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
 import { Tooltip } from '../UI/Tooltip';
-import { Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, FileText, Upload, Eye, Trophy, XCircle, Phone, Mail, Calendar, FileImage, FileSpreadsheet, FileArchive, File as FileIconGeneric, AlertTriangle } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, FileText, Upload, Eye, Trophy, XCircle, Phone, Mail, Calendar } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
-import { marketingAPI, type Order, type OrderStatusOption, type OrderStatusGroup, type Lead, type LeadActivity, type LeadActivityAttachment, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
+import { marketingAPI, type Order, type OrderStatusOption, type OrderStatusGroup, type Lead, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
 
 type ViewMode = 'kanban' | 'table';
@@ -33,130 +33,12 @@ function getContrastColor(hex: string): string {
   return luminance < 0.5 ? '#fff' : '#111';
 }
 
-/** Pick an icon + color for an attachment based on its file extension. */
-function getFileTypeIcon(fileName: string): { Icon: typeof FileText; className: string } {
-  const ext = (fileName.split('.').pop() || '').toLowerCase();
-  if (ext === 'pdf') return { Icon: FileText, className: 'text-red-500' };
-  if (['doc', 'docx', 'rtf', 'txt'].includes(ext)) return { Icon: FileText, className: 'text-blue-500' };
-  if (['xls', 'xlsx', 'csv'].includes(ext)) return { Icon: FileSpreadsheet, className: 'text-emerald-600' };
-  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return { Icon: FileImage, className: 'text-purple-500' };
-  if (['zip', 'rar', '7z'].includes(ext)) return { Icon: FileArchive, className: 'text-amber-600' };
-  return { Icon: FileIconGeneric, className: 'text-slate-400' };
+/** Lead's phone number for an order's linked lead, checking the same fallback fields the lead pages use. */
+function getOrderLeadPhone(order: Order): string | undefined {
+  const lead = order.lead as any;
+  if (!lead) return undefined;
+  return lead.phone || lead.mobile || lead.contact_phone || lead.contact?.mobile || lead.contact?.phone;
 }
-
-/** Hover tooltip for an Order kanban card: lead contact info + Won date + the lead's uploaded files (e.g. the PO uploaded when marked Won). */
-const OrderTooltipContent: React.FC<{ order: Order }> = ({ order }) => {
-  const { showToast } = useApp();
-  const [leadFiles, setLeadFiles] = useState<{ att: LeadActivityAttachment; activity: LeadActivity }[]>([]);
-  const [loadingFiles, setLoadingFiles] = useState(false);
-  const lead = order.lead;
-
-  useEffect(() => {
-    if (!order.lead_id) return;
-    let isMounted = true;
-    setLoadingFiles(true);
-    marketingAPI.getLeadActivities(order.lead_id)
-      .then((leadActivities) => {
-        if (!isMounted) return;
-        const files: { att: LeadActivityAttachment; activity: LeadActivity }[] = [];
-        for (const activity of leadActivities) {
-          for (const att of (activity.attachments || [])) {
-            files.push({ att, activity });
-          }
-        }
-        setLeadFiles(files);
-      })
-      .catch(() => {
-        if (isMounted) setLeadFiles([]);
-      })
-      .finally(() => {
-        if (isMounted) setLoadingFiles(false);
-      });
-    return () => { isMounted = false; };
-  }, [order.lead_id]);
-
-  const phone = lead ? ((lead as any).phone || (lead as any).mobile || (lead as any).contact_phone || (lead.contact as any)?.mobile || (lead.contact as any)?.phone) : undefined;
-  const email = lead ? leadDisplayEmail(lead) : '';
-
-  const handleOpenFile = async (activityId: number, attachmentId: number) => {
-    try {
-      const url = await marketingAPI.getLeadActivityAttachmentUrl(order.lead_id, activityId, attachmentId);
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (err: any) {
-      showToast(err?.message || 'File not found on server', 'error');
-    }
-  };
-
-  return (
-    <div className="p-1 space-y-2 text-xs text-slate-700 font-sans min-w-[260px]">
-      <div className="border-b border-slate-200 pb-2">
-        <div className="font-bold text-slate-900 text-sm leading-snug">{order.series || `#${order.id}`}</div>
-        {lead && (
-          <div className="text-xs text-slate-600 font-medium mt-0.5 truncate">
-            {leadDisplayName(lead)}{leadDisplayCompany(lead) ? ` · ${leadDisplayCompany(lead)}` : ''}
-          </div>
-        )}
-      </div>
-      <div className="space-y-1.5">
-        {phone && (
-          <div className="flex items-center gap-1.5 text-slate-600">
-            <Phone size={13} className="text-slate-400 shrink-0" />
-            <span className="truncate">{phone}</span>
-          </div>
-        )}
-        {email && (
-          <div className="flex items-center gap-1.5 text-slate-600">
-            <Mail size={13} className="text-slate-400 shrink-0" />
-            <span className="truncate">{email}</span>
-          </div>
-        )}
-        {lead?.closed_at && (
-          <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
-            <Calendar size={12} className="shrink-0 text-emerald-600" />
-            <span>Won: <strong>{new Date(lead.closed_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}</strong></span>
-          </div>
-        )}
-      </div>
-      <div className="pt-1.5 border-t border-slate-100">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1 mb-1">
-          <FileText size={12} className="text-blue-600" /> Files
-        </span>
-        {loadingFiles ? (
-          <div className="text-xs text-slate-400 animate-pulse">Loading documents...</div>
-        ) : leadFiles.length > 0 ? (
-          <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
-            {leadFiles.map(({ att, activity }) => {
-              const { Icon: FileIcon, className: fileIconClass } = getFileTypeIcon(att.file_name);
-              return (
-                <div key={att.id} className="flex items-center justify-between gap-2 bg-white p-1.5 rounded border border-slate-200">
-                  <div className="min-w-0 flex-1 truncate flex items-center gap-1">
-                    <FileIcon size={11} className={`${fileIconClass} shrink-0`} />
-                    <span className="truncate">{att.file_name}</span>
-                  </div>
-                  {att.media_exists === false ? (
-                    <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 font-semibold text-xs">
-                      <AlertTriangle size={10} /> Missing
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleOpenFile(activity.id, att.id); }}
-                      className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs transition-colors"
-                    >
-                      <Upload size={10} className="rotate-180" /> Open
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-xs text-slate-400">No files uploaded</div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 const DEFAULT_STATUS_COLOR = { bg: 'bg-slate-100/50', text: 'text-slate-700' };
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -166,6 +48,124 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   shipped: { bg: 'bg-blue-100/50', text: 'text-blue-700' },
   delivered: { bg: 'bg-green-100/50', text: 'text-green-700' },
   cancelled: { bg: 'bg-rose-100/50', text: 'text-rose-700' },
+};
+
+interface OrderKanbanCardProps {
+  order: Order;
+  isDraggable: boolean;
+  isDragging: boolean;
+  isUpdating: boolean;
+  canDelete: boolean;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
+  onCardDragOver: (e: React.DragEvent) => void;
+  onCardDrop: (e: React.DragEvent) => void;
+  onClick: () => void;
+  onDeleteClick: (e: React.MouseEvent) => void;
+}
+
+/** A single Order kanban card. All contact/Won-date info is shown inline (no hover needed) so both kanban columns below render from this one definition and can't drift apart. */
+const OrderKanbanCard: React.FC<OrderKanbanCardProps> = ({
+  order: o,
+  isDraggable,
+  isDragging,
+  isUpdating,
+  canDelete,
+  onDragStart,
+  onDragEnd,
+  onCardDragOver,
+  onCardDrop,
+  onClick,
+  onDeleteClick,
+}) => {
+  const phone = getOrderLeadPhone(o);
+  const email = o.lead ? leadDisplayEmail(o.lead) : undefined;
+  const wonDate = o.lead?.closed_at;
+
+  return (
+    <div
+      draggable={isDraggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={onCardDragOver}
+      onDrop={onCardDrop}
+      onClick={onClick}
+      className={`rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md cursor-pointer ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-50' : ''} ${isUpdating ? 'animate-pulse' : ''}`}
+    >
+      <div className="flex items-start justify-between gap-1">
+        <div className="font-semibold text-blue-600 text-base truncate min-w-0">{o.series || `#${o.id}`}</div>
+        {canDelete && (
+          <button
+            type="button"
+            onClick={onDeleteClick}
+            className="shrink-0 p-0.5 rounded hover:bg-rose-100 text-slate-400 hover:text-rose-600"
+            title="Delete order"
+          >
+            <Trash2 size={14} strokeWidth={2} />
+          </button>
+        )}
+      </div>
+      {o.status_option && (
+        <div className="mt-1">
+          <span className="inline-block text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{o.status_option.label}</span>
+        </div>
+      )}
+      {o.lead && (
+        <>
+          <div className="text-sm text-slate-700 truncate mt-1.5">
+            {leadDisplayName(o.lead)}
+          </div>
+          {leadDisplayCompany(o.lead) && (
+            <div className="text-xs text-slate-500 truncate mt-0.5">{leadDisplayCompany(o.lead)}</div>
+          )}
+        </>
+      )}
+      {(phone || email) && (
+        <div className="grid grid-cols-2 gap-x-2 mt-1.5">
+          {phone && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium min-w-0">
+              <Phone size={11} className="text-slate-400 shrink-0" />
+              <span className="truncate">{phone}</span>
+            </div>
+          )}
+          {email && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium min-w-0">
+              <Mail size={11} className="text-slate-400 shrink-0" />
+              <span className="truncate">{email}</span>
+            </div>
+          )}
+        </div>
+      )}
+      {o.order_value != null && (
+        <div className="text-sm font-semibold text-slate-800 mt-1.5">₹{Number(o.order_value).toLocaleString()}</div>
+      )}
+      {wonDate && (
+        <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 mt-1.5 w-fit">
+          <Calendar size={12} className="shrink-0 text-emerald-600" />
+          <span>Won: <strong>{new Date(wonDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</strong></span>
+        </div>
+      )}
+      {o.expected_delivery_at && (
+        <div className="text-xs text-slate-500 mt-1">
+          Delivery: {new Date(o.expected_delivery_at).toLocaleDateString(undefined, { dateStyle: 'short' })}
+        </div>
+      )}
+      {o.assigned_to_username && (
+        <div className="text-xs text-slate-500 mt-0.5">Assigned: {o.assigned_to_username}</div>
+      )}
+      {o.created_at && (
+        <div className="text-xs text-slate-400 mt-0.5">Created: {new Date(o.created_at).toLocaleDateString(undefined, { dateStyle: 'short' })}</div>
+      )}
+      {o.last_activity_date && (
+        <div className="text-xs text-slate-500 mt-0.5">
+          Last inquiry: {new Date(o.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(o.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}
+        </div>
+      )}
+      {o.notes && (
+        <div className="text-xs text-slate-500 mt-1 truncate" title={o.notes}>{o.notes}</div>
+      )}
+    </div>
+  );
 };
 
 export const OrdersPage: React.FC = () => {
@@ -228,6 +228,8 @@ export const OrdersPage: React.FC = () => {
   const [deleteOrderId, setDeleteOrderId] = useState<number | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const didDragRef = React.useRef(false);
+  const autoScrollTargetRef = React.useRef<{ el: HTMLDivElement; velocity: number } | null>(null);
+  const autoScrollRafRef = React.useRef<number | null>(null);
   const pendingToStatus = statusChangePending ? statuses.find((s) => s.id === statusChangePending.newStatusId) : null;
   const pendingStatusRequiresAttachment = Boolean(pendingToStatus?.attachment_required_on_kanban_change);
 
@@ -443,6 +445,7 @@ export const OrdersPage: React.FC = () => {
   const handleOrderDragEnd = () => {
     setDraggedOrderId(null);
     setDragOverStatusId(null);
+    stopAutoScroll();
     setTimeout(() => { didDragRef.current = false; }, 0);
   };
   const handleColumnDragOver = (e: React.DragEvent, statusId: number | 'none') => {
@@ -452,6 +455,46 @@ export const OrdersPage: React.FC = () => {
   };
   const handleColumnDragLeave = () => {
     setDragOverStatusId(null);
+  };
+
+  const runAutoScroll = () => {
+    const target = autoScrollTargetRef.current;
+    if (!target || target.velocity === 0) {
+      autoScrollRafRef.current = null;
+      return;
+    }
+    target.el.scrollLeft += target.velocity;
+    autoScrollRafRef.current = requestAnimationFrame(runAutoScroll);
+  };
+
+  /** Scrolls a kanban scroll container (board row or a group's status row) when a dragged card nears its left/right edge. */
+  const handleBoardDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    const rect = container.getBoundingClientRect();
+    const EDGE = 80; // px from the edge that starts auto-scrolling
+    const MAX_SPEED = 16; // px per animation frame at the very edge
+    let velocity = 0;
+    if (e.clientX < rect.left + EDGE) {
+      velocity = -MAX_SPEED * (1 - Math.max(0, e.clientX - rect.left) / EDGE);
+    } else if (e.clientX > rect.right - EDGE) {
+      velocity = MAX_SPEED * (1 - Math.max(0, rect.right - e.clientX) / EDGE);
+    }
+    if (velocity === 0) {
+      if (autoScrollTargetRef.current?.el === container) autoScrollTargetRef.current = null;
+      return;
+    }
+    autoScrollTargetRef.current = { el: container, velocity };
+    if (autoScrollRafRef.current == null) {
+      autoScrollRafRef.current = requestAnimationFrame(runAutoScroll);
+    }
+  };
+
+  const stopAutoScroll = () => {
+    autoScrollTargetRef.current = null;
+    if (autoScrollRafRef.current != null) {
+      cancelAnimationFrame(autoScrollRafRef.current);
+      autoScrollRafRef.current = null;
+    }
   };
 
   /** True if order is in Won (final) or Lost status – these orders are not draggable. */
@@ -837,7 +880,7 @@ export const OrdersPage: React.FC = () => {
                 No order statuses configured. Use &quot;Manage statuses&quot; to add groups and statuses.
               </div>
             ) : (
-              <div className="flex flex-row gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-220px)]">
+              <div className="flex flex-row gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-220px)] -mx-16 px-4" onDragOver={handleBoardDragOver}>
                 {(ordersByStatus['']?.length ?? 0) > 0 && (
                   <div
                     key="no-status"
@@ -864,9 +907,9 @@ export const OrdersPage: React.FC = () => {
                       )}
                     </button>
                     {!collapsedGroups.has('nogroup') && (
-                    <div className="flex gap-4 overflow-x-auto pb-2">
+                    <div className="flex gap-4 overflow-x-auto pb-2" onDragOver={handleBoardDragOver}>
                       <div
-                        className={`flex-shrink-0 w-72 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${dragOverStatusId === 'none' ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 bg-slate-50/50'}`}
+                        className={`flex-shrink-0 w-80 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${dragOverStatusId === 'none' ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 bg-slate-50/50'}`}
                         onDragOver={(e) => handleColumnDragOver(e, 'none')}
                         onDragLeave={handleColumnDragLeave}
                         onDrop={(e) => handleColumnDrop(e, null)}
@@ -881,73 +924,20 @@ export const OrdersPage: React.FC = () => {
                           onDrop={(e) => handleColumnDrop(e, null)}
                         >
                           {ordersByStatus[''].map((o) => (
-                            <Tooltip
+                            <OrderKanbanCard
                               key={o.id}
-                              content={<OrderTooltipContent order={o} />}
-                              side="right"
-                              className="border border-slate-200 bg-white shadow-xl shadow-slate-200/80 rounded-xl p-3 font-sans border-solid max-w-xs"
-                            >
-                            <div
-                              draggable={canEdit && !isWonOrLostOrderStatus(o.status_id ?? null)}
+                              order={o}
+                              isDraggable={canEdit && !isWonOrLostOrderStatus(o.status_id ?? null)}
+                              isDragging={draggedOrderId === o.id}
+                              isUpdating={updatingOrderId === o.id}
+                              canDelete={canDelete}
                               onDragStart={(e) => handleOrderDragStart(e, o)}
                               onDragEnd={handleOrderDragEnd}
-                              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); handleColumnDragOver(e, 'none'); }}
-                              onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleColumnDrop(e, null); }}
+                              onCardDragOver={(e) => { e.preventDefault(); e.stopPropagation(); handleColumnDragOver(e, 'none'); }}
+                              onCardDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleColumnDrop(e, null); }}
                               onClick={() => canEdit && !didDragRef.current && navigate(`/orders/${o.id}`)}
-                              className={`rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-all hover:shadow-md cursor-pointer ${canEdit && !isWonOrLostOrderStatus(o.status_id ?? null) ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedOrderId === o.id ? 'opacity-50' : ''} ${updatingOrderId === o.id ? 'animate-pulse' : ''}`}
-                            >
-                              <div className="flex items-start justify-between gap-1">
-                                <div className="font-medium text-blue-600 text-sm truncate min-w-0">{o.series || `#${o.id}`}</div>
-                                {canDelete && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); setDeleteOrderId(o.id); }}
-                                    className="shrink-0 p-0.5 rounded hover:bg-rose-100 text-slate-400 hover:text-rose-600"
-                                    title="Delete order"
-                                  >
-                                    <Trash2 size={14} strokeWidth={2} />
-                                  </button>
-                                )}
-                              </div>
-                              {o.status_option && (
-                                <div className="mt-1">
-                                  <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{o.status_option.label}</span>
-                                </div>
-                              )}
-                              {o.lead && (
-                                <>
-                                  <div className="text-xs text-slate-700 truncate mt-1">
-                                    {leadDisplayName(o.lead)}
-                                  </div>
-                                  {leadDisplayCompany(o.lead) && (
-                                    <div className="text-[10px] text-slate-500 truncate mt-0.5">{leadDisplayCompany(o.lead)}</div>
-                                  )}
-                                </>
-                              )}
-                              {o.order_value != null && (
-                                <div className="text-xs font-medium text-slate-700 mt-1">₹{Number(o.order_value).toLocaleString()}</div>
-                              )}
-                              {o.expected_delivery_at && (
-                                <div className="text-[10px] text-slate-500 mt-0.5">
-                                  Delivery: {new Date(o.expected_delivery_at).toLocaleDateString(undefined, { dateStyle: 'short' })}
-                                </div>
-                              )}
-                              {o.assigned_to_username && (
-                                <div className="text-[10px] text-slate-500 mt-0.5">Assigned: {o.assigned_to_username}</div>
-                              )}
-                              {o.created_at && (
-                                <div className="text-[10px] text-slate-400 mt-0.5">Created: {new Date(o.created_at).toLocaleDateString(undefined, { dateStyle: 'short' })}</div>
-                              )}
-                              {o.last_activity_date && (
-                                <div className="text-[10px] text-slate-500 mt-0.5">
-                                  Last inquiry: {new Date(o.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(o.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}
-                                </div>
-                              )}
-                              {o.notes && (
-                                <div className="text-[10px] text-slate-500 mt-0.5 truncate" title={o.notes}>{o.notes}</div>
-                              )}
-                            </div>
-                            </Tooltip>
+                              onDeleteClick={(e) => { e.stopPropagation(); setDeleteOrderId(o.id); }}
+                            />
                           ))}
                         </div>
                       </div>
@@ -987,7 +977,7 @@ export const OrdersPage: React.FC = () => {
                       )}
                     </button>
                     {!isCollapsed && (
-                    <div className="flex gap-4 overflow-x-auto pb-2">
+                    <div className="flex gap-4 overflow-x-auto pb-2" onDragOver={handleBoardDragOver}>
                       {statusesInGroup.map((status) => {
                         const columnOrders = ordersByStatus[status.code] || [];
                         const useStatusHex = status.hex_color && /^#[0-9A-Fa-f]{6}$/.test(status.hex_color);
@@ -995,7 +985,7 @@ export const OrdersPage: React.FC = () => {
                         return (
                           <div
                             key={status.id}
-                            className={`flex-shrink-0 w-72 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${dragOverStatusId === status.id ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 bg-slate-50/50'}`}
+                            className={`flex-shrink-0 w-80 h-[calc(100vh-260px)] rounded-xl border-2 overflow-hidden flex flex-col transition-colors ${dragOverStatusId === status.id ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 bg-slate-50/50'}`}
                             onDragOver={(e) => handleColumnDragOver(e, status.id)}
                             onDragLeave={handleColumnDragLeave}
                             onDrop={(e) => handleColumnDrop(e, status.id)}
@@ -1013,73 +1003,20 @@ export const OrdersPage: React.FC = () => {
                               onDrop={(e) => handleColumnDrop(e, status.id)}
                             >
                               {columnOrders.map((o) => (
-                                <Tooltip
+                                <OrderKanbanCard
                                   key={o.id}
-                                  content={<OrderTooltipContent order={o} />}
-                                  side="right"
-                                  className="border border-slate-200 bg-white shadow-xl shadow-slate-200/80 rounded-xl p-3 font-sans border-solid max-w-xs"
-                                >
-                                <div
-                                  draggable={canEdit && !isWonOrLostOrderStatus(o.status_id ?? null)}
+                                  order={o}
+                                  isDraggable={canEdit && !isWonOrLostOrderStatus(o.status_id ?? null)}
+                                  isDragging={draggedOrderId === o.id}
+                                  isUpdating={updatingOrderId === o.id}
+                                  canDelete={canDelete}
                                   onDragStart={(e) => handleOrderDragStart(e, o)}
                                   onDragEnd={handleOrderDragEnd}
-                                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); handleColumnDragOver(e, status.id); }}
-                                  onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleColumnDrop(e, status.id); }}
+                                  onCardDragOver={(e) => { e.preventDefault(); e.stopPropagation(); handleColumnDragOver(e, status.id); }}
+                                  onCardDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleColumnDrop(e, status.id); }}
                                   onClick={() => canEdit && !didDragRef.current && navigate(`/orders/${o.id}`)}
-                                  className={`rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-all hover:shadow-md cursor-pointer ${canEdit && !isWonOrLostOrderStatus(o.status_id ?? null) ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedOrderId === o.id ? 'opacity-50' : ''} ${updatingOrderId === o.id ? 'animate-pulse' : ''}`}
-                                >
-                                  <div className="flex items-start justify-between gap-1">
-                                    <div className="font-medium text-blue-600 text-sm truncate min-w-0">{o.series || `#${o.id}`}</div>
-                                    {canDelete && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); setDeleteOrderId(o.id); }}
-                                        className="shrink-0 p-0.5 rounded hover:bg-rose-100 text-slate-400 hover:text-rose-600"
-                                        title="Delete order"
-                                      >
-                                        <Trash2 size={14} strokeWidth={2} />
-                                      </button>
-                                    )}
-                                  </div>
-                                  {o.status_option && (
-                                    <div className="mt-1">
-                                      <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{o.status_option.label}</span>
-                                    </div>
-                                  )}
-                                  {o.lead && (
-                                    <>
-                                      <div className="text-xs text-slate-700 truncate mt-1">
-                                        {leadDisplayName(o.lead)}
-                                      </div>
-                                      {leadDisplayCompany(o.lead) && (
-                                        <div className="text-[10px] text-slate-500 truncate mt-0.5">{leadDisplayCompany(o.lead)}</div>
-                                      )}
-                                    </>
-                                  )}
-                                  {o.order_value != null && (
-                                    <div className="text-xs font-medium text-slate-700 mt-1">₹{Number(o.order_value).toLocaleString()}</div>
-                                  )}
-                                  {o.expected_delivery_at && (
-                                    <div className="text-[10px] text-slate-500 mt-0.5">
-                                      Delivery: {new Date(o.expected_delivery_at).toLocaleDateString(undefined, { dateStyle: 'short' })}
-                                    </div>
-                                  )}
-                                  {o.assigned_to_username && (
-                                    <div className="text-[10px] text-slate-500 mt-0.5">Assigned: {o.assigned_to_username}</div>
-                                  )}
-                                  {o.created_at && (
-                                    <div className="text-[10px] text-slate-400 mt-0.5">Created: {new Date(o.created_at).toLocaleDateString(undefined, { dateStyle: 'short' })}</div>
-                                  )}
-                                  {o.last_activity_date && (
-                                    <div className="text-[10px] text-slate-500 mt-0.5">
-                                      Last inquiry: {new Date(o.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(o.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}
-                                    </div>
-                                  )}
-                                  {o.notes && (
-                                    <div className="text-[10px] text-slate-500 mt-0.5 truncate" title={o.notes}>{o.notes}</div>
-                                  )}
-                                </div>
-                                </Tooltip>
+                                  onDeleteClick={(e) => { e.stopPropagation(); setDeleteOrderId(o.id); }}
+                                />
                               ))}
                             </div>
                           </div>

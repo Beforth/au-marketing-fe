@@ -17,6 +17,8 @@ interface FilterPopoverProps {
   onClear?: () => void;
   /** Overrides the panel's width/padding (default "w-80 p-4"). */
   panelClassName?: string;
+  /** Extra horizontal offset (px) from the trigger button's left edge. */
+  offsetX?: number;
 }
 
 export const FilterPopover: React.FC<FilterPopoverProps> = ({
@@ -27,6 +29,7 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
   onApply,
   onClear,
   panelClassName,
+  offsetX = 0,
 }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -34,12 +37,15 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
   useEffect(() => {
     if (isOpen && triggerRef.current) {
       const triggerRect = triggerRef.current.getBoundingClientRect();
+      // Round to whole pixels — a sub-pixel position combined with border-radius +
+      // overflow-hidden makes some browsers render one corner of the card as a hard
+      // edge instead of a curve.
       setPosition({
-        top: triggerRect.bottom + 8,
-        left: triggerRect.left,
+        top: Math.round(triggerRect.bottom + 8),
+        left: Math.round(triggerRect.left + offsetX),
       });
     }
-  }, [isOpen, triggerRef]);
+  }, [isOpen, triggerRef, offsetX]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -81,7 +87,7 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
         left: `${position.left}px`,
       }}
     >
-      <Card className={cn('shadow-xl border-slate-200 p-4', panelClassName || 'w-80')}>
+      <Card className={cn('shadow-xl border-slate-200 p-4 overflow-hidden', panelClassName || 'w-80')}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-900">Filters</h3>
           <button

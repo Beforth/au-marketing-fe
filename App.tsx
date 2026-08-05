@@ -8,6 +8,7 @@ import { loadAuthFromStorage, selectToken } from './store/slices/authSlice';
 import { marketingAPI } from './lib/marketing-api';
 import { initWebPushRegistration } from './lib/firebase-push';
 import { requestNotificationPermissionWhenLoggedIn } from './lib/notification-permission';
+import { handleGlobalPaste } from './lib/paste-sanitizer';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LeadsPage } from './pages/LeadsPage';
@@ -152,6 +153,13 @@ const AppMain: React.FC = () => {
   useEffect(() => {
     dispatch(loadAuthFromStorage());
   }, [dispatch]);
+
+  // Sanitize pasted "fancy text" (styled Unicode look-alikes) app-wide so it always
+  // renders in the app's own font, no matter what field it's pasted into.
+  useEffect(() => {
+    document.addEventListener('paste', handleGlobalPaste);
+    return () => document.removeEventListener('paste', handleGlobalPaste);
+  }, []);
 
   useEffect(() => {
     if (token) loadNotifications();

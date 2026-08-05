@@ -7,7 +7,7 @@ import { useApp } from '../../App';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout, selectUserDisplayName, selectEmployee, selectUser, selectHasPermission, selectToken } from '../../store/slices/authSlice';
 import { setDSRTasks, selectDSRTasks, selectDSRIsStale } from '../../store/slices/dsrSlice';
-import { hrmsRBACClient } from '../../lib/hrms-rbac';
+import { hrmsRBACClient, resolveHrmsMediaUrl } from '../../lib/hrms-rbac';
 import { Tooltip } from '../../UI/Tooltip';
 import { PresencePanel } from './PresencePanel';
 import { Avatar } from './Avatar';
@@ -157,8 +157,8 @@ export const Navbar: React.FC = () => {
 
   return (
     <>
-      <header className="h-16 sticky top-0 bg-white/5 backdrop-blur-md z-40 ml-60 flex items-center justify-between relative transition-all duration-300">
-      <div className="absolute bottom-0 left-8 right-8 h-px bg-slate-200/50" />
+      <header className="h-16 sticky top-0 bg-white/5 backdrop-blur-md z-40 ml-60 px-16 flex items-center justify-between relative transition-all duration-300">
+      <div className="absolute bottom-0 left-16 right-16 h-px bg-slate-200/50" />
       <div className="flex-1 max-w-lg relative">
         <SearchInput
           ref={searchInputRef}
@@ -371,7 +371,7 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-50 transition-colors">
           <div className="flex items-center gap-2">
             <Avatar
-              src={employee?.profile_picture || currentUser?.profile_picture}
+              src={resolveHrmsMediaUrl(employee?.profile_picture || currentUser?.profile_picture)}
               name={userDisplayName}
               className="w-8 h-8 rounded-full bg-blue-600 text-white text-xs border-2 border-white shadow-sm"
             />

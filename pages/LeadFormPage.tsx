@@ -71,6 +71,13 @@ function combineDateWithCurrentTime(dateStr: string): string {
   return new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
 }
 
+/** An ISO datetime string as a local "YYYY-MM-DDTHH:mm" string (for local-time-based inputs/pickers). */
+function toLocalDateTimeInputValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export const LeadFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -2118,7 +2125,7 @@ export const LeadFormPage: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
               <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Custom follow-up</span>
               <DatePicker
-                value={formData.next_follow_up_at ? new Date(formData.next_follow_up_at).toISOString().slice(0, 16) : undefined}
+                value={formData.next_follow_up_at ? toLocalDateTimeInputValue(formData.next_follow_up_at) : undefined}
                 onChange={(v) => {
                   setFormData({ ...formData, next_follow_up_at: v ? new Date(v).toISOString() : undefined });
                 }}

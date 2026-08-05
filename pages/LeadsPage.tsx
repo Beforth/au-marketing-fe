@@ -444,9 +444,20 @@ export const LeadsPage: React.FC = () => {
     { label: 'Leads' },
   ];
 
-  /** Lead has next_follow_up_at set and it's due (past or now) - highlight in Kanban */
-  const isDueForFollowUp = (lead: Lead) =>
-    lead.next_follow_up_at != null && new Date(lead.next_follow_up_at) <= new Date();
+  /** How urgent a lead's next follow-up is, for graded Kanban card highlighting */
+  const getFollowUpUrgency = (lead: Lead): 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' | null => {
+    if (!lead.next_follow_up_at) return null;
+    const due = new Date(lead.next_follow_up_at);
+    const now = new Date();
+    if (due <= now) return 'overdue';
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    const dayDiff = Math.round((startOfDueDay.getTime() - startOfToday.getTime()) / 86400000);
+    if (dayDiff === 0) return 'today';
+    if (dayDiff === 1) return 'tomorrow';
+    if (dayDiff <= 7) return 'week';
+    return 'later';
+  };
 
   // leadColumns removed — table view has been removed; Kanban is the only view.
 
@@ -1594,6 +1605,21 @@ export const LeadsPage: React.FC = () => {
                                 >
                                   {columnLeads.map((lead) => {
                                     const leadDraggable = canEdit && !isWonOrLostLead(lead);
+                                    const followUpUrgency = getFollowUpUrgency(lead);
+                                    const followUpCardClass = ({
+                                      overdue: 'bg-red-50 border-red-300 hover:bg-red-100/80',
+                                      today: 'bg-orange-50 border-orange-300 hover:bg-orange-100/80',
+                                      tomorrow: 'bg-amber-50 border-amber-300 hover:bg-amber-100/80',
+                                      week: 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100/70',
+                                      later: 'bg-blue-50 border-blue-200 hover:bg-blue-100/70',
+                                    } as Record<string, string>)[followUpUrgency ?? ''] ?? 'bg-white border-slate-200 hover:shadow-md';
+                                    const followUpGlow = ({
+                                      overdue: { '--glow-color': 'rgba(239, 68, 68, 0.6)', '--glow-blur': '16px', '--glow-spread': '4px', '--glow-duration': '1.2s' },
+                                      today: { '--glow-color': 'rgba(249, 115, 22, 0.55)', '--glow-blur': '14px', '--glow-spread': '4px', '--glow-duration': '1.6s' },
+                                      tomorrow: { '--glow-color': 'rgba(245, 158, 11, 0.45)', '--glow-blur': '12px', '--glow-spread': '3px', '--glow-duration': '2s' },
+                                      week: { '--glow-color': 'rgba(234, 179, 8, 0.35)', '--glow-blur': '10px', '--glow-spread': '3px', '--glow-duration': '2.6s' },
+                                      later: { '--glow-color': 'rgba(59, 130, 246, 0.3)', '--glow-blur': '8px', '--glow-spread': '2px', '--glow-duration': '3.2s' },
+                                    } as Record<string, React.CSSProperties>)[followUpUrgency ?? ''];
                                     return (
                                     <div
                                         key={lead.id}
@@ -1601,10 +1627,8 @@ export const LeadsPage: React.FC = () => {
                                         onDragStart={(e) => handleLeadDragStart(e, lead)}
                                         onDragEnd={handleLeadDragEnd}
                                         onClick={() => canEdit && !didDragRef.current && navigate(`/leads/${lead.id}/edit`)}
-                                        className={`rounded-lg border p-3 shadow-sm transition-all hover:shadow-md ${isDueForFollowUp(lead)
-                                          ? 'bg-amber-50 border-amber-300 hover:bg-amber-100/80'
-                                          : 'bg-white border-slate-200 hover:shadow-md'
-                                          } ${leadDraggable ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedLeadId === lead.id ? 'opacity-50' : ''} ${updatingLeadId === lead.id ? 'animate-pulse' : ''}`}
+                                        style={followUpGlow}
+                                        className={`rounded-lg border p-3 shadow-sm transition-all hover:shadow-md ${followUpCardClass} ${followUpGlow ? 'animate-followup-glow' : ''} ${leadDraggable ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedLeadId === lead.id ? 'opacity-50' : ''} ${updatingLeadId === lead.id ? 'animate-pulse' : ''}`}
                                       >
                                         {lead.series && (
                                           <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mb-0.5">{lead.series}</div>
@@ -1675,7 +1699,22 @@ export const LeadsPage: React.FC = () => {
                                           <div className="text-[11px] text-slate-500 min-w-0">
                                             <span className="text-slate-400">Next follow-up</span><br />
                                             {lead.next_follow_up_at
-                                              ? `${new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} ${new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}`
+                                              ? (
+                                                <span className={({
+                                                  overdue: 'text-red-600 font-semibold',
+                                                  today: 'text-orange-600 font-semibold',
+                                                  tomorrow: 'text-amber-600 font-medium',
+                                                  week: 'text-yellow-700 font-medium',
+                                                  later: 'text-blue-600 font-normal',
+                                                } as Record<string, string>)[followUpUrgency ?? ''] ?? 'text-slate-500'}>
+                                                  {new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}
+                                                  {followUpUrgency === 'overdue' && ' · Overdue'}
+                                                  {followUpUrgency === 'today' && ' · Today'}
+                                                  {followUpUrgency === 'tomorrow' && ' · Tomorrow'}
+                                                  {followUpUrgency === 'week' && ' · This week'}
+                                                  {followUpUrgency === 'later' && ' · Upcoming'}
+                                                </span>
+                                              )
                                               : <span className="italic text-slate-400">Not scheduled</span>}
                                           </div>
                                           <div className="text-[11px] text-slate-500 min-w-0">

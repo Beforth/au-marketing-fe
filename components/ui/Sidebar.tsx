@@ -9,12 +9,13 @@ import { VersionsModal } from '../VersionsModal';
 import { Avatar } from './Avatar';
 import { ChevronDown, ShieldCheck, Hash, Users } from 'lucide-react';
 import { API_CONFIG } from '../../lib/api';
+import { resolveHrmsMediaUrl } from '../../lib/hrms-rbac';
 
 
 export const Sidebar: React.FC = () => {
   const [showChangelog, setShowChangelog] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState('v1.2.1');
+  const [appVersion, setAppVersion] = useState('v1.2.2');
   const [versionLoaded, setVersionLoaded] = useState(false);
   const userDisplayName = useAppSelector(selectUserDisplayName);
   const employee = useAppSelector(selectEmployee);
@@ -238,7 +239,7 @@ export const Sidebar: React.FC = () => {
 
           <div className="mt-4 flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100/80 bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer">
             <Avatar
-              src={employee?.profile_picture || user?.profile_picture}
+              src={resolveHrmsMediaUrl(employee?.profile_picture || user?.profile_picture)}
               name={userDisplayName}
               className="w-8 h-8 rounded-lg bg-blue-100 border border-blue-200/50 text-blue-600 text-xs"
             />

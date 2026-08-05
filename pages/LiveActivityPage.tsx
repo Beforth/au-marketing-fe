@@ -4,6 +4,7 @@ import { Activity, Radio, Users } from 'lucide-react';
 import { PageLayout } from '../components/layout/PageLayout';
 import { marketingAPI, PresenceUser } from '../lib/marketing-api';
 import { Avatar } from '../components/ui/Avatar';
+import { resolveHrmsMediaUrl } from '../lib/hrms-rbac';
 import {
   PRESENCE_REFRESH_MS,
   presenceDetailLabel,
@@ -19,7 +20,7 @@ const PresenceCard: React.FC<{ user: PresenceUser }> = ({ user }) => {
     <div className="bg-white border border-slate-200/60 rounded-2xl p-4 flex items-center gap-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_10px_30px_-18px_rgba(0,0,0,0.08)]">
       <div className="relative shrink-0">
         <Avatar
-          src={user.profile_picture}
+          src={resolveHrmsMediaUrl(user.profile_picture)}
           name={user.employee_name}
           className={`w-11 h-11 rounded-xl border font-bold text-sm ${color}`}
         />

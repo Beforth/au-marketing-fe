@@ -5,6 +5,41 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-08-05] — Follow-Up Urgency Highlighting, Orders Kanban Redesign, Paste Sanitizer, Profile Picture Fix (v1.2.2)
+
+### 🖥️ Frontend
+
+#### Leads Kanban — Graded Follow-Up Urgency Highlighting
+- Kanban cards now color-grade by how close a lead's next follow-up is: red (overdue), orange (today), amber (tomorrow), yellow (this week), blue (later) — previously only a single amber "due" state existed, with no distinction between overdue and merely upcoming.
+- Each urgency tier also gets a looping colored glow-pulse animation around the card border (intensity/speed scaled to urgency) and a matching colored label ("· Overdue", "· Today", etc.) next to the follow-up date.
+
+#### Lead Follow-Up Date Picker — Timezone Bug Fix
+- The "Custom follow-up" date/time picker on `LeadFormPage` was displaying the wrong hour/minute — it built the picker's input value from a UTC ISO string instead of local time, so the displayed hour was off by the browser's timezone offset (e.g. showing 04:45 when the actual saved time was 10:15 IST). The saved value itself was always correct; only the picker's own display was wrong. Fixed by building the input value from local date/time components.
+
+#### Orders Kanban — Card Redesign
+- Removed the hover tooltip (`OrderTooltipContent`) — phone, email, and Won date are now shown directly on the card face, matching how the Leads kanban already works. The tooltip's live-fetched attachment file list was dropped rather than moved inline, since showing it unconditionally on every card would fire one file-lookup API call per visible order.
+- Extracted a shared `OrderKanbanCard` component used by both the "no status" column and the grouped status columns, which previously duplicated the same ~65 lines of card markup — a second copy that could (and previously did, elsewhere in this app) silently drift out of sync with the first.
+- Kanban columns widened (`w-72` → `w-80`) and card padding/text sizes increased to comfortably fit the newly-inlined fields.
+
+#### Orders Kanban — Smooth Scroll & Scrollbar Fix
+- Fixed a gray padding "pillar" artifact on the left edge of the board: the page layout wraps every page in a container with its own horizontal scroll *and* 64px side padding, so the kanban board's own horizontal scroll was nested inside another scrollable region, exposing that padding strip. Same fix already applied to the Leads board — the board now bleeds to the container's full width instead of sitting nested inside it.
+- Dragging a card near the left/right edge of the board (or a group's status row) now auto-scrolls smoothly, matching the existing Leads kanban behavior.
+
+#### Global Paste Sanitizer
+- Pasting "styled" Unicode text (e.g. 𝐁𝐨𝐥𝐝, 𝑖𝑡𝑎𝑙𝑖𝑐, 𝓼𝓬𝓻𝓲𝓹𝓽, or fullwidth text from fancy-text generators / social bios) into any input or textarea anywhere in the app now normalizes it back to plain characters, so it always renders in the app's own font. These aren't real font formatting — they're distinct Unicode look-alike characters that render stylized in every font, so no CSS rule could fix this; only text normalization can. Genuine accented text (café, Müller, naïve) is left untouched. Implemented as a single global paste listener, so no individual field/page needed changes.
+
+#### Quotations Page — Filters Panel Fixes
+- Fixed the Filters popover rendering one corner (bottom-right) as a sharp edge instead of rounded — caused by the popover's position being calculated from fractional (sub-pixel) coordinates, which some browsers render inconsistently when combined with `overflow-hidden` and rounded corners. Positions are now rounded to whole pixels.
+- Enlarged the panel (300px → 420px, larger inputs) and nudged it further right relative to the Filters button.
+
+#### Top Navigation Bar — Search Bar Spacing Fix
+- The top nav bar was missing the same 64px left padding the page content area below it already has, so the search box sat flush against the sidebar with no gap while the page content had generous breathing room. Added matching padding so both line up.
+
+#### Profile Pictures — Fixed Not Loading From HRMS
+- Profile pictures from HRMS (navbar, sidebar, Who's Online panel, Live Activity page) weren't displaying anywhere. HRMS returns `profile_picture` as a path relative to its own server (Django `ImageField.url`), not a full URL — so this app, running on a different origin, was trying (and silently failing) to load the image from its own origin instead of HRMS's. Added `resolveHrmsMediaUrl()` to resolve relative paths against HRMS's origin before rendering; already-absolute URLs pass through unchanged.
+
+---
+
 ## [2026-08-04] — Who's Online, Leads Kanban Redesign, Quotations Pagination & RBAC Filters, Top Performer Fix (v1.2.1)
 
 ### 🖥️ Frontend

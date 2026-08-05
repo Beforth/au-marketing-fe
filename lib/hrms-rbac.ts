@@ -3,6 +3,23 @@
  */
 import { API_CONFIG } from './api';
 
+/**
+ * HRMS serves profile pictures via Django's ImageField, whose `.url` is a path
+ * relative to HRMS's own origin (e.g. "/media/employee_profiles/x.jpg") — not an
+ * absolute URL. Resolve it against HRMS's origin so `<img>` tags in this app (which
+ * runs on a different origin/port) don't try to load it from their own origin instead.
+ */
+export function resolveHrmsMediaUrl(path?: string | null): string | undefined {
+  if (!path) return undefined;
+  if (/^https?:\/\//i.test(path)) return path;
+  try {
+    const origin = new URL(API_CONFIG.HRMS_RBAC_URL).origin;
+    return `${origin}${path.startsWith('/') ? '' : '/'}${path}`;
+  } catch {
+    return path;
+  }
+}
+
 export interface HRMSUser {
   id: number;
   username: string;

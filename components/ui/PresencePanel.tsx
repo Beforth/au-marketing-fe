@@ -3,6 +3,7 @@ import { Users, X, Radio } from 'lucide-react';
 import { marketingAPI, PresenceUser } from '../../lib/marketing-api';
 import { API_CONFIG } from '../../lib/api';
 import { Avatar } from './Avatar';
+import { resolveHrmsMediaUrl } from '../../lib/hrms-rbac';
 import {
   presenceDetailLabel,
   presenceTimeAgo,
@@ -197,7 +198,7 @@ export const PresencePanel: React.FC<PresencePanelProps> = ({ open, onClose }) =
               >
                 <div className="relative shrink-0">
                   <Avatar
-                    src={u.profile_picture}
+                    src={resolveHrmsMediaUrl(u.profile_picture)}
                     name={u.employee_name}
                     className={`w-9 h-9 rounded-xl border font-bold text-xs ${
                       PRESENCE_AVATAR_COLORS[u.employee_id % PRESENCE_AVATAR_COLORS.length]

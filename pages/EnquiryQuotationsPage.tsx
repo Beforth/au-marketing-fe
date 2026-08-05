@@ -362,7 +362,8 @@ export const EnquiryQuotationsPage: React.FC = () => {
               isOpen={showFilterPopover}
               onClose={() => setShowFilterPopover(false)}
               triggerRef={filterButtonRef}
-              panelClassName="w-[300px] p-3"
+              panelClassName="w-[420px] p-5"
+              offsetX={40}
               onClear={() => {
                 setDateFrom('');
                 setDateTo('');
@@ -373,29 +374,29 @@ export const EnquiryQuotationsPage: React.FC = () => {
               }}
               onApply={() => setShowFilterPopover(false)}
             >
-              <div className="space-y-2.5">
+              <div className="space-y-4">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Date range</label>
-                  <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1.5 block">Date range</label>
+                  <div className="flex items-center gap-2">
                     <DatePicker
                       value={dateFrom}
                       onChange={(v) => setDateFrom(v || '')}
-                      className="w-full h-8 text-xs"
+                      className="w-full h-10 text-sm"
                       placeholder="From"
                     />
-                    <span className="text-slate-300 text-[10px] font-bold uppercase shrink-0">to</span>
+                    <span className="text-slate-300 text-xs font-bold uppercase shrink-0">to</span>
                     <DatePicker
                       value={dateTo}
                       onChange={(v) => setDateTo(v || '')}
-                      className="w-full h-8 text-xs"
+                      className="w-full h-10 text-sm"
                       placeholder="To"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Industry</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1.5 block">Industry</label>
                     <Select
                       options={[
                         { value: '', label: 'All' },
@@ -404,14 +405,14 @@ export const EnquiryQuotationsPage: React.FC = () => {
                       value={filterIndustry}
                       onChange={(val) => setFilterIndustry((val as string) ?? '')}
                       className="w-full"
-                      inputSize="sm"
+                      inputSize="md"
                       searchable={true}
                       clearable={false}
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Series</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1.5 block">Series</label>
                     <Select
                       options={[
                         { value: '', label: 'All' },
@@ -420,7 +421,7 @@ export const EnquiryQuotationsPage: React.FC = () => {
                       value={filterSeriesCode}
                       onChange={(val) => setFilterSeriesCode((val as string) ?? '')}
                       className="w-full"
-                      inputSize="sm"
+                      inputSize="md"
                       searchable={true}
                       clearable={false}
                       dropdownWidth="auto"
@@ -429,9 +430,9 @@ export const EnquiryQuotationsPage: React.FC = () => {
                 </div>
 
                 {canFilterByDomainRegion && (
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Domain <span className="normal-case font-medium">(admin)</span></label>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1.5 block">Domain <span className="normal-case font-medium">(admin)</span></label>
                       <Select
                         options={[
                           { value: '', label: 'All' },
@@ -443,14 +444,14 @@ export const EnquiryQuotationsPage: React.FC = () => {
                           setFilterRegionId('');
                         }}
                         className="w-full"
-                        inputSize="sm"
+                        inputSize="md"
                         searchable={true}
                         clearable={false}
                       />
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Region <span className="normal-case font-medium">(admin)</span></label>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1.5 block">Region <span className="normal-case font-medium">(admin)</span></label>
                       <Select
                         options={[
                           { value: '', label: 'All' },
@@ -459,7 +460,7 @@ export const EnquiryQuotationsPage: React.FC = () => {
                         value={filterRegionId === '' ? '' : String(filterRegionId)}
                         onChange={(val) => setFilterRegionId(val === '' ? '' : Number(val))}
                         className="w-full"
-                        inputSize="sm"
+                        inputSize="md"
                         searchable={true}
                         clearable={false}
                       />
