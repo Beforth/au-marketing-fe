@@ -6,12 +6,13 @@ import { useNavigate, useParams, useSearchParams, useLocation } from 'react-rout
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { CurrencyInput } from '../components/ui/CurrencyInput';
 import { DatePicker } from '../components/ui/DatePicker';
 import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
-import { selectHasPermission } from '../store/slices/authSlice';
-import { marketingAPI, type Order, type OrderStatusOption, type OrderActivity, type Lead, type LeadActivity, type LeadActivityAttachment, type Series, leadDisplayName, leadDisplayCompany } from '../lib/marketing-api';
+import { selectHasPermission, selectUser } from '../store/slices/authSlice';
+import { marketingAPI, type Order, type OrderStatusOption, type OrderActivity, type OrderActivityAttachment, type Lead, type LeadActivity, type LeadActivityAttachment, type Series, leadDisplayName, leadDisplayCompany } from '../lib/marketing-api';
 import { Select } from '../components/ui/Select';
 import { ArrowLeft, History, Plus, Edit2, Trash2, Paperclip, Upload, Download, Calendar, FileText, Eye, AlertTriangle } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
@@ -51,9 +52,34 @@ export const OrderFormPage: React.FC = () => {
   });
   const [activityAttachmentEntries, setActivityAttachmentEntries] = useState<{ id: string; file: File | null; title: string }[]>(() => [{ id: crypto.randomUUID(), file: null, title: '' }]);
   const [activitySubmitting, setActivitySubmitting] = useState(false);
+  const [showAttachments, setShowAttachments] = useState(false);
   const [deleteActivityId, setDeleteActivityId] = useState<number | null>(null);
   const [showDeleteOrderConfirm, setShowDeleteOrderConfirm] = useState(false);
   const canDelete = useAppSelector(selectHasPermission('marketing.delete_lead'));
+  const user = useAppSelector(selectUser);
+
+  // Inline edit of an existing log entry
+  const [editingActivityId, setEditingActivityId] = useState<number | null>(null);
+  const [editActivityForm, setEditActivityForm] = useState({ activity_type: 'note', title: '', description: '' });
+  const [editActivitySubmitting, setEditActivitySubmitting] = useState(false);
+
+  // Add attachments to an existing log entry
+  const [addAttachmentActivityId, setAddAttachmentActivityId] = useState<number | null>(null);
+  const [addAttachmentFile, setAddAttachmentFile] = useState<File | null>(null);
+  const [uploadingAttachmentsForActivityId, setUploadingAttachmentsForActivityId] = useState<number | null>(null);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<number | null>(null);
+
+  const canEditOrDeleteActivity = (a: OrderActivity) =>
+    user?.id != null && a.created_by_employee_id != null && user.id === a.created_by_employee_id;
+
+  const ORDER_ACTIVITY_TYPE_OPTIONS: { value: string; label: string }[] = [
+    { value: 'note', label: 'Note' },
+    { value: 'call', label: 'Call' },
+    { value: 'email', label: 'Email' },
+    { value: 'meeting', label: 'Meeting' },
+    { value: 'order_status_change', label: 'Status change' },
+  ];
+  const orderActivityTypeLabel = (type: string) => ORDER_ACTIVITY_TYPE_OPTIONS.find((o) => o.value === type)?.label || type;
 
   const loadOrder = useCallback(async () => {
     if (!orderId || orderId < 1) {
@@ -217,6 +243,61 @@ export const OrderFormPage: React.FC = () => {
     }
   };
 
+  const startEditActivity = (a: OrderActivity) => {
+    setEditingActivityId(a.id);
+    setEditActivityForm({ activity_type: a.activity_type, title: a.title, description: a.description || '' });
+  };
+
+  const handleSaveEditActivity = async () => {
+    if (!orderId || editingActivityId == null || !editActivityForm.title.trim()) return;
+    setEditActivitySubmitting(true);
+    try {
+      const updated = await marketingAPI.updateOrderActivity(orderId, editingActivityId, {
+        activity_type: editActivityForm.activity_type,
+        title: editActivityForm.title.trim(),
+        description: editActivityForm.description.trim() || undefined,
+      });
+      setActivities((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+      setEditingActivityId(null);
+      showToast('Inquiry updated', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to update inquiry', 'error');
+    } finally {
+      setEditActivitySubmitting(false);
+    }
+  };
+
+  const handleUploadAttachmentToActivity = async (activityId: number) => {
+    if (!orderId || !addAttachmentFile) return;
+    setUploadingAttachmentsForActivityId(activityId);
+    try {
+      await marketingAPI.uploadOrderActivityAttachments(orderId, activityId, [addAttachmentFile]);
+      const acts = await marketingAPI.getOrderActivities(orderId);
+      setActivities(acts);
+      setAddAttachmentActivityId(null);
+      setAddAttachmentFile(null);
+      showToast('Attachment added', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Upload failed', 'error');
+    } finally {
+      setUploadingAttachmentsForActivityId(null);
+    }
+  };
+
+  const handleDeleteAttachment = async (activityId: number, attachmentId: number) => {
+    if (!orderId) return;
+    setDeletingAttachmentId(attachmentId);
+    try {
+      await marketingAPI.deleteOrderActivityAttachment(orderId, activityId, attachmentId);
+      setActivities((prev) => prev.map((a) => (a.id === activityId ? { ...a, attachments: (a.attachments || []).filter((att) => att.id !== attachmentId) } : a)));
+      showToast('Removed', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to remove', 'error');
+    } finally {
+      setDeletingAttachmentId(null);
+    }
+  };
+
   const handleViewLeadFile = async (activityId: number, attachmentId: number) => {
     if (!order?.lead_id) return;
     try {
@@ -366,91 +447,127 @@ export const OrderFormPage: React.FC = () => {
         </div>
       </Card>
 
-      <Card title="Inquiry log" className="mb-6">
-        <form onSubmit={handleAddActivity} className="space-y-4 mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
-            <Input
-              label="Title"
-              placeholder="e.g. Customer call"
-              value={activityForm.title}
-              onChange={(e) => setActivityForm((f) => ({ ...f, title: e.target.value }))}
-            />
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
-              <select
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white"
-                value={activityForm.activity_type}
-                onChange={(e) => setActivityForm((f) => ({ ...f, activity_type: e.target.value }))}
-              >
-                <option value="note">Note</option>
-                <option value="call">Call</option>
-                <option value="email">Email</option>
-                <option value="meeting">Meeting</option>
-                <option value="order_status_change">Status change</option>
-              </select>
+      <Card className="mb-6">
+        <form onSubmit={handleAddActivity} className="mb-4">
+          <div className="grid grid-cols-1 gap-3 max-w-2xl">
+            {/* Row 1: Type | Title | Add log */}
+            <div className="grid grid-cols-[auto_1fr_auto] gap-2 items-end">
+              <div className="w-32 [&_button]:!h-9 [&_button]:!min-h-0 [&_label]:!text-[10px] [&_label]:!font-semibold">
+                <Select
+                  label="Type"
+                  value={activityForm.activity_type}
+                  onChange={(val) => setActivityForm((f) => ({ ...f, activity_type: val as string }))}
+                  options={ORDER_ACTIVITY_TYPE_OPTIONS}
+                  searchable={false}
+                  containerClassName="!space-y-1"
+                />
+              </div>
+              <div className="min-w-0 !space-y-1">
+                <label className="text-[10px] font-semibold text-slate-500 tracking-tight block">Title</label>
+                <Input
+                  value={activityForm.title}
+                  onChange={(e) => setActivityForm((f) => ({ ...f, title: e.target.value }))}
+                  placeholder="e.g. Called to discuss requirements"
+                  required
+                  className="h-9 text-xs"
+                />
+              </div>
+              <Button type="submit" size="sm" disabled={activitySubmitting} className="h-9 shrink-0 px-4">
+                {activitySubmitting ? 'Adding log...' : 'Add log'}
+              </Button>
             </div>
-            <div className="sm:col-span-2">
-              <Input
-                label="Description"
-                placeholder="Details (optional)"
-                value={activityForm.description || ''}
+
+            {/* Notes */}
+            <div className="!space-y-1">
+              <label className="block text-[10px] font-semibold text-slate-500 tracking-tight">Notes</label>
+              <textarea
+                rows={2}
+                className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400 transition-all"
+                placeholder="e.g. timeline, budget, next steps"
+                value={activityForm.description}
                 onChange={(e) => setActivityForm((f) => ({ ...f, description: e.target.value }))}
               />
             </div>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500 mb-2 flex items-center gap-1">
-              <Paperclip size={12} /> Attachments (optional)
-            </p>
-            <div className="space-y-2">
-              {activityAttachmentEntries.map((row) => (
-                <div key={row.id} className="flex flex-wrap items-center gap-2">
-                  <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer shrink-0">
-                    <Upload size={14} />
-                    <span className="truncate max-w-[140px]">{row.file ? row.file.name : 'Choose file'}</span>
-                    <input
-                      type="file"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        setActivityAttachmentEntries((prev) => prev.map((r) => (r.id === row.id ? { ...r, file: f ?? null } : r)));
-                        e.target.value = '';
-                      }}
-                    />
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Title (optional)"
-                    className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm w-32"
-                    value={row.title}
-                    onChange={(e) => setActivityAttachmentEntries((prev) => prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r)))}
+
+            {/* Status change: From -> To */}
+            {activityForm.activity_type === 'order_status_change' && (
+              <div className="grid grid-cols-[auto_auto_auto] gap-3 items-end">
+                <div className="w-40 [&_button]:!h-9">
+                  <Select
+                    label="From"
+                    value={activityForm.from_status_id != null ? String(activityForm.from_status_id) : ''}
+                    onChange={(val) => setActivityForm((f) => ({ ...f, from_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
+                    options={[{ value: '', label: '—' }, ...statuses.map((s) => ({ value: String(s.id), label: s.label }))]}
+                    searchable={false}
                   />
+                </div>
+                <span className="text-slate-400 text-sm pb-2">→</span>
+                <div className="w-40 [&_button]:!h-9">
+                  <Select
+                    label="To"
+                    value={activityForm.to_status_id != null ? String(activityForm.to_status_id) : ''}
+                    onChange={(val) => setActivityForm((f) => ({ ...f, to_status_id: val != null ? parseInt(String(val), 10) : undefined }))}
+                    options={[{ value: '', label: '—' }, ...statuses.map((s) => ({ value: String(s.id), label: s.label }))]}
+                    searchable={false}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Attach files toggle */}
+            <div className="mt-1">
+              <button
+                type="button"
+                onClick={() => setShowAttachments((v) => !v)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 border border-dashed border-blue-300 rounded-lg px-3 py-1.5 hover:bg-blue-50"
+              >
+                <Paperclip size={12} />
+                {showAttachments ? 'Hide files' : 'Attach files'}
+              </button>
+              {showAttachments && (
+                <div className="mt-2 p-2 rounded-lg border border-slate-200 bg-white shadow-sm space-y-2">
+                  {activityAttachmentEntries.map((row) => (
+                    <div key={row.id} className="flex flex-wrap items-center gap-2">
+                      <label className="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer shrink-0">
+                        <Upload size={14} className="text-slate-400" />
+                        <span className="truncate max-w-[140px]">{row.file ? row.file.name : 'Choose file'}</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            setActivityAttachmentEntries((prev) => prev.map((r) => (r.id === row.id ? { ...r, file: f ?? null } : r)));
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-slate-400 hover:text-rose-600"
+                        onClick={() => setActivityAttachmentEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  ))}
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="text-slate-400 hover:text-rose-600"
-                    onClick={() => setActivityAttachmentEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== row.id) : prev))}
+                    leftIcon={<Plus size={14} />}
+                    onClick={() => setActivityAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), file: null, title: '' }])}
                   >
-                    <Trash2 size={14} />
+                    Add another file
                   </Button>
                 </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                leftIcon={<Plus size={14} />}
-                onClick={() => setActivityAttachmentEntries((prev) => [...prev, { id: crypto.randomUUID(), file: null, title: '' }])}
-              >
-                Add another file
-              </Button>
+              )}
             </div>
           </div>
-          <Button type="submit" size="sm" isLoading={activitySubmitting} leftIcon={<Plus size={14} />}>
-            Add to log
-          </Button>
         </form>
+
+        <h3 className="text-base font-bold text-slate-800 mb-2 border-t border-slate-200 pt-4 mt-2 tracking-tight">Enquiry log</h3>
         <ul className="space-y-3">
           {activities.length === 0 ? (
             <li className="text-slate-500 text-sm py-2">No inquiry log entries yet.</li>
@@ -464,59 +581,180 @@ export const OrderFormPage: React.FC = () => {
               ].filter(Boolean);
               const tooltip = tooltipParts.length > 0 ? tooltipParts.join('\n') : undefined;
               const attachments = a.attachments ?? [];
+              const isEditing = editingActivityId === a.id;
+              const canEditDelete = canEditOrDeleteActivity(a);
               return (
-                <li key={a.id} className="border border-slate-200 rounded-lg p-4 text-sm bg-white shadow-sm">
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="min-w-0">
-                      <span className="font-medium text-slate-900">{a.title}</span>
-                      <span className="text-slate-500 ml-2">#{a.inquiry_number ?? a.id}</span>
-                      {a.from_status_name || a.to_status_name ? (
-                        <span className="text-slate-500 ml-2">
-                          {a.from_status_name && a.to_status_name ? `${a.from_status_name} → ${a.to_status_name}` : a.from_status_name || a.to_status_name}
-                        </span>
-                      ) : null}
+                <li key={a.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50/50">
+                  {isEditing ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <Select
+                          label="Type"
+                          value={editActivityForm.activity_type}
+                          onChange={(val) => setEditActivityForm((f) => ({ ...f, activity_type: val as string }))}
+                          options={ORDER_ACTIVITY_TYPE_OPTIONS}
+                        />
+                        <Input
+                          label="Title"
+                          value={editActivityForm.title}
+                          onChange={(e) => setEditActivityForm((f) => ({ ...f, title: e.target.value }))}
+                          placeholder="Title"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Notes</label>
+                        <textarea
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          rows={2}
+                          value={editActivityForm.description}
+                          onChange={(e) => setEditActivityForm((f) => ({ ...f, description: e.target.value }))}
+                          placeholder="Description"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleSaveEditActivity} disabled={editActivitySubmitting || !editActivityForm.title.trim()}>
+                          {editActivitySubmitting ? 'Saving...' : 'Save'}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingActivityId(null)}>Cancel</Button>
+                      </div>
                     </div>
-                    <Tooltip content="Remove">
-                      <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setDeleteActivityId(a.id)}>
-                        <Trash2 size={14} />
-                      </Button>
-                    </Tooltip>
-                  </div>
-                  {a.description && <p className="text-slate-600 mt-2">{a.description}</p>}
-                  {attachments.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-slate-100">
-                      <p className="text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">
-                        <Paperclip size={12} /> Attachments
-                      </p>
-                      <ul className="flex flex-wrap gap-2">
-                        {attachments.map((att) => (
-                          <li key={att.id}>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-xs text-slate-500 mb-1 flex-wrap">
+                          {a.inquiry_number != null && (
+                            <>
+                              <span className="font-semibold text-slate-600">Inquiry #{a.inquiry_number}</span>
+                              <span>·</span>
+                            </>
+                          )}
+                          <span className="font-medium">{orderActivityTypeLabel(a.activity_type)}</span>
+                          <span>·</span>
+                          {tooltip ? (
+                            <Tooltip content={tooltip}>
+                              <span className="cursor-help border-b border-dotted border-slate-400">
+                                {displayName}
+                              </span>
+                            </Tooltip>
+                          ) : (
+                            <span>{displayName}</span>
+                          )}
+                          <span>·</span>
+                          <span>{new Date(a.activity_date).toLocaleString()}</span>
+                        </div>
+                        {canEditDelete && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Tooltip content="Edit enquiry">
+                              <button
+                                type="button"
+                                onClick={() => startEditActivity(a)}
+                                className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            </Tooltip>
+                            <Tooltip content="Delete enquiry">
+                              <button
+                                type="button"
+                                onClick={() => setDeleteActivityId(a.id)}
+                                className="p-1.5 rounded text-slate-500 hover:bg-rose-100 hover:text-rose-600"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </Tooltip>
+                          </div>
+                        )}
+                      </div>
+                      <div className="font-medium text-slate-900 text-sm">{a.title}</div>
+                      {(a.from_status_name || a.to_status_name) && (
+                        <div className="text-xs text-slate-600 mt-1">
+                          Status: {a.from_status_name || '—'} → {a.to_status_name || '—'}
+                        </div>
+                      )}
+                      {a.description && <div className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{a.description}</div>}
+                      {attachments.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-slate-100">
+                          <span className="text-xs font-medium text-slate-600 flex items-center gap-1">
+                            <Paperclip size={12} /> Attachments
+                          </span>
+                          <ul className="mt-1 space-y-1">
+                            {attachments.map((att) => (
+                              <li key={att.id} className="flex items-center gap-2 text-xs">
+                                <button
+                                  type="button"
+                                  onClick={() => orderId && marketingAPI.downloadOrderActivityAttachment(orderId, a.id, att.id, att.file_name)}
+                                  className="text-blue-600 hover:underline flex items-center gap-1"
+                                >
+                                  <Download size={12} /> {att.title || att.file_name}
+                                </button>
+                                {canEditDelete && (
+                                  <button
+                                    type="button"
+                                    disabled={deletingAttachmentId === att.id}
+                                    onClick={() => handleDeleteAttachment(a.id, att.id)}
+                                    className="text-rose-600 hover:underline"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {canEditDelete && (
+                        <div className="mt-2">
+                          {addAttachmentActivityId !== a.id ? (
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-800"
-                              onClick={() => orderId && marketingAPI.downloadOrderActivityAttachment(orderId, a.id, att.id, att.file_name)}
+                              onClick={() => {
+                                setAddAttachmentActivityId(a.id);
+                                setAddAttachmentFile(null);
+                              }}
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 border border-dashed border-blue-300 rounded-lg px-3 py-1.5 hover:bg-blue-50"
                             >
-                              <Download size={12} />
-                              {att.title || att.file_name}
+                              <Plus size={12} /> Add attachments
                             </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                          ) : (
+                            <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-2">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <span className="text-xs font-semibold text-slate-700">Add attachments</span>
+                                <button
+                                  type="button"
+                                  onClick={() => { setAddAttachmentActivityId(null); setAddAttachmentFile(null); }}
+                                  className="text-xs text-slate-500 hover:text-slate-700"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <label className="flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-2.5 text-xs text-slate-700 hover:bg-slate-100 shrink-0">
+                                  <Upload size={12} />
+                                  <span className="truncate max-w-[140px]">{addAttachmentFile ? addAttachmentFile.name : 'Choose file'}</span>
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0] ?? null;
+                                      setAddAttachmentFile(f);
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                </label>
+                                <Button
+                                  size="sm"
+                                  disabled={uploadingAttachmentsForActivityId === a.id || !addAttachmentFile}
+                                  onClick={() => handleUploadAttachmentToActivity(a.id)}
+                                >
+                                  {uploadingAttachmentsForActivityId === a.id ? 'Uploading…' : 'Upload'}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
-                  <p className="text-slate-400 text-xs mt-2">
-                    {new Date(a.activity_date).toLocaleString()}
-                    {' · '}
-                    {tooltip ? (
-                      <Tooltip content={tooltip}>
-                        <span className="cursor-help border-b border-dotted border-slate-400">
-                          {displayName}
-                        </span>
-                      </Tooltip>
-                    ) : (
-                      <span>{displayName}</span>
-                    )}
-                  </p>
                 </li>
               );
             })
@@ -570,11 +808,11 @@ export const OrderFormPage: React.FC = () => {
               ))}
             </select>
           </div>
-          <Input
+          <CurrencyInput
+            allowDecimal
             label="Order value"
-            type="number"
-            value={editForm.order_value ?? ''}
-            onChange={(e) => setEditForm((f) => ({ ...f, order_value: e.target.value === '' ? undefined : Number(e.target.value) }))}
+            value={editForm.order_value != null ? String(editForm.order_value) : ''}
+            onChange={(raw) => setEditForm((f) => ({ ...f, order_value: raw === '' ? undefined : Number(raw) }))}
           />
           <DatePicker
             label="Expected delivery (date)"

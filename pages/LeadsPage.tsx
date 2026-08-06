@@ -8,6 +8,7 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { CurrencyInput } from '../components/ui/CurrencyInput';
 import { SearchInput } from '../components/ui/SearchInput';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
@@ -1651,7 +1652,7 @@ export const LeadsPage: React.FC = () => {
                                         <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
                                           <Building2 size={11} className="text-slate-400 shrink-0" />
                                           <span className="truncate">
-                                            {(lead as any).plant_name || (lead as any).plant?.name || (lead.plant as any)?.plant_code || <span className="italic text-slate-400">No plant</span>}
+                                            {lead.plant?.plant_name || lead.plant?.plant_code || <span className="italic text-slate-400">No plant</span>}
                                           </span>
                                         </div>
                                         {canViewOwner && (
@@ -2040,11 +2041,10 @@ export const LeadsPage: React.FC = () => {
                           />
                         )}
                         {row.kind !== 'attachment' && (
-                          <Input
+                          <CurrencyInput
                             placeholder={row.kind === 'revise-quotation' ? 'Revised Quote Value (₹)' : 'Quote Value (₹)'}
-                            type="text"
                             value={row.quoteValue}
-                            onChange={(e) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, quoteValue: e.target.value.replace(/\D/g, '') } : r)))}
+                            onChange={(val) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, quoteValue: val } : r)))}
                             inputSize="sm"
                             containerClassName="min-w-[110px] max-w-[150px] !space-y-0"
                           />
@@ -2127,13 +2127,12 @@ export const LeadsPage: React.FC = () => {
         <p className="text-sm text-slate-600 mb-3">
           This status is marked as Won. Enter the actual closed deal value (required).
         </p>
-        <Input
+        <CurrencyInput
+          allowDecimal
           label="Closed value"
-          type="text"
-          inputMode="decimal"
-          placeholder="e.g. 50000"
+          placeholder="e.g. 50,000"
           value={closedValueInput}
-          onChange={(e) => setClosedValueInput(e.target.value)}
+          onChange={setClosedValueInput}
           containerClassName="max-w-xs"
         />
         {canCreate && (

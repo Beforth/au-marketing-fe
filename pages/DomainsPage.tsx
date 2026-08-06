@@ -9,6 +9,7 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { CurrencyInput } from '../components/ui/CurrencyInput';
 import { Select } from '../components/ui/Select';
 import { AsyncSelect } from '../components/ui/AsyncSelect';
 import { FilterPopover } from '../components/ui/FilterPopover';
@@ -602,51 +603,6 @@ export const DomainsPage: React.FC = () => {
   const [targetHierarchyModal, setTargetHierarchyModal] = useState<TargetHierarchyModal | null>(null);
   const [setTargetAmount, setSetTargetAmount] = useState<string>('');
   const [setTargetSubmitting, setSetTargetSubmitting] = useState(false);
-
-  const formatInputNumber = (val: string): string => {
-    const [intPart] = val.split('.');
-    const clean = intPart.replace(/\D/g, '');
-    if (!clean) return '';
-    return parseInt(clean, 10).toLocaleString('en-IN');
-  };
-
-  const handleTargetAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target;
-    const rawValue = input.value;
-    const cleanValue = rawValue.replace(/\D/g, '');
-    
-    if (cleanValue === '') {
-      setSetTargetAmount('');
-      return;
-    }
-    
-    // Format with commas to calculate cursor position
-    const num = parseInt(cleanValue, 10);
-    const formatted = num.toLocaleString('en-IN');
-    
-    const selectionStart = input.selectionStart || 0;
-    const rawBeforeCursor = rawValue.slice(0, selectionStart);
-    const digitsBeforeCursor = rawBeforeCursor.replace(/\D/g, '').length;
-    
-    setSetTargetAmount(cleanValue);
-    
-    setTimeout(() => {
-      let cursorPosition = 0;
-      if (digitsBeforeCursor > 0) {
-        let digitCount = 0;
-        for (let i = 0; i < formatted.length; i++) {
-          if (formatted[i] !== ',') {
-            digitCount++;
-          }
-          cursorPosition = i + 1;
-          if (digitCount === digitsBeforeCursor) {
-            break;
-          }
-        }
-      }
-      input.setSelectionRange(cursorPosition, cursorPosition);
-    }, 0);
-  };
 
   const [scopeStats, setScopeStats] = useState<ScopeTargetStats | null>(null);
   const [scopeStatsLoading, setScopeStatsLoading] = useState(false);
@@ -2010,11 +1966,10 @@ export const DomainsPage: React.FC = () => {
               </>
             )}
           </p>
-          <Input
+          <CurrencyInput
             label="Yearly target amount (₹)"
-            type="text"
-            value={formatInputNumber(setTargetAmount)}
-            onChange={handleTargetAmountChange}
+            value={setTargetAmount}
+            onChange={setSetTargetAmount}
             placeholder="e.g. 12,00,000"
           />
         </div>

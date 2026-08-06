@@ -7,6 +7,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { CurrencyInput } from '../components/ui/CurrencyInput';
 import { SearchInput } from '../components/ui/SearchInput';
 import { Select, SelectOption } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
@@ -1528,6 +1529,11 @@ export const LeadFormPage: React.FC = () => {
       } else if (!isEdit && customCreateQuoteNumber.trim()) {
         (payload as any).quote_number = customCreateQuoteNumber.trim();
       }
+      // A quotation file is being attached in this same create flow, so the "Added quotation" activity
+      // below already covers the quote number — skip the auto "Inquiry 0" placeholder.
+      if (!isEdit && createQuotations.some(q => q.file)) {
+        (payload as any).skip_quote_placeholder = true;
+      }
 
       const initialInquiryIso =
         !isEdit &&
@@ -2701,11 +2707,11 @@ export const LeadFormPage: React.FC = () => {
                   <label className="block text-sm font-medium text-slate-700">Potential value (optional)</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm z-10 pointer-events-none">₹</span>
-                    <Input
-                      type="number"
+                    <CurrencyInput
+                      allowDecimal
                       className="pl-7"
-                      value={formData.potential_value === undefined || formData.potential_value === null ? '' : formData.potential_value}
-                      onChange={(e) => setFormData({ ...formData, potential_value: e.target.value === '' ? undefined : Number(e.target.value) })}
+                      value={formData.potential_value === undefined || formData.potential_value === null ? '' : String(formData.potential_value)}
+                      onChange={(raw) => setFormData({ ...formData, potential_value: raw === '' ? undefined : Number(raw) })}
                       placeholder="0.00"
                     />
                   </div>
@@ -2766,11 +2772,10 @@ export const LeadFormPage: React.FC = () => {
                           tooltip="Remove file"
                         />
                       )}
-                      <Input
+                      <CurrencyInput
                         placeholder="Quote Value (₹) *"
-                        type="text"
                         value={createQuoteValue}
-                        onChange={(e) => setCreateQuoteValue(e.target.value.replace(/\D/g, ''))}
+                        onChange={setCreateQuoteValue}
                         inputSize="md"
                         containerClassName="min-w-[160px] flex-1 !space-y-0"
                       />
@@ -3177,11 +3182,10 @@ export const LeadFormPage: React.FC = () => {
                               />
                             )}
                             {activityAttachmentMode !== 'attachment' && (
-                              <Input
+                              <CurrencyInput
                                 placeholder={activityAttachmentMode === 'revise-quotation' ? 'Revised Quote Value (₹) *' : 'Quote Value (₹) *'}
-                                type="text"
                                 value={activityDraftValue}
-                                onChange={(e) => setActivityDraftValue(e.target.value.replace(/\D/g, ''))}
+                                onChange={setActivityDraftValue}
                                 inputSize="sm"
                                 containerClassName="min-w-[120px] max-w-[150px] !space-y-0"
                               />
@@ -3484,6 +3488,11 @@ export const LeadFormPage: React.FC = () => {
                             {a.inquiry_number != null && (
                               <>
                                 <span className="font-semibold text-slate-600">Inquiry #{a.inquiry_number}</span>
+                                {a.inquiry_number === 0 && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-600 uppercase tracking-wide">
+                                    System
+                                  </span>
+                                )}
                                 <span>·</span>
                               </>
                             )}
@@ -3501,7 +3510,7 @@ export const LeadFormPage: React.FC = () => {
                             <span>·</span>
                             <span>{a.activity_date ? new Date(a.activity_date).toLocaleString() : new Date(a.created_at).toLocaleString()}</span>
                           </div>
-                          {canEditDelete && (
+                          {canEditDelete && a.inquiry_number !== 0 && (
                             <div className="flex items-center gap-1 shrink-0">
                               <Tooltip content="Edit enquiry">
                                 <button
@@ -3718,9 +3727,10 @@ export const LeadFormPage: React.FC = () => {
                                 type="button"
                                 onClick={() => {
                                   setAddAttachmentActivityId(a.id);
-                                  setAddAttachmentMode('attachment');
+                                  const isQuoteZero = a.inquiry_number === 0;
+                                  setAddAttachmentMode(isQuoteZero ? 'new-quotation' : 'attachment');
                                   setReviseTargetQuotation('');
-                                  setAddAttachmentRows([{ id: crypto.randomUUID(), kind: 'attachment', file: null, quotationNumber: '', title: '', quoteValue: '' }]);
+                                  setAddAttachmentRows([{ id: crypto.randomUUID(), kind: isQuoteZero ? 'quotation' as const : 'attachment' as const, file: null, quotationNumber: '', title: '', quoteValue: '' }]);
                                 }}
                                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 border border-dashed border-blue-300 rounded-lg px-3 py-1.5 hover:bg-blue-50"
                               >
@@ -3797,12 +3807,10 @@ export const LeadFormPage: React.FC = () => {
                                     />
                                   </label>
                                   {addAttachmentMode !== 'attachment' && (
-                                    <Input
+                                    <CurrencyInput
                                       placeholder={addAttachmentMode === 'revise-quotation' ? 'Revised Quote Value (₹) *' : 'Quote Value (₹) *'}
-                                      type="text"
                                       value={addAttachmentRows[0]?.quoteValue || ''}
-                                      onChange={(e) => {
-                                        const val = e.target.value.replace(/\D/g, '');
+                                      onChange={(val) => {
                                         setAddAttachmentRows((prev) =>
                                           prev.map((r) => ({ ...r, quoteValue: val }))
                                         );
@@ -3830,7 +3838,12 @@ export const LeadFormPage: React.FC = () => {
                                     This value won't be reflected in the kanban quotation bar
                                   </p>
                                 )}
-                                {addAttachmentMode === 'new-quotation' && !hasExistingQuotation && (
+                                {addAttachmentMode === 'new-quotation' && a.inquiry_number === 0 && currentLead?.quote_number?.trim() && (
+                                  <p className="text-[11px] text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-200">
+                                    Using this lead's quote number: <span className="font-mono font-semibold">{currentLead.quote_number}</span>
+                                  </p>
+                                )}
+                                {addAttachmentMode === 'new-quotation' && !hasExistingQuotation && !(a.inquiry_number === 0 && currentLead?.quote_number?.trim()) && (
                                   <div className="flex items-end gap-3 p-2 rounded border border-blue-100 bg-blue-50/30">
                                     <div className="flex-1">
                                       <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Series</label>
@@ -3872,7 +3885,7 @@ export const LeadFormPage: React.FC = () => {
                                           [isRevised || addAttachmentMode === 'new-quotation' ? 'quotation' : 'attachment'],
                                           qn,
                                           [addAttachmentMode === 'attachment' ? (row.title.trim() || undefined) : undefined],
-                                          addAttachmentMode === 'new-quotation' && !hasExistingQuotation ? (addAttachmentQuotationSeriesCode.trim() || undefined) : undefined,
+                                          addAttachmentMode === 'new-quotation' && !hasExistingQuotation && !(a.inquiry_number === 0 && currentLead?.quote_number?.trim()) ? (addAttachmentQuotationSeriesCode.trim() || undefined) : undefined,
                                           isRevised || undefined,
                                           [(addAttachmentMode !== 'attachment' && row.quoteValue ? Number(row.quoteValue) : undefined)],
                                           setAttachmentUploadProgress
@@ -4380,7 +4393,7 @@ export const LeadFormPage: React.FC = () => {
                   <label className="text-xs font-semibold text-slate-700 ml-0.5 mb-1.5 block">Potential Value</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-xs z-10">₹</span>
-                    <Input inputSize="sm" className="pl-7" type="number" value={formData.potential_value ?? ''} onChange={(e) => setFormData({ ...formData, potential_value: e.target.value ? Number(e.target.value) : undefined })} placeholder="0.00" />
+                    <CurrencyInput allowDecimal inputSize="sm" className="pl-7" value={formData.potential_value != null ? String(formData.potential_value) : ''} onChange={(raw) => setFormData({ ...formData, potential_value: raw ? Number(raw) : undefined })} placeholder="0.00" />
                   </div>
                 </div>
                 <div className="md:col-span-12">
@@ -4424,13 +4437,12 @@ export const LeadFormPage: React.FC = () => {
         >
           <p className="text-sm text-slate-600 mb-3">Mark this lead as Won. These details will appear in the Lead Inquiry log.</p>
           <div className="space-y-3">
-            <Input
+            <CurrencyInput
+              allowDecimal
               label="Closed value (required)"
-              type="text"
-              inputMode="decimal"
-              placeholder="e.g. 50000"
+              placeholder="e.g. 50,000"
               value={markWonClosedValue}
-              onChange={(e) => setMarkWonClosedValue(e.target.value)}
+              onChange={setMarkWonClosedValue}
               containerClassName="max-w-xs"
               inputSize="sm"
             />

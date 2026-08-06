@@ -4,6 +4,7 @@ import { Edit, ArrowLeft, Save, X, Upload, FileText, Eye, Plus, Trash2, Calendar
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { CurrencyInput } from '../components/ui/CurrencyInput';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { Badge } from '../components/ui/Badge';
@@ -258,7 +259,7 @@ export const EventDetailPage: React.FC = () => {
       <Card>
         <div className="grid grid-cols-2 gap-4">
           <Input label="Vendor Name" value={event.space_booking_vendor || ''} onChange={(e) => setEvent({ ...event, space_booking_vendor: e.target.value })} disabled={isEnded || !canEdit} placeholder="Vendor name..." />
-          <Input label="Total Amount (₹)" type="text" value={event.space_booking_amount ? String(event.space_booking_amount) : ''} onChange={(e) => setEvent({ ...event, space_booking_amount: parseFloat(e.target.value.replace(/\D/g, '')) || 0 })} disabled={isEnded || !canEdit} placeholder="0" />
+          <CurrencyInput label="Total Amount (₹)" value={event.space_booking_amount ? String(event.space_booking_amount) : ''} onChange={(raw) => setEvent({ ...event, space_booking_amount: raw ? parseFloat(raw) : 0 })} disabled={isEnded || !canEdit} placeholder="0" />
         </div>
 
         <div className="grid grid-cols-2 gap-4 mt-4">
@@ -324,9 +325,9 @@ export const EventDetailPage: React.FC = () => {
                     updated[idx] = { ...updated[idx], due_date: val || '' };
                     setEvent({ ...event, space_booking_installments: updated });
                   }} placeholder="Date" inputSize="sm" showIcon={false} />
-                  <Input type="text" value={entry.amount ? String(entry.amount) : ''} onChange={(e) => {
+                  <CurrencyInput value={entry.amount ? String(entry.amount) : ''} onChange={(raw) => {
                     const updated = [...(event.space_booking_installments || [])];
-                    updated[idx] = { ...updated[idx], amount: parseFloat(e.target.value.replace(/\D/g, '')) || 0 };
+                    updated[idx] = { ...updated[idx], amount: raw ? parseFloat(raw) : 0 };
                     setEvent({ ...event, space_booking_installments: updated });
                   }} placeholder="Amount" containerClassName="w-32" />
                   <label className="flex items-center gap-2 text-sm whitespace-nowrap">
@@ -551,11 +552,11 @@ export const EventDetailPage: React.FC = () => {
             const count = parseInt(e.target.value.replace(/\D/g, '')) || 0;
             setEvent({ ...event, table_booking_count: count, table_booking_total_cost: count * (event.table_booking_cost_per_table || 0) });
           }} disabled={isEnded || !canEdit} placeholder="0" />
-          <Input label="Cost per Table (₹)" type="text" value={event.table_booking_cost_per_table ? String(event.table_booking_cost_per_table) : ''} onChange={(e) => {
-            const cost = parseInt(e.target.value.replace(/\D/g, '')) || 0;
+          <CurrencyInput label="Cost per Table (₹)" value={event.table_booking_cost_per_table ? String(event.table_booking_cost_per_table) : ''} onChange={(raw) => {
+            const cost = raw ? parseInt(raw, 10) : 0;
             setEvent({ ...event, table_booking_cost_per_table: cost, table_booking_total_cost: (event.table_booking_count || 0) * cost });
           }} disabled={isEnded || !canEdit} placeholder="0" />
-          <Input label="Total Cost (₹)" value={event.table_booking_total_cost ? String(event.table_booking_total_cost) : ''} disabled />
+          <CurrencyInput label="Total Cost (₹)" value={event.table_booking_total_cost ? String(event.table_booking_total_cost) : ''} onChange={() => {}} disabled />
         </div>
         {canEdit && !isEnded && (
           <div className="flex justify-end pt-4 border-t border-slate-200 mt-4">
@@ -666,7 +667,7 @@ export const EventDetailPage: React.FC = () => {
       <Card>
         <div className="grid grid-cols-1 gap-4">
           <Input label="Hotel Name" value={event.hotel_name || ''} onChange={(e) => setEvent({ ...event, hotel_name: e.target.value })} disabled={isEnded || !canEdit} placeholder="Hotel name..." />
-          <Input label="Hotel Cost (₹)" type="text" value={event.hotel_cost ? String(event.hotel_cost) : ''} onChange={(e) => setEvent({ ...event, hotel_cost: parseInt(e.target.value.replace(/\D/g, '')) || 0 })} disabled={isEnded || !canEdit} placeholder="0" />
+          <CurrencyInput label="Hotel Cost (₹)" value={event.hotel_cost ? String(event.hotel_cost) : ''} onChange={(raw) => setEvent({ ...event, hotel_cost: raw ? parseInt(raw, 10) : 0 })} disabled={isEnded || !canEdit} placeholder="0" />
         </div>
 
         <div className="mt-4">
@@ -744,9 +745,9 @@ export const EventDetailPage: React.FC = () => {
               setEvent({ ...event, local_travel_entries: updated });
             }} placeholder="Note — what was this for? (e.g., venue visit, setup day)" />
             <div className="flex items-center gap-3">
-              <Input type="text" value={entries[editingTravelIdx]?.amount ? String(entries[editingTravelIdx].amount) : ''} onChange={(e) => {
+              <CurrencyInput value={entries[editingTravelIdx]?.amount ? String(entries[editingTravelIdx].amount) : ''} onChange={(raw) => {
                 const updated = [...entries];
-                updated[editingTravelIdx] = { ...updated[editingTravelIdx], amount: parseFloat(e.target.value.replace(/\D/g, '')) || 0 };
+                updated[editingTravelIdx] = { ...updated[editingTravelIdx], amount: raw ? parseFloat(raw) : 0 };
                 setEvent({ ...event, local_travel_entries: updated });
               }} placeholder="Amount" containerClassName="w-28" />
               <span className="text-xs text-slate-500">Employees:</span>
@@ -924,9 +925,9 @@ export const EventDetailPage: React.FC = () => {
                 updated[editingGiftIdx] = { ...updated[editingGiftIdx], count: parseInt(e.target.value.replace(/\D/g, '')) || 0 };
                 setEvent({ ...event, gifting_entries: updated });
               }} placeholder="Count" containerClassName="w-20" />
-              <Input type="text" value={giftEntries[editingGiftIdx]?.amount ? String(giftEntries[editingGiftIdx].amount) : ''} onChange={(e) => {
+              <CurrencyInput value={giftEntries[editingGiftIdx]?.amount ? String(giftEntries[editingGiftIdx].amount) : ''} onChange={(raw) => {
                 const updated = [...giftEntries];
-                updated[editingGiftIdx] = { ...updated[editingGiftIdx], amount: parseFloat(e.target.value.replace(/\D/g, '')) || 0 };
+                updated[editingGiftIdx] = { ...updated[editingGiftIdx], amount: raw ? parseFloat(raw) : 0 };
                 setEvent({ ...event, gifting_entries: updated });
               }} placeholder="Per-unit cost" containerClassName="w-28" />
             </div>

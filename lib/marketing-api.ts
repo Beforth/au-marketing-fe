@@ -392,6 +392,8 @@ export interface CreateLeadRequest {
   series?: string;
   /** ISO datetime — optional backdated first enquiry when creating a lead (omit when adding only an initial quotation with activity_date). */
   initial_inquiry_at?: string;
+  /** Suppress the auto-created "Inquiry 0" quote-number placeholder — set when a quotation file is being uploaded in this same create flow. */
+  skip_quote_placeholder?: boolean;
 }
 
 export interface UpdateLeadRequest extends Partial<CreateLeadRequest> {
@@ -988,6 +990,10 @@ class MarketingAPIService {
 
   async deleteOrderActivity(orderId: number, activityId: number): Promise<void> {
     return apiClient.delete<void>(`/api/orders/${orderId}/activities/${activityId}`);
+  }
+
+  async deleteOrderActivityAttachment(orderId: number, activityId: number, attachmentId: number): Promise<void> {
+    return apiClient.delete<void>(`/api/orders/${orderId}/activities/${activityId}/attachments/${attachmentId}`);
   }
 
   /** Download an order activity attachment file (uses auth; triggers browser save). */

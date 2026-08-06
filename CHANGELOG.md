@@ -5,6 +5,25 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-08-06] — Auto Quote Placeholder, Orders Inquiry Log Redesign, Comma-Formatted Values (v1.2.3)
+
+### 🖥️ Frontend
+
+#### Leads Kanban — Plant Field Fix
+- Lead cards were showing "No plant" even when a plant was selected on the lead — the card was reading the wrong field name. Fixed to correctly display the assigned plant.
+
+#### Leads — Auto Quote Number Placeholder ("Inquiry 0")
+- When a lead is created (or later edited) with a quote number but no quotation file attached yet, the enquiry log now automatically gets a system entry holding that number, ready for a file to be attached — no more retyping the number into a new log entry later.
+- Attaching a file to this entry automatically uses the lead's existing quote number, with no extra series or number selection needed.
+
+#### Orders — Inquiry Log Redesign
+- Orders' inquiry log now matches the Leads enquiry log's layout and capabilities: numbered entries, editing and deleting your own entries, and attaching files to an existing entry after the fact — previously attachments could only be added when first creating the entry.
+
+#### Comma-Formatted Value Fields
+- Price and value fields across Leads, Orders, Events, and Domains (potential value, quote value, closed value, order value, event costs, yearly targets) now show Indian-style comma grouping as you type (e.g. 1,00,000) instead of a long unbroken string of digits.
+
+---
+
 ## [2026-08-05] — Follow-Up Urgency Highlighting, Orders Kanban Redesign, Paste Sanitizer, Profile Picture Fix (v1.2.2)
 
 ### 🖥️ Frontend
