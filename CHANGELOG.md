@@ -20,6 +20,9 @@ Format: `[Date] — Category: Description`
 #### Employee Sync — Missing Names in Assignee Filters
 - Some employees were showing as a plain "Employee 178"-style placeholder instead of their real name in assignee filters (e.g. Leads) — they had leads assigned to or created by them, but no region assignment of their own, so the "Sync Employees from HRMS" action never picked them up. Sync now also covers employees found as a lead's owner or creator, so re-running the sync fills in their real names.
 
+#### Regions & Domains — Deletion Blocked by Removed Employees
+- Removing an employee from a region (or replacing a domain's head/coordinator) now fully detaches them, instead of leaving a hidden link behind that only showed up later as an error when trying to delete the region or domain. Regions and domains that were stuck this way can now be deleted normally.
+
 ---
 
 ## [2026-08-06] — Auto Quote Placeholder, Orders Inquiry Log Redesign, Comma-Formatted Values (v1.2.3)
