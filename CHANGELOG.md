@@ -15,6 +15,11 @@ Format: `[Date] — Category: Description`
 #### Leads Kanban — Automatic Follow-Up Highlighting
 - Leads whose status carries an automatic "follow up every N days" rule, but which don't have a follow-up manually scheduled, now get the same graded red/orange/amber urgency highlighting and glow as manually scheduled follow-ups — previously only leads with a manual follow-up date showed this highlighting, so leads that were actually due (via the automatic rule) could sit unhighlighted.
 
+### ⚙️ Backend
+
+#### Employee Sync — Missing Names in Assignee Filters
+- Some employees were showing as a plain "Employee 178"-style placeholder instead of their real name in assignee filters (e.g. Leads) — they had leads assigned to or created by them, but no region assignment of their own, so the "Sync Employees from HRMS" action never picked them up. Sync now also covers employees found as a lead's owner or creator, so re-running the sync fills in their real names.
+
 ---
 
 ## [2026-08-06] — Auto Quote Placeholder, Orders Inquiry Log Redesign, Comma-Formatted Values (v1.2.3)
