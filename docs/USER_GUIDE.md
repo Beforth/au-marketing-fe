@@ -573,7 +573,7 @@ A monthly ritual where salespeople flag which of their "hot" leads they realisti
 A calendar-style monthly planner for field visits, travel days, and "return home" days — mainly used by field sales staff who travel to meet customers.
 
 What you can do:
-- Navigate month to month, and see summary counts of visits/travels/return-home days and how many days have entries.
+- Navigate month to month, and see summary counts of  visits/travels/return-home days and how many days have entries.
 - Pick one or more dates on a calendar, then expand each date to add entries.
 - For each entry, choose a type: **Visit**, **Travel**, or **Return home**.
   - Visits let you search for and attach an existing Contact (or create a new one, and even a new Organization/Plant, without leaving the modal).

@@ -287,6 +287,8 @@ export interface Lead {
   quote_series_code?: string | null;
   quote_number?: string | null;
   next_follow_up_at?: string | null;
+  /** Server-computed due date from the lead's status-group follow-up interval (e.g. "every 15 days"); null if the group has no interval or the lead is Won/Lost. Not stored — recomputed on every list fetch. */
+  auto_follow_up_at?: string | null;
   follow_up_reminder_type?: string | null;
   assigned_to_employee_id?: number;
   assigned_to_username?: string;

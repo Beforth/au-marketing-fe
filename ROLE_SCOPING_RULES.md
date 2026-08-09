@@ -14,6 +14,11 @@ The system determines a user's access boundaries using the primary role mapped f
 4. **`supervisor` / `region_coordinator`**: Mid-level access with region-wide visibility but restricted actions.
 5. **`employee` (Salesperson)**: Strictly isolated to their own records or assigned workspace.
 
+> [!IMPORTANT]
+> **`marketing.admin` HRMS permission = super-admin *visibility***. A user holding the `marketing.admin` permission (e.g. a CEO) is resolved to `super_admin` scope in `app/scope.py` (`is_super_admin()`), so they see all domains/targets/leads and every employee in the Leads "Assigned:" filter — exactly like a superuser. This grants **data visibility only**: per-route action permissions (`marketing.create_lead`, `marketing.edit_lead`, `marketing.delete_lead`, etc.) are still enforced individually against HRMS, and the superuser/staff bypass inside `require_permission()` does NOT apply to `marketing.admin`. Grants/revokes take effect after the RBAC cache TTL (`RBAC_CACHE_TTL_SECONDS`, default 60s) or a profile/refresh-permissions call.
+>
+> The Leads "Assigned:" filter (backed by `GET /reports/scope`) also unions in every employee who is the assignee on at least one lead the user can see per their role scope, so real assignees are always filterable even without an active region assignment.
+
 ---
 
 ## 🌐 1. Domain & Region Visibility Matrix

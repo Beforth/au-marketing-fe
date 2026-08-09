@@ -14,7 +14,7 @@ import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
-import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash, Phone, Mail, Building2, Tag } from 'lucide-react';
+import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash, Phone, Mail, Building2 } from 'lucide-react';
 import { useApp } from '../App';
 import { Tooltip } from '../UI/Tooltip';
 import { useAppSelector } from '../store/hooks';
@@ -445,10 +445,19 @@ export const LeadsPage: React.FC = () => {
     { label: 'Leads' },
   ];
 
+  /** Sooner of the manually-scheduled follow-up and the server-computed auto follow-up (status-group interval). */
+  const getEffectiveFollowUpDate = (lead: Lead): string | null => {
+    const manual = lead.next_follow_up_at;
+    const auto = lead.auto_follow_up_at;
+    if (manual && auto) return new Date(manual) <= new Date(auto) ? manual : auto;
+    return manual || auto || null;
+  };
+
   /** How urgent a lead's next follow-up is, for graded Kanban card highlighting */
   const getFollowUpUrgency = (lead: Lead): 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' | null => {
-    if (!lead.next_follow_up_at) return null;
-    const due = new Date(lead.next_follow_up_at);
+    const effective = getEffectiveFollowUpDate(lead);
+    if (!effective) return null;
+    const due = new Date(effective);
     const now = new Date();
     if (due <= now) return 'overdue';
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -1607,6 +1616,7 @@ export const LeadsPage: React.FC = () => {
                                   {columnLeads.map((lead) => {
                                     const leadDraggable = canEdit && !isWonOrLostLead(lead);
                                     const followUpUrgency = getFollowUpUrgency(lead);
+                                    const effectiveFollowUp = getEffectiveFollowUpDate(lead);
                                     const followUpCardClass = ({
                                       overdue: 'bg-red-50 border-red-300 hover:bg-red-100/80',
                                       today: 'bg-orange-50 border-orange-300 hover:bg-orange-100/80',
@@ -1686,44 +1696,27 @@ export const LeadsPage: React.FC = () => {
                                           <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${lead.region?.name ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-slate-50 text-slate-400 border-slate-100 italic font-normal'}`}>
                                             {lead.region?.name || 'No region'}
                                           </span>
-                                          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${lead.lead_type_option?.label ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-slate-50 text-slate-400 border-slate-100 italic font-normal'}`}>
-                                            {lead.lead_type_option?.label || 'No type'}
-                                          </span>
                                         </div>
-                                        <div className="flex items-center gap-1.5 text-xs text-slate-600 mt-1.5">
-                                          <Tag size={11} className="text-slate-400 shrink-0" />
-                                          <span className="truncate">
-                                            Source: {(lead as any).source_name || (lead as any).source?.name || (lead as any).lead_source || <span className="italic text-slate-400">Not entered</span>}
-                                          </span>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-x-2 mt-1.5">
-                                          <div className="text-[11px] text-slate-500 min-w-0">
-                                            <span className="text-slate-400">Next follow-up</span><br />
-                                            {lead.next_follow_up_at
-                                              ? (
-                                                <span className={({
-                                                  overdue: 'text-red-600 font-semibold',
-                                                  today: 'text-orange-600 font-semibold',
-                                                  tomorrow: 'text-amber-600 font-medium',
-                                                  week: 'text-yellow-700 font-medium',
-                                                  later: 'text-blue-600 font-normal',
-                                                } as Record<string, string>)[followUpUrgency ?? ''] ?? 'text-slate-500'}>
-                                                  {new Date(lead.next_follow_up_at).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(lead.next_follow_up_at).toLocaleTimeString(undefined, { timeStyle: 'short' })}
-                                                  {followUpUrgency === 'overdue' && ' · Overdue'}
-                                                  {followUpUrgency === 'today' && ' · Today'}
-                                                  {followUpUrgency === 'tomorrow' && ' · Tomorrow'}
-                                                  {followUpUrgency === 'week' && ' · This week'}
-                                                  {followUpUrgency === 'later' && ' · Upcoming'}
-                                                </span>
-                                              )
-                                              : <span className="italic text-slate-400">Not scheduled</span>}
-                                          </div>
-                                          <div className="text-[11px] text-slate-500 min-w-0">
-                                            <span className="text-slate-400">Last inquiry</span><br />
-                                            {lead.last_activity_date
-                                              ? `${new Date(lead.last_activity_date).toLocaleDateString(undefined, { dateStyle: 'short' })} ${new Date(lead.last_activity_date).toLocaleTimeString(undefined, { timeStyle: 'short' })}`
-                                              : <span className="italic text-slate-400">No activity yet</span>}
-                                          </div>
+                                        <div className="text-[11px] text-slate-500 min-w-0 mt-1.5">
+                                          <span className="text-slate-400">Next follow-up</span><br />
+                                          {effectiveFollowUp
+                                            ? (
+                                              <span className={({
+                                                overdue: 'text-red-600 font-semibold',
+                                                today: 'text-orange-600 font-semibold',
+                                                tomorrow: 'text-amber-600 font-medium',
+                                                week: 'text-yellow-700 font-medium',
+                                                later: 'text-blue-600 font-normal',
+                                              } as Record<string, string>)[followUpUrgency ?? ''] ?? 'text-slate-500'}>
+                                                {new Date(effectiveFollowUp).toLocaleDateString(undefined, { dateStyle: 'short' })} {new Date(effectiveFollowUp).toLocaleTimeString(undefined, { timeStyle: 'short' })}
+                                                {followUpUrgency === 'overdue' && ' · Overdue'}
+                                                {followUpUrgency === 'today' && ' · Today'}
+                                                {followUpUrgency === 'tomorrow' && ' · Tomorrow'}
+                                                {followUpUrgency === 'week' && ' · This week'}
+                                                {followUpUrgency === 'later' && ' · Upcoming'}
+                                              </span>
+                                            )
+                                            : <span className="italic text-slate-400">Not scheduled</span>}
                                         </div>
                                         <div className="flex items-center gap-1.5 mt-1.5" onClick={(e) => e.stopPropagation()}>
                                           {lead.quote_number ? (

@@ -5,6 +5,18 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-08-09] — Leads Kanban Card Cleanup, Automatic Follow-Up Highlighting (v1.2.4)
+
+### 🖥️ Frontend
+
+#### Leads Kanban — Card Cleanup
+- Removed the "Source" line and the lead-type badge from Leads kanban cards, and combined the separate "Next follow-up" and "Last inquiry" lines into a single "Next follow-up" line, to reduce clutter on the card.
+
+#### Leads Kanban — Automatic Follow-Up Highlighting
+- Leads whose status carries an automatic "follow up every N days" rule, but which don't have a follow-up manually scheduled, now get the same graded red/orange/amber urgency highlighting and glow as manually scheduled follow-ups — previously only leads with a manual follow-up date showed this highlighting, so leads that were actually due (via the automatic rule) could sit unhighlighted.
+
+---
+
 ## [2026-08-06] — Auto Quote Placeholder, Orders Inquiry Log Redesign, Comma-Formatted Values (v1.2.3)
 
 ### 🖥️ Frontend
