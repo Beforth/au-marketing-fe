@@ -55,7 +55,7 @@ export const EmployeesPage: React.FC = () => {
   const [assignEmployee, setAssignEmployee] = useState<HRMSEmployee | null>(null);
   const [assignRegionId, setAssignRegionId] = useState<number | undefined>(undefined);
   const [assignDomainId, setAssignDomainId] = useState<number | undefined>(undefined);
-  const [assignRole, setAssignRole] = useState<'head' | 'employee' | 'supervisor' | 'domain_head'>('employee');
+  const [assignRole, setAssignRole] = useState<'head' | 'employee' | 'supervisor' | 'coordinator' | 'domain_head'>('employee');
   const [assignSubmitting, setAssignSubmitting] = useState(false);
   const [employeeAssignments, setEmployeeAssignments] = useState<RegionAssignment[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
@@ -216,7 +216,7 @@ export const EmployeesPage: React.FC = () => {
       await marketingAPI.assignEmployeeToRegion({
         employee_id: assignEmployee.id,
         region_id: assignRegionId,
-        role: assignRole as 'head' | 'employee' | 'supervisor',
+        role: assignRole as 'head' | 'employee' | 'supervisor' | 'coordinator',
         employee_name: displayName || undefined,
         employee_email: assignEmployee.email || undefined,
       });
@@ -225,7 +225,9 @@ export const EmployeesPage: React.FC = () => {
           ? `${displayName} set as Region Head`
           : assignRole === 'supervisor'
             ? `${displayName} assigned as Supervisor`
-            : 'Assigned to region',
+            : assignRole === 'coordinator'
+              ? `${displayName} assigned as Coordinator`
+              : 'Assigned to region',
         'success'
       );
       setAssignRegionId(undefined);
@@ -491,12 +493,13 @@ export const EmployeesPage: React.FC = () => {
                 options={[
                   { value: 'employee', label: 'Employee' },
                   { value: 'supervisor', label: 'Supervisor (all contacts in region)' },
+                  { value: 'coordinator', label: 'Coordinator (same access as Region Coordinator)' },
                   { value: 'head', label: 'Region Head' },
                   { value: 'domain_head', label: 'Domain Head' },
                 ]}
                 value={assignRole}
                 onChange={(val) => {
-                  const role = (val as 'head' | 'employee' | 'supervisor' | 'domain_head') || 'employee';
+                  const role = (val as 'head' | 'employee' | 'supervisor' | 'coordinator' | 'domain_head') || 'employee';
                   setAssignRole(role);
                   setAssignRegionId(undefined);
                   setAssignDomainId(undefined);
@@ -585,6 +588,9 @@ export const EmployeesPage: React.FC = () => {
                           {a.region?.name || `Region #${a.region_id}`}
                           {a.role === 'head' && (
                             <Badge variant="outline" className="ml-2 text-xs">Region Head</Badge>
+                          )}
+                          {a.role === 'coordinator' && (
+                            <Badge variant="outline" className="ml-2 text-xs border-sky-200 text-sky-800 bg-sky-50">Coordinator</Badge>
                           )}
                           {a.role === 'supervisor' && (
                             <Badge variant="outline" className="ml-2 text-xs border-amber-200 text-amber-800 bg-amber-50">Supervisor</Badge>

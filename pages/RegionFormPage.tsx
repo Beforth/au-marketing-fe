@@ -12,10 +12,22 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { marketingAPI, Region } from '../lib/marketing-api';
-import { ArrowLeft } from 'lucide-react';
+import { marketingAPI, Region, AssignmentWithEmployee } from '../lib/marketing-api';
+import { ArrowLeft, Trash2, UserPlus, User } from 'lucide-react';
 import { Select } from '../components/ui/Select';
+import { Badge } from '../components/ui/Badge';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { Tooltip } from '../UI/Tooltip';
 import CountryList from 'country-list-with-dial-code-and-flag';
+
+type RegionAssignmentRole = 'head' | 'employee' | 'supervisor' | 'coordinator';
+
+const ROLE_OPTIONS: { value: RegionAssignmentRole; label: string }[] = [
+  { value: 'employee', label: 'Employee' },
+  { value: 'supervisor', label: 'Supervisor' },
+  { value: 'coordinator', label: 'Coordinator' },
+  { value: 'head', label: 'Head' },
+];
 
 const countryOptions = CountryList.getAll({ withSecondary: false })
   .map((c) => ({
@@ -49,6 +61,16 @@ export const RegionFormPage: React.FC = () => {
   const headUsernameMapRef = useRef<Map<number, string>>(new Map());
   const coordinatorUsernameMapRef = useRef<Map<number, string>>(new Map());
   const coordinatorEmailMapRef = useRef<Map<number, string>>(new Map());
+
+  const [assignments, setAssignments] = useState<AssignmentWithEmployee[]>([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+  const [removeAssignmentId, setRemoveAssignmentId] = useState<number | null>(null);
+  const [removeSubmitting, setRemoveSubmitting] = useState(false);
+  const [newEmployeeId, setNewEmployeeId] = useState<number | undefined>(undefined);
+  const [newEmployeeRole, setNewEmployeeRole] = useState<RegionAssignmentRole>('coordinator');
+  const [addAssignmentSubmitting, setAddAssignmentSubmitting] = useState(false);
+  const newEmployeeUsernameMapRef = useRef<Map<number, string>>(new Map());
+  const newEmployeeEmailMapRef = useRef<Map<number, string>>(new Map());
 
   const domainIdNum = domainId ? parseInt(domainId, 10) : 0;
 
@@ -127,11 +149,71 @@ export const RegionFormPage: React.FC = () => {
         const res = await marketingAPI.getRegions({ domain_id: domainIdNum, is_active: true, page: 1, page_size: 100 });
         setExistingRegions(res.items);
       }
+      await loadAssignments(region.id);
     } catch (error: any) {
       showToast(error.message || 'Failed to load region', 'error');
       navigate('/domains');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadAssignments = async (rid: number) => {
+    setAssignmentsLoading(true);
+    try {
+      const all = await marketingAPI.getAllAssignments();
+      setAssignments((all || []).filter((a) => a.region_id === rid && a.is_active !== false));
+    } catch (error: any) {
+      showToast(error.message || 'Failed to load region employees', 'error');
+    } finally {
+      setAssignmentsLoading(false);
+    }
+  };
+
+  const handleAddAssignment = async () => {
+    if (!newEmployeeId || !regionId) return;
+    setAddAssignmentSubmitting(true);
+    try {
+      await marketingAPI.assignEmployeeToRegion({
+        employee_id: newEmployeeId,
+        region_id: parseInt(regionId, 10),
+        role: newEmployeeRole,
+        employee_name: newEmployeeUsernameMapRef.current.get(newEmployeeId) || undefined,
+        employee_email: newEmployeeEmailMapRef.current.get(newEmployeeId) || undefined,
+      });
+      showToast('Employee added to region', 'success');
+      setNewEmployeeId(undefined);
+      await loadAssignments(parseInt(regionId, 10));
+    } catch (error: any) {
+      showToast(error.message || 'Failed to add employee', 'error');
+    } finally {
+      setAddAssignmentSubmitting(false);
+    }
+  };
+
+  const handleChangeAssignmentRole = async (assignmentId: number, newRole: RegionAssignmentRole) => {
+    if (!regionId) return;
+    try {
+      await marketingAPI.updateEmployeeAssignment(assignmentId, { role: newRole });
+      showToast('Role updated', 'success');
+      await loadAssignments(parseInt(regionId, 10));
+    } catch (error: any) {
+      showToast(error.message || 'Failed to update role', 'error');
+    }
+  };
+
+  const handleConfirmRemoveAssignment = async () => {
+    if (removeAssignmentId == null || !regionId) return;
+    setRemoveSubmitting(true);
+    try {
+      await marketingAPI.removeEmployeeFromRegion(removeAssignmentId);
+      showToast('Removed from region', 'success');
+      setRemoveAssignmentId(null);
+      await loadAssignments(parseInt(regionId, 10));
+    } catch (error: any) {
+      showToast(error.message || 'Failed to remove', 'error');
+    } finally {
+      setRemoveSubmitting(false);
     }
   };
 
@@ -345,6 +427,107 @@ export const RegionFormPage: React.FC = () => {
             />
           </div>
 
+          {isEdit && (
+            <div className="border-t border-slate-200 pt-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Employees in this Region
+              </label>
+              <p className="text-xs text-slate-500 mb-3">
+                Anyone listed here (including additional coordinators — they get the same access as the Region Coordinator above) must be removed before this region can be deleted.
+              </p>
+              {assignmentsLoading ? (
+                <p className="text-sm text-slate-500">Loading...</p>
+              ) : assignments.length === 0 ? (
+                <p className="text-sm text-slate-500 italic mb-3">No employees assigned</p>
+              ) : (
+                <div className="space-y-1 mb-3">
+                  {assignments.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md bg-slate-50">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <User size={14} className="text-slate-500 shrink-0" />
+                        <span className="text-sm text-slate-800 truncate">
+                          {a.employee_name || a.employee_email || `Employee #${a.employee_id}`}
+                        </span>
+                        {a.role === 'head' && (
+                          <Badge variant="outline" className="text-xs shrink-0">Head</Badge>
+                        )}
+                        {a.role === 'coordinator' && (
+                          <Badge variant="outline" className="text-xs shrink-0 border-sky-200 text-sky-800 bg-sky-50">Coordinator</Badge>
+                        )}
+                        {a.role === 'supervisor' && (
+                          <Badge variant="outline" className="text-xs shrink-0 border-amber-200 text-amber-800 bg-amber-50">Supervisor</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Select
+                          options={ROLE_OPTIONS}
+                          value={a.role}
+                          onChange={(val) => handleChangeAssignmentRole(a.id, (val as RegionAssignmentRole) || 'employee')}
+                          searchable={false}
+                          className="min-w-[110px]"
+                        />
+                        <Tooltip content="Remove from region">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => setRemoveAssignmentId(a.id)}
+                          >
+                            <Trash2 size={12} />
+                          </Button>
+                        </Tooltip>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-end gap-2 flex-wrap">
+                <div className="flex-1 min-w-[200px]">
+                  <AsyncSelect
+                    label="Add employee"
+                    loadOptions={async (search) => {
+                      const res = await marketingAPI.getEmployees({
+                        page: 1,
+                        page_size: 20,
+                        search: search || undefined,
+                        status: 'active',
+                      });
+                      res.employees.forEach((e) => {
+                        newEmployeeUsernameMapRef.current.set(e.id, [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.username || '');
+                        newEmployeeEmailMapRef.current.set(e.id, e.email || '');
+                      });
+                      return res.employees.map((e) => ({
+                        value: e.id,
+                        label: [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.username || `#${e.id}`,
+                      }));
+                    }}
+                    value={newEmployeeId}
+                    onChange={(val) => setNewEmployeeId(val ? Number(val) : undefined)}
+                    placeholder="Search and select employee..."
+                  />
+                </div>
+                <div className="w-40">
+                  <Select
+                    label="Role"
+                    options={ROLE_OPTIONS}
+                    value={newEmployeeRole}
+                    onChange={(val) => setNewEmployeeRole((val as RegionAssignmentRole) || 'employee')}
+                    searchable={false}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleAddAssignment}
+                  disabled={!newEmployeeId || addAssignmentSubmitting}
+                  leftIcon={<UserPlus size={14} />}
+                >
+                  Add
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -368,6 +551,17 @@ export const RegionFormPage: React.FC = () => {
           </div>
         </form>
       </Card>
+
+      <ConfirmModal
+        isOpen={removeAssignmentId != null}
+        onClose={() => setRemoveAssignmentId(null)}
+        onConfirm={handleConfirmRemoveAssignment}
+        title="Remove from region"
+        message="Are you sure you want to remove this employee from the region?"
+        confirmLabel={removeSubmitting ? 'Removing...' : 'Remove'}
+        cancelLabel="Cancel"
+        variant="danger"
+      />
     </PageLayout>
   );
 };

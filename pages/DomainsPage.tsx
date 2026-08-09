@@ -570,7 +570,7 @@ export const DomainsPage: React.FC = () => {
   const [setRegionHeadRegion, setSetRegionHeadRegion] = useState<Region | null>(null);
   const [addEmployeeRegion, setAddEmployeeRegion] = useState<Region | null>(null);
   const [addEmployeeSelected, setAddEmployeeSelected] = useState<HRMSEmployee | null>(null);
-  const [addEmployeeRole, setAddEmployeeRole] = useState<'head' | 'employee' | 'supervisor'>('employee');
+  const [addEmployeeRole, setAddEmployeeRole] = useState<'head' | 'employee' | 'supervisor' | 'coordinator'>('employee');
   const [addEmployeeSubmitting, setAddEmployeeSubmitting] = useState(false);
   const addEmployeeCacheRef = useRef<Map<number, HRMSEmployee>>(new Map());
   const [changeRoleAssignment, setChangeRoleAssignment] = useState<AssignmentWithEmployee | null>(null);
@@ -924,7 +924,9 @@ export const DomainsPage: React.FC = () => {
           ? `${displayName} set as Region Head`
           : addEmployeeRole === 'supervisor'
             ? `${displayName} assigned as Supervisor`
-            : 'Employee assigned to region',
+            : addEmployeeRole === 'coordinator'
+              ? `${displayName} assigned as Coordinator`
+              : 'Employee assigned to region',
         'success'
       );
       setAddEmployeeRegion(null);
@@ -939,7 +941,7 @@ export const DomainsPage: React.FC = () => {
   };
 
   // ——— Review: Change assignment role ———
-  const handleChangeAssignmentRole = async (assignmentId: number, newRole: 'head' | 'employee' | 'supervisor') => {
+  const handleChangeAssignmentRole = async (assignmentId: number, newRole: 'head' | 'employee' | 'supervisor' | 'coordinator') => {
     try {
       await marketingAPI.updateEmployeeAssignment(assignmentId, { role: newRole });
       showToast('Role updated', 'success');
@@ -1850,6 +1852,9 @@ export const DomainsPage: React.FC = () => {
                                               {a.role === 'head' && (
                                                 <Badge variant="outline" className="text-xs shrink-0">Head</Badge>
                                               )}
+                                              {a.role === 'coordinator' && (
+                                                <Badge variant="outline" className="text-xs shrink-0 border-sky-200 text-sky-800 bg-sky-50">Coordinator</Badge>
+                                              )}
                                               {a.role === 'supervisor' && (
                                                 <Badge variant="outline" className="text-xs shrink-0 border-amber-200 text-amber-800 bg-amber-50">Supervisor</Badge>
                                               )}
@@ -1886,10 +1891,11 @@ export const DomainsPage: React.FC = () => {
                                                   options={[
                                                     { value: 'employee', label: 'Employee' },
                                                     { value: 'supervisor', label: 'Supervisor' },
+                                                    { value: 'coordinator', label: 'Coordinator' },
                                                     { value: 'head', label: 'Head' },
                                                   ]}
                                                   value={a.role}
-                                                  onChange={(val) => handleChangeAssignmentRole(a.id, (val as 'head' | 'employee' | 'supervisor') || 'employee')}
+                                                  onChange={(val) => handleChangeAssignmentRole(a.id, (val as 'head' | 'employee' | 'supervisor' | 'coordinator') || 'employee')}
                                                   searchable={false}
                                                   className="min-w-[100px]"
                                                 />
@@ -2191,10 +2197,11 @@ export const DomainsPage: React.FC = () => {
             options={[
               { value: 'employee', label: 'Employee' },
               { value: 'supervisor', label: 'Supervisor (all contacts in region)' },
+              { value: 'coordinator', label: 'Coordinator (same access as Region Coordinator)' },
               { value: 'head', label: 'Region Head' },
             ]}
             value={addEmployeeRole}
-            onChange={(val) => setAddEmployeeRole((val as 'head' | 'employee' | 'supervisor') || 'employee')}
+            onChange={(val) => setAddEmployeeRole((val as 'head' | 'employee' | 'supervisor' | 'coordinator') || 'employee')}
             searchable={false}
           />
         </div>
