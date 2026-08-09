@@ -55,6 +55,16 @@ Auth flow: browser POSTs credentials to HRMS RBAC → gets JWT + permissions/rol
 - This repo is frontend-only. `au-marketing-api/` is a **nested git repo** (gitlink, mode `160000` per `git ls-files`) containing the FastAPI backend — it has its own commit history and remote, separate from this repo's. Use `git -C au-marketing-api ...` (not plain `git`) to inspect or commit backend changes, and never assume a `git log`/`git status` run from the repo root covers it.
 - Copy `.env.example` → `.env`. Key vars: `VITE_API_BASE_URL` (Marketing API, default `:8003`), `VITE_HRMS_RBAC_API_URL` (HRMS auth/RBAC service, default `:8000`). Firebase vars are optional (push notifications).
 
+## Database migrations (production)
+
+- Migrations are applied directly against the production database by the user, via SSH into the Docker host and exec'ing into the running backend container — there is no separate staging environment or CI migration step. The actual commands used:
+  ```
+  sudo docker compose exec web alembic revision --autogenerate -m "..."
+  sudo docker compose exec web alembic upgrade head
+  ```
+- **The server's migration history does not reliably match what's committed to `au-marketing-api/migrations/versions/` in this repo.** The production host's working directory accumulates migration files generated directly by past `alembic revision --autogenerate` runs that were never `git add`/committed — Docker's `COPY . .` bakes whatever physically sits in that directory into the image regardless of git status, so those files persist and keep chaining across rebuilds even though they don't exist in this repo's history. Don't add a hand-written migration file to this repo expecting it to be the next one applied on production — it will likely create a second, disconnected head and break the next `alembic revision --autogenerate` with a "multiple heads" error instead. If a migration needs a change autogenerate can't produce on its own, fix the *tooling* (see below) rather than hand-writing a one-off migration file.
+- **The user only wants to run plain `alembic revision --autogenerate` + `alembic upgrade head` — no hand-written migrations, no raw SQL run by hand.** Design fixes around that constraint. For the specific case of adding a new value to an existing Postgres `Enum` column (something plain Alembic autogenerate cannot detect at all, a hard limitation not a config issue), the fix already in place is the `alembic-postgresql-enum` package (`requirements.txt`) plus `import alembic_postgresql_enum` in `migrations/env.py` — it patches autogenerate's comparator to detect enum value additions/removals, so a plain `--autogenerate` run now picks them up automatically like any other schema change.
+
 ## Architecture essentials (beyond README)
 
 ### Two backends, two concerns
