@@ -1625,11 +1625,11 @@ export const LeadsPage: React.FC = () => {
                                       later: 'bg-blue-50 border-blue-200 hover:bg-blue-100/70',
                                     } as Record<string, string>)[followUpUrgency ?? ''] ?? 'bg-white border-slate-200 hover:shadow-md';
                                     const followUpGlow = ({
-                                      overdue: { '--glow-color': 'rgba(239, 68, 68, 0.6)', '--glow-blur': '16px', '--glow-spread': '4px', '--glow-duration': '1.2s' },
-                                      today: { '--glow-color': 'rgba(249, 115, 22, 0.55)', '--glow-blur': '14px', '--glow-spread': '4px', '--glow-duration': '1.6s' },
-                                      tomorrow: { '--glow-color': 'rgba(245, 158, 11, 0.45)', '--glow-blur': '12px', '--glow-spread': '3px', '--glow-duration': '2s' },
-                                      week: { '--glow-color': 'rgba(234, 179, 8, 0.35)', '--glow-blur': '10px', '--glow-spread': '3px', '--glow-duration': '2.6s' },
-                                      later: { '--glow-color': 'rgba(59, 130, 246, 0.3)', '--glow-blur': '8px', '--glow-spread': '2px', '--glow-duration': '3.2s' },
+                                      overdue: { '--glow-color': 'rgba(239, 68, 68, 0.6)', '--glow-blur': '16px', '--glow-spread': '4px' },
+                                      today: { '--glow-color': 'rgba(249, 115, 22, 0.55)', '--glow-blur': '14px', '--glow-spread': '4px' },
+                                      tomorrow: { '--glow-color': 'rgba(245, 158, 11, 0.45)', '--glow-blur': '12px', '--glow-spread': '3px' },
+                                      week: { '--glow-color': 'rgba(234, 179, 8, 0.35)', '--glow-blur': '10px', '--glow-spread': '3px' },
+                                      later: { '--glow-color': 'rgba(59, 130, 246, 0.3)', '--glow-blur': '8px', '--glow-spread': '2px' },
                                     } as Record<string, React.CSSProperties>)[followUpUrgency ?? ''];
                                     return (
                                     <div
@@ -1639,7 +1639,7 @@ export const LeadsPage: React.FC = () => {
                                         onDragEnd={handleLeadDragEnd}
                                         onClick={() => canEdit && !didDragRef.current && navigate(`/leads/${lead.id}/edit`)}
                                         style={followUpGlow}
-                                        className={`rounded-lg border p-3 shadow-sm transition-all hover:shadow-md ${followUpCardClass} ${followUpGlow ? 'animate-followup-glow' : ''} ${leadDraggable ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedLeadId === lead.id ? 'opacity-50' : ''} ${updatingLeadId === lead.id ? 'animate-pulse' : ''}`}
+                                        className={`rounded-lg border p-3 shadow-sm transition-all hover:shadow-md ${followUpCardClass} ${followUpGlow ? 'static-followup-glow' : ''} ${leadDraggable ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedLeadId === lead.id ? 'opacity-50' : ''} ${updatingLeadId === lead.id ? 'animate-pulse' : ''}`}
                                       >
                                         {lead.series && (
                                           <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mb-0.5">{lead.series}</div>

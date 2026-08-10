@@ -10,9 +10,10 @@ The system determines a user's access boundaries using the primary role mapped f
 
 1. **`super_admin` (Superuser / Staff)**: Full database access; bypasses all scope filters.
 2. **`domain_head`**: Scoped to one or more entire markets (e.g., Domestic, Export).
-3. **`region_head`**: Scoped to specific geographical regions (e.g., North America, Europe).
-4. **`supervisor` / `region_coordinator`**: Mid-level access with region-wide visibility but restricted actions.
-5. **`employee` (Salesperson)**: Strictly isolated to their own records or assigned workspace.
+3. **`domain_coordinator`**: Assigned to a domain as its coordinator; resolves to `domain_head` scope with `is_domain_coordinator = true` — domain-wide visibility but view-only actions.
+4. **`region_head`**: Scoped to specific geographical regions (e.g., North America, Europe).
+5. **`supervisor` / `region_coordinator`**: Mid-level access with region-wide visibility but restricted actions.
+6. **`employee` (Salesperson)**: Strictly isolated to their own records or assigned workspace.
 
 > [!IMPORTANT]
 > **`marketing.admin` HRMS permission = super-admin *visibility***. A user holding the `marketing.admin` permission (e.g. a CEO) is resolved to `super_admin` scope in `app/scope.py` (`is_super_admin()`), so they see all domains/targets/leads and every employee in the Leads "Assigned:" filter — exactly like a superuser. This grants **data visibility only**: per-route action permissions (`marketing.create_lead`, `marketing.edit_lead`, `marketing.delete_lead`, etc.) are still enforced individually against HRMS, and the superuser/staff bypass inside `require_permission()` does NOT apply to `marketing.admin`. Grants/revokes take effect after the RBAC cache TTL (`RBAC_CACHE_TTL_SECONDS`, default 60s) or a profile/refresh-permissions call.
@@ -118,6 +119,37 @@ Rules governing who can see and modify Exhibition/Roadshow events and visitors:
 
 ---
 
+## 📊 5. Dashboard Scoping Rules (Widgets)
+
+Rules governing what each role sees on the Home/Dashboard page ([DashboardPage.tsx](file:///Users/ady/Documents/au-marketing-fe/pages/DashboardPage.tsx)) and how the data inside each widget is scoped. Two independent layers apply to every widget:
+
+1. **Widget visibility** — which widgets a role may add (Add Widget catalog) and have rendered in their layout. Widgets a user is not privileged to see are **removed entirely** from their view (they do not appear in the rendered layout or the Add Widget picker).
+2. **Data scoping** — the numbers inside each widget are filtered server-side to the user's scope (same `get_user_scope` used everywhere else).
+
+### Widget visibility by role
+
+| Widget | Super Admin | Domain Head / Coordinator | Region Head / Coordinator / Supervisor | Employee |
+| :--- | :--: | :--: | :--: | :--: |
+| Head Summary | ✅ | ✅ | ❌ hidden | ❌ hidden |
+| Leads by Region | ✅ | ✅ | ❌ hidden | ❌ hidden |
+| Quotations Submitted | ✅ | ✅ | ❌ hidden | ❌ hidden |
+| Audit Logs | ✅ (admin only) | ❌ hidden | ❌ hidden | ❌ hidden |
+| All other ready-made widgets & charts | ✅ | ✅ | ✅ | ✅ |
+| Custom builders (SQL / Code) | ✅ | ✅ | ✅ | ✅ |
+
+- **Head-only widgets** (`head-summary`, `leads-by-region`, `quotation-submitted-chart`) render only when the dashboard role is `domain_head`/`super_admin` or `is_domain_coordinator === true` (frontend `isHeadRole`).
+- **Audit Logs** renders only for users holding `marketing.admin` or `marketing.view_reports` — mirroring the backend gate in `audit_logs.py` (the widget would otherwise 403 into an empty state).
+- **Dashboard role resolution**: `supervisor` and `region_coordinator` are presented as `region_head` (regional view, no head widgets); `domain_coordinator` is presented as `domain_head` with `is_domain_coordinator = true` (domain-wide view including head widgets).
+
+### Data scoping per widget
+- **Stat cards (Leads / Contacts / Customers)** — server-scoped via `getLeads`/`getContacts`/`getCustomers`; the card subtitle reflects scope ("In my scope" / "Region scope" / "Domain scope" / "All") instead of the misleading "Total in system".
+- **Monthly Target Progress / Target vs Achieved / Won vs Lost** — `getScopeTargetStats`, role-scoped with `scope_label` ("My" / "Region" / "Domain" / "All"). Employee sees their own target (`employee_count = 1`); heads see their team's aggregated target.
+- **Recent Leads + status / revenue / goal / inquiries-quotations charts** — computed from role-scoped leads and the scoped reports summary.
+- **Performer of the Month** — top 5 ranking **scoped to the caller's team**: super admin = all domains/regions; domain head/coordinator = their domains; region head/supervisor/employee = their regions. No org-wide leaderboard leaks.
+- **Custom SQL builders** — SQL is compiled server-side with scope placeholders (`{{employee_id}}`, `{{domain_id}}`, `{{region_id}}`, `{{role}}`) filled from the viewer's scope, so hand-written queries only return rows inside the viewer's scope.
+
+---
+
 ## 🛠️ Code References
 
 * **Backend Scoping Logic**: [app/scope.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/scope.py)
@@ -128,3 +160,4 @@ Rules governing who can see and modify Exhibition/Roadshow events and visitors:
   * Organizations: [app/routers/organizations.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/organizations.py)
   * Events: [app/routers/events.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/events.py)
 * **Frontend Rules Config**: [pages/DomainsPage.tsx](file:///Users/ady/Documents/au-marketing-fe/pages/DomainsPage.tsx)
+* **Dashboard Widgets**: [pages/DashboardPage.tsx](file:///Users/ady/Documents/au-marketing-fe/pages/DashboardPage.tsx) / [app/routers/dashboard.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/dashboard.py)

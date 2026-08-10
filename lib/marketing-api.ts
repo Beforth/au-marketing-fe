@@ -71,6 +71,7 @@ export interface Region {
   name: string;
   code: string;
   description?: string;
+  sort_order?: number;
   head_employee_id?: number;
   head_username?: string;
   coordinator_employee_id?: number;
@@ -317,8 +318,9 @@ export interface Lead {
 export interface LeadActivityAttachment {
   id: number;
   activity_id: number;
-  file_name: string;
-  file_path: string;
+  /** null when the quotation number was pre-generated with no file yet (attach later) */
+  file_name?: string | null;
+  file_path?: string | null;
   is_quotation?: boolean;
   quotation_number?: string | null;
   title?: string | null;
@@ -396,6 +398,8 @@ export interface CreateLeadRequest {
   initial_inquiry_at?: string;
   /** Suppress the auto-created "Inquiry 0" quote-number placeholder — set when a quotation file is being uploaded in this same create flow. */
   skip_quote_placeholder?: boolean;
+  /** Additional pre-generated quotation numbers (beyond quote_number) with no file yet — become file-less quotation rows on the "Inquiry 0" activity when no files are uploaded in this create flow. */
+  extra_quote_numbers?: string[];
 }
 
 export interface UpdateLeadRequest extends Partial<CreateLeadRequest> {
@@ -770,6 +774,24 @@ class MarketingAPIService {
       `/api/leads/${leadId}/activities/${activityId}/attachments`,
       formData,
       onProgress
+    );
+  }
+
+  /** Create file-less quotation rows (pre-generated quotation numbers with no file yet) on an activity. When seriesCode is given (and no numbers), the next value is generated and committed server-side at save time. */
+  async createLeadQuotationPlaceholders(
+    leadId: number,
+    activityId: number,
+    quotationNumbers: string[],
+    quoteValues?: (number | null)[],
+    seriesCode?: string,
+  ): Promise<LeadActivityAttachment[]> {
+    return apiClient.post<LeadActivityAttachment[]>(
+      `/api/leads/${leadId}/activities/${activityId}/quotations`,
+      {
+        quotation_numbers: quotationNumbers,
+        quote_values: quoteValues,
+        series_code: seriesCode,
+      }
     );
   }
 
@@ -1181,6 +1203,13 @@ class MarketingAPIService {
     return apiClient.delete<void>(`/api/regions/${id}`);
   }
 
+  async reorderRegions(domainId: number, orderedIds: number[]): Promise<{ ok: boolean; domain_id: number; count: number }> {
+    return apiClient.post<{ ok: boolean; domain_id: number; count: number }>('/api/regions/reorder', {
+      domain_id: domainId,
+      ordered_ids: orderedIds,
+    });
+  }
+
   // Contacts
   async getContacts(params?: {
     page?: number;
@@ -1448,12 +1477,16 @@ class MarketingAPIService {
 
   async generateNextSeriesNumber(
     seriesId: number,
-    context?: { customer_id?: number; contact_id?: number; lead_id?: number }
+    context?: { customer_id?: number; contact_id?: number; lead_id?: number },
+    preview = false
   ): Promise<SeriesGenerateResponse> {
-    return apiClient.post<SeriesGenerateResponse>(`/api/series/${seriesId}/generate-next`, context ?? {});
+    return apiClient.post<SeriesGenerateResponse>(
+      `/api/series/${seriesId}/generate-next${preview ? '?preview=1' : ''}`,
+      context ?? {}
+    );
   }
 
-  /** Generate next value by series code (character field, not FK). Pass lead_id/contact_id/customer_id or lead_context (company) for pattern placeholders like {lead.company}. */
+  /** Generate next value by series code (character field, not FK). Pass lead_id/contact_id/customer_id or lead_context (company) for pattern placeholders like {lead.company}. Pass preview=true to only peek at the next value without consuming it (the counter is advanced on actual save). */
   async generateNextSeriesNumberByCode(
     seriesCode: string,
     context?: {
@@ -1461,9 +1494,13 @@ class MarketingAPIService {
       contact_id?: number;
       lead_id?: number;
       lead_context?: { company?: string; company_slug?: string };
-    }
+    },
+    preview = false
   ): Promise<SeriesGenerateResponse> {
-    return apiClient.post<SeriesGenerateResponse>('/api/series/generate-next', { series_code: seriesCode, ...context });
+    return apiClient.post<SeriesGenerateResponse>(
+      `/api/series/generate-next${preview ? '?preview=1' : ''}`,
+      { series_code: seriesCode, ...context }
+    );
   }
 
   // Profile & Connect Email (uses same API base + auth token)

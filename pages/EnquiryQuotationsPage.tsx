@@ -189,10 +189,10 @@ export const EnquiryQuotationsPage: React.FC = () => {
       sortable: false,
       render: (q) => (
         <div className="flex items-center gap-2">
-          <span className="text-slate-600">{q.file_name}</span>
+          <span className="text-slate-600">{q.file_name || '—'}</span>
           {q.media_exists === false && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-600 border border-red-200">
-              <AlertTriangle size={10} /> Media Missing
+              <AlertTriangle size={10} /> {q.file_name ? 'Media Missing' : 'No file yet'}
             </span>
           )}
         </div>

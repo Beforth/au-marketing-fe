@@ -272,17 +272,8 @@
             animation: backdropFadeOut 0.2s ease-in forwards;
         }
 
-        @keyframes followUpGlow {
-            0%, 100% {
-                box-shadow: 0 0 0 0 transparent;
-            }
-            50% {
-                box-shadow: 0 0 var(--glow-blur, 12px) var(--glow-spread, 3px) var(--glow-color, transparent);
-            }
-        }
-
-        .animate-followup-glow {
-            animation: followUpGlow var(--glow-duration, 2s) ease-in-out infinite;
+        .static-followup-glow {
+            box-shadow: 0 0 var(--glow-blur, 12px) var(--glow-spread, 3px) var(--glow-color, transparent);
         }
     </style>
     <script type="importmap">

@@ -5,6 +5,37 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-08-10] — Multiple Quote Numbers, Dashboard Role Scoping, Date Format (v1.2.5)
+
+### 🖥️ Frontend
+
+#### Enquiry & Quotations — Multiple Quote Numbers Without Files
+- A lead can now carry more than one quotation number, even before any quotation file is uploaded — the numbers are registered up front as file-less quotation rows, and you can attach the actual files to them later without retyping the number.
+- Quotations that don't have a file attached yet now show "No file yet" instead of the old "Media Missing" warning.
+
+#### Dashboard — Role-Scoped Stats & Widgets
+- The Leads / Contacts / Customers summary cards now state what scope the numbers cover (for example "In my scope" or "Domestic scope") instead of a generic "Total in system".
+- Widgets that only make sense for leadership (head summary, leads by region, quotation-submitted chart) and the audit-log widget are now hidden from roles that can't view that data.
+
+#### Performance Leaderboard — Scoped to Your Team
+- "Performer of the Month" now ranks only the people within your own scope (a domain head sees their domains, a region head or employee sees their regions) instead of a company-wide list.
+
+#### Dates — Consistent DD/MM/YYYY Format
+- Dates across the app now display in a uniform DD/MM/YYYY format (with time where relevant) instead of the browser's default.
+
+#### Leads Kanban — Steady Follow-Up Glow (No More Blinking)
+- The pulsing glow animation around follow-up-highlighted lead cards is gone — the colored halo now sits steady on the card instead of blinking, so urgent cards are still easy to spot without the distracting motion.
+
+### ⚙️ Backend
+
+#### Quotations — File-less Quote Numbers
+- Leads can register pre-generated quotation numbers without an attached file, and the file fields are now optional — a quotation can exist before its file is uploaded.
+
+#### Leads & Events — Database Role-Value Fix
+- Saving or editing a lead could fail with a database error because the database was missing the "coordinator" role value the app already uses (the same class of problem could also affect event travel-proof files). The values are now in place, with a safe one-time patch script for existing databases.
+
+---
+
 ## [2026-08-09] — Leads Kanban Card Cleanup, Automatic Follow-Up Highlighting (v1.2.4)
 
 ### 🖥️ Frontend
@@ -22,6 +53,11 @@ Format: `[Date] — Category: Description`
 
 #### Regions & Domains — Deletion Blocked by Removed Employees
 - Removing an employee from a region (or replacing a domain's head/coordinator) now fully detaches them, instead of leaving a hidden link behind that only showed up later as an error when trying to delete the region or domain. Regions and domains that were stuck this way can now be deleted normally.
+
+#### Regions — Multiple Coordinators
+- Regions can now have more than one Coordinator, each with the same region-wide access as before — previously only a single person could hold that role per region.
+- The Edit Region page now shows everyone currently assigned to the region (Head, Coordinators, Supervisors, Employees), with the ability to add or remove people directly from there.
+- A region can no longer be deleted while it still has a Head, Coordinator(s), or other assigned employees — they need to be removed via Edit Region first, with a clear message explaining why if you try to delete too early.
 
 ---
 

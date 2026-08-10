@@ -289,7 +289,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 ? selectedDates!.size === 0
                   ? placeholder
                   : `${selectedDates!.size} date${selectedDates!.size > 1 ? 's' : ''} selected`
-                : value ? new Date(value).toLocaleString(undefined, showTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' }) : placeholder}
+                : value ? new Date(value).toLocaleString('en-IN', showTime
+                    ? { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }
+                    : { day: '2-digit', month: '2-digit', year: 'numeric' }) : placeholder}
             </span>
           </div>
           {value && !disabled && (

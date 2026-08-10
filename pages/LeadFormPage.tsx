@@ -1320,8 +1320,8 @@ export const LeadFormPage: React.FC = () => {
         showToast('Quote value is mandatory. Please enter a value before submitting.', 'error');
         return;
       }
-      if (!isEdit && createQuotations.some(q => !q.value || !q.value.trim())) {
-        showToast('Quote value is mandatory for all quotations in the list.', 'error');
+      if (!isEdit && createQuotations.some(q => q.file && (!q.value || !q.value.trim()))) {
+        showToast('Quote value is mandatory for quotations with a file.', 'error');
         return;
       }
       let effectiveContactId = formData.contact_id ?? undefined;
@@ -1515,6 +1515,11 @@ export const LeadFormPage: React.FC = () => {
         region_id: effectiveRegionId,
         created_by_employee_id: !isEdit ? formData.created_by_employee_id : undefined,
       };
+      // Contact/company display fields (sourced from the linked contact) are not Lead columns — the
+      // backend Lead schema ignores them. Keep the payload to real Lead fields.
+      for (const k of ['first_name', 'last_name', 'company', 'email', 'job_title', 'title', 'organization_id'] as const) {
+        delete (payload as any)[k];
+      }
       if (!(payload as any).expected_closing_date) {
         (payload as any).expected_closing_date = undefined;
       }
@@ -1522,16 +1527,26 @@ export const LeadFormPage: React.FC = () => {
         const assigned = (window.localStorage.getItem(DEFAULT_LEAD_SERIES_STORAGE_KEY) || '').trim();
         if (assigned) (payload as any).series_code = assigned;
       }
+      const numberOnlyNumbers = !isEdit ? createQuotations.filter(q => !q.file).map(q => q.number.trim()).filter(Boolean) : [];
+      const hasFileRows = !isEdit && createQuotations.some(q => q.file);
       // Quote number (separate from lead number): generated (series + number) or manual text only
-      if (!isEdit && generatedQuoteSeriesCode && generatedQuoteNumber) {
+      if (!isEdit && numberOnlyNumbers.length > 0) {
+        // Multiple pre-generated numbers with no files: first becomes the lead's quote number,
+        // the rest become file-less quotation rows on the "Inquiry 0" activity (backend).
+        (payload as any).quote_number = numberOnlyNumbers[0];
+        if (numberOnlyNumbers.length > 1) {
+          (payload as any).extra_quote_numbers = numberOnlyNumbers.slice(1);
+        }
+      } else if (!isEdit && generatedQuoteSeriesCode && generatedQuoteNumber) {
+        // Generated number is a preview only — pass just the series so the backend
+        // generates and commits the real next value once, when the lead is saved.
         (payload as any).quote_series_code = generatedQuoteSeriesCode;
-        (payload as any).quote_number = generatedQuoteNumber;
       } else if (!isEdit && customCreateQuoteNumber.trim()) {
         (payload as any).quote_number = customCreateQuoteNumber.trim();
       }
       // A quotation file is being attached in this same create flow, so the "Added quotation" activity
       // below already covers the quote number — skip the auto "Inquiry 0" placeholder.
-      if (!isEdit && createQuotations.some(q => q.file)) {
+      if (hasFileRows) {
         (payload as any).skip_quote_placeholder = true;
       }
 
@@ -1548,7 +1563,27 @@ export const LeadFormPage: React.FC = () => {
       try {
         if (isValidId) {
           await marketingAPI.updateLead(leadId, payload as UpdateLeadRequest);
-          showToast('Lead updated successfully', 'success');
+          // Title / name / designation / phone live on the linked contact, not the Lead — push any
+          // changed values there so edits actually persist (the Lead schema would silently drop them).
+          let contactWarning = '';
+          if (primaryContactContactId && selectedPrimaryContact) {
+            const loaded = selectedPrimaryContact;
+            const contactPatch: Partial<Contact> = {};
+            if ((formData.title?.trim() ?? '') !== (loaded.title ?? '')) contactPatch.title = formData.title?.trim() || undefined;
+            if ((formData.first_name?.trim() ?? '') !== (loaded.first_name ?? '')) contactPatch.first_name = formData.first_name?.trim() || undefined;
+            if ((formData.last_name?.trim() ?? '') !== (loaded.last_name ?? '')) contactPatch.last_name = formData.last_name?.trim() || undefined;
+            if ((formData.job_title?.trim() ?? '') !== (loaded.contact_job_title ?? '')) contactPatch.contact_job_title = formData.job_title?.trim() || undefined;
+            const serializedPhone = serializePhoneWithCountryCode(leadPhoneCountryCode, leadPhonePart);
+            if (serializedPhone !== (loaded.contact_phone ?? '')) contactPatch.contact_phone = serializedPhone || undefined;
+            if (Object.keys(contactPatch).length > 0) {
+              try {
+                await marketingAPI.updateContact(primaryContactContactId, contactPatch);
+              } catch (contactErr: any) {
+                contactWarning = ` Contact details weren't updated (${contactErr?.message || 'contact update failed'}).`;
+              }
+            }
+          }
+          showToast(contactWarning ? `Lead saved, but${contactWarning}` : 'Lead updated successfully', contactWarning ? 'error' : 'success');
           setShowEditModal(false);
           loadLead();
           loadActivities();
@@ -1578,6 +1613,9 @@ export const LeadFormPage: React.FC = () => {
                 createQuotations.map(q => q.value ? Number(q.value) : undefined),
                 setCreateLeadUploadProgress
               );
+              if (numberOnlyNumbers.length > 0) {
+                await marketingAPI.createLeadQuotationPlaceholders(lead.id, createdActivity.id, numberOnlyNumbers);
+              }
               showToast('Lead and enquiry created successfully', 'success');
               navigate(`/leads/${lead.id}/edit`);
               return;
@@ -1614,17 +1652,11 @@ export const LeadFormPage: React.FC = () => {
     setGeneratingQuoteNumber(true);
     try {
       const res = isValidId
-        ? await marketingAPI.generateNextSeriesNumberByCode(code, { lead_id: leadId })
-        : await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company } });
+        ? await marketingAPI.generateNextSeriesNumberByCode(code, { lead_id: leadId }, true)
+        : await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company } }, true);
       const generated = res.generated_value ?? undefined;
       setFormData((prev) => ({ ...prev, series: generated }));
-      if (isValidId && generated) {
-        const updated = await marketingAPI.updateLead(leadId, { series_code: code, series: generated } as UpdateLeadRequest);
-        setCurrentLead(updated);
-        showToast('Lead number generated and saved', 'success');
-      } else {
-        showToast('Lead number generated', 'success');
-      }
+      showToast('Lead number preview generated (the number is committed when the lead is saved)', 'success');
     } catch (e: any) {
       showToast(e?.message || 'Failed to generate lead number', 'error');
     } finally {
@@ -1646,7 +1678,7 @@ export const LeadFormPage: React.FC = () => {
     }
     setGeneratingQuoteNumberOnCreate(true);
     try {
-      const res = await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company } });
+      const res = await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company } }, true);
       const generated = res.generated_value ?? null;
       setGeneratedQuoteNumber(generated);
       setGeneratedQuoteSeriesCode(code);
@@ -1672,7 +1704,7 @@ export const LeadFormPage: React.FC = () => {
     }
     setActivityDraftGenerating(true);
     try {
-      const res = await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company } });
+      const res = await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company } }, true);
       const generated = res.generated_value ?? null;
       setActivityDraftGeneratedNumber(generated);
       setActivityDraftGeneratedSeriesCode(code);
@@ -1700,10 +1732,11 @@ export const LeadFormPage: React.FC = () => {
     }
     setSavingActivityDraftQuoteNumber(true);
     try {
-      const updated = await marketingAPI.updateLead(leadId!, {
-        quote_series_code: activityDraftGeneratedNumber ? (activityDraftGeneratedSeriesCode?.trim() || undefined) : undefined,
-        quote_number: activityDraftGeneratedNumber || manual,
-      });
+      // Generated number is a preview — commit it server-side at save (series only), so an
+      // abandoned "Generate" never consumes a value from the series.
+      const updated = activityDraftGeneratedNumber && activityDraftGeneratedSeriesCode?.trim()
+        ? await marketingAPI.updateLead(leadId!, { quote_series_code: activityDraftGeneratedSeriesCode.trim() })
+        : await marketingAPI.updateLead(leadId!, { quote_number: manual });
       setCurrentLead(updated);
       setActivityDraftSeriesCode('');
       setActivityDraftGeneratedNumber(null);
@@ -1732,7 +1765,7 @@ export const LeadFormPage: React.FC = () => {
     }
     setGeneratingQuoteNumberInEdit(true);
     try {
-      const res = await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company } });
+      const res = await marketingAPI.generateNextSeriesNumberByCode(code, { lead_context: { company } }, true);
       const generated = res.generated_value ?? null;
       setEditGeneratedQuoteNumber(generated);
       setEditCustomQuoteNumber('');
@@ -1754,10 +1787,10 @@ export const LeadFormPage: React.FC = () => {
     }
     setSavingQuoteNumberInEdit(true);
     try {
-      const updated = await marketingAPI.updateLead(leadId!, {
-        quote_series_code: editGeneratedQuoteNumber ? (editQuoteSeriesCode.trim() || undefined) : undefined,
-        quote_number: editGeneratedQuoteNumber || manual,
-      });
+      // Generated number is a preview — commit it server-side at save (series only).
+      const updated = editGeneratedQuoteNumber && editQuoteSeriesCode.trim()
+        ? await marketingAPI.updateLead(leadId!, { quote_series_code: editQuoteSeriesCode.trim() })
+        : await marketingAPI.updateLead(leadId!, { quote_number: manual });
       setCurrentLead(updated);
       setEditGeneratedQuoteNumber(null);
       setEditCustomQuoteNumber('');
@@ -2783,7 +2816,7 @@ export const LeadFormPage: React.FC = () => {
                     <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
                         <p className="text-xs font-semibold text-slate-700">Quote number (optional)</p>
                         <p className="text-xs text-slate-500">
-                          Generate a quote number from a numbering series or type one manually — no file needed. It's saved on the lead as soon as you create it; attaching a file above is optional.
+                          Generate a quote number from a numbering series or type one manually — no file needed. Add each number to the list below to reserve it; the quotation file and value can be attached later.
                         </p>
                         <div className="flex flex-wrap items-end gap-2">
                           <div className="min-w-[200px] flex-1">
@@ -2843,23 +2876,24 @@ export const LeadFormPage: React.FC = () => {
                     <Button
                       type="button"
                       size="sm"
-                      disabled={!createQuoteFile || !createQuoteValue}
+                      disabled={!((createQuoteFile && createQuoteValue) || (!createQuoteFile && (createQuoteNumber.trim() || generatedQuoteNumber)))}
                       className="active:scale-[0.98]"
                       onClick={() => {
-                        if (createQuoteFile && createQuoteValue) {
-                          const trimmed = createQuoteNumber.trim();
-                          if (trimmed && createQuotations.some(q => q.number.trim() === trimmed)) {
-                            showToast('Quote number already exists in the list', 'error');
-                            return;
-                          }
-                          const effectiveNumber = createQuoteNumber.trim() || generatedQuoteNumber || '';
-                          setCreateQuotations(prev => [...prev, { id: crypto.randomUUID(), file: createQuoteFile, value: createQuoteValue, number: effectiveNumber }]);
-                          setCreateQuoteFile(null);
-                          setCreateQuoteValue('');
-                          setCreateQuoteNumber('');
-                          setCreateFormQuoteSeriesCode('');
-                          setCustomCreateQuoteNumber('');
+                        const effectiveNumber = (createQuoteNumber.trim() || generatedQuoteNumber || '').trim();
+                        const hasFile = !!createQuoteFile;
+                        if (!hasFile && !effectiveNumber) return;
+                        if (effectiveNumber && createQuotations.some(q => q.number.trim() === effectiveNumber)) {
+                          showToast('Quote number already exists in the list', 'error');
+                          return;
                         }
+                        setCreateQuotations(prev => [...prev, { id: crypto.randomUUID(), file: createQuoteFile, value: createQuoteValue, number: effectiveNumber }]);
+                        setCreateQuoteFile(null);
+                        setCreateQuoteValue('');
+                        setCreateQuoteNumber('');
+                        setCreateFormQuoteSeriesCode('');
+                        setCustomCreateQuoteNumber('');
+                        setGeneratedQuoteNumber(null);
+                        setGeneratedQuoteSeriesCode(null);
                       }}
                     >
                       + Add to list
@@ -2871,9 +2905,9 @@ export const LeadFormPage: React.FC = () => {
                       {createQuotations.map((q) => (
                         <div key={q.id} className="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2">
                           <FileText size={14} className="text-slate-400 shrink-0" />
-                          <span className="text-sm font-medium text-slate-700 truncate flex-1">{q.file?.name || 'File'}</span>
+                          <span className="text-sm font-medium text-slate-700 truncate flex-1">{q.file?.name || (q.number ? `No file yet — attach later` : 'File')}</span>
                           {q.number && <span className="text-xs font-mono text-slate-500 shrink-0">{q.number}</span>}
-                          <span className="text-sm font-semibold text-slate-900 shrink-0">₹{Number(q.value).toLocaleString('en-IN')}</span>
+                          {q.value && <span className="text-sm font-semibold text-slate-900 shrink-0">₹{Number(q.value).toLocaleString('en-IN')}</span>}
                           <DeleteButton
                             onClick={() => setCreateQuotations(prev => prev.filter(r => r.id !== q.id))}
                             tooltip="Remove quotation"
@@ -3122,7 +3156,6 @@ export const LeadFormPage: React.FC = () => {
                             <div className="w-36 shrink-0 [&_button]:!h-9 [&_button]:!min-h-0 [&_button]:!py-0">
                               <Select
                                 options={[
-                                  { value: 'new-quotation', label: 'New Quotation' },
                                   { value: 'revise-quotation', label: 'Revise Quotation' },
                                   { value: 'attachment', label: 'Attachment' },
                                 ]}
@@ -3138,9 +3171,7 @@ export const LeadFormPage: React.FC = () => {
                                   setActivityDraftSeriesCode('');
                                   setActivityDraftGeneratedNumber(null);
                                   setActivityDraftGeneratedSeriesCode(null);
-                                  // Default to the lead's already-generated quote number, so attaching the
-                                  // file here just reuses it instead of leaving the box blank.
-                                  setActivityDraftCustomNumber(mode === 'new-quotation' ? (currentLead?.quote_number?.trim() || '') : '');
+                                  setActivityDraftCustomNumber('');
                                 }}
                                 className="w-full"
                                 searchable={false}
@@ -3508,7 +3539,7 @@ export const LeadFormPage: React.FC = () => {
                               <span>{displayName}</span>
                             )}
                             <span>·</span>
-                            <span>{a.activity_date ? new Date(a.activity_date).toLocaleString() : new Date(a.created_at).toLocaleString()}</span>
+                            <span>{a.activity_date ? new Date(a.activity_date).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : new Date(a.created_at).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                           </div>
                           {canEditDelete && a.inquiry_number !== 0 && (
                             <div className="flex items-center gap-1 shrink-0">
@@ -3566,7 +3597,7 @@ export const LeadFormPage: React.FC = () => {
                                         {att.media_exists === false ? (
                                           <>
                                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-600 border border-red-200">
-                                              <AlertTriangle size={10} /> Media Missing
+                                              <AlertTriangle size={10} /> {att.file_name ? 'Media Missing' : 'No file yet'}
                                             </span>
                                             <input
                                               type="file"
@@ -3589,21 +3620,21 @@ export const LeadFormPage: React.FC = () => {
                                                 <span className="animate-spin w-3 h-3 border-2 border-amber-600 border-t-transparent rounded-full" />
                                               ) : (
                                                 <Upload size={12} />
-                                              )} Reattach
+                                              )} {att.file_name ? 'Reattach' : 'Attach file'}
                                             </button>
                                           </>
                                         ) : (
                                           <>
                                             <button
                                               type="button"
-                                              onClick={() => handleViewFile(a.id, att.id, att.file_name)}
+                                              onClick={() => handleViewFile(a.id, att.id, att.file_name ?? "")}
                                               className="text-blue-600 hover:underline flex items-center gap-1"
                                             >
                                               <Eye size={12} />
                                             </button>
                                             <button
                                               type="button"
-                                              onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, a.id, att.id, att.file_name)}
+                                              onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, a.id, att.id, att.file_name ?? "")}
                                               className="text-blue-600 hover:underline flex items-center gap-1"
                                             >
                                               <Download size={12} /> {att.quotation_number || att.file_name}
@@ -3678,14 +3709,14 @@ export const LeadFormPage: React.FC = () => {
                                           <>
                                             <button
                                               type="button"
-                                              onClick={() => handleViewFile(a.id, att.id, att.file_name)}
+                                              onClick={() => handleViewFile(a.id, att.id, att.file_name ?? "")}
                                               className="text-blue-600 hover:underline flex items-center gap-1"
                                             >
                                               <Eye size={12} />
                                             </button>
                                             <button
                                               type="button"
-                                              onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, a.id, att.id, att.file_name)}
+                                              onClick={() => marketingAPI.downloadLeadActivityAttachment(leadId!, a.id, att.id, att.file_name ?? "")}
                                               className="text-blue-600 hover:underline flex items-center gap-1"
                                             >
                                               <Download size={12} /> {att.title || att.file_name}
@@ -3728,18 +3759,18 @@ export const LeadFormPage: React.FC = () => {
                                 onClick={() => {
                                   setAddAttachmentActivityId(a.id);
                                   const isQuoteZero = a.inquiry_number === 0;
-                                  setAddAttachmentMode(isQuoteZero ? 'new-quotation' : 'attachment');
+                                  setAddAttachmentMode('attachment');
                                   setReviseTargetQuotation('');
-                                  setAddAttachmentRows([{ id: crypto.randomUUID(), kind: isQuoteZero ? 'quotation' as const : 'attachment' as const, file: null, quotationNumber: '', title: '', quoteValue: '' }]);
+                                  setAddAttachmentRows([{ id: crypto.randomUUID(), kind: isQuoteZero ? 'quotation' as const : 'attachment' as const, file: null, quotationNumber: isQuoteZero && currentLead?.quote_number?.trim() ? currentLead.quote_number.trim() : '', title: '', quoteValue: '' }]);
                                 }}
                                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 border border-dashed border-blue-300 rounded-lg px-3 py-1.5 hover:bg-blue-50"
                               >
-                                <Plus size={12} /> Add attachments
+                                <Plus size={12} /> {a.inquiry_number === 0 ? 'Attach quotation file' : 'Add attachments'}
                               </button>
                             ) : (
                               <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-2">
                                 <div className="flex items-center justify-between flex-wrap gap-2">
-                                  <span className="text-xs font-semibold text-slate-700">Add attachments</span>
+                                  <span className="text-xs font-semibold text-slate-700">{a.inquiry_number === 0 ? 'Attach quotation file' : 'Add attachments'}</span>
                                   <div className="flex items-center gap-2">
                                     <button
                                       type="button"
@@ -3758,24 +3789,25 @@ export const LeadFormPage: React.FC = () => {
                                   </div>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 pt-1">
-                                  <div className="w-36 shrink-0 [&_button]:!h-8 [&_button]:!min-h-0 [&_button]:!py-0">
-                                    <Select
-                                      options={[
-                                        { value: 'new-quotation', label: 'New Quotation' },
-                                        { value: 'revise-quotation', label: 'Revise Quotation' },
-                                        { value: 'attachment', label: 'Attachment' },
-                                      ]}
-                                      value={addAttachmentMode}
-                                      onChange={(val) => {
-                                        const mode = (val || 'attachment') as typeof addAttachmentMode;
-                                        setAddAttachmentMode(mode);
-                                        setReviseTargetQuotation('');
-                                        setAddAttachmentRows([{ id: crypto.randomUUID(), kind: mode === 'attachment' ? 'attachment' as const : 'quotation' as const, file: null, quotationNumber: '', title: '', quoteValue: '' }]);
-                                      }}
-                                      className="w-full"
-                                      searchable={false}
-                                    />
-                                  </div>
+                                  {a.inquiry_number !== 0 && (
+                                    <div className="w-36 shrink-0 [&_button]:!h-8 [&_button]:!min-h-0 [&_button]:!py-0">
+                                      <Select
+                                        options={[
+                                          { value: 'revise-quotation', label: 'Revise Quotation' },
+                                          { value: 'attachment', label: 'Attachment' },
+                                        ]}
+                                        value={addAttachmentMode}
+                                        onChange={(val) => {
+                                          const mode = (val || 'attachment') as typeof addAttachmentMode;
+                                          setAddAttachmentMode(mode);
+                                          setReviseTargetQuotation('');
+                                          setAddAttachmentRows([{ id: crypto.randomUUID(), kind: mode === 'attachment' ? 'attachment' as const : 'quotation' as const, file: null, quotationNumber: '', title: '', quoteValue: '' }]);
+                                        }}
+                                        className="w-full"
+                                        searchable={false}
+                                      />
+                                    </div>
+                                  )}
                                   {addAttachmentMode === 'revise-quotation' && existingBaseQuotations.length > 0 && (
                                     <div className="w-44 shrink-0 [&_button]:!h-8 [&_button]:!min-h-0 [&_button]:!py-0">
                                       <Select
@@ -3806,9 +3838,9 @@ export const LeadFormPage: React.FC = () => {
                                       }}
                                     />
                                   </label>
-                                  {addAttachmentMode !== 'attachment' && (
+                                  {(addAttachmentMode !== 'attachment' || (a.inquiry_number === 0 && currentLead?.quote_number?.trim())) && (
                                     <CurrencyInput
-                                      placeholder={addAttachmentMode === 'revise-quotation' ? 'Revised Quote Value (₹) *' : 'Quote Value (₹) *'}
+                                      placeholder={addAttachmentMode === 'revise-quotation' ? 'Revised Quote Value (₹) *' : a.inquiry_number === 0 ? 'Quote Value (₹)' : 'Quote Value (₹) *'}
                                       value={addAttachmentRows[0]?.quoteValue || ''}
                                       onChange={(val) => {
                                         setAddAttachmentRows((prev) =>
@@ -3819,7 +3851,7 @@ export const LeadFormPage: React.FC = () => {
                                       containerClassName="min-w-[120px] max-w-[150px] !space-y-0"
                                     />
                                   )}
-                                  {addAttachmentMode === 'attachment' && (
+                                  {addAttachmentMode === 'attachment' && a.inquiry_number !== 0 && (
                                     <Input
                                       placeholder="Title"
                                       value={addAttachmentRows[0]?.title || ''}
@@ -3838,7 +3870,7 @@ export const LeadFormPage: React.FC = () => {
                                     This value won't be reflected in the kanban quotation bar
                                   </p>
                                 )}
-                                {addAttachmentMode === 'new-quotation' && a.inquiry_number === 0 && currentLead?.quote_number?.trim() && (
+                                {a.inquiry_number === 0 && currentLead?.quote_number?.trim() && (
                                   <p className="text-[11px] text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-200">
                                     Using this lead's quote number: <span className="font-mono font-semibold">{currentLead.quote_number}</span>
                                   </p>
@@ -3882,12 +3914,12 @@ export const LeadFormPage: React.FC = () => {
                                           leadId,
                                           a.id,
                                           [row.file],
-                                          [isRevised || addAttachmentMode === 'new-quotation' ? 'quotation' : 'attachment'],
+                                          [isRevised || (a.inquiry_number === 0 && currentLead?.quote_number?.trim()) ? 'quotation' : 'attachment'],
                                           qn,
                                           [addAttachmentMode === 'attachment' ? (row.title.trim() || undefined) : undefined],
-                                          addAttachmentMode === 'new-quotation' && !hasExistingQuotation && !(a.inquiry_number === 0 && currentLead?.quote_number?.trim()) ? (addAttachmentQuotationSeriesCode.trim() || undefined) : undefined,
+                                          undefined,
                                           isRevised || undefined,
-                                          [(addAttachmentMode !== 'attachment' && row.quoteValue ? Number(row.quoteValue) : undefined)],
+                                          [((addAttachmentMode !== 'attachment' || (a.inquiry_number === 0 && currentLead?.quote_number?.trim())) && row.quoteValue ? Number(row.quoteValue) : undefined)],
                                           setAttachmentUploadProgress
                                         );
                                         showToast('Added', 'success');
@@ -3939,7 +3971,7 @@ export const LeadFormPage: React.FC = () => {
                     <span>·</span>
                     <span>{a.created_by_name || a.created_by_username || 'System'}</span>
                     <span>·</span>
-                    <span>{a.activity_date ? new Date(a.activity_date).toLocaleString() : new Date(a.created_at).toLocaleString()}</span>
+                    <span>{a.activity_date ? new Date(a.activity_date).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : new Date(a.created_at).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                   </div>
                   <div className="font-medium text-slate-900 text-sm">{a.title}</div>
                   {a.description && <div className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{a.description}</div>}
@@ -4278,7 +4310,10 @@ export const LeadFormPage: React.FC = () => {
                 </div>
 
                 <div className="md:col-span-6">
-                  <Input label="Company" value={formData.company || ''} onChange={(e) => setFormData({ ...formData, company: e.target.value })} placeholder="Company name" inputSize="sm" />
+                  <label className="text-xs font-semibold text-slate-700 ml-0.5 mb-1.5 block">Company</label>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 truncate">
+                    {formData.company?.trim() || '—'}
+                  </div>
                 </div>
                 <div className="md:col-span-6">
                   <Input label="Designation" value={formData.job_title || ''} onChange={(e) => setFormData({ ...formData, job_title: e.target.value })} placeholder="e.g. Director" inputSize="sm" />

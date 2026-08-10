@@ -278,6 +278,9 @@ const WIDGET_TYPE_OPTIONS: { value: DashboardWidgetType; label: string }[] = [
   { value: 'custom_sql', label: 'Custom Builder: SQL Query Chart' },
 ];
 
+/** Widgets that only domain head band (domain_head / super_admin / domain_coordinator) may see. */
+const HEAD_ONLY_WIDGET_TYPES: DashboardWidgetType[] = ['head-summary', 'leads-by-region', 'quotation-submitted-chart'];
+
 const AI_SCOPE_OPTIONS = [
   { value: 'auto', label: 'Auto' },
   { value: 'employee', label: 'Employee scope' },
@@ -855,6 +858,7 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const canViewReport = useAppSelector(selectHasPermission('marketing.view_report'));
+  const canViewAuditLogs = useAppSelector(selectHasPermission('marketing.admin')) || useAppSelector(selectHasPermission('marketing.view_reports'));
   const canCreateDashboard = useAppSelector(selectHasPermission('marketing.create_dashboard')) || useAppSelector(selectHasPermission('marketing.admin'));
   const canAssignDashboard = useAppSelector(selectHasPermission('marketing.assign_dashboard')) || useAppSelector(selectHasPermission('marketing.admin'));
   const [isEditMode, setIsEditMode] = useState(false);
@@ -965,10 +969,11 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
       setReportScope(scopeRes ?? null);
 
       const scopeLabelForStats = scopeStatsRes?.scope_label ?? 'My';
+      const scopeSubtitle = scopeLabelForStats === 'My' ? 'In my scope' : `${scopeLabelForStats} scope`;
       const statCards: StatItem[] = [
-        { label: 'Leads', value: String(leadsTotal), change: 'Total in system', trend: 'neutral', icon: Users },
-        { label: 'Contacts', value: String(contactsTotal), change: 'Total in system', trend: 'neutral', icon: UserCircle },
-        { label: 'Customers', value: String(customersTotal), change: 'Total in system', trend: 'neutral', icon: Users },
+        { label: 'Leads', value: String(leadsTotal), change: scopeSubtitle, trend: 'neutral', icon: Users },
+        { label: 'Contacts', value: String(contactsTotal), change: scopeSubtitle, trend: 'neutral', icon: UserCircle },
+        { label: 'Customers', value: String(customersTotal), change: scopeSubtitle, trend: 'neutral', icon: Users },
         {
           label: scopeLabelForStats === 'My' ? 'My quotations sent' : `${scopeLabelForStats} quotations sent`,
           value: summary ? String(summary.quotations_sent_count) : '—',
@@ -1256,6 +1261,12 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
 
   const renderWidget = (config: WidgetConfig) => {
     const widgetType = (config.type ?? config.id) as string;
+    if (!isHeadRole && (HEAD_ONLY_WIDGET_TYPES as string[]).includes(widgetType)) {
+      return null;
+    }
+    if (widgetType === 'audit-logs' && !canViewAuditLogs) {
+      return null;
+    }
     const commonProps = {
       isDraggable: isEditMode,
       showHandle: isEditMode,
@@ -2562,7 +2573,11 @@ const [settingsDeleting, setSettingsDeleting] = useState<number | null>(null);
                         setAddWidgetCode('SELECT column1, column2 FROM table_name LIMIT 100');
                       }
                     }}
-                    options={WIDGET_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                    options={WIDGET_TYPE_OPTIONS.filter((o) => {
+                      if (HEAD_ONLY_WIDGET_TYPES.includes(o.value) && !isHeadRole) return false;
+                      if (o.value === 'audit-logs' && !canViewAuditLogs) return false;
+                      return true;
+                    }).map((o) => ({ value: o.value, label: o.label }))}
                     placeholder="Select type"
                   />
                 </div>

@@ -14,7 +14,8 @@ import { Select } from '../components/ui/Select';
 import { AsyncSelect } from '../components/ui/AsyncSelect';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { Modal } from '../components/ui/Modal';
-import { Search, Plus, Edit, Trash2, Globe, CheckCircle, XCircle, MapPin, ChevronDown, ChevronRight, Filter, X, Users, UserPlus, User } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Globe, CheckCircle, XCircle, MapPin, ChevronDown, ChevronRight, Filter, X, Users, UserPlus, User, GripVertical } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission, selectUser, selectEmployee } from '../store/slices/authSlice';
@@ -561,6 +562,48 @@ export const DomainsPage: React.FC = () => {
   };
 
   const showActionButtons = activeScope.is_super || activeScope.scope_type === 'domain_head' || activeScope.scope_type === 'region_head';
+
+  const [dragRegionId, setDragRegionId] = useState<number | null>(null);
+  const [dragOverRegionId, setDragOverRegionId] = useState<number | null>(null);
+  const [reorderingRegion, setReorderingRegion] = useState(false);
+  const canReorderRegions = showActionButtons && canEditRegion && !reorderingRegion;
+
+  const [collapsedDomainIds, setCollapsedDomainIds] = useState<Set<number>>(new Set());
+  const toggleDomainCollapse = (id: number) => {
+    setCollapsedDomainIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleRegionReorder = async (domainId: number, regionId: number, targetRegionId: number) => {
+    if (regionId === targetRegionId) return;
+    const ids = reviewRegions.filter((r) => r.domain_id === domainId).map((r) => r.id);
+    const fromIdx = ids.indexOf(regionId);
+    const toIdx = ids.indexOf(targetRegionId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const nextIds = [...ids];
+    const [moved] = nextIds.splice(fromIdx, 1);
+    nextIds.splice(toIdx, 0, moved);
+
+    const byId = new Map(reviewRegions.map((r) => [r.id, r]));
+    const reordered = nextIds.map((id, idx) => ({ ...(byId.get(id) as Region), sort_order: idx }));
+    setReviewRegions([...reviewRegions.filter((r) => r.domain_id !== domainId), ...reordered]);
+
+    setReorderingRegion(true);
+    try {
+      await marketingAPI.reorderRegions(domainId, nextIds);
+      showToast('Region order updated', 'success');
+    } catch (error: any) {
+      showToast(error.message || 'Failed to reorder regions', 'error');
+      await loadReviewData();
+    } finally {
+      setReorderingRegion(false);
+    }
+  };
 
   const [deleteDomainId, setDeleteDomainId] = useState<number | null>(null);
   const [deleteRegionId, setDeleteRegionId] = useState<number | null>(null);
@@ -1592,13 +1635,22 @@ export const DomainsPage: React.FC = () => {
                     return (
                       <div
                         key={domain.id}
-                        className={`tree-root ${domainIdx < filteredDomains.length - 1 ? 'mb-8 pb-6 border-b border-slate-100' : ''}`}
+                        className={`bg-white border border-slate-200 rounded-xl shadow-sm px-4 py-3 ${domainIdx < filteredDomains.length - 1 ? 'mb-4' : ''}`}
                       >
                         {/* Level 0: Domain (root) */}
                         <div className="tree-node flex items-center gap-2 py-2 pr-2 rounded-md hover:bg-slate-50/80 group">
+                          <button
+                            type="button"
+                            onClick={() => toggleDomainCollapse(domain.id)}
+                            className="shrink-0 p-1 -ml-1 rounded-md text-slate-500 hover:bg-slate-200/70 hover:text-slate-700 transition-colors"
+                            title={collapsedDomainIds.has(domain.id) ? 'Expand domain' : 'Collapse domain'}
+                            aria-expanded={!collapsedDomainIds.has(domain.id)}
+                          >
+                            {collapsedDomainIds.has(domain.id) ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                          </button>
                           <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-300" aria-hidden />
                           <Globe size={18} className="text-blue-600 shrink-0" />
-                          <span className="font-semibold text-slate-900">{domain.name}</span>
+                          <span className="text-lg font-bold text-slate-900 tracking-tight">{domain.name}</span>
                           {domain.code && <Badge variant="outline" className="text-xs">{domain.code}</Badge>}
                           <span className="text-slate-400 mx-1">·</span>
                           <span className="text-sm text-slate-600">Head:</span>
@@ -1702,11 +1754,21 @@ export const DomainsPage: React.FC = () => {
                           </div>
                         </div>
                         {/* Level 1: Regions (children of domain) */}
-                        <div className="tree-children border-l-2 border-slate-200 ml-2 pl-3">
+                        <AnimatePresence initial={false}>
+                          {!collapsedDomainIds.has(domain.id) && (
+                            <motion.div
+                              key="regions"
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.25, ease: 'easeInOut' }}
+                              className="overflow-hidden"
+                            >
+                              <div className="tree-children border-l-2 border-slate-200 ml-2 pl-3">
                           {domainRegions.length === 0 ? (
-                            <div className="tree-node flex items-center gap-2 py-1.5 text-slate-500 text-sm italic">
-                              <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-200" aria-hidden />
-                              No regions
+                            <div className="flex items-center gap-2 border border-dashed border-slate-200 rounded-lg px-3 py-3 text-sm text-slate-400">
+                              <MapPin size={14} />
+                              No regions yet
                             </div>
                           ) : (
                             domainRegions.map((region, rIdx) => {
@@ -1716,9 +1778,39 @@ export const DomainsPage: React.FC = () => {
                               const isRegionCoordinatorVisible = activeScope.is_super || activeScope.scope_type === 'domain_head' || activeScope.scope_type === 'region_head' || activeScope.scope_type === 'supervisor';
 
                               return (
-                                <div key={region.id} className={isLastRegion ? '' : 'mb-1'}>
+                                <div
+                                  key={region.id}
+                                  className={`${isLastRegion ? '' : 'mb-1'} ${canReorderRegions ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                                  draggable={canReorderRegions}
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData('text/plain', String(region.id));
+                                    e.dataTransfer.effectAllowed = 'move';
+                                    setDragRegionId(region.id);
+                                  }}
+                                  onDragOver={(e) => {
+                                    if (dragRegionId && dragRegionId !== region.id) {
+                                      e.preventDefault();
+                                      setDragOverRegionId(region.id);
+                                    }
+                                  }}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    if (dragRegionId && dragRegionId !== region.id) {
+                                      handleRegionReorder(domain.id, dragRegionId, region.id);
+                                    }
+                                    setDragRegionId(null);
+                                    setDragOverRegionId(null);
+                                  }}
+                                  onDragEnd={() => {
+                                    setDragRegionId(null);
+                                    setDragOverRegionId(null);
+                                  }}
+                                >
                                   {/* Region row */}
-                                  <div className="tree-node flex items-center gap-2 py-2 pr-2 rounded-md hover:bg-slate-50/80 group">
+                                  <div className={`tree-node flex items-center gap-2 py-2 pr-2 rounded-md hover:bg-slate-50/80 group ${dragRegionId === region.id ? 'opacity-50' : ''} ${dragOverRegionId === region.id ? 'ring-2 ring-blue-400 ring-offset-1 bg-blue-50/50' : ''}`}>
+                                    {canReorderRegions && (
+                                      <GripVertical size={14} className="text-slate-300 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    )}
                                     <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-300" aria-hidden />
                                     <MapPin size={16} className="text-emerald-600 shrink-0" />
                                     <span className="font-medium text-slate-800">{region.name}</span>
@@ -1810,30 +1902,14 @@ export const DomainsPage: React.FC = () => {
                                         </Tooltip>
                                       )}
 
-                                      {showActionButtons && canManageRegionEmployees && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                          onClick={() => {
-                                            setAddEmployeeRegion(region);
-                                            setAddEmployeeSelected(null);
-                                            addEmployeeCacheRef.current.clear();
-                                            setAddEmployeeRole('employee');
-                                          }}
-                                          leftIcon={<UserPlus size={12} />}
-                                        >
-                                          Add
-                                        </Button>
-                                      )}
                                     </div>
                                   </div>
                                   {/* Level 2: Employees (children of region) */}
                                   <div className="tree-children border-l-2 border-slate-200 ml-2 pl-3">
                                     {regionAssignments.length === 0 ? (
-                                      <div className="tree-node flex items-center gap-2 py-1.5 text-slate-500 text-sm italic">
-                                        <span className="tree-branch w-4 shrink-0 border-b-2 border-slate-200" aria-hidden />
-                                        No employees
+                                      <div className="flex items-center gap-2 border border-dashed border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-400">
+                                        <UserPlus size={14} />
+                                        No employees yet
                                       </div>
                                     ) : (
                                       regionAssignments.map((a, eIdx) => {
@@ -1920,7 +1996,10 @@ export const DomainsPage: React.FC = () => {
                               );
                             })
                           )}
-                        </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     );
                   })}
