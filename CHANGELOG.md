@@ -5,6 +5,28 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-08-11] — Quotation Values Count Toward Targets, Quote Number Fixes (v1.2.6)
+
+### 🖥️ Frontend
+
+#### Quotations — Quote Number Stays Visible When Uploading a File
+- Picking a quotation file no longer wipes the quote number you generated or typed — the number stays on screen next to the file, so you can always see which number the file is going under.
+
+#### Quotations — No More Duplicate Quote Numbers (Generated vs Manual)
+- Generated quote numbers (from a numbering series) and manually typed numbers are now committed separately when a lead is saved: generated numbers are created by the system exactly once at save time (the series counter advances once), while manual numbers are stored exactly as typed. Previously the two could get mixed together, which could produce duplicate quote numbers.
+
+#### Quotations — Values Count Toward Targets Even Without a File
+- A quotation no longer needs a file attached to count toward targets — file-less quotation rows carry a value that is counted the same way as file-based quotations, so you can enter the value on the spot or add it later.
+- You can now add or edit the value on any quotation row directly from the enquiry log, even after the lead has been created.
+
+### ⚙️ Backend
+
+#### Quotations — Value on File-less Quotations
+- File-less quotation rows can hold a monetary value, and that value counts toward targets just like file-based quotations.
+- Added an endpoint to update a quotation's value without touching its file.
+
+---
+
 ## [2026-08-10] — Multiple Quote Numbers, Dashboard Role Scoping, Date Format (v1.2.5)
 
 ### 🖥️ Frontend

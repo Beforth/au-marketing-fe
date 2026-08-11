@@ -207,9 +207,12 @@ export const LeadFormPage: React.FC = () => {
   const [attachmentUploadProgress, setAttachmentUploadProgress] = useState<number | null>(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<number | null>(null);
   const [reattachingId, setReattachingId] = useState<number | null>(null);
+  const [savingAttachmentValueId, setSavingAttachmentValueId] = useState<number | null>(null);
+  const [editingAttachmentValueId, setEditingAttachmentValueId] = useState<number | null>(null);
+  const [editingAttachmentValue, setEditingAttachmentValue] = useState('');
   const reattachInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   /** When creating lead: multiple quotations added one at a time */
-  const [createQuotations, setCreateQuotations] = useState<{ id: string; file: File | null; value: string; number: string; }[]>([]);
+  const [createQuotations, setCreateQuotations] = useState<{ id: string; file: File | null; value: string; number: string; seriesCode?: string | null }[]>([]);
   const [createQuoteFile, setCreateQuoteFile] = useState<File | null>(null);
   const [createQuoteValue, setCreateQuoteValue] = useState('');
   const [createQuoteNumber, setCreateQuoteNumber] = useState('');
@@ -1527,22 +1530,54 @@ export const LeadFormPage: React.FC = () => {
         const assigned = (window.localStorage.getItem(DEFAULT_LEAD_SERIES_STORAGE_KEY) || '').trim();
         if (assigned) (payload as any).series_code = assigned;
       }
-      const numberOnlyNumbers = !isEdit ? createQuotations.filter(q => !q.file).map(q => q.number.trim()).filter(Boolean) : [];
+      const filelessEntries = !isEdit ? createQuotations.filter(q => !q.file) : [];
+      const numberOnlyNumbers = filelessEntries.map(q => q.number.trim()).filter(Boolean);
       const hasFileRows = !isEdit && createQuotations.some(q => q.file);
-      // Quote number (separate from lead number): generated (series + number) or manual text only
-      if (!isEdit && numberOnlyNumbers.length > 0) {
-        // Multiple pre-generated numbers with no files: first becomes the lead's quote number,
-        // the rest become file-less quotation rows on the "Inquiry 0" activity (backend).
-        (payload as any).quote_number = numberOnlyNumbers[0];
-        if (numberOnlyNumbers.length > 1) {
-          (payload as any).extra_quote_numbers = numberOnlyNumbers.slice(1);
+      const generatedFileless = filelessEntries.filter(q => q.seriesCode);
+      const filelessValue = (n: string): number | null => {
+        const entry = filelessEntries.find(q => q.number.trim() === n);
+        return entry && entry.value.trim() ? Number(entry.value) : null;
+      };
+      // Quote number (separate from lead number): generated (series + number) or manual text only.
+      // When quotation files are attached in this same create flow, ALL numbers (file rows and file-less
+      // rows) are committed by the file path below — so skip this payload entirely to avoid generating
+      // the same series twice (once for lead.quote_number, once for the placeholder).
+      if (!isEdit && !hasFileRows && (generatedFileless.length > 0 || numberOnlyNumbers.length > 0 || generatedQuoteSeriesCode || customCreateQuoteNumber.trim())) {
+        if (generatedFileless.length > 0) {
+          // Generated number is a preview only — pass just the series so the backend
+          // generates and commits the real next value once, when the lead is saved.
+          (payload as any).quote_series_code = generatedFileless[0].seriesCode;
+          // Any remaining file-less entries are manually typed numbers (generated previews are
+          // already covered by the series above) — send them as file-less rows on "Inquiry 0".
+          const generatedNumbers = new Set(generatedFileless.map(q => q.number.trim()));
+          const remaining = numberOnlyNumbers.filter(n => !generatedNumbers.has(n));
+          if (remaining.length > 0) {
+            (payload as any).extra_quote_numbers = remaining;
+            (payload as any).extra_quote_values = remaining.map(n => filelessValue(n));
+          }
+          const generatedValue = filelessValue(generatedFileless[0].number.trim());
+          if (generatedValue != null) {
+            (payload as any).quote_value = generatedValue;
+          }
+        } else if (numberOnlyNumbers.length > 0) {
+          // Multiple pre-generated numbers with no files: first becomes the lead's quote number,
+          // the rest become file-less quotation rows on the "Inquiry 0" activity (backend).
+          (payload as any).quote_number = numberOnlyNumbers[0];
+          const primaryValue = filelessValue(numberOnlyNumbers[0]);
+          if (primaryValue != null) {
+            (payload as any).quote_value = primaryValue;
+          }
+          if (numberOnlyNumbers.length > 1) {
+            (payload as any).extra_quote_numbers = numberOnlyNumbers.slice(1);
+            (payload as any).extra_quote_values = numberOnlyNumbers.slice(1).map(n => filelessValue(n));
+          }
+        } else if (generatedQuoteSeriesCode && generatedQuoteNumber) {
+          // Generated number is a preview only — pass just the series so the backend
+          // generates and commits the real next value once, when the lead is saved.
+          (payload as any).quote_series_code = generatedQuoteSeriesCode;
+        } else if (customCreateQuoteNumber.trim()) {
+          (payload as any).quote_number = customCreateQuoteNumber.trim();
         }
-      } else if (!isEdit && generatedQuoteSeriesCode && generatedQuoteNumber) {
-        // Generated number is a preview only — pass just the series so the backend
-        // generates and commits the real next value once, when the lead is saved.
-        (payload as any).quote_series_code = generatedQuoteSeriesCode;
-      } else if (!isEdit && customCreateQuoteNumber.trim()) {
-        (payload as any).quote_number = customCreateQuoteNumber.trim();
       }
       // A quotation file is being attached in this same create flow, so the "Added quotation" activity
       // below already covers the quote number — skip the auto "Inquiry 0" placeholder.
@@ -1589,8 +1624,8 @@ export const LeadFormPage: React.FC = () => {
           loadActivities();
         } else {
           const lead = await marketingAPI.createLead(payload as any);
-          const filesToUpload = createQuotations.filter(q => q.file).map(q => q.file!);
-          if (filesToUpload.length > 0) {
+          const fileRows = createQuotations.filter(q => q.file);
+          if (fileRows.length > 0) {
             let createdActivity: LeadActivity | null = null;
             try {
               createdActivity = await marketingAPI.createLeadActivity(lead.id, {
@@ -1599,22 +1634,66 @@ export const LeadFormPage: React.FC = () => {
                 description: undefined,
                 ...(initialInquiryIso ? { activity_date: initialInquiryIso } : {}),
               });
-              const qNum = (generatedQuoteNumber || customCreateQuoteNumber.trim() || '').trim() || undefined;
               setCreateLeadUploadProgress(0);
-              await marketingAPI.uploadLeadActivityAttachments(
-                lead.id,
-                createdActivity.id,
-                filesToUpload,
-                filesToUpload.map(() => 'quotation' as const),
-                createQuotations.map(q => q.number.trim() || undefined),
-                undefined,
-                qNum ? undefined : (createFormQuoteSeriesCode.trim() || undefined),
-                false,
-                createQuotations.map(q => q.value ? Number(q.value) : undefined),
-                setCreateLeadUploadProgress
-              );
-              if (numberOnlyNumbers.length > 0) {
-                await marketingAPI.createLeadQuotationPlaceholders(lead.id, createdActivity.id, numberOnlyNumbers);
+              // Generated vs manual numbers must be uploaded separately: with series_code the backend
+              // generates + commits real numbers (base, then rev2/rev3 per file in the call) and ignores
+              // literals; without it the literal quotation_numbers are stored as-is. Preview numbers are
+              // never sent — only the series, so the counter advances exactly once at save time.
+              const generatedRows = fileRows.filter(q => q.seriesCode);
+              const manualRows = fileRows.filter(q => !q.seriesCode);
+              const uploadBatch = async (rows: typeof fileRows, seriesCode?: string): Promise<LeadActivityAttachment[]> => {
+                const files = rows.map(q => q.file!);
+                return marketingAPI.uploadLeadActivityAttachments(
+                  lead.id,
+                  createdActivity!.id,
+                  files,
+                  files.map(() => 'quotation' as const),
+                  seriesCode ? undefined : rows.map(q => q.number.trim() || undefined),
+                  undefined,
+                  seriesCode || undefined,
+                  false,
+                  rows.map(q => q.value.trim() ? Number(q.value) : undefined),
+                  setCreateLeadUploadProgress
+                );
+              };
+              const generatedBySeries = new Map<string, typeof fileRows>();
+              for (const r of generatedRows) {
+                const code = r.seriesCode || '';
+                const arr = generatedBySeries.get(code) || [];
+                arr.push(r);
+                generatedBySeries.set(code, arr);
+              }
+              for (const [code, rows] of generatedBySeries) {
+                await uploadBatch(rows, code);
+              }
+              if (manualRows.length > 0) {
+                await uploadBatch(manualRows);
+              }
+              // File-less quotation numbers become placeholder rows. Generated ones go through
+              // series_code (committed once each) — never the preview literal. Each generated file-less
+              // row is a distinct quotation and gets its own real value from its series, so the counter
+              // advances once per row (no duplicates, no drops).
+              const generatedFilelessNums = new Set(generatedFileless.map(q => q.number.trim()));
+              const manualPlaceholderNums = numberOnlyNumbers.filter(n => !generatedFilelessNums.has(n));
+              for (const r of generatedFileless) {
+                const code = r.seriesCode || '';
+                if (!code) continue;
+                const val = filelessValue(r.number.trim());
+                await marketingAPI.createLeadQuotationPlaceholders(
+                  lead.id,
+                  createdActivity.id,
+                  [],
+                  val != null ? [val] : [null],
+                  code
+                );
+              }
+              if (manualPlaceholderNums.length > 0) {
+                await marketingAPI.createLeadQuotationPlaceholders(
+                  lead.id,
+                  createdActivity.id,
+                  manualPlaceholderNums,
+                  manualPlaceholderNums.map(n => filelessValue(n))
+                );
               }
               showToast('Lead and enquiry created successfully', 'success');
               navigate(`/leads/${lead.id}/edit`);
@@ -2788,12 +2867,10 @@ export const LeadFormPage: React.FC = () => {
                           onChange={(e) => {
                             const f = e.target.files?.[0] ?? null;
                             setCreateQuoteFile(f);
+                            // Keep the generated/manual quote number visible when a file is picked —
+                            // only the value needs re-entering per file.
                             if (f) {
                               setCreateQuoteValue('');
-                              setCreateQuoteNumber('');
-                              setCreateFormQuoteSeriesCode('');
-                              setCustomCreateQuoteNumber('');
-                              setGeneratedQuoteNumber(null);
                             }
                             e.target.value = '';
                           }}
@@ -2886,7 +2963,7 @@ export const LeadFormPage: React.FC = () => {
                           showToast('Quote number already exists in the list', 'error');
                           return;
                         }
-                        setCreateQuotations(prev => [...prev, { id: crypto.randomUUID(), file: createQuoteFile, value: createQuoteValue, number: effectiveNumber }]);
+                        setCreateQuotations(prev => [...prev, { id: crypto.randomUUID(), file: createQuoteFile, value: createQuoteValue, number: effectiveNumber, seriesCode: generatedQuoteSeriesCode }]);
                         setCreateQuoteFile(null);
                         setCreateQuoteValue('');
                         setCreateQuoteNumber('');
@@ -3639,6 +3716,68 @@ export const LeadFormPage: React.FC = () => {
                                             >
                                               <Download size={12} /> {att.quotation_number || att.file_name}
                                             </button>
+                                          </>
+                                        )}
+                                        {canEditDelete && (
+                                          <>
+                                            {editingAttachmentValueId === att.id ? (
+                                              <>
+                                                <CurrencyInput
+                                                  placeholder="Value (₹)"
+                                                  value={editingAttachmentValue}
+                                                  onChange={setEditingAttachmentValue}
+                                                  inputSize="sm"
+                                                  containerClassName="min-w-[110px] max-w-[140px] !space-y-0"
+                                                />
+                                                <button
+                                                  type="button"
+                                                  disabled={savingAttachmentValueId === att.id}
+                                                  onClick={async () => {
+                                                    if (!isValidId) return;
+                                                    setSavingAttachmentValueId(att.id);
+                                                    try {
+                                                      const parsed = editingAttachmentValue.trim() ? Number(editingAttachmentValue) : null;
+                                                      await marketingAPI.updateLeadActivityAttachmentQuoteValue(leadId!, a.id, att.id, parsed);
+                                                      showToast('Value updated', 'success');
+                                                      setEditingAttachmentValueId(null);
+                                                      loadActivities();
+                                                    } catch (err: any) {
+                                                      showToast(err.message || 'Failed to update value', 'error');
+                                                    } finally {
+                                                      setSavingAttachmentValueId(null);
+                                                    }
+                                                  }}
+                                                  className="text-blue-600 hover:underline disabled:opacity-50"
+                                                >
+                                                  {savingAttachmentValueId === att.id ? 'Saving…' : 'Save'}
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setEditingAttachmentValueId(null)}
+                                                  className="text-slate-500 hover:underline"
+                                                >
+                                                  Cancel
+                                                </button>
+                                              </>
+                                            ) : (
+                                              <>
+                                                {att.quote_value != null && (
+                                                  <span className="font-semibold text-slate-700 shrink-0">
+                                                    ₹{Number(att.quote_value).toLocaleString('en-IN')}
+                                                  </span>
+                                                )}
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setEditingAttachmentValueId(att.id);
+                                                    setEditingAttachmentValue(att.quote_value != null ? String(att.quote_value) : '');
+                                                  }}
+                                                  className="text-blue-600 hover:underline"
+                                                >
+                                                  {att.quote_value != null ? 'Edit value' : 'Add value'}
+                                                </button>
+                                              </>
+                                            )}
                                           </>
                                         )}
                                         {canEditDelete && (

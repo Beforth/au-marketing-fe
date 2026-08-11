@@ -844,6 +844,19 @@ class MarketingAPIService {
     );
   }
 
+  /** Update the monetary value of an attachment (e.g. a file-less quotation placeholder) so it counts toward targets. */
+  async updateLeadActivityAttachmentQuoteValue(
+    leadId: number,
+    activityId: number,
+    attachmentId: number,
+    quoteValue: number | null
+  ): Promise<LeadActivityAttachment> {
+    return apiClient.put<LeadActivityAttachment>(
+      `/api/leads/${leadId}/activities/${activityId}/attachments/${attachmentId}`,
+      { quote_value: quoteValue }
+    );
+  }
+
   async updateLeadActivity(
     leadId: number,
     activityId: number,

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-S&M Hub — React 19 + TypeScript + Vite 6 SPA (Aureole Group sales/marketing: leads, orders, quotations, contacts, events, DSR). Full project guide lives in `CLAUDE.md` — read it before touching auth, permissions, role scoping, or changelog logic. This file covers only the traps that are easy to hit.
+S&M Hub — React 19 + TypeScript + Vite 6 SPA (Aureole Group sales/marketing: leads, orders, quotations, contacts, events, DSR). **Read `CLAUDE.md` first — it is the primary, authoritative project guide.** Consult it before touching auth, permissions, role scoping, changelog logic, or anything it covers; treat it as the source of truth wherever this file or other docs conflict. This file covers only the traps that are easy to hit.
 
 ## Layout trap: source is at repo root, not `src/`
 
