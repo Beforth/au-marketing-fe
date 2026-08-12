@@ -29,6 +29,7 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Quotations Page (list & filters)](#quotations-page-list--filters) — rev 1.2.1, 1.2.2
 - [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5
 - [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6
+- [Design System Documentation](#design-system-documentation) — rev 1.2.6
 
 ---
 
@@ -182,3 +183,16 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 ### Rev 1 — 2026-08-04 (v1.2.1)
 - `scripts/populate_changelog.py` now prints exactly which versions were newly added vs. already-existed-and-refreshed.
 - Files: `au-marketing-api/scripts/populate_changelog.py`
+
+---
+
+## Design System Documentation
+
+### Rev 1 — 2026-08-12 (v1.2.6)
+- Rewrote `design.md` from the live component source after an audit found most of its component specs no longer matched the code. Doc-only change — no code or UI was modified.
+- **Root cause**: the old doc's Button/Select/Input/Breadcrumb specs described `UI/*` files, but every page imports `components/ui/*` — two directories with the same filenames holding different components. Added a verified import-count table so it's clear which directory is live (`UI/` is dead except `Tooltip` and `Switch`).
+- **Corrections**: buttons have no `active:scale` and use `transition-colors`; controls are `h-10 rounded-lg`, not `h-11 rounded-xl`; Card's 1.25rem radius is an inline style; Card description is `text-[11px] text-slate-400`; Modal has no backdrop blur and its title has no size class; Breadcrumb auto-prepends a Home crumb; Badge's danger variant is named `error` and has no `info`. Removed the `StatCard` spec — no such component exists in the repo.
+- **Reinstated as real**: the doc previously claimed arbitrary pixel sizes and `tracking-widest` were unused. They are used ~280 and ~70 times respectively and form the "micro-label" pattern, now documented as a first-class part of the system.
+- **New sections**: §0 explains that there is no Tailwind build (browser CDN, stock defaults, no config, globals inline in `index.html`); §12 documents the two scrollbar treatments; §15 lists known inconsistencies left in place deliberately.
+- **Flagged, not fixed**: `components/ui/Button.tsx` relies on `ring-ring` / `ring-offset-background`, which are undefined without a Tailwind config — buttons currently render no visible focus ring. Also documented that ~29 `animate-in` / `zoom-in-95` usages are inert because `tailwindcss-animate` isn't installed.
+- Files: `design.md`
