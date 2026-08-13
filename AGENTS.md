@@ -25,6 +25,14 @@ App code lives at the **repo root**: `App.tsx`, `index.tsx`, `pages/`, `componen
 - After editing, sync the version in **two more places**: `package.json` `version` and the `useState('vX.Y.Z')` in `components/ui/Sidebar.tsx`.
 - Headings `### Frontend` / `### Backend` / `### Files Changed` are treated as wrapper sections and skipped; any other heading shows as a real named section in the in-app "What's New" UI. No "Files Changed" or "Documentation" sections.
 
+## Feature revision log (CHANGES.md) — update on every change
+
+`CHANGES.md` (repo root) is the **dev-side, feature-grouped revision log**, separate from the client-facing CHANGELOG. **Every change — frontend, backend, tooling, or docs — gets a revision in the same turn as the code.** Rules:
+
+- Read the feature index at the top of `CHANGES.md`; add the revision to the matching section, or create a new section and add it to the index. Never create a second section for the same feature.
+- Add `### Rev N — YYYY-MM-DD (vX.Y.Z)` at the top of that section (bump N), with a plain-language description and the key `Files:`.
+- Root copy only — never mirror into `au-marketing-api/CHANGES.md` (`CHANGELOG.md` is the one that gets mirrored).
+
 ## Architecture facts that matter
 
 - **Three backends, no BFF**: HRMS RBAC (`lib/hrms-rbac.ts`, `:8000`) for login/JWT/permissions; Marketing API (`lib/marketing-api.ts`, `:8003`) for all business CRUD — it **independently re-checks permissions server-side** (5-min cache), so backend and frontend gates can drift; FCM (optional) for push.

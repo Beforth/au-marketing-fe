@@ -5,11 +5,12 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { DatePicker } from '../components/ui/DatePicker';
+import { Select } from '../components/ui/Select';
 import { marketingAPI, Lead, Order } from '../lib/marketing-api';
 import { hrmsRBACClient, DSRTask } from '../lib/hrms-rbac';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
-import { selectToken } from '../store/slices/authSlice';
+import { selectHasPermission, selectToken } from '../store/slices/authSlice';
 import { ClipboardList, CheckCircle2, Clock, Users, Package, RefreshCw, Calendar, ArrowRight, FileText } from 'lucide-react';
 
 type DatePreset = 'today' | 'this_week' | 'this_month' | 'custom';
@@ -68,44 +69,82 @@ export const DSRPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
 
+  const canViewEmployeeLogs = useAppSelector(selectHasPermission('marketing.admin'));
+  const [employeeOptions, setEmployeeOptions] = useState<{ value: string; label: string; username: string | null }[]>([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+
+  const selectedEmployee = useMemo(
+    () => employeeOptions.find(o => o.value === selectedEmployeeId) ?? null,
+    [employeeOptions, selectedEmployeeId]
+  );
+
+  useEffect(() => {
+    if (!canViewEmployeeLogs || !token) return;
+    marketingAPI.getEmployees({ page: 1, page_size: 500, status: 'active' })
+      .then((res) => {
+        setEmployeeOptions((res.employees || []).map(e => ({
+          value: String(e.id),
+          label: [e.first_name, e.last_name].filter(Boolean).join(' ').trim() || e.username || `Employee #${e.id}`,
+          username: e.username,
+        })));
+      })
+      .catch(() => setEmployeeOptions([]));
+  }, [canViewEmployeeLogs, token]);
+
   const fetchDSR = useCallback(async () => {
     if (!token) return;
     setLoadingDSR(true);
     try {
-      const tasks = await hrmsRBACClient.getDSR(token, { filter_date: dateFrom || undefined });
+      const tasks = await hrmsRBACClient.getDSR(token, {
+        filter_date: dateFrom || undefined,
+        username: selectedEmployee?.username || undefined,
+      });
       setLocalDSR(tasks);
     } catch {
       showToast('Failed to load DSR', 'error');
     } finally {
       setLoadingDSR(false);
     }
-  }, [token, dateFrom, showToast]);
+  }, [token, dateFrom, selectedEmployee, showToast]);
 
   const fetchLeads = useCallback(async () => {
     if (!token) return;
     setLoadingLeads(true);
     try {
-      const result = await marketingAPI.getLeads({ page: 1, page_size: 10, date_from: dateFrom || undefined, date_to: dateTo || undefined, order_by: '-created_at' });
+      const result = await marketingAPI.getLeads({
+        page: 1,
+        page_size: 10,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        order_by: '-created_at',
+        assigned_to: selectedEmployee ? [Number(selectedEmployee.value)] : undefined,
+      });
       setLeads(result.items);
     } catch {
       showToast('Failed to load leads', 'error');
     } finally {
       setLoadingLeads(false);
     }
-  }, [token, dateFrom, dateTo, showToast]);
+  }, [token, dateFrom, dateTo, selectedEmployee, showToast]);
 
   const fetchOrders = useCallback(async () => {
     if (!token) return;
     setLoadingOrders(true);
     try {
-      const result = await marketingAPI.getOrders({ page: 1, page_size: 10, date_from: dateFrom || undefined, date_to: dateTo || undefined });
+      const result = await marketingAPI.getOrders({
+        page: 1,
+        page_size: 10,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        assigned_to: selectedEmployee ? Number(selectedEmployee.value) : undefined,
+      });
       setOrders(result.items);
     } catch {
       showToast('Failed to load orders', 'error');
     } finally {
       setLoadingOrders(false);
     }
-  }, [token, dateFrom, dateTo, showToast]);
+  }, [token, dateFrom, dateTo, selectedEmployee, showToast]);
 
   useEffect(() => {
     fetchDSR();
@@ -179,6 +218,18 @@ export const DSRPage: React.FC = () => {
               ))}
             </div>
           </div>
+          {canViewEmployeeLogs && (
+            <div className="flex flex-col gap-1 min-w-[220px]">
+              <Select
+                label="Employee"
+                options={[{ value: '', label: 'My logs' }, ...employeeOptions]}
+                value={selectedEmployeeId}
+                onChange={(v) => setSelectedEmployeeId(v ? String(v) : '')}
+                placeholder="My logs"
+                searchable
+              />
+            </div>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -260,7 +311,11 @@ export const DSRPage: React.FC = () => {
       </div>
 
       {/* ── DSR Tasks ── */}
-      <Card title="DSR Tasks" description={`${filteredDSR.length} task${filteredDSR.length !== 1 ? 's' : ''} in selected period.`} className="mb-6">
+      <Card
+        title="DSR Tasks"
+        description={`${filteredDSR.length} task${filteredDSR.length !== 1 ? 's' : ''} in selected period${selectedEmployee ? ` for ${selectedEmployee.label}` : ''}.`}
+        className="mb-6"
+      >
         {loadingDSR ? (
           <div className="flex items-center gap-2 py-8 text-slate-500 justify-center">
             <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-1" /> Loading…
@@ -309,8 +364,11 @@ export const DSRPage: React.FC = () => {
       </Card>
 
       {/* ── Leads + Orders (inquiry logs) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <Card title="Inquiry Log — Leads" description="Leads created or updated in the selected period.">
+      <div className="space-y-6 mb-6">
+        <Card
+          title="Inquiry Log — Leads"
+          description={selectedEmployee ? `Leads assigned to ${selectedEmployee.label} in the selected period.` : 'Leads created or updated in the selected period.'}
+        >
           {loadingLeads ? (
             <div className="flex items-center gap-2 py-8 text-slate-500 justify-center">
               <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-1" /> Loading leads…
@@ -321,37 +379,55 @@ export const DSRPage: React.FC = () => {
               <p className="text-sm">No leads in this period.</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div>
+              <div className="grid grid-cols-12 gap-2 px-3 pb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                <span className="col-span-4">Lead</span>
+                <span className="col-span-2">Date</span>
+                <span className="col-span-2">Value</span>
+                <span className="col-span-2">Expected</span>
+                <span className="col-span-1">Status</span>
+                <span className="col-span-1" />
+              </div>
               {leads.map(lead => (
                 <div
                   key={lead.id}
                   onClick={() => navigate(`/leads/${lead.id}/edit`)}
-                  className="border border-slate-200 rounded-lg p-3 cursor-pointer hover:border-blue-200 hover:bg-blue-50/20 transition-colors"
+                  className="grid grid-cols-12 gap-2 items-center px-3 py-2 border-b border-slate-100 hover:bg-slate-50 hover:border-blue-200 transition-colors cursor-pointer"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-800 truncate">
-                        {lead.series && <span className="text-xs font-mono text-blue-600 mr-1">{lead.series}</span>}
-                        {lead.contact?.contact_person_name || lead.contact?.first_name || `Lead #${lead.id}`}
+                  <div className="col-span-4 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">
+                      {lead.series && <span className="text-xs font-mono text-blue-600 mr-1">{lead.series}</span>}
+                      {lead.contact?.contact_person_name || lead.contact?.first_name || `Lead #${lead.id}`}
+                    </p>
+                    {(lead.assigned_to_username || lead.lead_through_option) && (
+                      <p className="text-[10px] text-slate-500 truncate">
+                        {lead.assigned_to_username ? `Assigned: ${lead.assigned_to_username}` : ''}
+                        {lead.assigned_to_username && lead.lead_through_option ? ' · ' : ''}
+                        {lead.lead_through_option ? `Through: ${lead.lead_through_option.label}` : ''}
                       </p>
-                      {lead.created_at && (
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          {new Date(lead.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {lead.status_option && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                          {lead.status_option.label}
-                        </span>
-                      )}
-                      <ArrowRight size={14} className="text-slate-300" />
-                    </div>
+                    )}
                   </div>
-                  {lead.assigned_to_username && (
-                    <p className="text-[10px] text-slate-500 mt-1">Assigned: {lead.assigned_to_username}</p>
-                  )}
+                  <div className="col-span-2 text-xs text-slate-500">
+                    {lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'}
+                  </div>
+                  <div className="col-span-2">
+                    {lead.potential_value != null && lead.potential_value > 0 && (
+                      <span className="text-xs font-bold text-emerald-600">₹{lead.potential_value.toLocaleString('en-IN')}</span>
+                    )}
+                  </div>
+                  <div className="col-span-2 text-xs text-slate-500">
+                    {lead.expected_closing_date ? new Date(lead.expected_closing_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'}
+                  </div>
+                  <div className="col-span-1">
+                    {lead.status_option && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                        {lead.status_option.label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="col-span-1 flex justify-end">
+                    <ArrowRight size={14} className="text-slate-300" />
+                  </div>
                 </div>
               ))}
               <button
@@ -364,7 +440,10 @@ export const DSRPage: React.FC = () => {
           )}
         </Card>
 
-        <Card title="Inquiry Log — Orders" description="Recent orders from won leads.">
+        <Card
+          title="Inquiry Log — Orders"
+          description={selectedEmployee ? `Orders for ${selectedEmployee.label} in the selected period.` : 'Recent orders from won leads.'}
+        >
           {loadingOrders ? (
             <div className="flex items-center gap-2 py-8 text-slate-500 justify-center">
               <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-1" /> Loading orders…
@@ -375,41 +454,52 @@ export const DSRPage: React.FC = () => {
               <p className="text-sm">No orders found.</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div>
+              <div className="grid grid-cols-12 gap-2 px-3 pb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                <span className="col-span-5">Order</span>
+                <span className="col-span-2">Date</span>
+                <span className="col-span-2">Status</span>
+                <span className="col-span-2">Value</span>
+                <span className="col-span-1" />
+              </div>
               {orders.map(order => (
                 <div
                   key={order.id}
                   onClick={() => navigate(`/orders/${order.id}`)}
-                  className="border border-slate-200 rounded-lg p-3 cursor-pointer hover:border-blue-200 hover:bg-blue-50/20 transition-colors"
+                  className="grid grid-cols-12 gap-2 items-center px-3 py-2 border-b border-slate-100 hover:bg-slate-50 hover:border-blue-200 transition-colors cursor-pointer"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-800 truncate">
-                        {order.series && <span className="text-xs font-mono text-purple-600 mr-1">{order.series}</span>}
-                        {order.lead?.contact?.contact_person_name || `Order #${order.id}`}
+                  <div className="col-span-5 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">
+                      {order.series && <span className="text-xs font-mono text-purple-600 mr-1">{order.series}</span>}
+                      {order.lead?.contact?.contact_person_name || `Order #${order.id}`}
+                    </p>
+                    {(order.assigned_to_username || order.expected_delivery_at) && (
+                      <p className="text-[10px] text-slate-500 truncate">
+                        {order.assigned_to_username ? `Assigned: ${order.assigned_to_username}` : ''}
+                        {order.assigned_to_username && order.expected_delivery_at ? ' · ' : ''}
+                        {order.expected_delivery_at
+                          ? `Delivery: ${new Date(order.expected_delivery_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                          : ''}
                       </p>
-                      {order.created_at && (
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          {new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {order.status_option && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                          {order.status_option.label}
-                        </span>
-                      )}
-                      <ArrowRight size={14} className="text-slate-300" />
-                    </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3 mt-1">
-                    {order.assigned_to_username && (
-                      <p className="text-[10px] text-slate-500">Assigned: {order.assigned_to_username}</p>
+                  <div className="col-span-2 text-xs text-slate-500">
+                    {order.created_at ? new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'}
+                  </div>
+                  <div className="col-span-2">
+                    {order.status_option && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                        {order.status_option.label}
+                      </span>
                     )}
+                  </div>
+                  <div className="col-span-2">
                     {order.order_value != null && order.order_value > 0 && (
-                      <p className="text-[10px] font-bold text-emerald-600">₹{order.order_value.toLocaleString('en-IN')}</p>
+                      <span className="text-xs font-bold text-emerald-600">₹{order.order_value.toLocaleString('en-IN')}</span>
                     )}
+                  </div>
+                  <div className="col-span-1 flex justify-end">
+                    <ArrowRight size={14} className="text-slate-300" />
                   </div>
                 </div>
               ))}

@@ -20,13 +20,15 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Feature index
 
-- [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5
+- [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7
 - [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6
 - [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3
 - [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.2.0, 1.2.1, 1.2.5
 - [Who's Online / Presence](#whos-online--presence) — rev 1.2.0, 1.2.1
 - [Regions, Domains & Employee Sync](#regions-domains--employee-sync) — rev 1.2.0, 1.2.4, 1.2.5
 - [Quotations Page (list & filters)](#quotations-page-list--filters) — rev 1.2.1, 1.2.2
+- [DSR (Daily Status Reports)](#dsr-daily-status-reports) — rev 1.2.7
+- [Audit Log](#audit-log) — rev 1.2.7
 - [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5
 - [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6
 - [Design System Documentation](#design-system-documentation) — rev 1.2.6
@@ -34,6 +36,11 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 ---
 
 ## Leads Kanban
+
+### Rev 6 — 2026-08-13 (v1.2.7)
+- **Assigned To properly gated & scoped**: the field is now only available to users who can actually assign (super admin / domain head / region head; hidden for region coordinators, supervisors, employees) and lists only their own team via the reports scope — not the whole company directory. The backend independently enforces the same rule on create/update.
+- **Simpler lead form**: sections reordered (enquiry details → quotation), every section has a plain-language description, and "Through" / "Referred By" each show a short hint right next to their label ("Where the enquiry came from." / "Who sent this lead to you.").
+- Files: `pages/LeadFormPage.tsx`, `components/ui/Select.tsx`, `ROLE_SCOPING_RULES.md`
 
 ### Rev 5 — 2026-08-10 (v1.2.5)
 - Follow-up-highlighted cards now show a **steady** colored halo instead of a pulsing/blinking glow — urgency stays easy to spot without the distracting motion.
@@ -152,6 +159,24 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - **Admin-gated filters**: Domain/Region filters now require `marketing.admin` on frontend and backend (was a raw `is_superuser` check); Series dropdown lists all active series system-wide; fixed clipped series dropdown list.
 - **Response-shape guard**: page degrades gracefully if backend hasn't picked up the paginated envelope yet.
 - Files: `pages/EnquiryQuotationsPage.tsx`, `lib/marketing-api.ts`, `au-marketing-api/app/routers/quotations.py`
+
+---
+
+## DSR (Daily Status Reports)
+
+### Rev 1 — 2026-08-13 (v1.2.7)
+- **Enquiry logs at a glance**: the Leads and Orders logs now render as full-width table-style rows (cards stacked, not side-by-side); lead rows show potential value, expected closing date, enquiry source ("Through"), and assignee; order rows show assignee and expected delivery date. Clicking a row opens that lead/order.
+- **View another employee's logs**: users with `marketing.admin` get an Employee dropdown to view that person's DSR tasks, leads, and orders for the selected period (leads/orders filtered via `assigned_to`, DSR via the HRMS `username` param).
+- Files: `pages/DSRPage.tsx`
+
+---
+
+## Audit Log
+
+### Rev 1 — 2026-08-13 (v1.2.7)
+- **Lost leads log correctly**: marking a lead as Lost now records the audit action as `lost` instead of `edit`.
+- **Expected orders & OD Plans tracked**: creating an expected order report and saving an OD Plan now write audit-log entries (`action=create`/`edit`, `entity_type=expected_order_report`/`od_plan`) with the lead/entry counts.
+- Files: `au-marketing-api/app/routers/leads.py`, `au-marketing-api/app/routers/reports.py`
 
 ---
 

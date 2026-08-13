@@ -52,7 +52,7 @@ Auth flow: browser POSTs credentials to HRMS RBAC → gets JWT + permissions/rol
 
 ## Feature revision log (CHANGES.md)
 
-`CHANGES.md` (repo root) is the **developer-facing, feature-grouped revision log** — distinct from the client-facing `CHANGELOG.md`. **Update it on every change, in the same turn as the code** — not just on release. Rules:
+`CHANGES.md` (repo root) is the **developer-facing, feature-grouped revision log** — distinct from the client-facing `CHANGELOG.md`. **Read it before starting any change** (its `## How to update this file` block at the top is the canonical rule) and **update it on every change, in the same turn as the code** — not just on release. Rules:
 
 - Find the feature section the change belongs to (see the index at the top of `CHANGES.md`). If none exists, create one and add it to the index.
 - Add a new `### Rev N — YYYY-MM-DD (vX.Y.Z)` block **at the top** of that section (bump N), with a short plain-language description and the key `Files:` touched.

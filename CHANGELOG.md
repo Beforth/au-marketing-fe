@@ -5,6 +5,31 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-08-13] — Lead Form & DSR Log Improvements, Audit Fixes (v1.2.7)
+
+### 🖥️ Frontend
+
+#### Leads — Easier, Cleaner Lead Form
+- The "Assigned To" field is now available only to users who can actually assign leads (super admins, domain heads, and region heads), and it lists only the people in their own team — not the whole company directory.
+- The lead form sections were reordered and every section now has a simple, plain-language description so it's clear what goes where.
+- "Through" and "Referred By" each show a short hint right next to their label ("Where the enquiry came from." / "Who sent this lead to you.").
+
+#### DSR — Enquiry Logs at a Glance
+- The Leads and Orders enquiry logs now stack full-width as clean table rows instead of side-by-side boxes.
+- Lead rows now show the potential value, expected closing date, and the enquiry source ("Through"), plus who the lead is assigned to.
+- Order rows now show who the order is assigned to and the expected delivery date.
+- Super admins (users with the marketing.admin permission) can pick an employee from a dropdown to view that person's DSR tasks, leads, and orders for the selected period.
+
+### ⚙️ Backend
+
+#### Audit Log — Lost Leads Now Log Correctly
+- Marking a lead as Lost now records the action as "lost" in the audit log instead of being logged as a generic edit.
+
+#### Audit Log — Expected Orders & OD Plans Tracked
+- Creating an expected order report and saving an OD Plan now write an audit log entry, so those actions are traceable too.
+
+---
+
 ## [2026-08-11] — Quotation Values Count Toward Targets, Quote Number Fixes (v1.2.6)
 
 ### 🖥️ Frontend

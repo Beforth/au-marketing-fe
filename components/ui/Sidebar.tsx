@@ -15,7 +15,7 @@ import { resolveHrmsMediaUrl } from '../../lib/hrms-rbac';
 export const Sidebar: React.FC = () => {
   const [showChangelog, setShowChangelog] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState('v1.2.6');
+  const [appVersion, setAppVersion] = useState('v1.2.7');
   const [versionLoaded, setVersionLoaded] = useState(false);
   const userDisplayName = useAppSelector(selectUserDisplayName);
   const employee = useAppSelector(selectEmployee);
