@@ -22,6 +22,7 @@ interface SelectProps {
   exactValueMatchWhenQueryMatches?: RegExp;
   getOptionKey?: (option: SelectOption, index: number) => string | number;
   label?: string;
+  hint?: string;
   error?: string;
   containerClassName?: string;
   clearable?: boolean;
@@ -58,6 +59,7 @@ export const Select: React.FC<SelectProps> = ({
   exactValueMatchWhenQueryMatches,
   getOptionKey,
   label,
+  hint,
   error,
   containerClassName,
   inputSize = 'md',
@@ -151,11 +153,16 @@ export const Select: React.FC<SelectProps> = ({
 
   return (
     <div className={cn('space-y-1.5 w-full relative', containerClassName || className)}>
-      {label && (
-        <label className="text-xs font-semibold text-slate-700 ml-0.5">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </label>
+      {(label || hint) && (
+        <div className="flex items-center justify-between gap-2 ml-0.5">
+          {label && (
+            <label className="text-xs font-semibold text-slate-700">
+              {label}
+              {required && <span className="text-red-500 ml-1">*</span>}
+            </label>
+          )}
+          {hint && <span className="text-[11px] text-slate-400 font-medium text-right">{hint}</span>}
+        </div>
       )}
       <div className={cn("relative", isCombobox && "group/combobox")} ref={selectRef}>
         {isCombobox ? (

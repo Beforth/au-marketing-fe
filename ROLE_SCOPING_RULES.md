@@ -70,6 +70,22 @@ graph TD
   * Sees any lead they created or are explicitly assigned to (`assigned_to_employee_id == user_id`).
   * *Creation Restriction*: Can only select their assigned domain/region when creating a lead.
 
+### ✍️ Lead Assignment ("Assigned To" field)
+Who can use the **"Assigned To"** dropdown on the lead create/edit form ([LeadFormPage.tsx](file:///Users/ady/Documents/au-marketing-fe/pages/LeadFormPage.tsx), `canUseAssignTo`):
+
+| Role | Can use "Assigned To" | Assignee scope |
+| :--- | :--: | :--- |
+| **Super Admin** | ✅ | Anyone |
+| **Domain Head** | ✅ | Employees in their domain(s) only (incl. region heads & coordinators in scope) |
+| **Domain Coordinator** | ✅ | Employees in their domain(s) only (incl. region heads & coordinators in scope) |
+| **Region Head** | ✅ | Employees in their region(s) only (incl. region heads & coordinators in scope) |
+| **Region Coordinator** | ❌ hidden | — |
+| **Supervisor** | ❌ hidden | — |
+| **Employee** | ❌ hidden | — |
+
+* The dropdown is **scoped** to `GET /reports/scope` → `employees` (the user's own region/domain team), not the full HRMS directory — so a Region/Domain Head can't pick (or even see) people outside their territory. A transient global-HRMS search is used only if the scope hasn't loaded yet.
+* The backend independently enforces the same rule on create (`leads.py` `create_lead`) and update (`leads.py` `update_lead`): `assigned_to_employee_id` must be inside `_get_reportable_employee_ids_and_role(db, user)` (region scope for region head/coordinator, domain scope for domain head/coordinator, everyone for super admin), otherwise the request is rejected with *"You can only assign leads to employees in your current region or domain."* Assignment is the only lead field gated this way; other lead edits are governed by the standard lead-access rules above.
+
 ---
 
 ## 🗄️ 3. Database Scoping Rules (Organizations, Customers, Contacts)

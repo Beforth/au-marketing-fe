@@ -105,6 +105,14 @@ export const LeadFormPage: React.FC = () => {
       cachedScope?.role === 'super_admin'
     );
   }, [cachedScope]);
+  const canUseAssignTo = useMemo(() => {
+    const role = cachedScope?.role;
+    return (
+      role === 'super_admin' ||
+      role === 'domain_head' ||
+      (role === 'region_head' && !cachedScope?.is_region_coordinator)
+    );
+  }, [cachedScope]);
 
   type LeadSourceType = 'contact' | 'customer' | 'none';
   const tabParam = searchParams.get('tab');
@@ -362,6 +370,14 @@ export const LeadFormPage: React.FC = () => {
   const [creatingThroughPlantInline, setCreatingThroughPlantInline] = useState(false);
   const [seriesList, setSeriesList] = useState<Series[]>([]);
   const [reportScope, setReportScope] = useState<ReportScopeResponse | null>(null);
+  const assignableEmployeeOptions = useMemo(
+    () =>
+      (reportScope?.employees ?? []).map((e) => ({
+        value: e.id,
+        label: e.name,
+      })),
+    [reportScope]
+  );
   const [generatingQuoteNumber, setGeneratingQuoteNumber] = useState(false);
   const [showMarkLostConfirm, setShowMarkLostConfirm] = useState(false);
   const [showMarkWonModal, setShowMarkWonModal] = useState(false);
@@ -2280,7 +2296,7 @@ export const LeadFormPage: React.FC = () => {
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight">
                 <User size={18} /> Primary contact
               </h3>
-              <p className="text-sm text-slate-500 font-medium">Search existing contacts or fill in details below to create a new one.</p>
+              <p className="text-sm text-slate-500 font-medium">Who is the main contact? Search or add one.</p>
 
               {primaryContactContactId != null ? (
                 <div className="p-4 bg-gradient-to-br from-blue-50/50 to-white rounded-xl border border-blue-100/80 flex items-start justify-between gap-4 animate-in zoom-in-95 duration-200">
@@ -2445,7 +2461,7 @@ export const LeadFormPage: React.FC = () => {
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight">
                 <Building2 size={18} /> Organization
               </h3>
-              <p className="text-sm text-slate-500 font-medium">Link an existing organization or enter details below to create a new one.</p>
+              <p className="text-sm text-slate-500 font-medium">Link the company or add a new one.</p>
 
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-slate-700">Company / Organization name</label>
@@ -2724,25 +2740,32 @@ export const LeadFormPage: React.FC = () => {
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight">
                 <FileText size={18} /> Enquiry Details
               </h3>
-              <p className="text-sm text-slate-500 font-medium">Categorize the lead and specify how they discovered us.</p>
+              <p className="text-sm text-slate-500 font-medium">Source, value, and closing date for this enquiry.</p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2 p-4 bg-slate-50/50 rounded-xl border border-slate-200">
-                  <div className="max-w-xs mb-4">
-                    <Select
-                      label="Referred By"
-                      options={[
-                        { value: 'none', label: 'NONE' },
-                        { value: 'employee', label: 'EMPLOYEE' },
-                        { value: 'customer', label: 'CUSTOMER' },
-                        { value: 'contact', label: 'CONTACT' },
-                      ]}
-                      value={referredByType}
-                      onChange={(v) => setReferredByType(v as any)}
-                      searchable={false}
-                      triggerClassName="font-bold tracking-tight"
-                    />
-                  </div>
+                <Select
+                  label="Through *"
+                  hint="Where the enquiry came from."
+                  options={leadThroughOptions.map(t => ({ value: String(t.id), label: t.label }))}
+                  value={formData.lead_through_id ? String(formData.lead_through_id) : ''}
+                  onChange={(v) => setFormData({ ...formData, lead_through_id: v ? Number(v) : undefined })}
+                  placeholder="Select source"
+                />
+                <div className="space-y-3">
+                  <Select
+                    label="Referred By"
+                    hint="Who sent this lead to you."
+                    options={[
+                      { value: 'none', label: 'NONE' },
+                      { value: 'employee', label: 'EMPLOYEE' },
+                      { value: 'customer', label: 'CUSTOMER' },
+                      { value: 'contact', label: 'CONTACT' },
+                    ]}
+                    value={referredByType}
+                    onChange={(v) => setReferredByType(v as any)}
+                    searchable={false}
+                    triggerClassName="font-bold tracking-tight"
+                  />
 
                   {referredByType === 'employee' && (
                     <AsyncSelect
@@ -2802,13 +2825,6 @@ export const LeadFormPage: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <Select
-                  label="Through *"
-                  options={leadThroughOptions.map(t => ({ value: String(t.id), label: t.label }))}
-                  value={formData.lead_through_id ? String(formData.lead_through_id) : ''}
-                  onChange={(v) => setFormData({ ...formData, lead_through_id: v ? Number(v) : undefined })}
-                  placeholder="Select source"
-                />
                 <DatePicker
                   label="Expected closing date"
                   value={formData.expected_closing_date?.trim() ? formData.expected_closing_date : undefined}
@@ -2837,7 +2853,7 @@ export const LeadFormPage: React.FC = () => {
                 <FileText size={18} /> Quotation &amp; enquiry log
               </h3>
               <p className="text-sm text-slate-500 font-medium">
-                Optional. Set when the enquiry was received, attach a quotation file, and/or set a quote number. On save, the lead is created and a first enquiry entry is added when you attach a file; the enquiry date is stored when set (with or without a file).
+                Optional — add a quotation and the enquiry date.
               </p>
               <div className="space-y-4">
                 <DatePicker
@@ -2849,51 +2865,14 @@ export const LeadFormPage: React.FC = () => {
                   showNow
                   timePanelPosition="right"
                 />
-                <p className="text-xs text-slate-500 -mt-3">Backdates the first enquiry activity when you add a quotation, or sets lead inquiry time when saved without a file (if supported).</p>
+                <p className="text-xs text-slate-500 -mt-3">Sets the date/time the enquiry came in.</p>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Add Quotation</label>
                   <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <label className={cn(
-                        "flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-xs font-medium shrink-0 min-w-[130px] justify-center",
-                        createQuoteFile ? "border-blue-400 bg-blue-50 text-blue-700" : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
-                      )}>
-                        <Upload size={14} className={createQuoteFile ? "text-blue-600" : "text-slate-400"} />
-                        <span className="truncate max-w-[110px]">{createQuoteFile ? createQuoteFile.name : 'Choose file'}</span>
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx,image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0] ?? null;
-                            setCreateQuoteFile(f);
-                            // Keep the generated/manual quote number visible when a file is picked —
-                            // only the value needs re-entering per file.
-                            if (f) {
-                              setCreateQuoteValue('');
-                            }
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
-                      {createQuoteFile && (
-                        <DeleteButton
-                          onClick={() => setCreateQuoteFile(null)}
-                          tooltip="Remove file"
-                        />
-                      )}
-                      <CurrencyInput
-                        placeholder="Quote Value (₹) *"
-                        value={createQuoteValue}
-                        onChange={setCreateQuoteValue}
-                        inputSize="md"
-                        containerClassName="min-w-[160px] flex-1 !space-y-0"
-                      />
-                    </div>
                     <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
                         <p className="text-xs font-semibold text-slate-700">Quote number (optional)</p>
                         <p className="text-xs text-slate-500">
-                          Generate a quote number from a numbering series or type one manually — no file needed. Add each number to the list below to reserve it; the quotation file and value can be attached later.
+                          Pick a series or type a number manually — the file and value come later.
                         </p>
                         <div className="flex flex-wrap items-end gap-2">
                           <div className="min-w-[200px] flex-1">
@@ -2949,6 +2928,43 @@ export const LeadFormPage: React.FC = () => {
                             placeholder="e.g. AP/QUOTE-N/001"
                           />
                         )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className={cn(
+                        "flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-xs font-medium shrink-0 min-w-[130px] justify-center",
+                        createQuoteFile ? "border-blue-400 bg-blue-50 text-blue-700" : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                      )}>
+                        <Upload size={14} className={createQuoteFile ? "text-blue-600" : "text-slate-400"} />
+                        <span className="truncate max-w-[110px]">{createQuoteFile ? createQuoteFile.name : 'Choose file'}</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] ?? null;
+                            setCreateQuoteFile(f);
+                            // Keep the generated/manual quote number visible when a file is picked —
+                            // only the value needs re-entering per file.
+                            if (f) {
+                              setCreateQuoteValue('');
+                            }
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      {createQuoteFile && (
+                        <DeleteButton
+                          onClick={() => setCreateQuoteFile(null)}
+                          tooltip="Remove file"
+                        />
+                      )}
+                      <CurrencyInput
+                        placeholder="Quote Value (₹) *"
+                        value={createQuoteValue}
+                        onChange={setCreateQuoteValue}
+                        inputSize="md"
+                        containerClassName="min-w-[160px] flex-1 !space-y-0"
+                      />
                     </div>
                     <Button
                       type="button"
@@ -3014,7 +3030,7 @@ export const LeadFormPage: React.FC = () => {
               {!domainRegionCollapsed && (
                 <div className={cn(
                   "mt-4 grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-top-2",
-                  (!isEdit && isCoordinator) ? "md:grid-cols-4" : "md:grid-cols-3"
+                  (!isEdit && isCoordinator && canUseAssignTo) ? "md:grid-cols-4" : "md:grid-cols-3"
                 )}>
                   <Select
                     label="Domain *"
@@ -3051,16 +3067,23 @@ export const LeadFormPage: React.FC = () => {
                       disabled={!formData.domain_id}
                     />
                   )}
-                  <AsyncSelect
-                    label="Assigned To"
-                    loadOptions={async (search) => {
-                      const res = await marketingAPI.getEmployees({ page: 1, page_size: 30, search: search || undefined, status: 'active' });
-                      return res.employees.map((e) => ({ value: e.id, label: [e.first_name, e.last_name].filter(Boolean).join(' ') || e.email }));
-                    }}
-                    value={formData.assigned_to_employee_id ?? undefined}
-                    onChange={(val) => setFormData(prev => ({ ...prev, assigned_to_employee_id: val ? Number(val) : undefined }))}
-                    placeholder="Search employee..."
-                  />
+                  {canUseAssignTo && (
+                    <AsyncSelect
+                      label="Assigned To"
+                      initialOptions={assignableEmployeeOptions}
+                      loadOptions={async (search) => {
+                        if (reportScope?.employees?.length) {
+                          const q = search.trim().toLowerCase();
+                          return q ? assignableEmployeeOptions.filter((o) => o.label.toLowerCase().includes(q)) : assignableEmployeeOptions;
+                        }
+                        const res = await marketingAPI.getEmployees({ page: 1, page_size: 30, search: search || undefined, status: 'active' });
+                        return res.employees.map((e) => ({ value: e.id, label: [e.first_name, e.last_name].filter(Boolean).join(' ') || e.email }));
+                      }}
+                      value={formData.assigned_to_employee_id ?? undefined}
+                      onChange={(val) => setFormData(prev => ({ ...prev, assigned_to_employee_id: val ? Number(val) : undefined }))}
+                      placeholder="Search employee..."
+                    />
+                  )}
                   {!isEdit && isCoordinator && (
                     <AsyncSelect
                       label="Created On Behalf Of"
