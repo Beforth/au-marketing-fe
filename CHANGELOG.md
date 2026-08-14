@@ -18,6 +18,11 @@ Format: `[Date] — Category: Description`
 
 #### Leads Created On Someone's Behalf
 - When a Domain or Region Coordinator creates a lead on behalf of a teammate, that lead now follows a tighter visibility rule: only the coordinator who created it, the teammate it was created for, and that domain's head can see it — not the wider team.
+- A Region Coordinator can now create a lead on behalf of anyone across their whole domain, not just their own region.
+
+#### Domain Head Visibility Fixed
+- Domain Heads can now properly see contacts, leads, orders, and customers created by their team (Domain Coordinator, Region Heads, Region Coordinators, and Employees) — this was silently incomplete in some cases even when the team was set up correctly.
+- Fixed an error that could interrupt saving changes to a Domain, including assigning a Domain Head or Coordinator.
 
 ### 🖥️ Frontend
 
