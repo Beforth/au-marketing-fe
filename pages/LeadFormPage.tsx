@@ -129,6 +129,8 @@ export const LeadFormPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
+  /** Which button triggered the current create-lead submit — for the loading label only, not the save logic (that reads the forceDraft argument passed directly to handleSubmit). */
+  const draftSubmitRef = useRef(false);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -226,8 +228,6 @@ export const LeadFormPage: React.FC = () => {
   const [editingAttachmentValueId, setEditingAttachmentValueId] = useState<number | null>(null);
   const [editingAttachmentValue, setEditingAttachmentValue] = useState('');
   const reattachInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
-  /** Save with lead details only, skipping the quotation section — finish it later from the Drafts tab */
-  const [saveAsDraft, setSaveAsDraft] = useState(false);
   /** When creating lead: multiple quotations added one at a time */
   const [createQuotations, setCreateQuotations] = useState<{ id: string; file: File | null; value: string; number: string; seriesCode?: string | null }[]>([]);
   const [createQuoteFile, setCreateQuoteFile] = useState<File | null>(null);
@@ -1339,8 +1339,8 @@ export const LeadFormPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent | undefined, forceDraft: boolean = false) => {
+    e?.preventDefault();
     if (submittingRef.current) return;
     submittingRef.current = true;
     setIsSubmitting(true);
@@ -1349,11 +1349,11 @@ export const LeadFormPage: React.FC = () => {
         showToast('Domain is required', 'error');
         return;
       }
-      if (!isEdit && !saveAsDraft && createQuoteFile && !createQuoteValue.trim()) {
+      if (!isEdit && !forceDraft && createQuoteFile && !createQuoteValue.trim()) {
         showToast('Quote value is mandatory. Please enter a value before submitting.', 'error');
         return;
       }
-      if (!isEdit && !saveAsDraft && createQuotations.some(q => q.file && (!q.value || !q.value.trim()))) {
+      if (!isEdit && !forceDraft && createQuotations.some(q => q.file && (!q.value || !q.value.trim()))) {
         showToast('Quote value is mandatory for quotations with a file.', 'error');
         return;
       }
@@ -1562,22 +1562,22 @@ export const LeadFormPage: React.FC = () => {
       }
       // A draft never carries quote/quotation data, even if some was entered before the "Save as
       // draft" toggle was switched on — the quotation section is hidden, and none of it is sent.
-      const filelessEntries = !isEdit && !saveAsDraft ? createQuotations.filter(q => !q.file) : [];
+      const filelessEntries = !isEdit && !forceDraft ? createQuotations.filter(q => !q.file) : [];
       const numberOnlyNumbers = filelessEntries.map(q => q.number.trim()).filter(Boolean);
-      const hasFileRows = !isEdit && !saveAsDraft && createQuotations.some(q => q.file);
+      const hasFileRows = !isEdit && !forceDraft && createQuotations.some(q => q.file);
       const generatedFileless = filelessEntries.filter(q => q.seriesCode);
       const filelessValue = (n: string): number | null => {
         const entry = filelessEntries.find(q => q.number.trim() === n);
         return entry && entry.value.trim() ? Number(entry.value) : null;
       };
       if (!isEdit) {
-        (payload as any).is_draft = saveAsDraft;
+        (payload as any).is_draft = forceDraft;
       }
       // Quote number (separate from lead number): generated (series + number) or manual text only.
       // When quotation files are attached in this same create flow, ALL numbers (file rows and file-less
       // rows) are committed by the file path below — so skip this payload entirely to avoid generating
       // the same series twice (once for lead.quote_number, once for the placeholder).
-      if (!isEdit && !saveAsDraft && !hasFileRows && (generatedFileless.length > 0 || numberOnlyNumbers.length > 0 || generatedQuoteSeriesCode || customCreateQuoteNumber.trim())) {
+      if (!isEdit && !forceDraft && !hasFileRows && (generatedFileless.length > 0 || numberOnlyNumbers.length > 0 || generatedQuoteSeriesCode || customCreateQuoteNumber.trim())) {
         if (generatedFileless.length > 0) {
           // The first file-less entry becomes the lead's primary quote number — pass just its
           // series so the backend generates and commits the real next value once, at save.
@@ -1664,7 +1664,7 @@ export const LeadFormPage: React.FC = () => {
           loadActivities();
         } else {
           const lead = await marketingAPI.createLead(payload as any);
-          const fileRows = saveAsDraft ? [] : createQuotations.filter(q => q.file);
+          const fileRows = forceDraft ? [] : createQuotations.filter(q => q.file);
           if (fileRows.length > 0) {
             let createdActivity: LeadActivity | null = null;
             try {
@@ -1747,7 +1747,7 @@ export const LeadFormPage: React.FC = () => {
               return;
             }
           }
-          showToast(saveAsDraft ? 'Saved as draft' : 'Lead created successfully', 'success');
+          showToast(forceDraft ? 'Saved as draft' : 'Lead created successfully', 'success');
           navigate('/leads');
         }
       } catch (error: any) {
@@ -2989,7 +2989,6 @@ export const LeadFormPage: React.FC = () => {
                   timePanelPosition="right"
                 />
                 <p className="text-xs text-slate-500 -mt-3">Sets the date/time the enquiry came in.</p>
-                {!saveAsDraft && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Add Quotation</label>
                   <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
@@ -3134,7 +3133,6 @@ export const LeadFormPage: React.FC = () => {
                     </div>
                   )}
                 </div>
-                )}
               </div>
             </div>
 
@@ -3246,23 +3244,26 @@ export const LeadFormPage: React.FC = () => {
                   <div className="bg-blue-600 h-1 rounded-full transition-all duration-300 ease-out" style={{ width: `${createLeadUploadProgress}%` }}></div>
                 </div>
               )}
-              {!isEdit && (
-                <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer w-fit">
-                  <input
-                    type="checkbox"
-                    checked={saveAsDraft}
-                    onChange={(e) => setSaveAsDraft(e.target.checked)}
-                    className="rounded border-slate-300"
-                  />
-                  Save as draft (skip quotation for now — finish it later from the Drafts tab)
-                </label>
-              )}
               <div className="flex items-center justify-end gap-3">
                 <Button variant="ghost" type="button" onClick={() => navigate('/leads')} className="text-slate-500 font-bold px-4">Cancel</Button>
-                <Button type="submit" disabled={isSubmitting} leftIcon={<Plus size={16} />} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100">
-                  {isSubmitting
-                    ? (createLeadUploadProgress !== null ? `Uploading (${createLeadUploadProgress}%)...` : (saveAsDraft ? 'Saving draft...' : 'Creating...'))
-                    : (saveAsDraft ? 'Save as Draft' : 'Create Lead')}
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSubmitting}
+                  onClick={() => { draftSubmitRef.current = true; handleSubmit(undefined, true); }}
+                >
+                  {isSubmitting && draftSubmitRef.current ? 'Saving draft...' : 'Save as Draft'}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  leftIcon={<Plus size={16} />}
+                  className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100"
+                  onClick={() => { draftSubmitRef.current = false; }}
+                >
+                  {isSubmitting && !draftSubmitRef.current
+                    ? (createLeadUploadProgress !== null ? `Uploading (${createLeadUploadProgress}%)...` : 'Creating...')
+                    : 'Create Lead'}
                 </Button>
               </div>
             </div>

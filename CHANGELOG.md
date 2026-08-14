@@ -36,7 +36,7 @@ Format: `[Date] — Category: Description`
 - Fixed a rare issue where, when adding more than one quotation number to a new lead at once, one of the extra numbers could fail to be saved.
 
 #### Save a Lead as a Draft
-- You can now save a lead as a draft while you're still filling it in — check "Save as draft" before saving, and it's stored with just the basic lead details (contact/company, domain, etc.), no quotation number needed yet.
+- You can now save a lead as a draft while you're still filling it in — click "Save as Draft" instead of "Create Lead", and it's stored with just the basic lead details (contact/company, domain, etc.), no quotation number needed yet.
 - Drafts are kept out of your normal Leads list — switch on the new "Drafts only" filter on the Leads page to see and continue them.
 - When a draft is ready, open it and use the new "Move to Leads" button to bring it into your regular pipeline, where you can add its quotation number as usual.
 
