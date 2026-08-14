@@ -251,6 +251,7 @@ export const LeadsPage: React.FC = () => {
   const [selectedAssignedToIds, setSelectedAssignedToIds] = useState<number[]>([]);
   const [createdByMeOnly, setCreatedByMeOnly] = useState(false);
   const [includeWonLost, setIncludeWonLost] = useState(false);
+  const [showDraftsOnly, setShowDraftsOnly] = useState(false);
   const [showEmployeeFilterPopover, setShowEmployeeFilterPopover] = useState(false);
   const filterButtonRef = React.useRef<HTMLDivElement>(null);
   const employeeFilterRef = React.useRef<HTMLDivElement>(null);
@@ -306,7 +307,7 @@ export const LeadsPage: React.FC = () => {
   useEffect(() => {
     if (!canView) return;
     loadLeads();
-  }, [canView, debouncedSearchTerm, appliedDateFrom, appliedDateTo, selectedAssignedToIds, createdByMeOnly, includeWonLost]);
+  }, [canView, debouncedSearchTerm, appliedDateFrom, appliedDateTo, selectedAssignedToIds, createdByMeOnly, includeWonLost, showDraftsOnly]);
 
   useEffect(() => {
     if (includeWonLost) return;
@@ -331,6 +332,7 @@ export const LeadsPage: React.FC = () => {
         assigned_to: selectedAssignedToIds.length > 0 ? selectedAssignedToIds : undefined,
         created_by_me: createdByMeOnly || undefined,
         include_won_lost: includeWonLost || undefined,
+        drafts_only: showDraftsOnly || undefined,
       });
       setLeads(res.items);
       setTotal(res.total);
@@ -1309,6 +1311,15 @@ export const LeadsPage: React.FC = () => {
                 className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
               />
               <span className="font-semibold">Show Won &amp; Lost</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-600 hover:text-slate-900 transition-colors">
+              <input
+                type="checkbox"
+                checked={showDraftsOnly}
+                onChange={(e) => setShowDraftsOnly(e.target.checked)}
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+              />
+              <span className="font-semibold">Drafts only</span>
             </label>
 
             {((isScopeLoading && reportScope?.can_select_employee) || (reportScope && reportScope.employees.length > 0)) && (

@@ -55,9 +55,13 @@ Auth flow: browser POSTs credentials to HRMS RBAC → gets JWT + permissions/rol
 `CHANGES.md` (repo root) is the **developer-facing, feature-grouped revision log** — distinct from the client-facing `CHANGELOG.md`. **Read it before starting any change** (its `## How to update this file` block at the top is the canonical rule) and **update it on every change, in the same turn as the code** — not just on release. Rules:
 
 - Find the feature section the change belongs to (see the index at the top of `CHANGES.md`). If none exists, create one and add it to the index.
-- Add a new `### Rev N — YYYY-MM-DD (vX.Y.Z)` block **at the top** of that section (bump N), with a short plain-language description and the key `Files:` touched.
+- Add a new `### Rev N — YYYY-MM-DD (vX.Y.Z) — [Issue]` or `— [Revision]` block **at the top** of that section (bump N), with a short plain-language description and the key `Files:` touched. `[Issue]` = a reported/found bug being fixed; `[Revision]` = planned feature work or a redesign, not a bug.
 - **Never create a second section for the same feature** — the point of this file is that a feature touched repeatedly accumulates revisions under one section, with dates and versions, so its evolution is traceable.
 - Root copy only — do **not** mirror into `au-marketing-api/CHANGES.md`. This file complements, and does not replace, the dual-copy `CHANGELOG.md` convention above.
+
+## Reported issue log (ISSUES.md)
+
+`ISSUES.md` (repo root) is the **full plain-language writeup** for every bug fix — what was reported, root cause, fix, edge cases, and whether already-affected records are recoverable. It complements `CHANGES.md`: any `[Issue]`-tagged `CHANGES.md` revision should have a matching, more detailed entry here. Same update rule as `CHANGES.md` — update it in the same turn as the code, find or create the relevant feature section (index at top), add the new entry at the top of that section. Root copy only.
 
 ## Repo layout
 
@@ -90,6 +94,9 @@ Two separate authorization concepts show up across this codebase and are easy to
 
 ### Won-date / kanban status-change flow has multiple entry points
 `LeadsPage.tsx` (kanban drag-to-column, and a per-card "Won" button) and `pages/LeadFormPage.tsx` (a separate "Mark as Won" modal in Edit Lead) each independently trigger a status-change-to-Won flow (closed value + PO + optional backdated Won date), each calling `marketingAPI.updateLead` / `createLeadActivity` directly. There is no shared hook/component for this — if you change the Won-flow behavior (e.g. backdating rules), all entry points need to be updated in lockstep or they'll silently diverge. `OrdersPage.tsx` has a kanban+table `ViewMode` toggle; `LeadsPage.tsx` currently does not (kanban only), despite what the README's page list implies.
+
+### Draft leads
+`Lead.is_draft` (boolean, default `False`) marks a lead saved via the create form's "Save as draft" checkbox — same required fields as a normal lead (contact/customer + domain still enforced), but the quotation section is hidden and no quote-related fields are ever sent for a draft, even if the frontend has stale state from before the checkbox was toggled (`pages/LeadFormPage.tsx` guards every quote-payload branch with `!saveAsDraft`, not just the top-level one). `GET /leads/` excludes drafts by default; pass `drafts_only=true` (frontend: `getLeads({ drafts_only: true })`) to see only drafts — there's no in-between "show both" mode. Finalizing a draft is just `PUT` with `is_draft: false`; once that's done, editing it is identical to any other lead, including the quote-number flows (Inquiry #0 panel, Log Activity's "New Quotation") — those are not draft-aware, they just work because a draft is a real `Lead` row.
 
 ### Settings live-reload
 Backend responses carry an `X-Marketing-Settings-Version` header; the frontend compares it against the last-seen version and reloads settings-dependent UI on change (`lib/api.ts` / `lib/marketing-api.ts`).

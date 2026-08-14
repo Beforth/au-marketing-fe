@@ -3,25 +3,27 @@
 > **Internal-only** history of every change to the S&M Hub, grouped **by feature** rather than by release date.
 > Unlike `CHANGELOG.md` (client-facing release notes, one entry per version), this is the dev-side log: whenever a feature is touched again, it gets a **new revision** under its existing section, with date + version, instead of a fresh one-off note.
 
-This file complements, and does **not** replace, the `CHANGELOG.md` conventions (both root and `au-marketing-api/CHANGELOG.md` must still be updated per that convention).
+This file complements, and does **not** replace, the `CHANGELOG.md` conventions (both root and `au-marketing-api/CHANGELOG.md` must still be updated per that convention). It also complements `ISSUES.md` — the full plain-language writeup (what was reported, root cause, fix, edge cases) for any bug fix belongs there; this file just gets the short version tagged `[Issue]`.
 
 ## How to update this file (Claude must follow this)
 
 1. On **every** change — frontend, backend, tooling, or script — update this file **in the same turn as the code**.
 2. Find the feature section the change belongs to (index below). If none exists, create one and add it to the index.
-3. Add a new revision block **at the TOP** of that section, bumping the revision number:
+3. Add a new revision block **at the TOP** of that section, bumping the revision number, and tag it `[Issue]` or `[Revision]` right after the version:
    ```markdown
-   ### Rev N — YYYY-MM-DD (vX.Y.Z)
+   ### Rev N — YYYY-MM-DD (vX.Y.Z) — [Issue]
    - Short plain-language description of what changed.
    - Files: `path/to/file.tsx`, `au-marketing-api/app/routers/leads.py`, ...
    ```
+   Use **`[Issue]`** for a bug fix — something that was reported (by the client or found internally) and broken, working incorrectly, or missing that should have existed. Use **`[Revision]`** for planned/requested feature work, redesigns, or scope changes that weren't a bug. A block can mix both if it genuinely contains both kinds of changes — say so in the text rather than picking one tag to hide the other.
 4. **Never create a second section for the same feature** — always add a revision to the existing one. This keeps per-feature history in one place.
 5. Root copy only — do **not** mirror into `au-marketing-api/CHANGES.md`.
 
 ## Feature index
 
 - [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7
-- [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6
+- [Draft Leads](#draft-leads) — rev 1.2.8
+- [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6, 1.2.8
 - [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7
 - [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
 - [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.2.0, 1.2.1, 1.2.5
@@ -33,6 +35,19 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5
 - [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6
 - [Design System Documentation](#design-system-documentation) — rev 1.2.6
+
+---
+
+## Draft Leads
+
+### Rev 1 — 2026-08-14 (v1.2.8) — [Revision]
+- **New "Save as draft" option on the create-lead form.** Requested by the client after repeatedly having to cancel/lose in-progress leads when a quote-number bug interrupted them (now fixed — see `ISSUES.md`) — this gives a safety net for future interruptions of any kind. A draft captures the normal lead fields (contact/organization, plant, domain/region, source, potential value, etc.) — same required fields as a real lead (still needs a linked contact/customer and a domain) — but the entire quotation section of the form is hidden and nothing quote-related is saved or sent, even if some was entered before toggling the checkbox on.
+- **Multiple drafts supported.** A draft is a real `Lead` row (`is_draft=True`), just excluded from the normal Leads list/Kanban by default. A new "Drafts only" checkbox on the Leads page (mirrors the existing "Show Won & Lost" toggle) switches the view to show only the current scope's drafts.
+- **Finalizing a draft**: open it like any other lead (edit mode already has full access to the existing quote-number flows — the "Inquiry #0" system-quote panel and the Log Activity composer's "New Quotation" option, both pre-existing and already fixed earlier today). A new "Move to Leads" button (shown only on drafts, next to "Edit lead") flips `is_draft` back to `False` via a normal `PUT`.
+- **Deleting a draft** uses the existing delete-lead flow as-is (no new logic needed) — a draft is just a lead.
+- **Requires a migration**: new `Lead.is_draft` boolean column (`nullable=False, default=False`). Run `alembic revision --autogenerate` + `alembic upgrade head` before this takes effect on the server.
+- Also fixed a bug from the same-day quote-number fix (Quotations & Quote Numbers Rev 4): `extra_quote_series_codes` wasn't in `create_lead`'s `model_dump(exclude=...)` set, so it would have been passed into the `Lead(...)` constructor and crashed (no such column) the first time a create-lead request used it. Caught and fixed before it shipped.
+- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/routers/leads.py`, `lib/marketing-api.ts`, `pages/LeadFormPage.tsx`, `pages/LeadsPage.tsx`, `CLAUDE.md`
 
 ---
 
@@ -110,6 +125,13 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 ---
 
 ## Quotations & Quote Numbers
+
+### Rev 4 — 2026-08-14 (v1.2.8) — [Issue]
+- **Fixed the "Inquiry #0" banner reappearing on a lead that already has a quotation.** The banner's visibility check only looked at `lead.quote_number` and a literal `inquiry_number = 0` activity, never at whether a quotation existed anywhere else in the log — now also checks the existing `hasExistingQuotation` helper.
+- **Fixed the lead record silently failing to record that a quotation exists**, which was the underlying cause of the above: adding a quotation via the Log Activity composer only synced a *typed* number back onto `lead.quote_number`, never a *system-generated* one, and the sync call swallowed failures silently. Now reads the number back from the upload response (covers generated numbers) and surfaces a toast if the sync itself fails.
+- **Fixed an extra quote number silently vanishing when creating a lead with more than one generated number.** Extra quote numbers were resolved to a preview value client-side when added to the list, but only the *primary* number was regenerated for real at Save — if the series advanced in between (a second employee, or another tab, generating from the same series), the freshly-committed primary could coincidentally match a stale "extra" preview, and a backend rule silently deleted the extra as a "duplicate." Fix: extras generated from a series are no longer resolved client-side at all — the frontend now sends the series code, and the backend generates every extra number for real, atomically, in the same request as the primary, only at the moment of Save. Nothing is reserved before Save (so cancelling costs nothing), and concurrent saves were already safe (series generation row-locks). The silent-drop rule was removed.
+- See `ISSUES.md` for the full writeup of all three issues, including one known remaining edge case (partial number waste on a mid-loop generation failure) flagged there as not yet fixed.
+- Files: `pages/LeadFormPage.tsx`, `lib/marketing-api.ts`, `au-marketing-api/app/routers/leads.py`, `au-marketing-api/app/schemas.py`, `ISSUES.md`
 
 ### Rev 3 — 2026-08-11 (v1.2.6)
 - **Quote number stays visible** when uploading a quotation file — picking a file no longer wipes the generated/typed number.

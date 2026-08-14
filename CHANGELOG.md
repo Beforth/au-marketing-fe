@@ -27,7 +27,18 @@ Format: `[Date] — Category: Description`
 ### 🖥️ Frontend
 
 #### Add a Quotation Number to a Lead That Doesn't Have One
-- Leads created without a quotation number or file can now have one added directly from the Inquiry Log — generate a number from a series or type one in manually, with support for adding more than one at a time.
+- A lead with no quotation number or file yet now shows a ready-to-use quotation entry automatically at the top of its Inquiry Log — generate a number from a series or type one in manually, attach the file, and add more than one at a time, all in one step.
+- You can now add a new quotation to a lead at any time, even after it already has one — previously this only worked the very first time.
+
+#### Quotation Number Reliability Fixes
+- Leads that already have a quotation number no longer incorrectly show a prompt to add their first one.
+- A lead's quotation number is now reliably kept up to date after adding one from the activity log.
+- Fixed a rare issue where, when adding more than one quotation number to a new lead at once, one of the extra numbers could fail to be saved.
+
+#### Save a Lead as a Draft
+- You can now save a lead as a draft while you're still filling it in — check "Save as draft" before saving, and it's stored with just the basic lead details (contact/company, domain, etc.), no quotation number needed yet.
+- Drafts are kept out of your normal Leads list — switch on the new "Drafts only" filter on the Leads page to see and continue them.
+- When a draft is ready, open it and use the new "Move to Leads" button to bring it into your regular pipeline, where you can add its quotation number as usual.
 
 ---
 

@@ -266,6 +266,8 @@ export interface LeadThroughOption {
 // Lead Types (person/company from contact or customer; no duplicate fields)
 export interface Lead {
   id: number;
+  /** Saved with lead details but no quote number/quotation yet; kept out of the normal leads list until finalized. */
+  is_draft?: boolean;
   domain_id: number;
   region_id?: number;
   contact_id?: number;
@@ -374,6 +376,8 @@ export interface Campaign {
 }
 
 export interface CreateLeadRequest {
+  /** Save with lead details but no quote number/quotation yet; kept out of the normal leads list until finalized (set back to false via updateLead). */
+  is_draft?: boolean;
   contact_id?: number;  // Required: person/company from Contact or Customer
   customer_id?: number;
   plant_id?: number;
@@ -398,8 +402,9 @@ export interface CreateLeadRequest {
   initial_inquiry_at?: string;
   /** Suppress the auto-created "Inquiry 0" quote-number placeholder — set when a quotation file is being uploaded in this same create flow. */
   skip_quote_placeholder?: boolean;
-  /** Additional pre-generated quotation numbers (beyond quote_number) with no file yet — become file-less quotation rows on the "Inquiry 0" activity when no files are uploaded in this create flow. */
+  /** Additional quotation numbers (beyond quote_number) with no file yet — become file-less quotation rows on the "Inquiry 0" activity when no files are uploaded in this create flow. For an entry generated from a series (as opposed to typed by hand), leave the matching extra_quote_numbers[i] empty and set extra_quote_series_codes[i] instead — the backend generates a real number for it at save time rather than trusting an earlier on-screen preview. */
   extra_quote_numbers?: string[];
+  extra_quote_series_codes?: (string | null)[];
 }
 
 export interface UpdateLeadRequest extends Partial<CreateLeadRequest> {
@@ -616,6 +621,8 @@ class MarketingAPIService {
     lost_only?: boolean;
     /** Only return leads with hot status */
     is_hot?: boolean;
+    /** Only return draft leads (for the Drafts tab); when false (default), drafts are excluded from the normal list */
+    drafts_only?: boolean;
     domain_id?: number;
     region_id?: number;
     search?: string;
@@ -634,6 +641,7 @@ class MarketingAPIService {
     if (params?.include_won_lost === true) queryParams.append('include_won_lost', 'true');
     if (params?.lost_only === true) queryParams.append('lost_only', 'true');
     if (params?.is_hot === true) queryParams.append('is_hot', 'true');
+    if (params?.drafts_only === true) queryParams.append('drafts_only', 'true');
     if (params?.domain_id != null) queryParams.append('domain_id', params.domain_id.toString());
     if (params?.region_id != null) queryParams.append('region_id', params.region_id.toString());
     if (params?.date_from) queryParams.append('date_from', params.date_from);

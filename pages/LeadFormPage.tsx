@@ -226,6 +226,8 @@ export const LeadFormPage: React.FC = () => {
   const [editingAttachmentValueId, setEditingAttachmentValueId] = useState<number | null>(null);
   const [editingAttachmentValue, setEditingAttachmentValue] = useState('');
   const reattachInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  /** Save with lead details only, skipping the quotation section — finish it later from the Drafts tab */
+  const [saveAsDraft, setSaveAsDraft] = useState(false);
   /** When creating lead: multiple quotations added one at a time */
   const [createQuotations, setCreateQuotations] = useState<{ id: string; file: File | null; value: string; number: string; seriesCode?: string | null }[]>([]);
   const [createQuoteFile, setCreateQuoteFile] = useState<File | null>(null);
@@ -920,7 +922,7 @@ export const LeadFormPage: React.FC = () => {
         setUploadPhase('uploading');
         setLogUploadProgress(0);
         const hasNewQuotation = readyEntries.some((entry) => entry.kind === 'quotation' && !entry.quotationNumber);
-        await marketingAPI.uploadLeadActivityAttachments(
+        const createdAttachments = await marketingAPI.uploadLeadActivityAttachments(
           leadId,
           created.id,
           readyEntries.map((entry) => entry.file!),
@@ -934,18 +936,23 @@ export const LeadFormPage: React.FC = () => {
         );
         // If the lead has no quote number yet, adopt the first new (non-revised)
         // quotation's number as the lead's own — so it stays in sync going forward
-        // instead of only living on this one file.
+        // instead of only living on this one file. Read the number back from the
+        // server response (not the client-side form entry) since a generated
+        // number only exists after the server assigns it.
         if (!currentLead?.quote_number?.trim()) {
-          const firstNewQuotation = readyEntries.find((entry) => entry.kind === 'quotation' && !entry.isRevised && entry.quotationNumber.trim());
-          if (firstNewQuotation) {
+          const firstNewQuotation = createdAttachments.find((att, idx) => {
+            const entry = readyEntries[idx];
+            return entry?.kind === 'quotation' && !entry.isRevised && att.quotation_number?.trim();
+          });
+          if (firstNewQuotation?.quotation_number) {
             try {
               const updated = await marketingAPI.updateLead(leadId, {
-                quote_number: firstNewQuotation.quotationNumber.trim(),
+                quote_number: firstNewQuotation.quotation_number.trim(),
                 quote_series_code: hasNewQuotation ? (quotationSeriesCode.trim() || undefined) : undefined,
               } as UpdateLeadRequest);
               setCurrentLead(updated);
             } catch {
-              // Non-fatal: the file's own number is already saved; lead-level sync can be retried later.
+              showToast('Quotation saved, but the lead record could not be synced with its number — please refresh or contact support if this persists', 'error');
             }
           }
         }
@@ -1342,11 +1349,11 @@ export const LeadFormPage: React.FC = () => {
         showToast('Domain is required', 'error');
         return;
       }
-      if (!isEdit && createQuoteFile && !createQuoteValue.trim()) {
+      if (!isEdit && !saveAsDraft && createQuoteFile && !createQuoteValue.trim()) {
         showToast('Quote value is mandatory. Please enter a value before submitting.', 'error');
         return;
       }
-      if (!isEdit && createQuotations.some(q => q.file && (!q.value || !q.value.trim()))) {
+      if (!isEdit && !saveAsDraft && createQuotations.some(q => q.file && (!q.value || !q.value.trim()))) {
         showToast('Quote value is mandatory for quotations with a file.', 'error');
         return;
       }
@@ -1553,32 +1560,42 @@ export const LeadFormPage: React.FC = () => {
         const assigned = (window.localStorage.getItem(DEFAULT_LEAD_SERIES_STORAGE_KEY) || '').trim();
         if (assigned) (payload as any).series_code = assigned;
       }
-      const filelessEntries = !isEdit ? createQuotations.filter(q => !q.file) : [];
+      // A draft never carries quote/quotation data, even if some was entered before the "Save as
+      // draft" toggle was switched on — the quotation section is hidden, and none of it is sent.
+      const filelessEntries = !isEdit && !saveAsDraft ? createQuotations.filter(q => !q.file) : [];
       const numberOnlyNumbers = filelessEntries.map(q => q.number.trim()).filter(Boolean);
-      const hasFileRows = !isEdit && createQuotations.some(q => q.file);
+      const hasFileRows = !isEdit && !saveAsDraft && createQuotations.some(q => q.file);
       const generatedFileless = filelessEntries.filter(q => q.seriesCode);
       const filelessValue = (n: string): number | null => {
         const entry = filelessEntries.find(q => q.number.trim() === n);
         return entry && entry.value.trim() ? Number(entry.value) : null;
       };
+      if (!isEdit) {
+        (payload as any).is_draft = saveAsDraft;
+      }
       // Quote number (separate from lead number): generated (series + number) or manual text only.
       // When quotation files are attached in this same create flow, ALL numbers (file rows and file-less
       // rows) are committed by the file path below — so skip this payload entirely to avoid generating
       // the same series twice (once for lead.quote_number, once for the placeholder).
-      if (!isEdit && !hasFileRows && (generatedFileless.length > 0 || numberOnlyNumbers.length > 0 || generatedQuoteSeriesCode || customCreateQuoteNumber.trim())) {
+      if (!isEdit && !saveAsDraft && !hasFileRows && (generatedFileless.length > 0 || numberOnlyNumbers.length > 0 || generatedQuoteSeriesCode || customCreateQuoteNumber.trim())) {
         if (generatedFileless.length > 0) {
-          // Generated number is a preview only — pass just the series so the backend
-          // generates and commits the real next value once, when the lead is saved.
-          (payload as any).quote_series_code = generatedFileless[0].seriesCode;
-          // Any remaining file-less entries are manually typed numbers (generated previews are
-          // already covered by the series above) — send them as file-less rows on "Inquiry 0".
-          const generatedNumbers = new Set(generatedFileless.map(q => q.number.trim()));
-          const remaining = numberOnlyNumbers.filter(n => !generatedNumbers.has(n));
-          if (remaining.length > 0) {
-            (payload as any).extra_quote_numbers = remaining;
-            (payload as any).extra_quote_values = remaining.map(n => filelessValue(n));
+          // The first file-less entry becomes the lead's primary quote number — pass just its
+          // series so the backend generates and commits the real next value once, at save.
+          // Every OTHER file-less entry becomes an "extra". For entries that were also
+          // series-generated, send the series code (not the earlier on-screen preview number) so
+          // the backend generates a real, current number for it in the same request as the
+          // primary — generating everything together, only at save, is what keeps two generated
+          // numbers from ever colliding, instead of trusting a preview that can go stale by the
+          // time the lead is actually saved. Manually-typed entries still go through as literal text.
+          const primaryEntry = generatedFileless[0];
+          (payload as any).quote_series_code = primaryEntry.seriesCode;
+          const remainingEntries = filelessEntries.filter(q => q.id !== primaryEntry.id);
+          if (remainingEntries.length > 0) {
+            (payload as any).extra_quote_numbers = remainingEntries.map(q => (q.seriesCode ? '' : q.number.trim()));
+            (payload as any).extra_quote_series_codes = remainingEntries.map(q => q.seriesCode || null);
+            (payload as any).extra_quote_values = remainingEntries.map(q => (q.value.trim() ? Number(q.value) : null));
           }
-          const generatedValue = filelessValue(generatedFileless[0].number.trim());
+          const generatedValue = filelessValue(primaryEntry.number.trim());
           if (generatedValue != null) {
             (payload as any).quote_value = generatedValue;
           }
@@ -1647,7 +1664,7 @@ export const LeadFormPage: React.FC = () => {
           loadActivities();
         } else {
           const lead = await marketingAPI.createLead(payload as any);
-          const fileRows = createQuotations.filter(q => q.file);
+          const fileRows = saveAsDraft ? [] : createQuotations.filter(q => q.file);
           if (fileRows.length > 0) {
             let createdActivity: LeadActivity | null = null;
             try {
@@ -1730,7 +1747,7 @@ export const LeadFormPage: React.FC = () => {
               return;
             }
           }
-          showToast('Lead created successfully', 'success');
+          showToast(saveAsDraft ? 'Saved as draft' : 'Lead created successfully', 'success');
           navigate('/leads');
         }
       } catch (error: any) {
@@ -2088,6 +2105,17 @@ export const LeadFormPage: React.FC = () => {
     { label: viewMode ? 'Lead details' : (isEdit ? 'Edit Lead' : 'Create Lead') },
   ];
 
+  const handleFinalizeDraft = async () => {
+    if (!isValidId) return;
+    try {
+      const updated = await marketingAPI.updateLead(leadId, { is_draft: false } as UpdateLeadRequest);
+      setCurrentLead(updated);
+      showToast('Draft moved to Leads — add a quotation from the Enquiry log below when ready', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to move draft to Leads', 'error');
+    }
+  };
+
   if (isLoading) {
     return (
       <PageLayout title={isEdit ? 'Edit Lead' : 'Create Lead'} breadcrumbs={breadcrumbs}>
@@ -2115,6 +2143,11 @@ export const LeadFormPage: React.FC = () => {
           >
             Back
           </Button>
+          {isEdit && currentLead?.is_draft && canEdit && (
+            <Button size="sm" variant="outline" onClick={handleFinalizeDraft}>
+              Move to Leads
+            </Button>
+          )}
           {isEdit && (
             <Button size="sm" onClick={() => setShowEditModal(true)} leftIcon={<Edit2 size={14} />}>
               Edit lead
@@ -2128,6 +2161,9 @@ export const LeadFormPage: React.FC = () => {
           <div className="flex items-center gap-2 mb-3">
             <List size={16} className="text-slate-600" />
             <h3 className="text-base font-bold text-slate-800 tracking-tight">Lead details</h3>
+            {currentLead?.is_draft && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 uppercase tracking-wide">Draft</span>
+            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <div><span className="text-slate-500">Lead No.</span><br /><span className="font-medium tabular-nums">{formData.series?.trim() || '—'}</span></div>
@@ -2953,6 +2989,7 @@ export const LeadFormPage: React.FC = () => {
                   timePanelPosition="right"
                 />
                 <p className="text-xs text-slate-500 -mt-3">Sets the date/time the enquiry came in.</p>
+                {!saveAsDraft && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Add Quotation</label>
                   <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
@@ -3097,6 +3134,7 @@ export const LeadFormPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+                )}
               </div>
             </div>
 
@@ -3208,10 +3246,23 @@ export const LeadFormPage: React.FC = () => {
                   <div className="bg-blue-600 h-1 rounded-full transition-all duration-300 ease-out" style={{ width: `${createLeadUploadProgress}%` }}></div>
                 </div>
               )}
+              {!isEdit && (
+                <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer w-fit">
+                  <input
+                    type="checkbox"
+                    checked={saveAsDraft}
+                    onChange={(e) => setSaveAsDraft(e.target.checked)}
+                    className="rounded border-slate-300"
+                  />
+                  Save as draft (skip quotation for now — finish it later from the Drafts tab)
+                </label>
+              )}
               <div className="flex items-center justify-end gap-3">
                 <Button variant="ghost" type="button" onClick={() => navigate('/leads')} className="text-slate-500 font-bold px-4">Cancel</Button>
                 <Button type="submit" disabled={isSubmitting} leftIcon={<Plus size={16} />} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100">
-                  {isSubmitting ? (createLeadUploadProgress !== null ? `Uploading (${createLeadUploadProgress}%)...` : 'Creating...') : 'Create Lead'}
+                  {isSubmitting
+                    ? (createLeadUploadProgress !== null ? `Uploading (${createLeadUploadProgress}%)...` : (saveAsDraft ? 'Saving draft...' : 'Creating...'))
+                    : (saveAsDraft ? 'Save as Draft' : 'Create Lead')}
                 </Button>
               </div>
             </div>
@@ -3578,7 +3629,7 @@ export const LeadFormPage: React.FC = () => {
             </>
           )}
           <h3 className="text-base font-bold text-slate-800 mb-2 border-t border-slate-200 pt-4 mt-2 tracking-tight">Enquiry log</h3>
-          {!viewMode && canEdit && isValidId && !activitiesLoading && !currentLead?.quote_number?.trim() && !activities.some((a) => a.inquiry_number === 0) && (
+          {!viewMode && canEdit && isValidId && !activitiesLoading && !currentLead?.quote_number?.trim() && !hasExistingQuotation && !activities.some((a) => a.inquiry_number === 0) && (
             <div className="border border-blue-200 rounded-lg p-3 bg-blue-50/30 mb-3">
               <div className="flex items-center gap-2 text-xs text-slate-500 mb-2 flex-wrap">
                 <span className="font-semibold text-slate-600">Inquiry #0</span>
