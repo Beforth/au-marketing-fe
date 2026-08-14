@@ -38,6 +38,12 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Leads Kanban
 
+### Rev 10 — 2026-08-14 (v1.2.8)
+- **Fixed a real id-space mismatch that could hide subordinates' leads/orders/contacts/customers from a head/coordinator even with a correctly set up org chart.** `Domain.head_employee_id`/`Region.head_employee_id`/`EmployeeRegionAssignment.employee_id` are always the HRMS employee ID, but every create endpoint across the app has always saved `created_by_employee_id` as the Django auth `user_id` instead (pre-existing, not introduced this session — harmless under the old territory-based scoping since it never compared creator identity to org-chart data, but a real gap once creator-chain visibility started depending on it). Rather than changing what 15 create endpoints store (which wouldn't help existing records anyway), `get_chain_visible_creator_ids` now also translates each subordinate's HRMS employee_id to their Django user_id via `MarketingEmployee` (the existing local id-mapping cache) and includes both — no data changes, no creation-code changes. Verified with a mock domain head + subordinate whose employee_id and user_id differ: the subordinate's records are now correctly visible via either id.
+- **Caveat**: this only works for people who actually have a `MarketingEmployee` row with `hrms_user_id` populated. If that table is sparse for some employees in production, their records will still be invisible until that row exists — this fix can't invent a mapping that was never recorded anywhere.
+- Also fixed a `NameError: name 'user' is not defined` crash on create/update/delete Domain (blocked assigning a Domain Head/Coordinator entirely) and the same typo in `series.py` — see the "Regions, Domains & Employee Sync" section for the full writeup. Documented both this id-space trap and the `log_action` param-name trap in `CLAUDE.md`/`AGENTS.md` so they don't get rediscovered from scratch next time.
+- Files: `au-marketing-api/app/scope.py`, `CLAUDE.md`, `AGENTS.md`
+
 ### Rev 9 — 2026-08-14 (v1.2.7)
 - **"New Quotation" option added to the Inquiry Log's Log Activity composer**, for leads that were created with no quote number and no file at all (previously such a lead had no way to add its first quotation from the log — the option existed in the option list logic but wasn't in the dropdown). It only appears when the lead has no quote number yet and no quotation attached, so it doesn't clutter leads that already have one. Supports generating the number from a series or typing it manually, and — reusing the same "add another" list the composer already had — adding more than one quotation number/file in the same submission. The first number saved is automatically adopted as the lead's own quote number, and the normal Revise Quotation flow picks it up from there with no further changes needed.
 - Files: `pages/LeadFormPage.tsx`
@@ -132,6 +138,44 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Dashboard, Reports & Performance Leaderboard
 
+### Rev 10 — 2026-08-14 (v1.2.8)
+- **Gated the new role dashboards behind a `DASHBOARD_LIVE` flag** in `RoleDashboardRouter.tsx`, currently `false`. These files are being pushed ahead of the feature being finished (separately from the urgent scope/domains fixes going out in the same push), so every user — including Super Admin — now sees a plain "Dashboard is in development" screen instead of the half-built dashboards. No API call is made while gated. Flip the one flag to `true` when it's actually ready to launch.
+- Files: `pages/dashboards/RoleDashboardRouter.tsx`
+
+### Rev 9 — 2026-08-14 (v1.2.8)
+- **High Value Leads now also counts quotation value, not just the lead's own Potential Value field.** A lead with a low/empty Potential Value but a quotation attached worth over ₹50L now correctly shows up — previously it only checked `Lead.potential_value`, so a real high-value deal could be invisible to this widget if the big number only ever got entered as a quotation rather than the lead's potential value field. Each entry now shows which figure qualified it ("Potential value" vs "From quotation"). Verified: a lead with only a big potential_value, a lead with only a big quotation, and a lead with neither — each behaves correctly.
+- Files: `au-marketing-api/app/routers/dashboard.py`, `lib/marketing-api.ts`, `components/dashboard/HighValueLeadsList.tsx`
+
+### Rev 8 — 2026-08-14 (v1.2.8)
+- **Monthly Target Progress & Performer of the Month → compact KPI-tile style**, matching the small stat cards (label, big value, subtitle, icon) instead of taller standalone cards. Performer of the Month now shows just the #1 performer as the headline (name, value, won count) rather than a 5-row list — trades the runner-up detail for a card that actually reads as a KPI at a glance. Both moved out of the large chart rows into the compact card rows alongside the other stat tiles on all 4 dashboards.
+- Files: `components/dashboard/TargetProgressBar.tsx`, `PerformerOfMonthCard.tsx`, `pages/dashboards/*.tsx`
+
+### Rev 7 — 2026-08-14 (v1.2.8)
+- **Redid all dashboard chart visuals against the `dataviz` skill's method instead of ad-hoc styling** — the previous colors/marks weren't run through any real validation. New shared `components/dashboard/chartTokens.ts`: a validated categorical palette (this app's own brand blue as slot 1, `node scripts/validate_palette.js` confirms it still passes CVD/contrast checks with the reference order's other 7 hues), a color-by-entity hash so a status/source keeps the same color regardless of row order, and shared chrome tokens (solid hairline gridlines, muted axis text) replacing the previous dashed grids and ad-hoc grays.
+- **LeadStatusChart & LeadSourceChart**: pie donuts → horizontal bar charts. A donut with 7+ slices (a real lead-status pipeline easily has that many) is a known anti-pattern for comparing values — a ranked bar with a direct count label at the tip reads faster and scales past 6 categories cleanly.
+- **RevenuePipelineChart**: was 3 unrelated hues (green/blue/gray) for Pipeline/Committed/Achieved — recognized this is actually a funnel (Pipeline ⊇ Committed ⊇ Achieved), not nominal categories, so switched to one hue light→dark (validated with `--ordinal`), which is what an ordered sequence should use.
+- **RegionBreakdownChart**: Won/Lost now use the fixed status palette (good/critical) instead of generic categorical colors, since they're a status pairing, not arbitrary series identity; added the 2px surface-color gap between the stacked segments instead of them touching directly.
+- Removed `tabular-nums` from the large stat-card and target-progress numbers (equal-width digits make a big standalone number look loose at display size — reserved for table/axis columns instead, where it's still correct).
+- Files: `components/dashboard/chartTokens.ts` (new), `components/dashboard/LeadStatusChart.tsx`, `LeadSourceChart.tsx`, `RevenuePipelineChart.tsx`, `RegionBreakdownChart.tsx`, `MonthlyTrendChart.tsx`, `DashboardStatCard.tsx`, `TargetProgressBar.tsx`
+
+### Rev 6 — 2026-08-14 (v1.2.8)
+- **Super Admin dashboard switcher**: a segmented control (Super Admin / Domain Head / Region Head / Employee) lets Super Admin instantly preview any of the 4 dashboard layouts without logging in as another user. Clearly labeled as a layout preview using their own org-wide data — not that role's actual scoped numbers (true "view as" impersonation would need separate auth work).
+- **Closed the gap against the original per-role dashboard spec** (`scripts/seed_demo_data.py`'s `seed_dashboards()`, the widget lists originally envisioned for each role before the dynamic system existed). Added to the new `role-summary` endpoint and wired into the relevant dashboards: Conversion Rate (all roles), Revenue Pipeline — Achieved/Committed/Pipeline 3-bucket view (Domain Head), Avg Open Lead Age (Domain Head), Hot Leads count (all roles), Follow-ups Due "Act Now" list (Employee, Region Head), Lead Source breakdown (Region Head, Super Admin), High Value Leads >₹50L (Super Admin). Skipped two items from the original spec as noted bugs: a duplicated "Lead Sources" widget and a "Conversion Trend" chart that was actually mislabeled domestic-vs-export volume.
+- Still deferred: stage-grouped (not just status) lead breakdown, Active Deals (negotiation-stage) table, quotation revision stats, follow-up activity cadence chart, target burn-up, Top Won Customers, Region Performance (achieved vs. potential).
+- New shared components: `RevenuePipelineChart`, `FollowUpsDueList`, `LeadSourceChart`, `HighValueLeadsList`.
+- Files: `au-marketing-api/app/routers/dashboard.py`, `lib/marketing-api.ts`, `pages/dashboards/*`, `components/dashboard/*`
+
+### Rev 5 — 2026-08-14 (v1.2.8)
+- **Replaced the customizable dashboard with 4 hardcoded, role-specific dashboards** — Employee, Region Head, Domain Head, Super Admin — each its own file, no more Add Widget / drag-drop / custom SQL / multiple saved dashboards. The `/` route now renders `RoleDashboardRouter`, which fetches one data payload and picks the right dashboard by role.
+- **New backend endpoint `GET /dashboard/role-summary`** is the single data source for all 4: leads/orders/contacts/customers figures are computed using the *same creator-chain scoping* as the Leads/Orders/Contacts/Customers pages (`apply_scope_to_lead_query`/`apply_scope_to_order_query`/`apply_scope_to_contact_customer_query`), so a Region Head's dashboard numbers now always match what they can actually open on those pages — no more mismatch. Monthly target still uses the existing domain/region administrative lookup (targets aren't "created by" records, so the creator-chain reversal doesn't apply there). Verified against a mock org chart + sample leads/orders/contacts (creator-chain totals, status breakdown, monthly trend, recent leads all matched expected values exactly).
+- New shared chart components in `components/dashboard/` (stat cards, target progress bar, lead-status pie chart, monthly trend area chart, recent leads list, performer-of-month card, region breakdown bar chart) built on `recharts`, reused across all 4 dashboards.
+- **Not done in this pass**: the old dynamic `DashboardPage.tsx` and its backend (`saved_dashboards.py`'s widget/custom-SQL machinery, `SavedDashboard`/`SavedDashboardAssignment` tables) are now unreachable (no route points to them) but not yet deleted — kept as a safety net until the new dashboards are confirmed working in production. Head Summary's region breakdown and Performer of the Month still read from their original endpoints, which remain on the *old* territory-based scope (not yet migrated to creator-chain) — a known follow-up. Audit Log widget deferred entirely.
+- Files: `au-marketing-api/app/routers/dashboard.py`, `lib/marketing-api.ts`, `App.tsx`, `components/dashboard/*` (new), `pages/dashboards/*` (new)
+
+### Rev 4 — 2026-08-14 (v1.2.8)
+- **Prep step for the planned hardcoded-dashboard rebuild**: extracted the SQL-template scoping helpers (`_scope_context`, `_compile_sql_template`, `_run_sql_query`, `_validate_sql`, `_normalize_date_range` — the mechanism that fills `{{employee_id}}`/`{{domain_id}}`/etc. placeholders into saved SQL with the current viewer's scope before running it) out of `saved_dashboards.py` into a new standalone `sql_template_utils.py`. Report Templates was importing these directly from the dashboard router's internals; now both import from the same independent module, so the planned removal of the dynamic dashboard's custom-SQL system won't take Report Templates down with it. Pure refactor — no behavior change, verified by re-running the import chain (`app.main`) cleanly.
+- Files: `au-marketing-api/app/sql_template_utils.py` (new), `au-marketing-api/app/routers/saved_dashboards.py`, `au-marketing-api/app/routers/report_templates.py`
+
 ### Rev 3 — 2026-08-10 (v1.2.5)
 - **Role-scoped stats & widgets**: Leads/Contacts/Customers summary cards now state the scope ("In my scope" / "Domestic scope") instead of "Total in system"; leadership-only widgets (head summary, leads by region, quotation-submitted chart) and the audit-log widget are hidden from roles that can't view that data.
 - **Performer of the Month** now ranks only people in your own scope (domain head → their domains; region head/employee → their regions) instead of company-wide.
@@ -161,6 +205,10 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 ---
 
 ## Regions, Domains & Employee Sync
+
+### Rev 4 — 2026-08-14 (v1.2.8)
+- **Fixed "name 'user' is not defined" crash on create/update/delete Domain** — a pre-existing typo (unrelated to this session's scoping work): the audit-log call referenced an undefined `user` variable instead of the endpoint's actual dependency parameter, `user_info`. This blocked assigning a Domain Head/Coordinator entirely, since the update always crashed before saving. Also fixed the same exact typo in `series.py` (numbering series create/update/delete), found doing a full sweep of every router for the same pattern — no other files affected.
+- Files: `au-marketing-api/app/routers/domains.py`, `au-marketing-api/app/routers/series.py`
 
 ### Rev 3 — 2026-08-10 (v1.2.5)
 - **Database role-value fix**: database was missing the "coordinator" enum value the app already uses (could break lead/event saves) — values patched, with a safe one-time patch script (`scripts/patch_enum_values.py` + `.server-operator/patch_enum_values.serop`).

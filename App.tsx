@@ -10,7 +10,7 @@ import { initWebPushRegistration } from './lib/firebase-push';
 import { requestNotificationPermissionWhenLoggedIn } from './lib/notification-permission';
 import { handleGlobalPaste } from './lib/paste-sanitizer';
 import { LoginPage } from './pages/LoginPage';
-import { DashboardPage } from './pages/DashboardPage';
+import { RoleDashboardRouter } from './pages/dashboards/RoleDashboardRouter';
 import { LeadsPage } from './pages/LeadsPage';
 import { ContactsPage } from './pages/ContactsPage';
 import { DomainsPage } from './pages/DomainsPage';
@@ -250,7 +250,7 @@ const AppMain: React.FC = () => {
                 <DashboardLayout />
               </ProtectedRoute>
             }>
-              <Route index element={<DashboardPage />} />
+              <Route index element={<RoleDashboardRouter />} />
               <Route path="employees" element={<EmployeesPage />} />
               <Route path="database" element={<DatabaseLayout />}>
                 <Route path="organizations" element={<OrganizationsPage />} />

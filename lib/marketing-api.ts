@@ -1663,6 +1663,18 @@ class MarketingAPIService {
     return apiClient.get<DomainTargetSummaryResponse>(`/api/dashboard/domain-target-summary?${sp.toString()}`);
   }
 
+  /**
+   * Single data source for the 4 hardcoded role dashboards. Leads/Orders/Contacts/Customers figures
+   * are creator-chain scoped — identical rule to what the viewer can open on those pages.
+   */
+  async getRoleDashboardSummary(params?: { date_from?: string; date_to?: string }): Promise<RoleDashboardSummary> {
+    const sp = new URLSearchParams();
+    if (params?.date_from?.trim()) sp.set('date_from', params.date_from.trim());
+    if (params?.date_to?.trim()) sp.set('date_to', params.date_to.trim());
+    const qs = sp.toString();
+    return apiClient.get<RoleDashboardSummary>(`/api/dashboard/role-summary${qs ? `?${qs}` : ''}`);
+  }
+
   /** Head dashboard summary for domain_head and super_admin: region split, hot cases, conversion, won vs lost. */
   async getHeadDashboardSummary(params?: { date_from?: string; date_to?: string }): Promise<HeadDashboardSummaryResponse> {
     const sp = new URLSearchParams();
@@ -2167,6 +2179,91 @@ export interface ScopeTargetStats {
   year: number;
   month: number;
   employee_count: number;
+}
+
+/** One of the 4 hardcoded role dashboards (Employee / Region Head / Domain Head / Super Admin). */
+export type DashboardRole = 'employee' | 'region_head' | 'domain_head' | 'super_admin';
+
+export interface DashboardStatusCount {
+  status: string;
+  count: number;
+  color?: string | null;
+  is_final: boolean;
+  is_lost: boolean;
+}
+
+export interface DashboardRecentLead {
+  id: number;
+  series?: string | null;
+  company?: string | null;
+  status?: string | null;
+  status_color?: string | null;
+  potential_value?: number | null;
+  created_at: string;
+}
+
+export interface DashboardMonthPoint {
+  month: string;
+  label: string;
+  lead_count: number;
+  won_value: number;
+  order_revenue: number;
+}
+
+export interface DashboardRevenuePipeline {
+  achieved: number;
+  committed: number;
+  pipeline: number;
+}
+
+export interface DashboardFollowUp {
+  id: number;
+  series?: string | null;
+  company?: string | null;
+  next_follow_up_at: string;
+  due_label: string;
+}
+
+export interface DashboardLeadSource {
+  source: string;
+  count: number;
+}
+
+export interface DashboardHighValueLead {
+  id: number;
+  series?: string | null;
+  company?: string | null;
+  value: number;
+  value_source: 'potential' | 'quote';
+  status?: string | null;
+}
+
+export interface RoleDashboardSummary {
+  dashboard_role: DashboardRole;
+  scope_label: string;
+  year: number;
+  month: number;
+  total_leads: number;
+  open_leads: number;
+  won_count_month: number;
+  lost_count_month: number;
+  conversion_ratio_pct: number | null;
+  by_status: DashboardStatusCount[];
+  recent_leads: DashboardRecentLead[];
+  monthly_trend: DashboardMonthPoint[];
+  total_orders: number;
+  total_revenue_month: number;
+  contacts_count: number;
+  customers_count: number;
+  monthly_target: number;
+  achieved_this_month: number;
+  employee_count: number;
+  avg_open_lead_age_days: number | null;
+  revenue_pipeline: DashboardRevenuePipeline;
+  hot_leads_count: number;
+  follow_ups_due: DashboardFollowUp[];
+  lead_source_breakdown: DashboardLeadSource[];
+  high_value_leads: DashboardHighValueLead[];
 }
 
 /** Domain target summary: hierarchy domain → region → employee with target amounts (for Domains Review page). */
