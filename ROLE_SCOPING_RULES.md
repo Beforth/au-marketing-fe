@@ -42,33 +42,81 @@ Determines what elements are visible on the **Domains & Targets** dashboard as d
 
 ## 📈 2. Leads & Orders Scoping Rules
 
-Rules applied at the API query level in [leads.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/leads.py) and [orders.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/orders.py):
+> [!IMPORTANT]
+> **Leads and Orders both use creator-chain scoping.** A record's visibility is driven entirely by
+> *who created it* and that creator's position in the reporting chain, not by the record's own
+> domain/region (which is still recorded for reference/reporting, but no longer drives who can see
+> it). This was a deliberate reversal from the old territory-shared model, where any lead/order
+> automatically became visible to everyone in its domain/region. Implemented in
+> [app/scope.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/scope.py)
+> (`get_chain_visible_creator_ids`, shared by `apply_scope_to_lead_query`/`can_access_lead` and
+> `apply_scope_to_order_query`/`can_access_order`).
+>
+> For an Order specifically, "creator" means **whoever converted the lead into an order**
+> (`Order.created_by_employee_id`, set to the converting user at creation time) — not necessarily
+> the original lead's creator. If a manager converts an employee's won lead on the employee's
+> behalf, the resulting order's chain-visible set is the manager's, not the employee's — the
+> employee only keeps visibility if they're also the order's assignee.
 
-```mermaid
-graph TD
-    User([User Request]) --> isSuper{is Super Admin?}
-    isSuper -- Yes --> AllLeads[Return All Leads/Orders]
-    isSuper -- No --> DomainHead{is Domain Head?}
-    DomainHead -- Yes --> DomainLeads[Filter by Assigned Domain ID]
-    DomainHead -- No --> RegionHead{is Region Head / Supervisor?}
-    RegionHead -- Yes --> RegionLeads[Filter by Region IDs + Unassigned Domain Leads + Own Created/Assigned]
-    RegionHead -- No --> EmployeeLeads[Filter by Assigned Region + Created by User + Assigned to User]
-```
+### 📈a. Leads — Creator-Chain Scoping
 
-### Access Scope Breakdown:
-* **Super Admin**: 
-  * Full read/write access to all leads, quotations, and orders across all domains.
-* **Domain Head**:
-  * Sees **all** leads in their assigned domain(s).
-  * Can view statistics and status pipelines for the entire domain.
-* **Region Head / Supervisor**:
-  * Sees **all** leads in their assigned region(s).
-  * Can see leads in the same domain with **no region** assigned (`region_id IS NULL`).
-  * Can see any lead where they are the creator or assignee.
-* **Employee**:
-  * Sees leads in their assigned region(s).
-  * Sees any lead they created or are explicitly assigned to (`assigned_to_employee_id == user_id`).
-  * *Creation Restriction*: Can only select their assigned domain/region when creating a lead.
+The reporting chain (top → bottom): **Domain Head → Domain Coordinator → Region Head → Region Coordinator / Supervisor → Employee.**
+
+**Rule: a lead is visible to whoever created it, plus everyone *above* the creator in this chain — never to peers, never to anyone below the creator, and never just because the lead shares someone's domain/region.** The assignee (`assigned_to_employee_id`) can always see it too, regardless of chain position — same as before. Super Admin (and `marketing.admin`) always sees everything.
+
+| Lead created by | Who can see it |
+| :--- | :--- |
+| **Domain Head** | Only themselves |
+| **Domain Coordinator** | Themselves + Domain Head |
+| **Region Head** | Themselves + Domain Coordinator + Domain Head |
+| **Region Coordinator / Supervisor** | Themselves + Region Head + Domain Coordinator + Domain Head |
+| **Employee** | Themselves + Region Coordinator/Supervisor + Region Head + Domain Coordinator + Domain Head |
+
+Flipped the other way — from each **viewer's** point of view, whose leads they can see (their own, plus everyone *below* them in the chain, since those leads bubble upward to them):
+
+| Viewer | Whose leads they see |
+| :--- | :--- |
+| **Super Admin** | Everyone's |
+| **Domain Head** | Their own + everyone below them in their domain (Domain Coordinator, Region Head, Region Coordinator/Supervisor, Employee) — i.e. all leads in their domain |
+| **Domain Coordinator** | Their own + everyone below them (Region Head, Region Coordinator/Supervisor, Employee) — **not** the Domain Head's own leads |
+| **Region Head** | Their own + everyone below them (Region Coordinator/Supervisor, Employee) — **not** Domain Coordinator's or Domain Head's own leads |
+| **Region Coordinator / Supervisor** | Their own + Employees below them — **not** Region Head's, Domain Coordinator's, or Domain Head's own leads |
+| **Employee** | Only their own leads — **not even other employees'**, no matter the region/team |
+
+`supervisor` is treated as the same tier as `region_coordinator` for this purpose (both mid-level/restricted-action roles).
+
+* *Creation Restriction*: Employees can only select their assigned domain/region when creating a lead (unchanged).
+
+#### On-behalf-of creation — a separate, narrower rule (bypasses the chain above)
+
+Domain/Region Coordinators can create a lead with `created_by_employee_id` set to someone else in their scope (`leads.py` `create_lead`). The actual submitter is recorded separately on `Lead.on_behalf_of_by_employee_id` (added specifically for this rule — the coordinator's own employee ID; `null` for normal leads).
+
+**When a lead is created on behalf of someone, it does *not* follow the normal creator-chain table above.** Instead it's visible only to:
+1. The **actual submitter** (the coordinator who filed it) — `on_behalf_of_by_employee_id`.
+2. The **named creator** (who it's for) — `created_by_employee_id`.
+3. The **Head of the lead's own domain** (`Domain.head_employee_id` for `Lead.domain_id`) — regardless of whether that domain head is even in the submitter's or named person's chain.
+
+Nobody else — not the domain coordinator's peers, not the region head, not anyone else who would normally see a chain-based lead — can see it. This is deliberately narrower than the standard chain: e.g. a Region Coordinator filing on behalf of an Employee skips the Region Head and Domain Coordinator entirely, jumping straight to the Domain Head. The assignee override (`assigned_to_employee_id`) still applies on top of this, same as always.
+
+Implemented in `can_access_lead` / `apply_scope_to_lead_query` ([app/scope.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/scope.py)) — this on-behalf-of branch is Lead-specific and does not affect Orders/Contacts/Customers.
+
+> [!NOTE]
+> `on_behalf_of_by_employee_id`/`on_behalf_of_by_username` are new columns on `Lead` — requires an `alembic revision --autogenerate` + `alembic upgrade head` on the server before this takes effect (per the migration workflow in `CLAUDE.md`).
+
+### 📈b. Orders — Creator-Chain Scoping (same model as Leads)
+
+Rules applied at the API query level in [orders.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/orders.py): identical rule to Leads (§2a) — an order is visible to whoever created it (i.e. whoever clicked "convert to order"), plus everyone above that creator in the **Domain Head → Domain Coordinator → Region Head → Region Coordinator/Supervisor → Employee** chain, plus the assignee. Never to peers, never to anyone below the creator, and not based on the order's own domain/region.
+
+| Order created by | Who can see it |
+| :--- | :--- |
+| **Domain Head** | Only themselves |
+| **Domain Coordinator** | Themselves + Domain Head |
+| **Region Head** | Themselves + Domain Coordinator + Domain Head |
+| **Region Coordinator / Supervisor** | Themselves + Region Head + Domain Coordinator + Domain Head |
+| **Employee** | Themselves + Region Coordinator/Supervisor + Region Head + Domain Coordinator + Domain Head |
+
+* Creating an order requires access to the underlying **Lead** (checked via `can_access_lead` against the lead's own creator-chain, not the order's) — see `create_order` in `orders.py`.
+* **Super Admin**: Full read/write access to all orders.
 
 ### ✍️ Lead Assignment ("Assigned To" field)
 Who can use the **"Assigned To"** dropdown on the lead create/edit form ([LeadFormPage.tsx](file:///Users/ady/Documents/au-marketing-fe/pages/LeadFormPage.tsx), `canUseAssignTo`):
@@ -92,18 +140,40 @@ Who can use the **"Assigned To"** dropdown on the lead create/edit form ([LeadFo
 
 Scoping rules applied in [contacts.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/contacts.py) and [customers.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/routers/customers.py) to manage CRM directory data.
 
-### 📞 Contacts & Customers (Strict Isolation)
-Contacts (cold directory records) and Customers (active business accounts) are strictly row-level isolated:
+### 📞 Contacts & Customers — Creator-Chain Scoping (same model as Leads/Orders)
 
-* **Super Admin**: Sees **all** contacts and customers.
-* **Domain Head / Domain Coordinator**: Sees **only** contacts and customers belonging to their assigned domain(s). Strictly blocked from other domains.
-* **Region Head / Region Coordinator**: Sees **only** contacts and customers belonging to their assigned region(s). Strictly blocked from other regions, even within the same domain.
-* **Employee**: **Isolated.** Can ONLY see contacts and customers they personally created (`created_by_employee_id == user_id`) or are explicitly assigned to (`assigned_to_employee_id == employee_id` or `assigned_to_employee_id == user_id`).
-
-### 🏢 Organizations & Plants (New Scoping Rules)
 > [!IMPORTANT]
-> **Strict Scoping Applied.**
-> Organizations and Plants are no longer globally shared. They are now filtered based on the user's scope to prevent unauthorized browsing of the corporate directory.
+> Contacts and Customers now use the same creator-chain visibility as Leads and Orders (§2), not
+> territory-based isolation. A record is visible to whoever created it, plus everyone above that
+> creator in the **Domain Head → Domain Coordinator → Region Head → Region Coordinator/Supervisor →
+> Employee** chain, plus the assignee — never to peers, never to anyone below the creator, and not
+> based on the record's own domain/region. Implemented via the same
+> `get_chain_visible_creator_ids` in [app/scope.py](file:///Users/ady/Documents/au-marketing-fe/au-marketing-api/app/scope.py)
+> (`apply_scope_to_contact_customer_query`, `can_access_contact_customer`).
+>
+> The "assignee" field differs by model: **Contact** uses `assigned_to_employee_id`; **Customer**
+> has no such field and uses `account_manager_employee_id` instead — whoever is set as account
+> manager can always see that customer, regardless of chain position.
+
+| Record created by | Who can see it |
+| :--- | :--- |
+| **Domain Head** | Only themselves |
+| **Domain Coordinator** | Themselves + Domain Head |
+| **Region Head** | Themselves + Domain Coordinator + Domain Head |
+| **Region Coordinator / Supervisor** | Themselves + Region Head + Domain Coordinator + Domain Head |
+| **Employee** | Themselves + Region Coordinator/Supervisor + Region Head + Domain Coordinator + Domain Head |
+
+* Employees are strictly isolated by this rule already — two employees never see each other's contacts/customers, same as before.
+* **Contact-to-Customer promotion**: the new Customer record's `created_by_employee_id` is set independently at promotion time — it does not inherit the original contact's creator, same wrinkle as lead→order conversion (§2b).
+
+### 🏢 Organizations & Plants (unchanged — still territory-based)
+> [!IMPORTANT]
+> **Not part of this reversal.** Organizations/Plants are scoped by their own domain-derived query
+> (`apply_scope_to_organization_query`) — everyone whose domain/region contains *any* linked
+> contact/customer can see the organization, regardless of who created that contact/customer. This
+> can now be **wider** than what you can see on the Contacts/Customers pages: you might see an
+> organization card without being able to open the specific contact/customer that links it to your
+> domain. Flag if this should be reversed too.
 
 * **Super Admin**: Full access to all organizations and plants.
 * **Domain Head / Domain Coordinator**: Sees organizations/plants that are either linked to a contact/customer in their domain or were created by a user in their domain.

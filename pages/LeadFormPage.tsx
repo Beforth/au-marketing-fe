@@ -3256,6 +3256,9 @@ export const LeadFormPage: React.FC = () => {
                             <div className="w-36 shrink-0 [&_button]:!h-9 [&_button]:!min-h-0 [&_button]:!py-0">
                               <Select
                                 options={[
+                                  ...(!hasExistingQuotation && !currentLead?.quote_number?.trim()
+                                    ? [{ value: 'new-quotation', label: 'New Quotation' }]
+                                    : []),
                                   { value: 'revise-quotation', label: 'Revise Quotation' },
                                   { value: 'attachment', label: 'Attachment' },
                                 ]}

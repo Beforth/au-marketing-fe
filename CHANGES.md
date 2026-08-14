@@ -22,7 +22,8 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 - [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7
 - [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6
-- [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3
+- [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7
+- [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
 - [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.2.0, 1.2.1, 1.2.5
 - [Who's Online / Presence](#whos-online--presence) — rev 1.2.0, 1.2.1
 - [Regions, Domains & Employee Sync](#regions-domains--employee-sync) — rev 1.2.0, 1.2.4, 1.2.5
@@ -36,6 +37,20 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 ---
 
 ## Leads Kanban
+
+### Rev 9 — 2026-08-14 (v1.2.7)
+- **"New Quotation" option added to the Inquiry Log's Log Activity composer**, for leads that were created with no quote number and no file at all (previously such a lead had no way to add its first quotation from the log — the option existed in the option list logic but wasn't in the dropdown). It only appears when the lead has no quote number yet and no quotation attached, so it doesn't clutter leads that already have one. Supports generating the number from a series or typing it manually, and — reusing the same "add another" list the composer already had — adding more than one quotation number/file in the same submission. The first number saved is automatically adopted as the lead's own quote number, and the normal Revise Quotation flow picks it up from there with no further changes needed.
+- Files: `pages/LeadFormPage.tsx`
+
+### Rev 8 — 2026-08-14 (v1.2.7)
+- **On-behalf-of leads now use a narrower, separate visibility rule instead of the normal creator chain (Rev 7).** When a Domain/Region Coordinator files a lead on someone else's behalf, it's now visible only to: the coordinator who actually submitted it, the employee it was filed for, and the Head of the lead's domain — nobody else. Previously (and still, for normal leads) the full chain applied; on-behalf-of leads deliberately skip levels — e.g. a Region Coordinator filing for an Employee no longer makes it visible to the Region Head or Domain Coordinator.
+- Added `Lead.on_behalf_of_by_employee_id` / `on_behalf_of_by_username` to record the actual submitter separately from `created_by_employee_id` (which stays the named "for" person) — needed because the two are no longer the same person for on-behalf-of leads. **Requires a migration** (`alembic revision --autogenerate` + `alembic upgrade head`) before this takes effect on the server.
+- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/routers/leads.py`, `au-marketing-api/app/routers/orders.py`, `au-marketing-api/app/scope.py`, `ROLE_SCOPING_RULES.md`
+
+### Rev 7 — 2026-08-14 (v1.2.7)
+- **Lead visibility flipped from territory-shared to creator-chain-only.** Previously, any lead automatically became visible to everyone in its domain/region (so a domain head's own lead was visible to their whole domain). Now a lead is visible only to its creator and to whoever is *above* the creator in the chain (Domain Head → Domain Coordinator → Region Head → Region Coordinator/Supervisor → Employee) — never to peers, never to anyone below the creator, and no longer based on the lead's own domain/region. The assignee can still always see it, same as before. Super Admin still sees everything. Example: an employee's lead is visible to that employee plus their Region Coordinator, Region Head, Domain Coordinator, and Domain Head — but not to other employees, even on the same team. A Domain Head's own-created lead is now visible only to that Domain Head.
+- This only changes **Leads** — Orders, Contacts, Customers, Organizations, Events, and Dashboard widgets keep their existing territory-based scoping unchanged.
+- Files: `au-marketing-api/app/scope.py`, `au-marketing-api/app/routers/leads.py`, `au-marketing-api/app/routers/reports.py`, `ROLE_SCOPING_RULES.md`
 
 ### Rev 6 — 2026-08-13 (v1.2.7)
 - **Assigned To properly gated & scoped**: the field is now only available to users who can actually assign (super admin / domain head / region head; hidden for region coordinators, supervisors, employees) and lists only their own team via the reports scope — not the whole company directory. The backend independently enforces the same rule on create/update.
@@ -89,6 +104,12 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Orders (Kanban & Inquiry Log)
 
+### Rev 3 — 2026-08-14 (v1.2.7)
+- **Order visibility flipped from territory-shared to creator-chain-only**, matching the Leads change in the same revision (see Leads Kanban Rev 7). An order is now visible only to whoever created it (i.e. whoever converted the lead into an order) plus everyone above that creator in the chain (Domain Head → Domain Coordinator → Region Head → Region Coordinator/Supervisor → Employee) — no longer to everyone sharing its domain/region. The assignee can still always see it.
+- **Note**: the order's "creator" is whoever clicked "convert to order," not necessarily the original lead's creator — if a manager converts an employee's won lead on their behalf, the employee only keeps visibility into the resulting order if they're also its assignee.
+- The lead-access check on order creation (`create_order`) was also fixed to check access to the **lead** via `can_access_lead`, instead of incorrectly reusing the order-shaped `can_access_order` check against lead fields.
+- Files: `au-marketing-api/app/scope.py`, `au-marketing-api/app/routers/orders.py`, `ROLE_SCOPING_RULES.md`
+
 ### Rev 2 — 2026-08-06 (v1.2.3)
 - **Inquiry log redesign**: orders' inquiry log now matches the Leads enquiry log — numbered entries, edit/delete your own entries, attach files after the fact (previously attachments only at creation).
 - Files: `pages/OrderFormPage.tsx`, `pages/LeadsPage.tsx` (shared patterns), `lib/marketing-api.ts`
@@ -97,6 +118,15 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - **Card redesign**: removed hover tooltip — phone, email, Won date now on the card face; extracted shared `OrderKanbanCard` used by both "no status" and grouped columns (removed a ~65-line duplicate); columns widened (`w-72`→`w-80`), larger padding/text.
 - **Smooth scroll & scrollbar fix**: board now bleeds to full container width (removes gray padding "pillar"); auto-scroll when dragging near edges.
 - Files: `pages/OrdersPage.tsx`
+
+---
+
+## Database — Contacts & Customers Scoping
+
+### Rev 1 — 2026-08-14 (v1.2.7)
+- **Contact/Customer visibility flipped from territory-shared to creator-chain-only**, matching the Leads/Orders change in the same revision. Previously Domain/Region Heads saw every contact and customer in their domain/region regardless of who created it; employees were already isolated to their own. Now a record is visible only to whoever created it, plus everyone above that creator in the chain (Domain Head → Domain Coordinator → Region Head → Region Coordinator/Supervisor → Employee). The assignee override still applies — `assigned_to_employee_id` on Contact, and `account_manager_employee_id` on Customer (Customer has no `assigned_to_employee_id` field, so account manager is its equivalent override).
+- **Not changed**: Organizations & Plants still use their own domain-derived scoping (linked contact/customer's domain), independent of this rule — flagged in `ROLE_SCOPING_RULES.md` as a follow-up worth reversing too if wanted.
+- Files: `au-marketing-api/app/scope.py`, `au-marketing-api/app/routers/contacts.py`, `au-marketing-api/app/routers/customers.py`, `ROLE_SCOPING_RULES.md`
 
 ---
 

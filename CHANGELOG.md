@@ -5,6 +5,27 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-08-14] — Lead & Order Visibility Overhaul, Quotation Fix (v1.2.8)
+
+### ⚙️ Backend
+
+#### Who Can See a Lead or Order
+- Leads and Orders are no longer automatically shared with everyone in their domain or region. A lead or order is now visible only to the person who created it, plus their reporting chain above them (their coordinator, region head, domain coordinator, and domain head) — never unrelated teammates or other regions.
+- Whoever a lead or order is assigned to can still always see it, no matter their position.
+
+#### Contacts & Customers Visibility
+- The same rule now applies to Contacts and Customers: visible to whoever created them plus their reporting chain, instead of everyone sharing the same domain or region.
+
+#### Leads Created On Someone's Behalf
+- When a Domain or Region Coordinator creates a lead on behalf of a teammate, that lead now follows a tighter visibility rule: only the coordinator who created it, the teammate it was created for, and that domain's head can see it — not the wider team.
+
+### 🖥️ Frontend
+
+#### Add a Quotation Number to a Lead That Doesn't Have One
+- Leads created without a quotation number or file can now have one added directly from the Inquiry Log — generate a number from a series or type one in manually, with support for adding more than one at a time.
+
+---
+
 ## [2026-08-13] — Lead Form & DSR Log Improvements, Audit Fixes (v1.2.7)
 
 ### 🖥️ Frontend
