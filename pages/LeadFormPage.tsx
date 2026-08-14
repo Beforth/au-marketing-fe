@@ -194,6 +194,13 @@ export const LeadFormPage: React.FC = () => {
   const [reviseTargetQuotation, setReviseTargetQuotation] = useState('');
   const [editingActivityId, setEditingActivityId] = useState<number | null>(null);
   const [followUpSaving, setFollowUpSaving] = useState(false);
+  // Synthetic "Inquiry 0" placeholder: shown automatically for a bare lead (no quote number,
+  // no real Inquiry 0 logged yet) so the first quotation(s) can be created directly, without
+  // going through the general Log Activity composer first.
+  const [systemQuoteRows, setSystemQuoteRows] = useState<{ id: string; file: File | null; seriesCode: string; number: string; generating: boolean; quoteValue: string }[]>([
+    { id: crypto.randomUUID(), file: null, seriesCode: '', number: '', generating: false, quoteValue: '' },
+  ]);
+  const [systemQuoteSubmitting, setSystemQuoteSubmitting] = useState(false);
   const [editActivityForm, setEditActivityForm] = useState({
     activity_type: 'call',
     title: '',
@@ -1846,6 +1853,86 @@ export const LeadFormPage: React.FC = () => {
     }
   };
 
+  const updateSystemQuoteRow = (id: string, patch: Partial<(typeof systemQuoteRows)[number]>) => {
+    setSystemQuoteRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  };
+
+  const addSystemQuoteRow = () => {
+    setSystemQuoteRows((prev) => [...prev, { id: crypto.randomUUID(), file: null, seriesCode: '', number: '', generating: false, quoteValue: '' }]);
+  };
+
+  const removeSystemQuoteRow = (id: string) => {
+    setSystemQuoteRows((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
+  };
+
+  /** Generates and immediately commits a number from the row's series (no preview step — simpler for a multi-row form). */
+  const handleGenerateSystemQuoteRowNumber = async (id: string) => {
+    const row = systemQuoteRows.find((r) => r.id === id);
+    if (!row?.seriesCode.trim()) {
+      showToast('Select a quotation series', 'error');
+      return;
+    }
+    const company = effectiveCompanyNameForQuote || formData.company?.trim();
+    if (!company) {
+      showToast('Link an organization in the contact section first (quote patterns often use company name).', 'error');
+      return;
+    }
+    updateSystemQuoteRow(id, { generating: true });
+    try {
+      const res = await marketingAPI.generateNextSeriesNumberByCode(row.seriesCode.trim(), { lead_context: { company } });
+      if (res.generated_value) {
+        updateSystemQuoteRow(id, { number: res.generated_value });
+        showToast('Quote number generated', 'success');
+      } else {
+        showToast('No value returned from series', 'error');
+      }
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to generate quote number', 'error');
+    } finally {
+      updateSystemQuoteRow(id, { generating: false });
+    }
+  };
+
+  /** Creates the first quotation(s) directly, no separate activity needed: sets the lead's own
+   * quote number (which the backend auto-creates the real Inquiry 0 entry for, since none exists
+   * yet), then attaches every row's file + number to that entry in one upload. */
+  const handleCreateSystemQuote = async () => {
+    if (!isValidId) return;
+    const readyRows = systemQuoteRows.filter((r) => r.file && r.number.trim());
+    if (readyRows.length === 0) {
+      showToast('Add a file and a quote number (generated or manual) for at least one quotation', 'error');
+      return;
+    }
+    setSystemQuoteSubmitting(true);
+    try {
+      const updatedLead = await marketingAPI.updateLead(leadId!, { quote_number: readyRows[0].number.trim() });
+      setCurrentLead(updatedLead);
+      const freshActivities = await marketingAPI.getLeadActivities(leadId!);
+      const inquiryZero = freshActivities.find((a) => a.inquiry_number === 0);
+      if (!inquiryZero) {
+        throw new Error('Could not find the newly created Inquiry 0 entry — please refresh and try again.');
+      }
+      await marketingAPI.uploadLeadActivityAttachments(
+        leadId!,
+        inquiryZero.id,
+        readyRows.map((r) => r.file!),
+        readyRows.map(() => 'quotation' as const),
+        readyRows.map((r) => r.number.trim()),
+        readyRows.map(() => undefined),
+        undefined,
+        undefined,
+        readyRows.map((r) => (r.quoteValue ? Number(r.quoteValue) : undefined)),
+      );
+      showToast('Quotation added', 'success');
+      setSystemQuoteRows([{ id: crypto.randomUUID(), file: null, seriesCode: '', number: '', generating: false, quoteValue: '' }]);
+      await loadActivities();
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to create quotation', 'error');
+    } finally {
+      setSystemQuoteSubmitting(false);
+    }
+  };
+
   /** Edit lead: generate a quote number preview from a series (does not save until handleSaveEditQuoteNumber is called). */
   const handleGenerateQuoteNumberInEdit = async () => {
     const code = editQuoteSeriesCode.trim();
@@ -3491,6 +3578,91 @@ export const LeadFormPage: React.FC = () => {
             </>
           )}
           <h3 className="text-base font-bold text-slate-800 mb-2 border-t border-slate-200 pt-4 mt-2 tracking-tight">Enquiry log</h3>
+          {!viewMode && canEdit && isValidId && !activitiesLoading && !currentLead?.quote_number?.trim() && !activities.some((a) => a.inquiry_number === 0) && (
+            <div className="border border-blue-200 rounded-lg p-3 bg-blue-50/30 mb-3">
+              <div className="flex items-center gap-2 text-xs text-slate-500 mb-2 flex-wrap">
+                <span className="font-semibold text-slate-600">Inquiry #0</span>
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-600 uppercase tracking-wide">System</span>
+                <span>·</span>
+                <span className="font-medium">System Quote</span>
+              </div>
+              <p className="text-xs text-slate-500 mb-3">Generate or type this lead's first quotation number and attach the file — saved automatically as "Inquiry 0", no separate log entry needed.</p>
+              <div className="space-y-2">
+                {systemQuoteRows.map((row) => (
+                  <div key={row.id} className="flex flex-wrap items-end gap-2 p-2 rounded border border-slate-200 bg-white">
+                    <div className="w-40 shrink-0">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Series</label>
+                      <Select
+                        value={row.seriesCode}
+                        onChange={(val) => updateSystemQuoteRow(row.id, { seriesCode: (val ?? '') as string, number: '' })}
+                        options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
+                        placeholder="Choose series"
+                        className="!h-8"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={row.generating || !row.seriesCode.trim() || !!row.number.trim()}
+                      onClick={() => handleGenerateSystemQuoteRowNumber(row.id)}
+                    >
+                      {row.generating ? 'Generating…' : 'Generate'}
+                    </Button>
+                    <div className="flex-1 min-w-[160px]">
+                      <Input
+                        label="Or type manually"
+                        value={row.number}
+                        onChange={(e) => updateSystemQuoteRow(row.id, { number: e.target.value })}
+                        placeholder="e.g. AP/QUOTE-N/001"
+                        inputSize="sm"
+                      />
+                    </div>
+                    <div className="w-32 shrink-0">
+                      <CurrencyInput
+                        placeholder="Quote Value (₹)"
+                        value={row.quoteValue}
+                        onChange={(val) => updateSystemQuoteRow(row.id, { quoteValue: val })}
+                        inputSize="sm"
+                      />
+                    </div>
+                    <label className="flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-2.5 text-xs text-slate-700 hover:bg-slate-100 shrink-0">
+                      <Upload size={12} />
+                      <span className="truncate max-w-[100px]">{row.file ? row.file.name : 'Choose file'}</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) updateSystemQuoteRow(row.id, { file });
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                    {systemQuoteRows.length > 1 && (
+                      <button type="button" onClick={() => removeSystemQuoteRow(row.id)} className="text-rose-600 hover:underline text-xs shrink-0">
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <button type="button" onClick={addSystemQuoteRow} className="text-xs font-semibold text-blue-600 hover:text-blue-800">
+                  + Add another quotation
+                </button>
+                <div className="flex-1" />
+                <Button
+                  size="sm"
+                  disabled={systemQuoteSubmitting || !systemQuoteRows.some((r) => r.file && r.number.trim())}
+                  onClick={handleCreateSystemQuote}
+                >
+                  {systemQuoteSubmitting ? 'Saving…' : 'Save quotation'}
+                </Button>
+              </div>
+            </div>
+          )}
           {activitiesLoading ? (
             <p className="text-sm text-slate-500">Loading...</p>
           ) : enquiryActivities.length === 0 ? (

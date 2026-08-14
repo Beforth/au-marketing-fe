@@ -38,6 +38,11 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Leads Kanban
 
+### Rev 15 — 2026-08-14 (v1.2.8)
+- **A bare lead (no quote number, no file) now shows a real "Inquiry #0" quotation card automatically** at the top of its Enquiry Log — no need to log a Call/Note first and stumble into the composer's "New Quotation" mode as a side effect. Generate-from-series or type manually, attach the file, add more than one in the same action ("+ Add another quotation"). Saving sets the lead's quote number (which is what makes the backend create the real Inquiry 0 entry) and attaches every quotation to it in one upload.
+- **Known tradeoff**: clicking "Generate" on a row commits that number from the series immediately, not as a cancelable preview — if the form is abandoned after generating, that number is used up. The Log Activity composer's equivalent flow defers commit until save; this one doesn't, for simplicity across multiple rows. Revisit if this becomes a real problem.
+- Files: `pages/LeadFormPage.tsx`
+
 ### Rev 14 — 2026-08-14 (v1.2.8)
 - **"New Quotation" is now always available in the Log Activity composer, not just for a lead with zero quotations.** Previously it disappeared from the dropdown the moment a lead got its first quote number — so there was no way to add a *second, separate* quotation number at all, only "Revise" (which updates an existing one, not adds a new one). The underlying flow already fully supports this (generate-or-manual per entry, "+ Add to list" for multiple in one go) and already correctly only adopts the *first* quotation as the lead's own `quote_number` — later ones just log as additional quotation entries without disturbing it. Removing the gate was the actual fix; no other logic needed to change.
 - Files: `pages/LeadFormPage.tsx`
