@@ -70,22 +70,17 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ data }
         <PerformerOfMonthCard performers={performers} />
       </div>
 
-      <div className="mt-4">
-        <MonthlyTrendChart data={data.monthly_trend} title="Org-wide Won Value — Last 6 Months" />
-      </div>
-
-      <div className="mt-4">
-        <RegionBreakdownChart regions={headSummary?.region_breakdown || []} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        <LeadSourceChart data={data.lead_source_breakdown} />
-        <HighValueLeadsList leads={data.high_value_leads} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        <LeadStatusChart data={data.by_status} title="Leads by Status" />
-        <RecentLeadsList leads={data.recent_leads} title="Recent Leads" />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mt-4 items-start">
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <MonthlyTrendChart data={data.monthly_trend} title="Org-wide Won Value — Last 6 Months" />
+          <RegionBreakdownChart regions={headSummary?.region_breakdown || []} />
+          <LeadSourceChart data={data.lead_source_breakdown} />
+          <LeadStatusChart data={data.by_status} title="Leads by Status" />
+        </div>
+        <div className="space-y-4">
+          <HighValueLeadsList leads={data.high_value_leads} />
+          <RecentLeadsList leads={data.recent_leads} title="Recent Leads" />
+        </div>
       </div>
     </PageLayout>
   );

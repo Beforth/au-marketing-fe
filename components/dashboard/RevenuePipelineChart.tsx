@@ -1,7 +1,8 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import ReactApexChart from 'react-apexcharts';
+import type { ApexOptions } from 'apexcharts';
 import { Card } from '../ui/Card';
-import { CHART_CHROME, axisTick, tooltipStyle, SEQUENTIAL_BLUE_ORDINAL } from './chartTokens';
+import { SEQUENTIAL_BLUE_ORDINAL } from './chartTokens';
 import type { DashboardRevenuePipeline } from '../../lib/marketing-api';
 
 const formatCurrency = (value: number) => {
@@ -24,23 +25,36 @@ export const RevenuePipelineChart: React.FC<RevenuePipelineChartProps> = ({ pipe
     { name: 'Achieved', value: pipeline?.achieved ?? 0, color: SEQUENTIAL_BLUE_ORDINAL[2] },
   ];
 
+  const options: ApexOptions = {
+    chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
+    colors: data.map((d) => d.color),
+    plotOptions: { bar: { horizontal: true, barHeight: '55%', borderRadius: 4, borderRadiusApplication: 'end', distributed: true } },
+    dataLabels: {
+      enabled: true,
+      textAnchor: 'start',
+      offsetX: 6,
+      style: { fontSize: '12px', fontWeight: 600, colors: ['#52514e'] },
+      background: { enabled: false },
+      formatter: (val: number) => formatCurrency(Number(val)),
+    },
+    legend: { show: false },
+    grid: { borderColor: '#e2e8f0', strokeDashArray: 0, yaxis: { lines: { show: false } } },
+    xaxis: {
+      categories: data.map((d) => d.name),
+      axisBorder: { color: '#e2e8f0' },
+      axisTicks: { show: false },
+      labels: { style: { fontSize: '12px', colors: '#64748b' }, formatter: (v: string) => formatCurrency(Number(v)) },
+    },
+    yaxis: { labels: { style: { fontSize: '12px', colors: '#475569' } } },
+    tooltip: { y: { formatter: (v: number) => formatCurrency(v) } },
+  };
+
+  const series = [{ name: 'Value', data: data.map((d) => d.value) }];
+
   return (
     <Card title="Revenue Pipeline" description="Widest to narrowest: everything active, what's committed, what's actually won">
       <div className="h-56">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ top: 5, right: 40, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="0" horizontal={false} stroke={CHART_CHROME.gridline} />
-            <XAxis type="number" tick={axisTick} axisLine={{ stroke: CHART_CHROME.baseline }} tickLine={false} tickFormatter={formatCurrency} />
-            <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: CHART_CHROME.secondaryText }} axisLine={false} tickLine={false} width={80} />
-            <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(0,0,0,0.03)' }} formatter={(v: number) => formatCurrency(v)} />
-            <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24}>
-              {data.map((entry) => (
-                <Cell key={entry.name} fill={entry.color} />
-              ))}
-              <LabelList dataKey="value" position="right" formatter={(v: number) => formatCurrency(v)} style={{ fill: CHART_CHROME.secondaryText, fontSize: 12, fontWeight: 600 }} />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <ReactApexChart options={options} series={series} type="bar" height="100%" />
       </div>
     </Card>
   );

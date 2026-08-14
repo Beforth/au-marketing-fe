@@ -1,7 +1,7 @@
 import React from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import ReactApexChart from 'react-apexcharts';
+import type { ApexOptions } from 'apexcharts';
 import { Card } from '../ui/Card';
-import { CHART_CHROME, axisTick, tooltipStyle } from './chartTokens';
 import type { DashboardMonthPoint } from '../../lib/marketing-api';
 
 const BRAND_BLUE = '#2563eb';
@@ -20,22 +20,43 @@ interface MonthlyTrendChartProps {
 }
 
 export const MonthlyTrendChart: React.FC<MonthlyTrendChartProps> = ({ data, title = 'Won Value — Last 6 Months', description }) => {
+  const points = data || [];
+
+  const options: ApexOptions = {
+    chart: { type: 'area', toolbar: { show: false }, fontFamily: 'inherit', animations: { enabled: true } },
+    colors: [BRAND_BLUE],
+    dataLabels: { enabled: false },
+    stroke: { curve: 'smooth', width: 2 },
+    fill: {
+      type: 'gradient',
+      gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.02, stops: [0, 90, 100] },
+    },
+    grid: { borderColor: '#e2e8f0', strokeDashArray: 0, yaxis: { lines: { show: true } }, xaxis: { lines: { show: false } }, padding: { left: 8, right: 8 } },
+    xaxis: {
+      categories: points.map((p) => p.label),
+      axisBorder: { color: '#e2e8f0' },
+      axisTicks: { show: false },
+      labels: { style: { fontSize: '12px', colors: '#64748b' } },
+    },
+    yaxis: {
+      labels: { formatter: (v: number) => formatCurrency(v), style: { fontSize: '12px', colors: '#64748b' } },
+    },
+    tooltip: {
+      y: { formatter: (v: number) => formatCurrency(v) },
+    },
+    markers: { size: 4, colors: [BRAND_BLUE], strokeColors: '#ffffff', strokeWidth: 2, hover: { size: 6 } },
+  };
+
+  const series = [{ name: 'Won value', data: points.map((p) => p.won_value) }];
+
   return (
     <Card title={title} description={description}>
       <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data || []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="0" vertical={false} stroke={CHART_CHROME.gridline} />
-            <XAxis dataKey="label" tick={{ fontSize: 12, fill: CHART_CHROME.mutedText }} axisLine={{ stroke: CHART_CHROME.baseline }} tickLine={false} />
-            <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={formatCurrency} width={56} />
-            <Tooltip
-              contentStyle={tooltipStyle}
-              cursor={{ stroke: CHART_CHROME.baseline, strokeWidth: 1 }}
-              formatter={(value: number) => [formatCurrency(value), 'Won value']}
-            />
-            <Area type="monotone" dataKey="won_value" stroke={BRAND_BLUE} strokeWidth={2} fill={BRAND_BLUE} fillOpacity={0.1} dot={{ r: 4, fill: BRAND_BLUE, stroke: '#ffffff', strokeWidth: 2 }} />
-          </AreaChart>
-        </ResponsiveContainer>
+        {points.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-sm text-slate-400">No data yet</div>
+        ) : (
+          <ReactApexChart options={options} series={series} type="area" height="100%" />
+        )}
       </div>
     </Card>
   );

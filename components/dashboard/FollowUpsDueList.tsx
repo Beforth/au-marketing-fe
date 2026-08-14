@@ -15,7 +15,7 @@ export const FollowUpsDueList: React.FC<FollowUpsDueListProps> = ({ followUps: f
       {followUps.length === 0 ? (
         <div className="h-40 flex items-center justify-center text-sm text-slate-400">Nothing due — you're all caught up</div>
       ) : (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100 max-h-[320px] overflow-y-auto">
           {followUps.map((f) => (
             <Link
               key={f.id}

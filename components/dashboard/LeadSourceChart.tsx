@@ -1,7 +1,8 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, LabelList, ResponsiveContainer } from 'recharts';
+import ReactApexChart from 'react-apexcharts';
+import type { ApexOptions } from 'apexcharts';
 import { Card } from '../ui/Card';
-import { CHART_CHROME, axisTick, tooltipStyle, CATEGORICAL } from './chartTokens';
+import { CATEGORICAL } from './chartTokens';
 import type { DashboardLeadSource } from '../../lib/marketing-api';
 
 interface LeadSourceChartProps {
@@ -10,28 +11,40 @@ interface LeadSourceChartProps {
 
 export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ data }) => {
   const chartData = (data || []).filter((d) => d.count > 0).sort((a, b) => b.count - a.count).slice(0, 8);
-  const rowHeight = 34;
+
+  const options: ApexOptions = {
+    chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
+    colors: CATEGORICAL,
+    plotOptions: { bar: { horizontal: true, barHeight: '55%', borderRadius: 4, borderRadiusApplication: 'end', distributed: true } },
+    dataLabels: {
+      enabled: true,
+      textAnchor: 'start',
+      offsetX: 6,
+      style: { fontSize: '12px', fontWeight: 600, colors: ['#52514e'] },
+      background: { enabled: false },
+      formatter: (val: number) => String(val),
+    },
+    legend: { show: false },
+    grid: { borderColor: '#e2e8f0', strokeDashArray: 0, yaxis: { lines: { show: false } } },
+    xaxis: {
+      categories: chartData.map((d) => d.source),
+      axisBorder: { color: '#e2e8f0' },
+      axisTicks: { show: false },
+      labels: { style: { fontSize: '12px', colors: '#64748b' } },
+    },
+    yaxis: { labels: { style: { fontSize: '11px', colors: '#64748b' } } },
+    tooltip: { enabled: true },
+  };
+
+  const series = [{ name: 'Leads', data: chartData.map((d) => d.count) }];
 
   return (
     <Card title="Lead Sources" description="Where leads in your scope are coming from">
       {chartData.length === 0 ? (
         <div className="h-56 flex items-center justify-center text-sm text-slate-400">No source data yet</div>
       ) : (
-        <div style={{ height: Math.max(160, chartData.length * rowHeight + 40) }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 28, left: 0, bottom: 4 }} barCategoryGap={6}>
-              <CartesianGrid strokeDasharray="0" horizontal={false} stroke={CHART_CHROME.gridline} />
-              <XAxis type="number" tick={axisTick} axisLine={{ stroke: CHART_CHROME.baseline }} tickLine={false} allowDecimals={false} />
-              <YAxis type="category" dataKey="source" tick={axisTick} axisLine={false} tickLine={false} width={110} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={22}>
-                {chartData.map((entry, i) => (
-                  <Cell key={entry.source} fill={CATEGORICAL[i % CATEGORICAL.length]} />
-                ))}
-                <LabelList dataKey="count" position="right" style={{ fill: CHART_CHROME.secondaryText, fontSize: 12, fontWeight: 600 }} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+        <div style={{ height: Math.max(160, chartData.length * 34 + 40) }}>
+          <ReactApexChart options={options} series={series} type="bar" height="100%" />
         </div>
       )}
     </Card>

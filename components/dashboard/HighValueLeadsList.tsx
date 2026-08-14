@@ -21,7 +21,7 @@ export const HighValueLeadsList: React.FC<HighValueLeadsListProps> = ({ leads: l
       {leads.length === 0 ? (
         <div className="h-40 flex items-center justify-center text-sm text-slate-400">None right now</div>
       ) : (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100 max-h-[320px] overflow-y-auto">
           {leads.map((lead) => (
             <Link
               key={lead.id}

@@ -2,7 +2,7 @@
  * Leads Management Page
  * Kanban (default) and Table view, dynamic statuses from API
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -85,6 +85,11 @@ export const LeadsPage: React.FC = () => {
   const canViewOwner = useAppSelector(selectHasPermission('marketing.admin'));
 
   const [leadStatuses, setLeadStatuses] = useState<LeadStatusOption[]>([]);
+  // Deep-link support: /leads?status_id=5 scrolls to and briefly highlights that Kanban column
+  // (e.g. clicked from a dashboard chart) — the board itself stays unfiltered, since hiding
+  // every other column would be an unusual interaction for a Kanban.
+  const [highlightedStatusId, setHighlightedStatusId] = useState<number | null>(null);
+  const columnRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);

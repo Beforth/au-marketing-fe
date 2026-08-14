@@ -2186,6 +2186,7 @@ export interface ScopeTargetStats {
 export type DashboardRole = 'employee' | 'region_head' | 'domain_head' | 'super_admin';
 
 export interface DashboardStatusCount {
+  status_id?: number | null;
   status: string;
   count: number;
   color?: string | null;

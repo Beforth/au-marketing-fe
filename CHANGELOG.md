@@ -24,6 +24,9 @@ Format: `[Date] — Category: Description`
 - Domain Heads can now properly see contacts, leads, orders, and customers created by their team (Domain Coordinator, Region Heads, Region Coordinators, and Employees) — this was silently incomplete in some cases even when the team was set up correctly.
 - Fixed an error that could interrupt saving changes to a Domain, including assigning a Domain Head or Coordinator.
 
+#### Dashboard Numbers Now Match What You Actually See Elsewhere
+- Fixed the dashboard's region breakdown and Performer of the Month leaderboard so they only count leads you'd actually be able to open on the Leads page — previously these two could show a broader picture than the rest of the app.
+
 ### 🖥️ Frontend
 
 #### Add a Quotation Number to a Lead That Doesn't Have One
@@ -42,6 +45,9 @@ Format: `[Date] — Category: Description`
 
 #### Dashboards Are Live
 - The new role-based dashboards (Super Admin, Domain Head, Region Head, Employee) are now switched on for everyone.
+- Reworked the dashboard layout — Monthly Target and Performer of the Month now sit in their own row below your stats, charts are laid out side by side instead of stacked one after another, and the Recent Leads / High Value Leads / Follow-ups Due lists scroll within a fixed height instead of growing the whole page taller.
+- Dashboard charts now use a more modern chart style with smoother lines and cleaner bars.
+- Added a "last updated" indicator and a manual refresh button to every dashboard.
 
 ---
 

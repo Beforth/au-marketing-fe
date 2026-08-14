@@ -69,21 +69,16 @@ export const DomainHeadDashboard: React.FC<DomainHeadDashboardProps> = ({ data }
         <PerformerOfMonthCard performers={performers} />
       </div>
 
-      <div className="mt-4">
-        <MonthlyTrendChart data={data.monthly_trend} title="Domain Won Value — Last 6 Months" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        <RegionBreakdownChart regions={headSummary?.region_breakdown || []} />
-        <RevenuePipelineChart pipeline={data.revenue_pipeline} />
-      </div>
-
-      <div className="mt-4">
-        <LeadStatusChart data={data.by_status} title="Domain Leads by Status" />
-      </div>
-
-      <div className="mt-4">
-        <RecentLeadsList leads={data.recent_leads} title="Domain's Recent Leads" />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mt-4 items-start">
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <MonthlyTrendChart data={data.monthly_trend} title="Domain Won Value — Last 6 Months" />
+          <RegionBreakdownChart regions={headSummary?.region_breakdown || []} />
+          <RevenuePipelineChart pipeline={data.revenue_pipeline} />
+          <LeadStatusChart data={data.by_status} title="Domain Leads by Status" />
+        </div>
+        <div className="space-y-4">
+          <RecentLeadsList leads={data.recent_leads} title="Domain's Recent Leads" />
+        </div>
       </div>
     </PageLayout>
   );

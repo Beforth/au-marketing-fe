@@ -16,7 +16,7 @@ interface EmployeeDashboardProps {
 export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ data }) => {
   return (
     <PageLayout title="My Dashboard" description="Your leads, orders, and monthly target — nothing outside your own scope">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <DashboardStatCard label="My Leads" value={data.total_leads} subtitle={`${data.open_leads} open`} icon={<Users size={18} />} />
         <DashboardStatCard
           label="My Orders"
@@ -39,6 +39,9 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ data }) =>
           icon={<TrendingUp size={18} />}
           accentClassName="bg-amber-50 text-amber-600"
         />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
         <TargetProgressBar
           target={data.monthly_target}
           achieved={data.achieved_this_month}
@@ -47,17 +50,15 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ data }) =>
         />
       </div>
 
-      <div className="mt-4">
-        <MonthlyTrendChart data={data.monthly_trend} title="My Won Value — Last 6 Months" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        <FollowUpsDueList followUps={data.follow_ups_due} title="My Follow-ups — Act Now" />
-        <LeadStatusChart data={data.by_status} title="My Leads by Status" />
-      </div>
-
-      <div className="mt-4">
-        <RecentLeadsList leads={data.recent_leads} title="My Recent Leads" />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mt-4 items-start">
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <MonthlyTrendChart data={data.monthly_trend} title="My Won Value — Last 6 Months" />
+          <LeadStatusChart data={data.by_status} title="My Leads by Status" />
+        </div>
+        <div className="space-y-4">
+          <FollowUpsDueList followUps={data.follow_ups_due} title="My Follow-ups — Act Now" />
+          <RecentLeadsList leads={data.recent_leads} title="My Recent Leads" />
+        </div>
       </div>
     </PageLayout>
   );

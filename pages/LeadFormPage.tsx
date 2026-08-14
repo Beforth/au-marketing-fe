@@ -3642,16 +3642,16 @@ export const LeadFormPage: React.FC = () => {
                 <span className="font-medium">System Quote</span>
               </div>
               <p className="text-xs text-slate-500 mb-3">Generate or type this lead's first quotation number and attach the file, then add it to the list below — nothing is saved until you click "Save quotation".</p>
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-end gap-2 p-2 rounded border border-slate-200 bg-white">
-                  <div className="w-40 shrink-0">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Series</label>
+              <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="min-w-[200px] flex-1">
                     <Select
+                      label="Series"
                       value={systemQuoteDraft.seriesCode}
                       onChange={(val) => updateSystemQuoteDraft({ seriesCode: (val ?? '') as string, number: '' })}
                       options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
                       placeholder="Choose series"
-                      className="!h-8"
+                      searchable={seriesList.length > 8}
                     />
                   </div>
                   <Button
@@ -3661,28 +3661,22 @@ export const LeadFormPage: React.FC = () => {
                     disabled={systemQuoteDraft.generating || !systemQuoteDraft.seriesCode.trim() || !!systemQuoteDraft.number.trim()}
                     onClick={handleGenerateSystemQuoteDraftNumber}
                   >
-                    {systemQuoteDraft.generating ? 'Generating…' : 'Generate'}
+                    {systemQuoteDraft.generating ? 'Generating…' : 'Generate quote number'}
                   </Button>
-                  <div className="flex-1 min-w-[160px]">
-                    <Input
-                      label="Or type manually"
-                      value={systemQuoteDraft.number}
-                      onChange={(e) => updateSystemQuoteDraft({ number: e.target.value })}
-                      placeholder="e.g. AP/QUOTE-N/001"
-                      inputSize="sm"
-                    />
-                  </div>
-                  <div className="w-32 shrink-0">
-                    <CurrencyInput
-                      placeholder="Quote Value (₹)"
-                      value={systemQuoteDraft.quoteValue}
-                      onChange={(val) => updateSystemQuoteDraft({ quoteValue: val })}
-                      inputSize="sm"
-                    />
-                  </div>
-                  <label className="flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-2.5 text-xs text-slate-700 hover:bg-slate-100 shrink-0">
-                    <Upload size={12} />
-                    <span className="truncate max-w-[100px]">{systemQuoteDraft.file ? systemQuoteDraft.file.name : 'Choose file'}</span>
+                </div>
+                <Input
+                  label="Or type manually"
+                  value={systemQuoteDraft.number}
+                  onChange={(e) => updateSystemQuoteDraft({ number: e.target.value })}
+                  placeholder="e.g. AP/QUOTE-N/001"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className={cn(
+                    "flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-xs font-medium shrink-0 min-w-[130px] justify-center",
+                    systemQuoteDraft.file ? "border-blue-400 bg-blue-50 text-blue-700" : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                  )}>
+                    <Upload size={14} className={systemQuoteDraft.file ? "text-blue-600" : "text-slate-400"} />
+                    <span className="truncate max-w-[110px]">{systemQuoteDraft.file ? systemQuoteDraft.file.name : 'Choose file'}</span>
                     <input
                       type="file"
                       accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
@@ -3694,6 +3688,14 @@ export const LeadFormPage: React.FC = () => {
                       }}
                     />
                   </label>
+                  <CurrencyInput
+                    placeholder="Quote Value (₹)"
+                    value={systemQuoteDraft.quoteValue}
+                    onChange={(val) => updateSystemQuoteDraft({ quoteValue: val })}
+                    containerClassName="min-w-[160px] flex-1 !space-y-0"
+                  />
+                </div>
+                <div className="flex justify-end">
                   <Button
                     type="button"
                     size="sm"

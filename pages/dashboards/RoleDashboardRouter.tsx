@@ -49,9 +49,24 @@ const DashboardInDevelopment: React.FC = () => (
   </div>
 );
 
+function formatLastUpdated(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 10) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
 const RoleDashboardRouterLive: React.FC = () => {
-  const { data, loading, error } = useRoleDashboardSummary();
+  const { data, loading, refreshing, error, lastUpdated, refresh } = useRoleDashboardSummary();
   const [previewRole, setPreviewRole] = useState<DashboardRole | null>(null);
+  // Re-render periodically so "X min ago" stays current without needing a fresh fetch.
+  const [, forceTick] = useState(0);
+  React.useEffect(() => {
+    const id = setInterval(() => forceTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   if (loading) {
     return (
@@ -75,34 +90,56 @@ const RoleDashboardRouterLive: React.FC = () => {
   const isSuperAdmin = data.dashboard_role === 'super_admin';
   const activeRole = isSuperAdmin ? (previewRole ?? 'super_admin') : data.dashboard_role;
 
+  const lastUpdatedControl = (
+    <div className="flex items-center gap-2 text-xs text-slate-400 shrink-0">
+      {lastUpdated && <span>Updated {formatLastUpdated(lastUpdated)}</span>}
+      <button
+        type="button"
+        onClick={refresh}
+        disabled={refreshing}
+        className="inline-flex items-center gap-1.5 font-semibold text-slate-500 hover:text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+        {refreshing ? 'Refreshing…' : 'Refresh'}
+      </button>
+    </div>
+  );
+
   return (
     <div>
-      {isSuperAdmin && (
-        <div className="flex items-center gap-3 mb-4 px-1">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-            <LayoutDashboard size={14} />
-            Preview:
+      {isSuperAdmin ? (
+        <div className="flex items-center justify-between gap-3 mb-4 px-1 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+              <LayoutDashboard size={14} />
+              Preview:
+            </div>
+            <div className="inline-flex items-center gap-0.5 p-1 bg-slate-100 rounded-xl">
+              {PREVIEW_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setPreviewRole(opt.value)}
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors',
+                    activeRole === opt.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {activeRole !== 'super_admin' && (
+              <span className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                Previewing the {PREVIEW_OPTIONS.find((o) => o.value === activeRole)?.label} layout with your own (org-wide) data — not that role's actual scoped numbers
+              </span>
+            )}
           </div>
-          <div className="inline-flex items-center gap-0.5 p-1 bg-slate-100 rounded-xl">
-            {PREVIEW_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setPreviewRole(opt.value)}
-                className={cn(
-                  'px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors',
-                  activeRole === opt.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          {activeRole !== 'super_admin' && (
-            <span className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
-              Previewing the {PREVIEW_OPTIONS.find((o) => o.value === activeRole)?.label} layout with your own (org-wide) data — not that role's actual scoped numbers
-            </span>
-          )}
+          {lastUpdatedControl}
+        </div>
+      ) : (
+        <div className="flex items-center justify-end mb-4 px-1">
+          {lastUpdatedControl}
         </div>
       )}
       {renderDashboard(activeRole, data)}

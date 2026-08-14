@@ -58,21 +58,18 @@ export const RegionHeadDashboard: React.FC<RegionHeadDashboardProps> = ({ data }
         <PerformerOfMonthCard performers={performers} />
       </div>
 
-      <div className="mt-4">
-        <MonthlyTrendChart data={data.monthly_trend} title="Team Won Value — Last 6 Months" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        <LeadStatusChart data={data.by_status} title="Team Leads by Status" />
-        <LeadSourceChart data={data.lead_source_breakdown} />
-      </div>
-
-      <div className="mt-4">
-        <FollowUpsDueList followUps={data.follow_ups_due} title="Team Follow-ups Due" />
-      </div>
-
-      <div className="mt-4">
-        <RecentLeadsList leads={data.recent_leads} title="Team's Recent Leads" />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mt-4 items-start">
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <div className="md:col-span-2">
+            <MonthlyTrendChart data={data.monthly_trend} title="Team Won Value — Last 6 Months" />
+          </div>
+          <LeadStatusChart data={data.by_status} title="Team Leads by Status" />
+          <LeadSourceChart data={data.lead_source_breakdown} />
+        </div>
+        <div className="space-y-4">
+          <FollowUpsDueList followUps={data.follow_ups_due} title="Team Follow-ups Due" />
+          <RecentLeadsList leads={data.recent_leads} title="Team's Recent Leads" />
+        </div>
       </div>
     </PageLayout>
   );
