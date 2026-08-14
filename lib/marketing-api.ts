@@ -266,8 +266,6 @@ export interface LeadThroughOption {
 // Lead Types (person/company from contact or customer; no duplicate fields)
 export interface Lead {
   id: number;
-  /** Saved with lead details but no quote number/quotation yet; kept out of the normal leads list until finalized. */
-  is_draft?: boolean;
   domain_id: number;
   region_id?: number;
   contact_id?: number;
@@ -376,8 +374,6 @@ export interface Campaign {
 }
 
 export interface CreateLeadRequest {
-  /** Save with lead details but no quote number/quotation yet; kept out of the normal leads list until finalized (set back to false via updateLead). */
-  is_draft?: boolean;
   contact_id?: number;  // Required: person/company from Contact or Customer
   customer_id?: number;
   plant_id?: number;
@@ -621,8 +617,6 @@ class MarketingAPIService {
     lost_only?: boolean;
     /** Only return leads with hot status */
     is_hot?: boolean;
-    /** Only return draft leads (for the Drafts tab); when false (default), drafts are excluded from the normal list */
-    drafts_only?: boolean;
     domain_id?: number;
     region_id?: number;
     search?: string;
@@ -641,7 +635,6 @@ class MarketingAPIService {
     if (params?.include_won_lost === true) queryParams.append('include_won_lost', 'true');
     if (params?.lost_only === true) queryParams.append('lost_only', 'true');
     if (params?.is_hot === true) queryParams.append('is_hot', 'true');
-    if (params?.drafts_only === true) queryParams.append('drafts_only', 'true');
     if (params?.domain_id != null) queryParams.append('domain_id', params.domain_id.toString());
     if (params?.region_id != null) queryParams.append('region_id', params.region_id.toString());
     if (params?.date_from) queryParams.append('date_from', params.date_from);

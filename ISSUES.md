@@ -26,6 +26,32 @@
 
 ## Quote Numbers / Enquiry Log
 
+### 2026-08-14 — "Attach quotation file" button still shows after a file is already attached
+
+**What was reported:** On an Inquiry #0 entry that already had quotations with files attached, a "+ Attach quotation file" button/box was still shown underneath them, making it look like something was still missing even though the files were genuinely there.
+
+**Root cause:** This button is intentionally always present on Inquiry #0 — it's meant to let you add *another* quotation later, not just attach the first one. The bug was purely in its label: it was hard-coded to always read "Attach quotation file" for Inquiry #0, regardless of whether a quotation already had a file — unlike every other log entry, where the same button correctly reads "Add attachments" (which reads fine either way).
+
+**Fix:** The label now checks whether Inquiry #0 already has a quotation with a real file attached — if so, it reads "Add another quotation" instead, only showing "Attach quotation file" when nothing has been attached yet.
+- `pages/LeadFormPage.tsx:4177`, `pages/LeadFormPage.tsx:4182`
+
+**Status:** Fixed, not yet committed.
+
+---
+
+### 2026-08-14 — Enquiry log shows stale data right after saving a quotation
+
+**What was reported:** After using the "Inquiry #0 / System Quote" box to generate/type a quote number and attach a file, the saved entry in the Enquiry log still showed a "+ Attach quotation file" prompt right after saving — as if no file had been attached, even though a file was clearly selected before clicking Save.
+
+**Root cause:** `loadActivities` (`pages/LeadFormPage.tsx:847-850`) fetches the fresh activity/attachment list but never `return`s the promise chain. `handleCreateSystemQuote` calls `await loadActivities()` expecting to wait for the refreshed data before finishing — but since nothing was returned, the `await` resolved immediately, and the "Saving…" state cleared while the UI was still showing data from *before* the save. The file was genuinely saved correctly on the server the whole time (confirmed via a direct database check) — this was purely a display timing bug, not data loss.
+
+**Fix:** `loadActivities` now returns its fetch chain, so every caller that awaits it (this one, specifically) genuinely waits for the refreshed data before continuing.
+- `pages/LeadFormPage.tsx:847-850`
+
+**Status:** Fixed, not yet committed.
+
+---
+
 ### 2026-08-14 — "Inquiry #0" banner shows on leads that already have a quotation
 
 **What was reported:** Opening a lead that already had a quotation attached still showed the blue "Inquiry #0 · System · System Quote — Generate or type this lead's first quotation number..." box, as if no quotation existed yet.

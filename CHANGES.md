@@ -22,7 +22,6 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 ## Feature index
 
 - [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7
-- [Draft Leads](#draft-leads) — rev 1.2.8
 - [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6, 1.2.8
 - [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7
 - [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
@@ -35,19 +34,6 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5
 - [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6
 - [Design System Documentation](#design-system-documentation) — rev 1.2.6
-
----
-
-## Draft Leads
-
-### Rev 1 — 2026-08-14 (v1.2.8) — [Revision]
-- **New "Save as Draft" button on the create-lead form**, next to "Create Lead" (not a checkbox — a first pass used a checkbox toggle that hid the quotation section, replaced with a plain second button per feedback, since a normal lead could already be created with no quote number/file anyway). Requested by the client after repeatedly having to cancel/lose in-progress leads when a quote-number bug interrupted them (now fixed — see `ISSUES.md`) — this gives a safety net for future interruptions of any kind. A draft captures the normal lead fields (contact/organization, plant, domain/region, source, potential value, etc.) — same required fields as a real lead (still needs a linked contact/customer and a domain) — and nothing quote-related is saved or sent when this button is clicked, even if some was entered in the (still-visible) quotation section first. `handleSubmit` takes the draft/non-draft choice as a direct argument from whichever button was clicked, not from React state, to avoid a same-click stale-state bug.
-- **Multiple drafts supported.** A draft is a real `Lead` row (`is_draft=True`), just excluded from the normal Leads list/Kanban by default. A new "Drafts only" checkbox on the Leads page (mirrors the existing "Show Won & Lost" toggle) switches the view to show only the current scope's drafts.
-- **Finalizing a draft**: open it like any other lead (edit mode already has full access to the existing quote-number flows — the "Inquiry #0" system-quote panel and the Log Activity composer's "New Quotation" option, both pre-existing and already fixed earlier today). A new "Move to Leads" button (shown only on drafts, next to "Edit lead") flips `is_draft` back to `False` via a normal `PUT`.
-- **Deleting a draft** uses the existing delete-lead flow as-is (no new logic needed) — a draft is just a lead.
-- **Requires a migration**: new `Lead.is_draft` boolean column (`nullable=False, default=False`). Run `alembic revision --autogenerate` + `alembic upgrade head` before this takes effect on the server.
-- Also fixed a bug from the same-day quote-number fix (Quotations & Quote Numbers Rev 4): `extra_quote_series_codes` wasn't in `create_lead`'s `model_dump(exclude=...)` set, so it would have been passed into the `Lead(...)` constructor and crashed (no such column) the first time a create-lead request used it. Caught and fixed before it shipped.
-- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/routers/leads.py`, `lib/marketing-api.ts`, `pages/LeadFormPage.tsx`, `pages/LeadsPage.tsx`, `CLAUDE.md`
 
 ---
 
@@ -126,10 +112,21 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Quotations & Quote Numbers
 
+### Rev 6 — 2026-08-14 (v1.2.8) — [Issue]
+- **Fixed the "Attach quotation file" button/label still showing after a quotation already has a file attached**, making it look like something was missing on Inquiry #0 even when it wasn't. The button is intentionally always present (it lets you add another quotation later), but its label was hard-coded to always say "Attach quotation file" for Inquiry #0 regardless of state — now it reads "Add another quotation" once a real file is already attached, matching how every other log entry's equivalent button ("Add attachments") already reads fine either way.
+- See `ISSUES.md` for the full writeup.
+- Files: `pages/LeadFormPage.tsx`
+
+### Rev 5 — 2026-08-14 (v1.2.8) — [Issue] + [Revision]
+- **[Issue] Fixed the Enquiry log showing stale data right after saving a quotation from the "Inquiry #0 / System Quote" box** — e.g. a file the user had just attached could still show a "+ Attach quotation file" prompt immediately after save, even though it was correctly saved server-side (confirmed via direct DB check). Root cause: `loadActivities` didn't `return` its fetch promise, so `await loadActivities()` resolved immediately without actually waiting for the refreshed activity/attachment data — the "Saving…" state cleared and the UI re-rendered using data from before the save. Fixed by returning the promise chain.
+- **[Revision] Reworked the "Inquiry #0 / System Quote" box to a review-list pattern**, matching the create-lead form's quotation UX: fill in a series/generated-or-manual number, value, and file, click **"+ Add to list"** to stage it (reviewable, removable), repeat for more, then a single **"Save quotation"** commits everything in the list together. Previously "Save quotation" acted on the currently-filled row(s) directly with no staging/review step, and multi-row support meant separate always-editable rows rather than a confirmed list. Requested by the client to be able to review/build a batch before it actually saves.
+- **[Revision] "Generate" is now a true preview, same as the create-lead form (Rev 15's tradeoff, now closed here too).** Clicking it no longer reserves a real number immediately — it only shows what the next number would look like. Real numbers are only reserved, for every entry in the list together, atomically, at the moment "Save quotation" is clicked — the primary's real number comes back from the same `updateLead` call that sets it on the lead (sending its series code, not a stale literal), and every other generated entry in the list is grouped by series and generated fresh in the same upload call, mirroring the create-lead form's `generatedBySeries` batching exactly. Removing an entry from the list before saving now costs nothing, even if "Generate" was clicked for it — nothing was ever reserved.
+- Files: `pages/LeadFormPage.tsx`
+
 ### Rev 4 — 2026-08-14 (v1.2.8) — [Issue]
 - **Fixed the "Inquiry #0" banner reappearing on a lead that already has a quotation.** The banner's visibility check only looked at `lead.quote_number` and a literal `inquiry_number = 0` activity, never at whether a quotation existed anywhere else in the log — now also checks the existing `hasExistingQuotation` helper.
 - **Fixed the lead record silently failing to record that a quotation exists**, which was the underlying cause of the above: adding a quotation via the Log Activity composer only synced a *typed* number back onto `lead.quote_number`, never a *system-generated* one, and the sync call swallowed failures silently. Now reads the number back from the upload response (covers generated numbers) and surfaces a toast if the sync itself fails.
-- **Fixed an extra quote number silently vanishing when creating a lead with more than one generated number.** Extra quote numbers were resolved to a preview value client-side when added to the list, but only the *primary* number was regenerated for real at Save — if the series advanced in between (a second employee, or another tab, generating from the same series), the freshly-committed primary could coincidentally match a stale "extra" preview, and a backend rule silently deleted the extra as a "duplicate." Fix: extras generated from a series are no longer resolved client-side at all — the frontend now sends the series code, and the backend generates every extra number for real, atomically, in the same request as the primary, only at the moment of Save. Nothing is reserved before Save (so cancelling costs nothing), and concurrent saves were already safe (series generation row-locks). The silent-drop rule was removed.
+- **Fixed an extra quote number silently vanishing when creating a lead with more than one generated number.** Extra quote numbers were resolved to a preview value client-side when added to the list, but only the *primary* number was regenerated for real at Save — if the series advanced in between (a second employee, or another tab, generating from the same series), the freshly-committed primary could coincidentally match a stale "extra" preview, and a backend rule silently deleted the extra as a "duplicate." Fix: extras generated from a series are no longer resolved client-side at all — the frontend now sends the series code, and the backend generates every extra number for real, atomically, in the same request as the primary, only at the moment of Save. Nothing is reserved before Save (so cancelling costs nothing), and concurrent saves were already safe (series generation row-locks). The silent-drop rule was removed. New `extra_quote_series_codes` field on `LeadCreate`; caught and fixed before it shipped that it was initially missing from `create_lead`'s `model_dump(exclude=...)` set, which would have crashed the `Lead(...)` constructor (no such column) the first time a request used it.
 - See `ISSUES.md` for the full writeup of all three issues, including one known remaining edge case (partial number waste on a mid-loop generation failure) flagged there as not yet fixed.
 - Files: `pages/LeadFormPage.tsx`, `lib/marketing-api.ts`, `au-marketing-api/app/routers/leads.py`, `au-marketing-api/app/schemas.py`, `ISSUES.md`
 
@@ -180,6 +177,11 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 ---
 
 ## Dashboard, Reports & Performance Leaderboard
+
+### Rev 11 — 2026-08-14 (v1.2.8) — [Revision]
+- **Flipped `DASHBOARD_LIVE` to `true`** in `RoleDashboardRouter.tsx` — the 4 role dashboards (Super Admin, Domain Head, Region Head, Employee) are now live for everyone instead of showing the "in development" placeholder.
+- **Known caveat, not fixed in this revision**: Head Summary's region breakdown and Performer of the Month (both surfaced on the dashboards) still read from their original endpoints, which remain on the old territory-based scope rather than the creator-chain scoping the rest of the app now uses (see Rev 5's "Not done in this pass" note) — those two widgets can show broader data than a Domain/Region Head sees elsewhere in the app until migrated separately.
+- Files: `pages/dashboards/RoleDashboardRouter.tsx`
 
 ### Rev 10 — 2026-08-14 (v1.2.8)
 - **Gated the new role dashboards behind a `DASHBOARD_LIVE` flag** in `RoleDashboardRouter.tsx`, currently `false`. These files are being pushed ahead of the feature being finished (separately from the urgent scope/domains fixes going out in the same push), so every user — including Super Admin — now sees a plain "Dashboard is in development" screen instead of the half-built dashboards. No API call is made while gated. Flip the one flag to `true` when it's actually ready to launch.

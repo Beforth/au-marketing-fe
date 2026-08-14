@@ -35,10 +35,13 @@ Format: `[Date] — Category: Description`
 - A lead's quotation number is now reliably kept up to date after adding one from the activity log.
 - Fixed a rare issue where, when adding more than one quotation number to a new lead at once, one of the extra numbers could fail to be saved.
 
-#### Save a Lead as a Draft
-- You can now save a lead as a draft while you're still filling it in — click "Save as Draft" instead of "Create Lead", and it's stored with just the basic lead details (contact/company, domain, etc.), no quotation number needed yet.
-- Drafts are kept out of your normal Leads list — switch on the new "Drafts only" filter on the Leads page to see and continue them.
-- When a draft is ready, open it and use the new "Move to Leads" button to bring it into your regular pipeline, where you can add its quotation number as usual.
+#### Add a Quotation to an Existing Lead — Review Before Saving
+- The quotation box on a lead's Enquiry Log (for a lead with no quotation yet) now lets you build a list first: add a number and file, click "+ Add to list" to review it, add more, remove any you don't want, then click "Save quotation" once to save everything together — instead of it saving immediately with no chance to review.
+- Generating a quote number here is now just a preview until you actually save — removing an entry from the list before saving no longer wastes that number.
+- Fixed "Attach quotation file" staying on screen even after a quotation already had a file attached, making it look like something was missing. It now correctly reads "Add another quotation" once a file is already there.
+
+#### Dashboards Are Live
+- The new role-based dashboards (Super Admin, Domain Head, Region Head, Employee) are now switched on for everyone.
 
 ---
 

@@ -12,7 +12,7 @@ import { cn } from '../../lib/utils';
 // While false, every user (including Super Admin) sees the "in development" screen
 // below instead — these files are being pushed to production ahead of the feature
 // itself being finished, so this keeps it invisible until it's actually ready.
-const DASHBOARD_LIVE = false;
+const DASHBOARD_LIVE = true;
 
 const PREVIEW_OPTIONS: { value: DashboardRole; label: string }[] = [
   { value: 'super_admin', label: 'Super Admin' },

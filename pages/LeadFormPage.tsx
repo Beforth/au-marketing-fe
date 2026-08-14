@@ -129,8 +129,6 @@ export const LeadFormPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
-  /** Which button triggered the current create-lead submit — for the loading label only, not the save logic (that reads the forceDraft argument passed directly to handleSubmit). */
-  const draftSubmitRef = useRef(false);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -199,9 +197,10 @@ export const LeadFormPage: React.FC = () => {
   // Synthetic "Inquiry 0" placeholder: shown automatically for a bare lead (no quote number,
   // no real Inquiry 0 logged yet) so the first quotation(s) can be created directly, without
   // going through the general Log Activity composer first.
-  const [systemQuoteRows, setSystemQuoteRows] = useState<{ id: string; file: File | null; seriesCode: string; number: string; generating: boolean; quoteValue: string }[]>([
-    { id: crypto.randomUUID(), file: null, seriesCode: '', number: '', generating: false, quoteValue: '' },
-  ]);
+  const [systemQuoteDraft, setSystemQuoteDraft] = useState<{ file: File | null; seriesCode: string; number: string; generating: boolean; quoteValue: string }>({
+    file: null, seriesCode: '', number: '', generating: false, quoteValue: '',
+  });
+  const [systemQuoteList, setSystemQuoteList] = useState<{ id: string; file: File; number: string; quoteValue: string; seriesCode?: string }[]>([]);
   const [systemQuoteSubmitting, setSystemQuoteSubmitting] = useState(false);
   const [editActivityForm, setEditActivityForm] = useState({
     activity_type: 'call',
@@ -847,9 +846,9 @@ export const LeadFormPage: React.FC = () => {
   };
 
   const loadActivities = () => {
-    if (!isValidId) return;
+    if (!isValidId) return Promise.resolve();
     setActivitiesLoading(true);
-    marketingAPI.getLeadActivities(leadId).then(setActivities).catch(() => setActivities([])).finally(() => setActivitiesLoading(false));
+    return marketingAPI.getLeadActivities(leadId).then(setActivities).catch(() => setActivities([])).finally(() => setActivitiesLoading(false));
   };
 
   useEffect(() => {
@@ -1339,8 +1338,8 @@ export const LeadFormPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent | undefined, forceDraft: boolean = false) => {
-    e?.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (submittingRef.current) return;
     submittingRef.current = true;
     setIsSubmitting(true);
@@ -1349,11 +1348,11 @@ export const LeadFormPage: React.FC = () => {
         showToast('Domain is required', 'error');
         return;
       }
-      if (!isEdit && !forceDraft && createQuoteFile && !createQuoteValue.trim()) {
+      if (!isEdit && createQuoteFile && !createQuoteValue.trim()) {
         showToast('Quote value is mandatory. Please enter a value before submitting.', 'error');
         return;
       }
-      if (!isEdit && !forceDraft && createQuotations.some(q => q.file && (!q.value || !q.value.trim()))) {
+      if (!isEdit && createQuotations.some(q => q.file && (!q.value || !q.value.trim()))) {
         showToast('Quote value is mandatory for quotations with a file.', 'error');
         return;
       }
@@ -1560,24 +1559,19 @@ export const LeadFormPage: React.FC = () => {
         const assigned = (window.localStorage.getItem(DEFAULT_LEAD_SERIES_STORAGE_KEY) || '').trim();
         if (assigned) (payload as any).series_code = assigned;
       }
-      // A draft never carries quote/quotation data, even if some was entered before the "Save as
-      // draft" toggle was switched on — the quotation section is hidden, and none of it is sent.
-      const filelessEntries = !isEdit && !forceDraft ? createQuotations.filter(q => !q.file) : [];
+      const filelessEntries = !isEdit ? createQuotations.filter(q => !q.file) : [];
       const numberOnlyNumbers = filelessEntries.map(q => q.number.trim()).filter(Boolean);
-      const hasFileRows = !isEdit && !forceDraft && createQuotations.some(q => q.file);
+      const hasFileRows = !isEdit && createQuotations.some(q => q.file);
       const generatedFileless = filelessEntries.filter(q => q.seriesCode);
       const filelessValue = (n: string): number | null => {
         const entry = filelessEntries.find(q => q.number.trim() === n);
         return entry && entry.value.trim() ? Number(entry.value) : null;
       };
-      if (!isEdit) {
-        (payload as any).is_draft = forceDraft;
-      }
       // Quote number (separate from lead number): generated (series + number) or manual text only.
       // When quotation files are attached in this same create flow, ALL numbers (file rows and file-less
       // rows) are committed by the file path below — so skip this payload entirely to avoid generating
       // the same series twice (once for lead.quote_number, once for the placeholder).
-      if (!isEdit && !forceDraft && !hasFileRows && (generatedFileless.length > 0 || numberOnlyNumbers.length > 0 || generatedQuoteSeriesCode || customCreateQuoteNumber.trim())) {
+      if (!isEdit && !hasFileRows && (generatedFileless.length > 0 || numberOnlyNumbers.length > 0 || generatedQuoteSeriesCode || customCreateQuoteNumber.trim())) {
         if (generatedFileless.length > 0) {
           // The first file-less entry becomes the lead's primary quote number — pass just its
           // series so the backend generates and commits the real next value once, at save.
@@ -1664,7 +1658,7 @@ export const LeadFormPage: React.FC = () => {
           loadActivities();
         } else {
           const lead = await marketingAPI.createLead(payload as any);
-          const fileRows = forceDraft ? [] : createQuotations.filter(q => q.file);
+          const fileRows = createQuotations.filter(q => q.file);
           if (fileRows.length > 0) {
             let createdActivity: LeadActivity | null = null;
             try {
@@ -1747,7 +1741,7 @@ export const LeadFormPage: React.FC = () => {
               return;
             }
           }
-          showToast(forceDraft ? 'Saved as draft' : 'Lead created successfully', 'success');
+          showToast('Lead created successfully', 'success');
           navigate('/leads');
         }
       } catch (error: any) {
@@ -1870,22 +1864,14 @@ export const LeadFormPage: React.FC = () => {
     }
   };
 
-  const updateSystemQuoteRow = (id: string, patch: Partial<(typeof systemQuoteRows)[number]>) => {
-    setSystemQuoteRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const updateSystemQuoteDraft = (patch: Partial<typeof systemQuoteDraft>) => {
+    setSystemQuoteDraft((prev) => ({ ...prev, ...patch }));
   };
 
-  const addSystemQuoteRow = () => {
-    setSystemQuoteRows((prev) => [...prev, { id: crypto.randomUUID(), file: null, seriesCode: '', number: '', generating: false, quoteValue: '' }]);
-  };
-
-  const removeSystemQuoteRow = (id: string) => {
-    setSystemQuoteRows((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
-  };
-
-  /** Generates and immediately commits a number from the row's series (no preview step — simpler for a multi-row form). */
-  const handleGenerateSystemQuoteRowNumber = async (id: string) => {
-    const row = systemQuoteRows.find((r) => r.id === id);
-    if (!row?.seriesCode.trim()) {
+  /** Previews a number from the draft's series — does not touch the series counter. The real
+   * number is only generated, for real, when "Save quotation" is clicked (see handleCreateSystemQuote). */
+  const handleGenerateSystemQuoteDraftNumber = async () => {
+    if (!systemQuoteDraft.seriesCode.trim()) {
       showToast('Select a quotation series', 'error');
       return;
     }
@@ -1894,54 +1880,106 @@ export const LeadFormPage: React.FC = () => {
       showToast('Link an organization in the contact section first (quote patterns often use company name).', 'error');
       return;
     }
-    updateSystemQuoteRow(id, { generating: true });
+    updateSystemQuoteDraft({ generating: true });
     try {
-      const res = await marketingAPI.generateNextSeriesNumberByCode(row.seriesCode.trim(), { lead_context: { company } });
+      const res = await marketingAPI.generateNextSeriesNumberByCode(systemQuoteDraft.seriesCode.trim(), { lead_context: { company } }, true);
       if (res.generated_value) {
-        updateSystemQuoteRow(id, { number: res.generated_value });
-        showToast('Quote number generated', 'success');
+        updateSystemQuoteDraft({ number: res.generated_value });
+        showToast('Preview generated — the real number is reserved when you click Save quotation', 'success');
       } else {
         showToast('No value returned from series', 'error');
       }
     } catch (e: any) {
-      showToast(e?.message || 'Failed to generate quote number', 'error');
+      showToast(e?.message || 'Failed to preview quote number', 'error');
     } finally {
-      updateSystemQuoteRow(id, { generating: false });
+      updateSystemQuoteDraft({ generating: false });
     }
+  };
+
+  /** Moves the current draft (file + number required) into the review list — nothing is sent to
+   * the server until "Save quotation" is clicked, so you can review/remove entries first. A number
+   * that came from "Generate" is only a preview at this point (its seriesCode is carried along so
+   * the real number gets reserved fresh, atomically, only at Save — never this stale preview text). */
+  const handleAddSystemQuoteToList = () => {
+    const number = systemQuoteDraft.number.trim();
+    if (!systemQuoteDraft.file || !number) {
+      showToast('Add a file and a quote number (generated or manual) before adding to the list', 'error');
+      return;
+    }
+    if (systemQuoteList.some((r) => r.number === number)) {
+      showToast('Quote number already exists in the list', 'error');
+      return;
+    }
+    setSystemQuoteList((prev) => [...prev, { id: crypto.randomUUID(), file: systemQuoteDraft.file!, number, quoteValue: systemQuoteDraft.quoteValue, seriesCode: systemQuoteDraft.seriesCode.trim() || undefined }]);
+    setSystemQuoteDraft({ file: null, seriesCode: '', number: '', generating: false, quoteValue: '' });
+  };
+
+  const removeSystemQuoteListItem = (id: string) => {
+    setSystemQuoteList((prev) => prev.filter((r) => r.id !== id));
   };
 
   /** Creates the first quotation(s) directly, no separate activity needed: sets the lead's own
    * quote number (which the backend auto-creates the real Inquiry 0 entry for, since none exists
-   * yet), then attaches every row's file + number to that entry in one upload. */
+   * yet), then attaches every listed entry's file + number to that entry in one upload. Every
+   * entry that came from "Generate" gets its real, current number reserved right here — atomically,
+   * in this same save — never the stale on-screen preview, so nothing can go stale or collide. */
   const handleCreateSystemQuote = async () => {
     if (!isValidId) return;
-    const readyRows = systemQuoteRows.filter((r) => r.file && r.number.trim());
-    if (readyRows.length === 0) {
-      showToast('Add a file and a quote number (generated or manual) for at least one quotation', 'error');
+    if (systemQuoteList.length === 0) {
+      showToast('Add at least one quotation to the list first', 'error');
       return;
     }
     setSystemQuoteSubmitting(true);
     try {
-      const updatedLead = await marketingAPI.updateLead(leadId!, { quote_number: readyRows[0].number.trim() });
+      const [primaryEntry] = systemQuoteList;
+      const updatedLead = primaryEntry.seriesCode
+        ? await marketingAPI.updateLead(leadId!, { quote_series_code: primaryEntry.seriesCode })
+        : await marketingAPI.updateLead(leadId!, { quote_number: primaryEntry.number });
       setCurrentLead(updatedLead);
       const freshActivities = await marketingAPI.getLeadActivities(leadId!);
       const inquiryZero = freshActivities.find((a) => a.inquiry_number === 0);
       if (!inquiryZero) {
         throw new Error('Could not find the newly created Inquiry 0 entry — please refresh and try again.');
       }
-      await marketingAPI.uploadLeadActivityAttachments(
-        leadId!,
-        inquiryZero.id,
-        readyRows.map((r) => r.file!),
-        readyRows.map(() => 'quotation' as const),
-        readyRows.map((r) => r.number.trim()),
-        readyRows.map(() => undefined),
-        undefined,
-        undefined,
-        readyRows.map((r) => (r.quoteValue ? Number(r.quoteValue) : undefined)),
+      // The primary's real number was already resolved above (by the backend, if generated) —
+      // use that literal value here rather than regenerating it a second time, which would
+      // otherwise burn a second number and leave lead.quote_number mismatched with its own file.
+      const primaryRealNumber = (updatedLead.quote_number || '').trim() || primaryEntry.number;
+      const resolvedEntries = systemQuoteList.map((entry, idx) =>
+        idx === 0 ? { ...entry, number: primaryRealNumber, seriesCode: undefined } : entry
       );
+      const generatedRows = resolvedEntries.filter((r) => r.seriesCode);
+      const manualRows = resolvedEntries.filter((r) => !r.seriesCode);
+      const uploadBatch = (rows: typeof resolvedEntries, seriesCode?: string) => {
+        const files = rows.map((r) => r.file);
+        return marketingAPI.uploadLeadActivityAttachments(
+          leadId!,
+          inquiryZero.id,
+          files,
+          files.map(() => 'quotation' as const),
+          seriesCode ? undefined : rows.map((r) => r.number),
+          rows.map(() => undefined),
+          seriesCode || undefined,
+          false,
+          rows.map((r) => (r.quoteValue ? Number(r.quoteValue) : undefined)),
+        );
+      };
+      const generatedBySeries = new Map<string, typeof resolvedEntries>();
+      for (const r of generatedRows) {
+        const code = r.seriesCode!;
+        const arr = generatedBySeries.get(code) || [];
+        arr.push(r);
+        generatedBySeries.set(code, arr);
+      }
+      for (const [code, rows] of generatedBySeries) {
+        await uploadBatch(rows, code);
+      }
+      if (manualRows.length > 0) {
+        await uploadBatch(manualRows);
+      }
       showToast('Quotation added', 'success');
-      setSystemQuoteRows([{ id: crypto.randomUUID(), file: null, seriesCode: '', number: '', generating: false, quoteValue: '' }]);
+      setSystemQuoteList([]);
+      setSystemQuoteDraft({ file: null, seriesCode: '', number: '', generating: false, quoteValue: '' });
       await loadActivities();
     } catch (e: any) {
       showToast(e?.message || 'Failed to create quotation', 'error');
@@ -2105,17 +2143,6 @@ export const LeadFormPage: React.FC = () => {
     { label: viewMode ? 'Lead details' : (isEdit ? 'Edit Lead' : 'Create Lead') },
   ];
 
-  const handleFinalizeDraft = async () => {
-    if (!isValidId) return;
-    try {
-      const updated = await marketingAPI.updateLead(leadId, { is_draft: false } as UpdateLeadRequest);
-      setCurrentLead(updated);
-      showToast('Draft moved to Leads — add a quotation from the Enquiry log below when ready', 'success');
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to move draft to Leads', 'error');
-    }
-  };
-
   if (isLoading) {
     return (
       <PageLayout title={isEdit ? 'Edit Lead' : 'Create Lead'} breadcrumbs={breadcrumbs}>
@@ -2143,11 +2170,6 @@ export const LeadFormPage: React.FC = () => {
           >
             Back
           </Button>
-          {isEdit && currentLead?.is_draft && canEdit && (
-            <Button size="sm" variant="outline" onClick={handleFinalizeDraft}>
-              Move to Leads
-            </Button>
-          )}
           {isEdit && (
             <Button size="sm" onClick={() => setShowEditModal(true)} leftIcon={<Edit2 size={14} />}>
               Edit lead
@@ -2161,9 +2183,6 @@ export const LeadFormPage: React.FC = () => {
           <div className="flex items-center gap-2 mb-3">
             <List size={16} className="text-slate-600" />
             <h3 className="text-base font-bold text-slate-800 tracking-tight">Lead details</h3>
-            {currentLead?.is_draft && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 uppercase tracking-wide">Draft</span>
-            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <div><span className="text-slate-500">Lead No.</span><br /><span className="font-medium tabular-nums">{formData.series?.trim() || '—'}</span></div>
@@ -3246,24 +3265,8 @@ export const LeadFormPage: React.FC = () => {
               )}
               <div className="flex items-center justify-end gap-3">
                 <Button variant="ghost" type="button" onClick={() => navigate('/leads')} className="text-slate-500 font-bold px-4">Cancel</Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isSubmitting}
-                  onClick={() => { draftSubmitRef.current = true; handleSubmit(undefined, true); }}
-                >
-                  {isSubmitting && draftSubmitRef.current ? 'Saving draft...' : 'Save as Draft'}
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  leftIcon={<Plus size={16} />}
-                  className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100"
-                  onClick={() => { draftSubmitRef.current = false; }}
-                >
-                  {isSubmitting && !draftSubmitRef.current
-                    ? (createLeadUploadProgress !== null ? `Uploading (${createLeadUploadProgress}%)...` : 'Creating...')
-                    : 'Create Lead'}
+                <Button type="submit" disabled={isSubmitting} leftIcon={<Plus size={16} />} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100">
+                  {isSubmitting ? (createLeadUploadProgress !== null ? `Uploading (${createLeadUploadProgress}%)...` : 'Creating...') : 'Create Lead'}
                 </Button>
               </div>
             </div>
@@ -3638,76 +3641,95 @@ export const LeadFormPage: React.FC = () => {
                 <span>·</span>
                 <span className="font-medium">System Quote</span>
               </div>
-              <p className="text-xs text-slate-500 mb-3">Generate or type this lead's first quotation number and attach the file — saved automatically as "Inquiry 0", no separate log entry needed.</p>
+              <p className="text-xs text-slate-500 mb-3">Generate or type this lead's first quotation number and attach the file, then add it to the list below — nothing is saved until you click "Save quotation".</p>
               <div className="space-y-2">
-                {systemQuoteRows.map((row) => (
-                  <div key={row.id} className="flex flex-wrap items-end gap-2 p-2 rounded border border-slate-200 bg-white">
-                    <div className="w-40 shrink-0">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Series</label>
-                      <Select
-                        value={row.seriesCode}
-                        onChange={(val) => updateSystemQuoteRow(row.id, { seriesCode: (val ?? '') as string, number: '' })}
-                        options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
-                        placeholder="Choose series"
-                        className="!h-8"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={row.generating || !row.seriesCode.trim() || !!row.number.trim()}
-                      onClick={() => handleGenerateSystemQuoteRowNumber(row.id)}
-                    >
-                      {row.generating ? 'Generating…' : 'Generate'}
-                    </Button>
-                    <div className="flex-1 min-w-[160px]">
-                      <Input
-                        label="Or type manually"
-                        value={row.number}
-                        onChange={(e) => updateSystemQuoteRow(row.id, { number: e.target.value })}
-                        placeholder="e.g. AP/QUOTE-N/001"
-                        inputSize="sm"
-                      />
-                    </div>
-                    <div className="w-32 shrink-0">
-                      <CurrencyInput
-                        placeholder="Quote Value (₹)"
-                        value={row.quoteValue}
-                        onChange={(val) => updateSystemQuoteRow(row.id, { quoteValue: val })}
-                        inputSize="sm"
-                      />
-                    </div>
-                    <label className="flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-2.5 text-xs text-slate-700 hover:bg-slate-100 shrink-0">
-                      <Upload size={12} />
-                      <span className="truncate max-w-[100px]">{row.file ? row.file.name : 'Choose file'}</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) updateSystemQuoteRow(row.id, { file });
-                          e.target.value = '';
-                        }}
-                      />
-                    </label>
-                    {systemQuoteRows.length > 1 && (
-                      <button type="button" onClick={() => removeSystemQuoteRow(row.id)} className="text-rose-600 hover:underline text-xs shrink-0">
-                        Remove
-                      </button>
-                    )}
+                <div className="flex flex-wrap items-end gap-2 p-2 rounded border border-slate-200 bg-white">
+                  <div className="w-40 shrink-0">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Series</label>
+                    <Select
+                      value={systemQuoteDraft.seriesCode}
+                      onChange={(val) => updateSystemQuoteDraft({ seriesCode: (val ?? '') as string, number: '' })}
+                      options={seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))}
+                      placeholder="Choose series"
+                      className="!h-8"
+                    />
                   </div>
-                ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={systemQuoteDraft.generating || !systemQuoteDraft.seriesCode.trim() || !!systemQuoteDraft.number.trim()}
+                    onClick={handleGenerateSystemQuoteDraftNumber}
+                  >
+                    {systemQuoteDraft.generating ? 'Generating…' : 'Generate'}
+                  </Button>
+                  <div className="flex-1 min-w-[160px]">
+                    <Input
+                      label="Or type manually"
+                      value={systemQuoteDraft.number}
+                      onChange={(e) => updateSystemQuoteDraft({ number: e.target.value })}
+                      placeholder="e.g. AP/QUOTE-N/001"
+                      inputSize="sm"
+                    />
+                  </div>
+                  <div className="w-32 shrink-0">
+                    <CurrencyInput
+                      placeholder="Quote Value (₹)"
+                      value={systemQuoteDraft.quoteValue}
+                      onChange={(val) => updateSystemQuoteDraft({ quoteValue: val })}
+                      inputSize="sm"
+                    />
+                  </div>
+                  <label className="flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-2.5 text-xs text-slate-700 hover:bg-slate-100 shrink-0">
+                    <Upload size={12} />
+                    <span className="truncate max-w-[100px]">{systemQuoteDraft.file ? systemQuoteDraft.file.name : 'Choose file'}</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) updateSystemQuoteDraft({ file });
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!systemQuoteDraft.file || !systemQuoteDraft.number.trim()}
+                    onClick={handleAddSystemQuoteToList}
+                  >
+                    + Add to list
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 mt-2">
-                <button type="button" onClick={addSystemQuoteRow} className="text-xs font-semibold text-blue-600 hover:text-blue-800">
-                  + Add another quotation
-                </button>
-                <div className="flex-1" />
+              {systemQuoteList.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-500">Added quotations ({systemQuoteList.length})</p>
+                  {systemQuoteList.map((r) => (
+                    <div key={r.id} className="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2 bg-white">
+                      <FileText size={14} className="text-slate-400 shrink-0" />
+                      <span className="text-sm font-medium text-slate-700 truncate flex-1">{r.file.name}</span>
+                      <span className="text-xs font-mono text-slate-500 shrink-0">{r.number}</span>
+                      {r.seriesCode && (
+                        <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wide shrink-0" title="Only a preview — the real number is reserved when you click Save quotation">
+                          Preview
+                        </span>
+                      )}
+                      {r.quoteValue && <span className="text-sm font-semibold text-slate-900 shrink-0">₹{Number(r.quoteValue).toLocaleString('en-IN')}</span>}
+                      <DeleteButton
+                        onClick={() => removeSystemQuoteListItem(r.id)}
+                        tooltip="Remove quotation"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-2 mt-2">
                 <Button
                   size="sm"
-                  disabled={systemQuoteSubmitting || !systemQuoteRows.some((r) => r.file && r.number.trim())}
+                  disabled={systemQuoteSubmitting || systemQuoteList.length === 0}
                   onClick={handleCreateSystemQuote}
                 >
                   {systemQuoteSubmitting ? 'Saving…' : 'Save quotation'}
@@ -4152,12 +4174,12 @@ export const LeadFormPage: React.FC = () => {
                                 }}
                                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 border border-dashed border-blue-300 rounded-lg px-3 py-1.5 hover:bg-blue-50"
                               >
-                                <Plus size={12} /> {a.inquiry_number === 0 ? 'Attach quotation file' : 'Add attachments'}
+                                <Plus size={12} /> {a.inquiry_number !== 0 ? 'Add attachments' : (a.attachments || []).some((att) => att.is_quotation && att.media_exists !== false) ? 'Add another quotation' : 'Attach quotation file'}
                               </button>
                             ) : (
                               <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-2">
                                 <div className="flex items-center justify-between flex-wrap gap-2">
-                                  <span className="text-xs font-semibold text-slate-700">{a.inquiry_number === 0 ? 'Attach quotation file' : 'Add attachments'}</span>
+                                  <span className="text-xs font-semibold text-slate-700">{a.inquiry_number !== 0 ? 'Add attachments' : (a.attachments || []).some((att) => att.is_quotation && att.media_exists !== false) ? 'Add another quotation' : 'Attach quotation file'}</span>
                                   <div className="flex items-center gap-2">
                                     <button
                                       type="button"
