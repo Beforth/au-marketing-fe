@@ -38,6 +38,18 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Leads Kanban
 
+### Rev 14 — 2026-08-14 (v1.2.8)
+- **"New Quotation" is now always available in the Log Activity composer, not just for a lead with zero quotations.** Previously it disappeared from the dropdown the moment a lead got its first quote number — so there was no way to add a *second, separate* quotation number at all, only "Revise" (which updates an existing one, not adds a new one). The underlying flow already fully supports this (generate-or-manual per entry, "+ Add to list" for multiple in one go) and already correctly only adopts the *first* quotation as the lead's own `quote_number` — later ones just log as additional quotation entries without disturbing it. Removing the gate was the actual fix; no other logic needed to change.
+- Files: `pages/LeadFormPage.tsx`
+
+### Rev 13 — 2026-08-14 (v1.2.8)
+- **Fixed a crash on lead creation: `UnboundLocalError: cannot access local variable 'EmployeeRegionAssignment'`.** Introduced in Rev 11 (the on-behalf-of domain check): `EmployeeRegionAssignment` was added as a module-level import, but a leftover local `from app.models import EmployeeRegionAssignment` later in the same `create_lead` function made Python treat the name as local to the *entire* function — so the earlier reference in the new domain check broke, regardless of the top-level import. Removed the now-redundant local import; confirmed no other local shadowing of it remains in the file.
+- Files: `au-marketing-api/app/routers/leads.py`
+
+### Rev 12 — 2026-08-14 (v1.2.8)
+- **Fixed a redundant "Inquiry 0 (SYSTEM)" placeholder appearing alongside a real quotation entry.** Using the Log Activity composer's "New Quotation" option (added in Rev 9) with a file attached would log the real activity correctly, but the follow-up step that syncs the new number onto the lead itself was blindly triggering pre-existing placeholder-creation logic (originally meant only for a bare number-only edit with no file) — resulting in a confusing duplicate "attach the quotation file here" entry even though the file was already attached. That logic now checks whether a real quotation attachment already exists on the lead first, and skips creating the placeholder if so. The original case it was built for (setting a quote number with no file yet) is unchanged. Verified both cases directly.
+- Files: `au-marketing-api/app/routers/leads.py`
+
 ### Rev 11 — 2026-08-14 (v1.2.8)
 - **Loosened who a Region Coordinator can name when creating a lead on behalf of someone — from "must be in my region" to "must be in my domain."** A Region Coordinator can now file a lead for any employee in their whole domain, not just their own region; a Domain Coordinator's ability to name anyone across their domain was already unrestricted and is unchanged. First pass removed the restriction entirely, then corrected to keep it domain-scoped once clarified. Verified: a region coordinator can name someone in a different region of the same domain, but still can't name someone in a different domain.
 - Files: `au-marketing-api/app/routers/leads.py`, `ROLE_SCOPING_RULES.md`
