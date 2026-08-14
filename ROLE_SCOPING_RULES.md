@@ -89,7 +89,7 @@ Flipped the other way — from each **viewer's** point of view, whose leads they
 
 #### On-behalf-of creation — a separate, narrower rule (bypasses the chain above)
 
-Domain/Region Coordinators can create a lead with `created_by_employee_id` set to someone else in their scope (`leads.py` `create_lead`). The actual submitter is recorded separately on `Lead.on_behalf_of_by_employee_id` (added specifically for this rule — the coordinator's own employee ID; `null` for normal leads).
+Domain/Region Coordinators can create a lead with `created_by_employee_id` set to someone else — scoped to **their domain**, not their region (`leads.py` `create_lead`). A **Region Coordinator can name anyone in their domain**, not just their own region (the old "current region" restriction was removed 2026-08-14) — but still can't reach into a different domain. A **Domain Coordinator** could already name anyone across their whole domain; unchanged. The actual submitter is recorded separately on `Lead.on_behalf_of_by_employee_id` (added specifically for this rule — the coordinator's own employee ID; `null` for normal leads).
 
 **When a lead is created on behalf of someone, it does *not* follow the normal creator-chain table above.** Instead it's visible only to:
 1. The **actual submitter** (the coordinator who filed it) — `on_behalf_of_by_employee_id`.
