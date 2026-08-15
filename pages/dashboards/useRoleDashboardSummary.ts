@@ -34,6 +34,7 @@ export function useRoleDashboardSummary() {
 
   useEffect(() => {
     cancelledRef.current = false;
+    setData(null);
     load(false);
     return () => {
       cancelledRef.current = true;

@@ -5,6 +5,36 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-08-15] — Dashboard Redesign (v1.2.9)
+
+### 🖥️ Frontend
+
+#### A Cleaner, More Useful Dashboard
+- Every dashboard (Employee, Region Head, Domain Head, Super Admin) now shares one compact, consistent layout: a slim 4-card KPI row on top, a target-progress hero, and charts that fill their cards evenly — no more mismatched card sizes or awkward empty gaps inside chart rows.
+- KPI cards are more information-dense: a smaller value with a month-over-month trend chip and a mini sparkline under the number. Lead/Order cards link straight through to the Leads/Orders pages, and the won/lost split now shows as a small green-and-red donut on the conversion card.
+- Card headers across the whole app were made slimmer so content (not chrome) dominates.
+
+#### Target Progress
+- The monthly-target hero now shows how many leads were won this month, how many days are left, and a projected end-of-month figure, so it reads as a living progress tracker rather than a static bar.
+
+#### Performer of the Month
+- Now a compact top-3 leaderboard with trophy/rank badges instead of a long list.
+
+#### Loading
+- The old centered spinner was replaced with a skeleton that mirrors the new dashboard layout while data loads.
+
+#### Leads List
+- "Recent Leads" now has a "View all leads →" link at the bottom for quick access to the full list.
+
+#### Won vs Target Trend
+- The 6-month chart on every dashboard now shows a dashed target line alongside your won value, so you can see at a glance which months beat (or missed) the monthly target for your scope.
+
+#### Performer of the Month (Employees too)
+- The top-3 leaderboard now also appears on the Employee dashboard beside the target-progress hero, so it's the same across all roles.
+
+#### Tighter Cards
+- Chart cards got lighter padding, giving the charts themselves more room without changing the layout.
+
 ## [2026-08-14] — Lead & Order Visibility Overhaul, Quotation Fix (v1.2.8)
 
 ### ⚙️ Backend

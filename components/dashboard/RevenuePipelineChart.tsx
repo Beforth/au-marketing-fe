@@ -52,8 +52,8 @@ export const RevenuePipelineChart: React.FC<RevenuePipelineChartProps> = ({ pipe
   const series = [{ name: 'Value', data: data.map((d) => d.value) }];
 
   return (
-    <Card title="Revenue Pipeline" description="Widest to narrowest: everything active, what's committed, what's actually won">
-      <div className="h-56">
+    <Card title="Revenue Pipeline" description="Widest to narrowest: everything active, what's committed, what's actually won" contentClassName="p-4">
+      <div className="h-[320px]">
         <ReactApexChart options={options} series={series} type="bar" height="100%" />
       </div>
     </Card>

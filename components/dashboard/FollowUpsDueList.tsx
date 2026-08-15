@@ -20,7 +20,7 @@ export const FollowUpsDueList: React.FC<FollowUpsDueListProps> = ({ followUps: f
             <Link
               key={f.id}
               to={`/leads/${f.id}/edit`}
-              className="flex items-center justify-between gap-3 px-6 py-3 hover:bg-slate-50/80 transition-colors"
+              className="flex items-center justify-between gap-3 px-5 py-2.5 hover:bg-slate-50/80 transition-colors"
             >
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-800 truncate">{f.company || f.series || `Lead #${f.id}`}</p>

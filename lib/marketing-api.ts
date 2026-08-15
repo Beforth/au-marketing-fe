@@ -2210,6 +2210,7 @@ export interface DashboardMonthPoint {
   lead_count: number;
   won_value: number;
   order_revenue: number;
+  target_value?: number;
 }
 
 export interface DashboardRevenuePipeline {

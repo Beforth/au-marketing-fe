@@ -44,12 +44,12 @@ export const LeadStatusChart: React.FC<LeadStatusChartProps> = ({ data, title = 
   const series = [{ name: 'Leads', data: chartData.map((d) => d.count) }];
 
   return (
-    <Card title={title} description="All leads in your scope">
+    <Card title={title} description="All leads in your scope" contentClassName="p-4">
       {chartData.length === 0 ? (
-        <div className="h-64 flex items-center justify-center text-sm text-slate-400">No leads yet</div>
+        <div className="h-[320px] flex items-center justify-center text-sm text-slate-400">No leads yet</div>
       ) : (
-        <div className="max-h-[300px] overflow-y-auto">
-          <div style={{ height: Math.max(160, chartData.length * rowHeight + 40) }}>
+        <div className="h-[320px] overflow-y-auto">
+          <div style={{ height: Math.max(320, chartData.length * rowHeight + 40) }}>
             <ReactApexChart options={options} series={series} type="bar" height="100%" />
           </div>
         </div>

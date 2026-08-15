@@ -26,7 +26,7 @@ export const HighValueLeadsList: React.FC<HighValueLeadsListProps> = ({ leads: l
             <Link
               key={lead.id}
               to={`/leads/${lead.id}/edit`}
-              className="flex items-center justify-between gap-3 px-6 py-3 hover:bg-slate-50/80 transition-colors"
+              className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50/80 transition-colors"
             >
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-800 truncate">{lead.company || lead.series || `Lead #${lead.id}`}</p>

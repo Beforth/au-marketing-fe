@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { RefreshCw, ShieldAlert, LayoutDashboard, Construction } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { RefreshCw, ShieldAlert, LayoutDashboard } from 'lucide-react';
 import { useRoleDashboardSummary } from './useRoleDashboardSummary';
 import { EmployeeDashboard } from './EmployeeDashboard';
 import { RegionHeadDashboard } from './RegionHeadDashboard';
 import { DomainHeadDashboard } from './DomainHeadDashboard';
 import { SuperAdminDashboard } from './SuperAdminDashboard';
-import type { DashboardRole } from '../../lib/marketing-api';
+import { DashboardSkeleton } from '../../components/dashboard/DashboardSkeleton';
+import type { DashboardRole, RoleDashboardSummary } from '../../lib/marketing-api';
 import { cn } from '../../lib/utils';
 
 // Flip to true when the new role dashboards are ready to go live for everyone.
@@ -21,7 +22,7 @@ const PREVIEW_OPTIONS: { value: DashboardRole; label: string }[] = [
   { value: 'employee', label: 'Employee' },
 ];
 
-function renderDashboard(role: DashboardRole, data: Parameters<typeof EmployeeDashboard>[0]['data']) {
+function renderDashboard(role: DashboardRole, data: RoleDashboardSummary) {
   switch (role) {
     case 'super_admin':
       return <SuperAdminDashboard data={data} />;
@@ -34,20 +35,6 @@ function renderDashboard(role: DashboardRole, data: Parameters<typeof EmployeeDa
       return <EmployeeDashboard data={data} />;
   }
 }
-
-const DashboardInDevelopment: React.FC = () => (
-  <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center px-6">
-    <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-      <Construction size={26} />
-    </div>
-    <div>
-      <h2 className="text-lg font-bold text-slate-900">Dashboard is in development</h2>
-      <p className="text-sm text-slate-500 mt-1 max-w-sm">
-        We're actively rebuilding this page. It'll be back shortly — thanks for your patience.
-      </p>
-    </div>
-  </div>
-);
 
 function formatLastUpdated(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -63,18 +50,13 @@ const RoleDashboardRouterLive: React.FC = () => {
   const [previewRole, setPreviewRole] = useState<DashboardRole | null>(null);
   // Re-render periodically so "X min ago" stays current without needing a fresh fetch.
   const [, forceTick] = useState(0);
-  React.useEffect(() => {
+  useEffect(() => {
     const id = setInterval(() => forceTick((n) => n + 1), 30_000);
     return () => clearInterval(id);
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh] gap-3 text-slate-400">
-        <RefreshCw size={24} className="animate-spin" />
-        <p className="text-sm font-medium">Loading your dashboard…</p>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error || !data) {
@@ -149,7 +131,7 @@ const RoleDashboardRouterLive: React.FC = () => {
 
 export const RoleDashboardRouter: React.FC = () => {
   if (!DASHBOARD_LIVE) {
-    return <DashboardInDevelopment />;
+    return <div className="text-sm text-slate-400">Dashboard is in development</div>;
   }
   return <RoleDashboardRouterLive />;
 };

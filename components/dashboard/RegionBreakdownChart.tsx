@@ -40,11 +40,11 @@ export const RegionBreakdownChart: React.FC<RegionBreakdownChartProps> = ({ regi
   ];
 
   return (
-    <Card title="Leads by Region" description="Domain-wide breakdown">
+    <Card title="Leads by Region" description="Domain-wide breakdown" contentClassName="p-4">
       {data.length === 0 ? (
-        <div className="h-64 flex items-center justify-center text-sm text-slate-400">No region data yet</div>
+        <div className="h-[320px] flex items-center justify-center text-sm text-slate-400">No region data yet</div>
       ) : (
-        <div className="h-64">
+        <div className="h-[320px]">
           <ReactApexChart options={options} series={series} type="bar" height="100%" />
         </div>
       )}
