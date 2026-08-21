@@ -21,7 +21,7 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Feature index
 
-- [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7
+- [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7, 1.2.10
 - [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6, 1.2.8
 - [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7
 - [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
@@ -31,13 +31,17 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Quotations Page (list & filters)](#quotations-page-list--filters) — rev 1.2.1, 1.2.2
 - [DSR (Daily Status Reports)](#dsr-daily-status-reports) — rev 1.2.7
 - [Audit Log](#audit-log) — rev 1.2.7
-- [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5
+- [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5, 1.2.10
 - [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6
 - [Design System Documentation](#design-system-documentation) — rev 1.2.6
 
 ---
 
 ## Leads Kanban
+
+### Rev 16 — 2026-08-20 (v1.2.10) — [Revision]
+- **Leads page toolbar redesigned into a single compact command bar.** The 4 separate action buttons (Manage Statuses, Manage Lead Types, Number Series, New Lead) collapsed into a "Manage" dropdown with a popover menu. Search, filter toggles, employee avatars, and date range all sit in one `h-14` row. Filter checkboxes became pill-style toggle buttons (Won & Lost, Only mine, Hide Empty). Custom date pickers moved to a separate row below the command bar so they don't compress other buttons when selected. Fixed a runtime crash from an unresolved `Tag` icon import.
+- Files: `pages/LeadsPage.tsx`
 
 ### Rev 15 — 2026-08-14 (v1.2.8)
 - **A bare lead (no quote number, no file) now shows a real "Inquiry #0" quotation card automatically** at the top of its Enquiry Log — no need to log a Call/Note first and stumble into the composer's "New Quotation" mode as a side effect. Generate-from-series or type manually, attach the file, add more than one in the same action ("+ Add another quotation"). Saving sets the lead's quote number (which is what makes the backend create the real Inquiry 0 entry) and attaches every quotation to it in one upload.
@@ -371,6 +375,10 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 ---
 
 ## Global UI, Formatting & Bug Fixes
+
+### Rev 4 — 2026-08-20 (v1.2.10) — [Revision]
+- **Subtle blue color tints applied across the UI.** DataTable headers use `bg-blue-50/40` with light zebra striping (`odd:bg-blue-50/[0.15]`) and blue hover effects. Input default variant bg changed from `bg-slate-50` to `bg-blue-50/[0.15]` with stronger focus rings (`blue-500/20`→`/30`). DatePicker trigger and time selects use the same blue tint. PageLayout header area now has a soft blue gradient wash (`from-blue-50/40 via-blue-50/20 to-transparent`). Major form section headings (LeadFormPage, SettingsPage) got a `border-l-2 border-blue-500/30` blue accent. Section dividers changed from `border-slate-200` to `border-blue-100/60`.
+- Files: `components/ui/DataTable.tsx`, `components/ui/Input.tsx`, `components/ui/DatePicker.tsx`, `components/layout/PageLayout.tsx`, `pages/LeadFormPage.tsx`, `pages/SettingsPage.tsx`
 
 ### Rev 3 — 2026-08-10 (v1.2.5)
 - **Consistent DD/MM/YYYY date format** across the app (with time where relevant) instead of the browser's default locale format.

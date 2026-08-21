@@ -5,6 +5,24 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-08-20] — Leads Toolbar Cleanup & UI Color Tints (v1.2.10)
+
+### 🖥️ Frontend
+
+#### Leads Page Toolbar
+- The 4 separate action buttons (Manage Statuses, Manage Lead Types, Number Series, New Lead) were collapsed into a single "Manage" dropdown, cleaning up the page header.
+- Search, filter toggles, employee avatars, date range, and the Manage dropdown now sit in one compact command bar row.
+- Filter checkboxes became pill-style toggle buttons (Won & Lost, Only mine, Hide Empty) with active/inactive states.
+- Custom date pickers moved to their own row so they don't squeeze other buttons when selected.
+- Fixed a runtime crash caused by an unresolved `Tag` icon import.
+
+#### Subtle Color Tints
+- Data table headers now use a soft blue-tinted background instead of plain grey, with light zebra striping on alternating rows and blue hover effects.
+- Input fields have a faint blue default background and a stronger focus ring for better visibility.
+- DatePicker focus rings and time selects use the same blue tint.
+- Page headers now have a soft blue gradient wash behind the title area.
+- Major form section headings (Lead Form, Settings) now have a blue left-border accent and blue-tinted section dividers.
+
 ## [2026-08-15] — Dashboard Redesign (v1.2.9)
 
 ### 🖥️ Frontend

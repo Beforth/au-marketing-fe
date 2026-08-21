@@ -2182,7 +2182,7 @@ export const LeadFormPage: React.FC = () => {
         <Card className="mb-4">
           <div className="flex items-center gap-2 mb-3">
             <List size={16} className="text-slate-600" />
-            <h3 className="text-base font-bold text-slate-800 tracking-tight">Lead details</h3>
+            <h3 className="text-base font-bold text-slate-800 tracking-tight border-l-2 border-blue-500/30 pl-3">Lead details</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <div><span className="text-slate-500">Lead No.</span><br /><span className="font-medium tabular-nums">{formData.series?.trim() || '—'}</span></div>
@@ -2435,7 +2435,7 @@ export const LeadFormPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* 1. Primary Contact Section */}
             <div className="space-y-3">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight border-l-2 border-blue-500/30 pl-3">
                 <User size={18} /> Primary contact
               </h3>
               <p className="text-sm text-slate-500 font-medium">Who is the main contact? Search or add one.</p>
@@ -2599,8 +2599,8 @@ export const LeadFormPage: React.FC = () => {
             </div>
 
             {/* 2. Organization Section */}
-            <div className="space-y-3 border-t border-slate-200 pt-4">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight">
+            <div className="space-y-3 border-t border-blue-100/60 pt-4">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight border-l-2 border-blue-500/30 pl-3">
                 <Building2 size={18} /> Organization
               </h3>
               <p className="text-sm text-slate-500 font-medium">Link the company or add a new one.</p>
@@ -2878,8 +2878,8 @@ export const LeadFormPage: React.FC = () => {
             </div>
 
             {/* 3. Enquiry Details Section */}
-            <div className="space-y-4 border-t border-slate-200 pt-4">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight">
+            <div className="space-y-4 border-t border-blue-100/60 pt-4">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight border-l-2 border-blue-500/30 pl-3">
                 <FileText size={18} /> Enquiry Details
               </h3>
               <p className="text-sm text-slate-500 font-medium">Source, value, and closing date for this enquiry.</p>
@@ -2990,8 +2990,8 @@ export const LeadFormPage: React.FC = () => {
             </div>
 
             {/* 3b. Quotation & enquiry log (optional, on create) */}
-            <div className="space-y-4 border-t border-slate-200 pt-4">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight">
+            <div className="space-y-4 border-t border-blue-100/60 pt-4">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight border-l-2 border-blue-500/30 pl-3">
                 <FileText size={18} /> Quotation &amp; enquiry log
               </h3>
               <p className="text-sm text-slate-500 font-medium">
@@ -3632,7 +3632,7 @@ export const LeadFormPage: React.FC = () => {
               </form>
             </>
           )}
-          <h3 className="text-base font-bold text-slate-800 mb-2 border-t border-slate-200 pt-4 mt-2 tracking-tight">Enquiry log</h3>
+          <h3 className="text-base font-bold text-slate-800 mb-2 border-t border-blue-100/60 pt-4 mt-2 tracking-tight border-l-2 border-l-blue-500/30 pl-3">Enquiry log</h3>
           {!viewMode && canEdit && isValidId && !activitiesLoading && !currentLead?.quote_number?.trim() && !hasExistingQuotation && !activities.some((a) => a.inquiry_number === 0) && (
             <div className="border border-blue-200 rounded-lg p-3 bg-blue-50/30 mb-3">
               <div className="flex items-center gap-2 text-xs text-slate-500 mb-2 flex-wrap">
@@ -4368,7 +4368,7 @@ export const LeadFormPage: React.FC = () => {
 
       {isEdit && activeTab === 'status_logs' && (
         <Card>
-          <h3 className="text-base font-bold text-slate-800 mb-3 tracking-tight">Lead status logs</h3>
+          <h3 className="text-base font-bold text-slate-800 mb-3 tracking-tight border-l-2 border-blue-500/30 pl-3">Lead status logs</h3>
           {activitiesLoading ? (
             <p className="text-sm text-slate-500">Loading...</p>
           ) : statusLogsActivities.length === 0 ? (

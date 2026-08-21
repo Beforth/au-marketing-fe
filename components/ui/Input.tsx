@@ -28,7 +28,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
   ...props
 }, ref) => {
   const variants = {
-    slate: 'bg-slate-50 border-slate-200 focus:bg-white',
+    slate: 'bg-blue-50/[0.15] border-slate-200 focus:bg-white',
     white: 'bg-white border-slate-200 shadow-sm focus:shadow-md',
     ghost: 'bg-transparent border-transparent hover:bg-slate-50 focus:bg-white focus:border-slate-200',
   };
@@ -42,7 +42,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
   return (
     <div className={cn('space-y-1.5 w-full font-sans', containerClassName)}>
       {label && (
-        <label className="text-xs font-semibold text-slate-700 ml-0.5">
+        <label className="text-xs font-semibold text-slate-800 ml-0.5">
           {label}
         </label>
       )}
@@ -57,7 +57,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
           ref={ref}
           value={value}
           className={cn(
-            'w-full border rounded-lg outline-none transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-600',
+            'w-full border rounded-lg outline-none transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600',
             variants[variant],
             sizes[inputSize],
             icon && 'pl-10',

@@ -446,7 +446,7 @@ export const SettingsPage: React.FC = () => {
 
             {/* Connections Section */}
             <div className="space-y-5 pt-2">
-              <h4 className="text-[11px] font-semibold uppercase tracking-tight text-slate-900">Integrations</h4>
+              <h4 className="text-[11px] font-semibold uppercase tracking-tight text-slate-900 border-l-2 border-blue-500/30 pl-3">Integrations</h4>
               
               <div className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-4">
@@ -712,7 +712,7 @@ export const SettingsPage: React.FC = () => {
         return (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div>
-              <h4 className="text-sm font-semibold text-slate-900">Past Quarter Progress Visibility</h4>
+              <h4 className="text-sm font-semibold text-slate-900 border-l-2 border-blue-500/30 pl-3">Past Quarter Progress Visibility</h4>
               <p className="text-xs text-slate-500 mt-1">
                 Assign users who can see actual achieved data for each past quarter.
               </p>

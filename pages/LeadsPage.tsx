@@ -14,7 +14,8 @@ import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
-import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash, Phone, Mail, Building2 } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '../components/ui/popover';
+import { Search, UserPlus, Filter, Edit, Trash2, Eye, X, LayoutGrid, Settings2, Plus, Trophy, XCircle, Calendar, User, ChevronLeft, ChevronRight, Upload, Hash, Phone, Mail, Building2, SlidersHorizontal, EllipsisVertical } from 'lucide-react';
 import { useApp } from '../App';
 import { Tooltip } from '../UI/Tooltip';
 import { useAppSelector } from '../store/hooks';
@@ -1231,52 +1232,15 @@ export const LeadsPage: React.FC = () => {
     }
   };
 
-  const actions = (
-    <div className="flex items-center gap-2">
-      {(canEdit || canCreate) && (
-        <>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={openStatusModal}
-            leftIcon={<Settings2 size={14} />}
-          >
-            Manage statuses
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={openLeadTypeModal}
-            leftIcon={<Settings2 size={14} />}
-          >
-            Manage lead types
-          </Button>
-          {canManageNumberSeries && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setDefaultLeadSeriesCode((typeof window !== 'undefined' && (window.localStorage.getItem(DEFAULT_LEAD_SERIES_STORAGE_KEY) || '').trim()) || '');
-                setShowNumberSeriesModal(true);
-              }}
-              leftIcon={<Hash size={14} />}
-            >
-              Number series
-            </Button>
-          )}
-        </>
-      )}
-      {canCreate && (
-        <Button
-          size="sm"
-          onClick={() => navigate('/leads/new')}
-          leftIcon={<UserPlus size={14} strokeWidth={3} />}
-        >
-          New Lead
-        </Button>
-      )}
-    </div>
-  );
+  const actions = canCreate ? (
+    <Button
+      size="sm"
+      onClick={() => navigate('/leads/new')}
+      leftIcon={<UserPlus size={14} strokeWidth={3} />}
+    >
+      New Lead
+    </Button>
+  ) : null;
 
   if (!canView) {
     return (
@@ -1295,107 +1259,109 @@ export const LeadsPage: React.FC = () => {
       actions={actions}
       breadcrumbs={breadcrumbs}
     >
-      <div className="space-y-3">
-        <div className="flex items-center gap-3 flex-wrap pb-1">
-          <SearchInput
-            placeholder="Search leads by name, company, email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onClear={() => setSearchTerm('')}
-            containerClassName="flex-1 max-w-sm"
-            className="h-9 text-sm"
-          />
-          <div className="flex items-center gap-4 flex-wrap">
-            <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-600 hover:text-slate-900 transition-colors">
-              <input
-                type="checkbox"
-                checked={includeWonLost}
-                onChange={(e) => setIncludeWonLost(e.target.checked)}
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-              />
-              <span className="font-semibold">Show Won &amp; Lost</span>
-            </label>
+      {/* Command Bar */}
+      <div className="rounded-2xl px-5 h-14 mb-4 flex items-center gap-0">
+        {/* Search */}
+        <SearchInput
+          placeholder="Search leads..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onClear={() => setSearchTerm('')}
+          containerClassName="max-w-md shadow-none"
+        />
 
-            {((isScopeLoading && reportScope?.can_select_employee) || (reportScope && reportScope.employees.length > 0)) && (
-              <div className="flex items-center gap-4">
-                <div ref={employeeFilterRef} className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden sm:inline">Assigned:</span>
-                  {isScopeLoading ? (
-                    <div className="flex items-center space-x-1 animate-pulse">
-                      <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white shadow-sm ring-1 ring-slate-100" />
-                      <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white shadow-sm ring-1 ring-slate-100 -ml-2" />
-                      <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white shadow-sm ring-1 ring-slate-100 -ml-2" />
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center -space-x-1.5">
-                        {(selectedAssignedToIds.length > 0 ? selectedAssignedToIds.slice(0, 5) : []).map((eid) => {
-                          const emp = reportScope.employees.find((e) => e.id === eid);
-                          return (
-                            <Tooltip key={eid} content={emp?.name ?? `Employee ${eid}`}>
-                              <div
-                                className="w-8 h-8 rounded-full border-2 border-white bg-blue-50 text-blue-700 flex items-center justify-center text-[10px] font-bold shadow-sm ring-1 ring-slate-100"
-                              >
-                                {emp ? getInitials(emp.name) : '?'}
-                              </div>
-                            </Tooltip>
-                          );
-                        })}
-                      </div>
-                      <Tooltip content="Select employees to filter">
-                        <button
-                          type="button"
-                          onClick={() => setShowEmployeeFilterPopover((v) => !v)}
-                          className="w-8 h-8 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-600 flex items-center justify-center transition-all bg-white hover:shadow-sm"
-                        >
-                          <Plus size={14} strokeWidth={2.5} />
-                        </button>
-                      </Tooltip>
-                    </>
-                  )}
+        <div className="w-[1px] h-5 bg-slate-200 mx-4 flex-shrink-0" />
+
+        {/* Filter toggles */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setIncludeWonLost((v) => !v)}
+            className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all border ${
+              includeWonLost
+                ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
+                : 'bg-slate-50 text-slate-500 border-slate-200 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          >
+            <Trophy size={12} />
+            Won &amp; Lost
+          </button>
+
+          {((isScopeLoading && reportScope?.can_select_employee) || (reportScope && reportScope.employees.length > 0)) && (
+            <>
+              <button
+                type="button"
+                onClick={() => setCreatedByMeOnly((v) => !v)}
+                className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all border ${
+                  createdByMeOnly
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
+                    : 'bg-slate-50 text-slate-500 border-slate-200 hover:text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                <User size={12} />
+                Only mine
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setHideEmptyColumns((v) => !v)}
+                className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all border ${
+                  hideEmptyColumns
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
+                    : 'bg-slate-50 text-slate-500 border-slate-200 hover:text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                <LayoutGrid size={12} />
+                Hide Empty
+              </button>
+            </>
+          )}
+
+          {/* Employee avatars */}
+          {((isScopeLoading && reportScope?.can_select_employee) || (reportScope && reportScope.employees.length > 0)) && (
+            <div ref={employeeFilterRef} className="flex items-center gap-1.5 ml-1">
+              {isScopeLoading ? (
+                <div className="flex items-center gap-1 animate-pulse">
+                  <div className="w-7 h-7 rounded-full bg-slate-200" />
+                  <div className="w-7 h-7 rounded-full bg-slate-200 -ml-1.5" />
                 </div>
-
-                {isScopeLoading ? (
-                  <div className="flex items-center gap-2 animate-pulse">
-                    <div className="w-4 h-4 bg-slate-200 rounded border border-slate-300" />
-                    <div className="h-4 w-12 bg-slate-200 rounded" />
+              ) : (
+                <>
+                  <div className="flex items-center -space-x-1.5">
+                    {selectedAssignedToIds.slice(0, 4).map((eid) => {
+                      const emp = reportScope.employees.find((e) => e.id === eid);
+                      return (
+                        <Tooltip key={eid} content={emp?.name ?? `Employee ${eid}`}>
+                          <div className="w-7 h-7 rounded-full border-2 border-white bg-blue-50 text-blue-700 flex items-center justify-center text-[9px] font-bold shadow-sm ring-1 ring-slate-100">
+                            {emp ? getInitials(emp.name) : '?'}
+                          </div>
+                        </Tooltip>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={createdByMeOnly}
-                        onChange={(e) => setCreatedByMeOnly(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-600 w-4 h-4"
-                      />
-                      <span className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Only mine</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer select-none border-l border-slate-200 pl-4">
-                      <input
-                        type="checkbox"
-                        checked={hideEmptyColumns}
-                        onChange={(e) => setHideEmptyColumns(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-600 w-4 h-4"
-                      />
-                      <span className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Hide Empty Boards</span>
-                    </label>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-
+                  <Tooltip content="Filter by employee">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmployeeFilterPopover((v) => !v)}
+                      className="w-7 h-7 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-600 flex items-center justify-center transition-all bg-white hover:shadow-sm"
+                    >
+                      <Plus size={12} strokeWidth={2.5} />
+                    </button>
+                  </Tooltip>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
+        {/* Date range (admin only) */}
         {isHeadOrAdmin && (
-          <div className="flex items-center gap-3 flex-wrap border-t border-slate-100 pt-3">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">View Range:</span>
-            {isScopeLoading ? (
-              <div className="w-[150px] h-9 bg-slate-200 rounded-lg animate-pulse" />
-            ) : (
-              <>
+          <>
+            <div className="w-[1px] h-5 bg-slate-200 mx-4 flex-shrink-0" />
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {isScopeLoading ? (
+                <div className="w-[140px] h-8 bg-slate-100 rounded-lg animate-pulse" />
+              ) : (
                 <Select
                   value={dateRangePreset}
                   onChange={(v) => handlePresetChange(String(v || 'all'))}
@@ -1406,95 +1372,146 @@ export const LeadsPage: React.FC = () => {
                     { value: 'custom', label: 'Custom Range...' },
                   ]}
                   placeholder="Select range"
-                  containerClassName="w-[160px]"
-                  triggerClassName="h-9 text-xs"
+                  containerClassName="w-[140px]"
+                  triggerClassName="h-8 text-[11px]"
                   searchable={false}
                   clearable={false}
                 />
-                
-                {dateRangePreset === 'custom' && (
-                  <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
-                    <DatePicker
-                      value={dateFromInput}
-                      onChange={(v) => setDateFromInput(v || '')}
-                      className="w-[155px] h-9 text-xs"
-                      placeholder="From"
-                    />
-                    <span className="text-slate-300 text-[11px] font-bold uppercase tracking-wider">to</span>
-                    <DatePicker
-                      value={dateToInput}
-                      onChange={(v) => setDateToInput(v || '')}
-                      className="w-[155px] h-9 text-xs"
-                      placeholder="To"
-                    />
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      className="rounded-lg h-9 shadow-sm px-4 text-xs font-semibold"
-                      onClick={() => {
-                        setAppliedDateFrom(dateFromInput);
-                        setAppliedDateTo(dateToInput);
-                      }}
-                    >
-                      Apply
-                    </Button>
-                  </div>
-                )}
-                {(appliedDateFrom || appliedDateTo) && (
+              )}
+              {(appliedDateFrom || appliedDateTo) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateFromInput('');
+                    setDateToInput('');
+                    setAppliedDateFrom('');
+                    setAppliedDateTo('');
+                    setDateRangePreset('all');
+                  }}
+                  className="text-[10px] font-bold uppercase tracking-wider text-rose-500 hover:text-rose-700 underline px-1"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Manage dropdown + spacer */}
+        {(canEdit || canCreate) && (
+          <>
+            <div className="flex-1" />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-slate-500 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:text-slate-700 transition-all"
+                >
+                  <Settings2 size={13} />
+                  Manage
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" sideOffset={6} className="w-52 p-1.5">
+                <button
+                  type="button"
+                  onClick={openStatusModal}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100 transition-colors text-left"
+                >
+                  <LayoutGrid size={14} className="text-slate-400" />
+                  Lead Statuses
+                </button>
+                <button
+                  type="button"
+                  onClick={openLeadTypeModal}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100 transition-colors text-left"
+                >
+                  <Filter size={14} className="text-slate-400" />
+                  Lead Types
+                </button>
+                {canManageNumberSeries && (
                   <button
                     type="button"
                     onClick={() => {
-                      setDateFromInput('');
-                      setDateToInput('');
-                      setAppliedDateFrom('');
-                      setAppliedDateTo('');
-                      setDateRangePreset('all');
+                      setDefaultLeadSeriesCode((typeof window !== 'undefined' && (window.localStorage.getItem(DEFAULT_LEAD_SERIES_STORAGE_KEY) || '').trim()) || '');
+                      setShowNumberSeriesModal(true);
                     }}
-                    className="text-[11px] font-bold uppercase tracking-wider text-rose-500 hover:text-rose-700 underline px-1"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100 transition-colors text-left"
                   >
-                    Clear
+                    <Hash size={14} className="text-slate-400" />
+                    Number Series
                   </button>
                 )}
-              </>
-            )}
-          </div>
+              </PopoverContent>
+            </Popover>
+          </>
         )}
-
-        {/* Filter Popover - employee multi-select */}
-        <FilterPopover
-          isOpen={showEmployeeFilterPopover}
-          onClose={() => setShowEmployeeFilterPopover(false)}
-          triggerRef={employeeFilterRef}
-          onClear={() => setSelectedAssignedToIds([])}
-        >
-          <div className="p-2 min-w-[200px] max-h-[280px] overflow-y-auto">
-            <p className="text-xs font-medium text-slate-600 mb-2">Filter by assigned employee</p>
-            {reportScope && reportScope.employees.map((emp) => {
-              const checked = selectedAssignedToIds.includes(emp.id);
-              return (
-                <label key={emp.id} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-slate-50 rounded px-1">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => {
-                      setSelectedAssignedToIds((prev) =>
-                        prev.includes(emp.id) ? prev.filter((id) => id !== emp.id) : [...prev, emp.id]
-                      );
-                    }}
-                    className="rounded border-slate-300 text-blue-600"
-                  />
-                  <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-medium shrink-0">
-                    {getInitials(emp.name)}
-                  </span>
-                  <span className="text-sm text-slate-800 truncate">{emp.name}</span>
-                </label>
-              );
-            })}
-          </div>
-        </FilterPopover>
-
-
       </div>
+
+      {/* Custom date range row (appears below command bar when "Custom Range" is selected) */}
+      {isHeadOrAdmin && dateRangePreset === 'custom' && (
+        <div className="flex items-center gap-2 mb-4 animate-in fade-in slide-in-from-left-2 duration-200">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 ml-1">Custom range:</span>
+          <DatePicker
+            value={dateFromInput}
+            onChange={(v) => setDateFromInput(v || '')}
+            className="w-[160px]"
+            placeholder="From"
+            inputSize="sm"
+          />
+          <span className="text-slate-300 text-[10px] font-bold">to</span>
+          <DatePicker
+            value={dateToInput}
+            onChange={(v) => setDateToInput(v || '')}
+            className="w-[160px]"
+            placeholder="To"
+            inputSize="sm"
+          />
+          <Button
+            size="sm"
+            variant="primary"
+            className="h-9 px-4 text-xs font-semibold"
+            onClick={() => {
+              setAppliedDateFrom(dateFromInput);
+              setAppliedDateTo(dateToInput);
+            }}
+          >
+            Apply
+          </Button>
+        </div>
+      )}
+
+      {/* Filter Popover - employee multi-select */}
+      <FilterPopover
+        isOpen={showEmployeeFilterPopover}
+        onClose={() => setShowEmployeeFilterPopover(false)}
+        triggerRef={employeeFilterRef}
+        onClear={() => setSelectedAssignedToIds([])}
+      >
+        <div className="p-2 min-w-[200px] max-h-[280px] overflow-y-auto">
+          <p className="text-xs font-medium text-slate-600 mb-2">Filter by assigned employee</p>
+          {reportScope && reportScope.employees.map((emp) => {
+            const checked = selectedAssignedToIds.includes(emp.id);
+            return (
+              <label key={emp.id} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-slate-50 rounded px-1">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => {
+                    setSelectedAssignedToIds((prev) =>
+                      prev.includes(emp.id) ? prev.filter((id) => id !== emp.id) : [...prev, emp.id]
+                    );
+                  }}
+                  className="rounded border-slate-300 text-blue-600"
+                />
+                <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-medium shrink-0">
+                  {getInitials(emp.name)}
+                </span>
+                <span className="text-sm text-slate-800 truncate">{emp.name}</span>
+              </label>
+            );
+          })}
+        </div>
+      </FilterPopover>
 
 
       <div className="mt-4">
@@ -2603,242 +2620,134 @@ export const LeadsPage: React.FC = () => {
             </table>
           </div>
 
-          {/* Statuses — inline add/edit in the table below */}
+          {/* Statuses — card rows grouped by status group */}
           <h4 className="text-sm font-semibold text-slate-700 mb-1 mt-4">2. Statuses</h4>
-          <p className="text-xs text-slate-500 mb-2">Click &quot;Add status&quot; next to a group to add a row; edit or save inline in the table.</p>
-          <div className="border-t border-slate-200 pt-3 mt-1">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-white z-10 border-b border-slate-200">
-                <tr className="text-left text-slate-500 border-b border-slate-200">
-                  <th className="pb-2 pr-2">Code</th>
-                  <th className="pb-2 pr-2">Label</th>
-                  <th className="pb-2 pr-2">Order</th>
-                  <th className="pb-2 pr-2">Active</th>
-                  <th className="pb-2 pr-2 font-medium">
-                    <Tooltip content="Final (Won) Status">
-                      <span className="cursor-help border-b border-dotted border-slate-300">Final (Won)</span>
-                    </Tooltip>
-                  </th>
-                  <th className="pb-2 pr-2 font-medium">
-                    <Tooltip content="Lost Status">
-                      <span className="cursor-help border-b border-dotted border-slate-300">Lost</span>
-                    </Tooltip>
-                  </th>
-                  <th className="pb-2 pr-2 font-medium">
-                    <Tooltip content="Mark this status as a hot case">
-                      <span className="cursor-help border-b border-dotted border-slate-300">Hot</span>
-                    </Tooltip>
-                  </th>
-                  <th className="pb-2 pr-2">Color</th>
-                  <th className="pb-2 pr-2 font-medium">
-                    <Tooltip content="Auto-set lead to this status when a quotation is added to any enquiry">
-                      <span className="cursor-help border-b border-dotted border-slate-300">When quotation added</span>
-                    </Tooltip>
-                  </th>
-                  <th className="pb-2 pr-2 font-medium">
-                    <Tooltip content="Auto-set when lead number is generated but no quotation file yet">
-                      <span className="cursor-help border-b border-dotted border-slate-300">When lead # only</span>
-                    </Tooltip>
-                  </th>
-                  <th className="pb-2 pr-2 font-medium">
-                    <Tooltip content="Require at least one attachment when moving to this status from Kanban">
-                      <span className="cursor-help border-b border-dotted border-slate-300">Attachment compulsory</span>
-                    </Tooltip>
-                  </th>
-                  <th className="pb-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  const byGroup = new Map<number | 'none', LeadStatusOption[]>();
-                  leadStatuses.forEach((s) => {
-                    const key = s.group_id ?? 'none';
-                    if (!byGroup.has(key)) byGroup.set(key, []);
-                    byGroup.get(key)!.push(s);
-                  });
-                  const groupOrder = [...leadStatusGroups.filter((g) => g.is_active).map((g) => g.id), 'none' as const];
-                  return groupOrder.map((groupId) => {
-                    const statuses = byGroup.get(groupId) ?? [];
-                    if (statuses.length === 0 && groupId === 'none') return null;
-                    const groupLabel = groupId === 'none' ? '— No group —' : leadStatusGroups.find((g) => g.id === groupId)?.label ?? `Group #${groupId}`;
-                    return (
-                      <React.Fragment key={groupId === 'none' ? 'nogroup' : groupId}>
-                        <tr className="bg-slate-100/80">
-                          <td colSpan={11} className="py-1.5 px-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            <div className="flex items-center justify-between">
-                              <span>{groupLabel}</span>
-                              {groupId !== 'none' && canEdit && (
-                                <Button variant="ghost" size="xs" className="text-blue-600" onClick={() => openAddStatusToGroup(groupId)} leftIcon={<Plus size={12} />}>
-                                  Add status
-                                </Button>
-                              )}
+          <p className="text-xs text-slate-500 mb-2">Organize your pipeline stages. Each status can be marked as Won, Lost, or Hot.</p>
+          <div className="space-y-3">
+            {(() => {
+              const byGroup = new Map<number | 'none', LeadStatusOption[]>();
+              leadStatuses.forEach((s) => {
+                const key = s.group_id ?? 'none';
+                if (!byGroup.has(key)) byGroup.set(key, []);
+                byGroup.get(key)!.push(s);
+              });
+              const groupOrder = [...leadStatusGroups.filter((g) => g.is_active).map((g) => g.id), 'none' as const];
+              return groupOrder.map((groupId) => {
+                const statuses = byGroup.get(groupId) ?? [];
+                if (statuses.length === 0 && groupId === 'none') return null;
+                const groupObj = groupId === 'none' ? null : leadStatusGroups.find((g) => g.id === groupId);
+                const groupLabel = groupId === 'none' ? 'Ungrouped' : groupObj?.label ?? `Group #${groupId}`;
+                const groupColor = groupObj?.hex_color || '#64748b';
+                return (
+                  <div key={groupId === 'none' ? 'nogroup' : groupId} className="border border-slate-200 rounded-lg overflow-hidden">
+                    {/* Group header */}
+                    <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: groupColor }} />
+                        <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">{groupLabel}</span>
+                        <span className="text-[10px] text-slate-400 font-medium">{statuses.length} status{statuses.length !== 1 ? 'es' : ''}</span>
+                      </div>
+                      {groupId !== 'none' && canEdit && (
+                        <Button variant="ghost" size="xs" className="text-blue-600 h-6" onClick={() => openAddStatusToGroup(groupId)} leftIcon={<Plus size={11} />}>
+                          Add
+                        </Button>
+                      )}
+                    </div>
+                    {/* Inline add form */}
+                    {canEdit && statusForm.group_id === groupId && !editingStatus && (
+                      <div className="px-3 py-2.5 bg-blue-50/40 border-b border-blue-100">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-1.5">
+                            <input type="color" className="h-7 w-7 cursor-pointer rounded border border-slate-200 bg-white p-0.5 shrink-0" value={statusForm.hex_color && /^#[0-9A-Fa-f]{6}$/.test(statusForm.hex_color) ? statusForm.hex_color : '#3b82f6'} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} />
+                            <input className="h-7 w-full max-w-[7rem] rounded border border-slate-200 bg-white px-2 text-xs font-mono focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200" placeholder="code" value={statusForm.code} onChange={(e) => setStatusForm((f) => ({ ...f, code: e.target.value }))} />
+                          </div>
+                          <input className="h-7 w-full max-w-[10rem] rounded border border-slate-200 bg-white px-2 text-xs focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200" placeholder="Label name" value={statusForm.label} onChange={(e) => setStatusForm((f) => ({ ...f, label: e.target.value }))} />
+                          <input type="number" className="h-7 w-12 rounded border border-slate-200 bg-white px-2 text-xs focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200" title="Order" value={statusForm.display_order} onChange={(e) => setStatusForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))} />
+                          <div className="flex items-center gap-3 text-xs text-slate-600">
+                            <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600 w-3.5 h-3.5" /><span>Active</span></label>
+                            <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-emerald-600 w-3.5 h-3.5" /><span className="text-emerald-700">Won</span></label>
+                            <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.is_lost} onChange={(e) => setStatusForm((f) => ({ ...f, is_lost: e.target.checked }))} className="rounded border-slate-300 text-red-600 w-3.5 h-3.5" /><span className="text-red-600">Lost</span></label>
+                            <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.is_hot} onChange={(e) => setStatusForm((f) => ({ ...f, is_hot: e.target.checked }))} className="rounded border-slate-300 text-amber-500 w-3.5 h-3.5" /><span className="text-amber-600">Hot</span></label>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-slate-500">
+                            <Tooltip content="Auto-set when quotation added"><label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.set_when_quotation_added} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quotation_added: e.target.checked }))} className="rounded border-slate-300 text-blue-600 w-3.5 h-3.5" /><span>Quote+</span></label></Tooltip>
+                            <Tooltip content="Auto-set when lead # generated"><label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.set_when_quote_number_generated} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quote_number_generated: e.target.checked }))} className="rounded border-slate-300 text-blue-600 w-3.5 h-3.5" /><span>Lead#</span></label></Tooltip>
+                            <Tooltip content="Require attachment on Kanban move"><label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-blue-600 w-3.5 h-3.5" /><span>Attach req.</span></label></Tooltip>
+                          </div>
+                          <div className="flex gap-1 ml-auto">
+                            <Button size="xs" onClick={saveStatus} disabled={savingStatus || !statusForm.label?.trim()}>{savingStatus ? '...' : 'Save'}</Button>
+                            <Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false, attachment_required_on_kanban_change: false, is_hot: false }); }}>Cancel</Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {/* Status rows */}
+                    {statuses.length === 0 && !(canEdit && statusForm.group_id === groupId && !editingStatus) ? (
+                      <div className="px-3 py-4 text-center text-xs text-slate-400 italic">No statuses yet. Click &quot;Add&quot; above.</div>
+                    ) : (
+                      <div className="divide-y divide-slate-100">
+                        {statuses.map((s) =>
+                          canEdit && editingStatus?.id === s.id ? (
+                            <div key={s.id} className="px-3 py-2.5 bg-amber-50/50 border-l-2 border-amber-300">
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <div className="flex items-center gap-1.5">
+                                  <input type="color" className="h-7 w-7 cursor-pointer rounded border border-slate-200 bg-white p-0.5 shrink-0" value={statusForm.hex_color && /^#[0-9A-Fa-f]{6}$/.test(statusForm.hex_color) ? statusForm.hex_color : '#3b82f6'} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} />
+                                  <input className="h-7 w-full max-w-[7rem] rounded border border-slate-200 bg-white px-2 text-xs font-mono focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200" placeholder="code" value={statusForm.code} onChange={(e) => setStatusForm((f) => ({ ...f, code: e.target.value }))} />
+                                </div>
+                                <input className="h-7 w-full max-w-[10rem] rounded border border-slate-200 bg-white px-2 text-xs focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200" placeholder="Label" value={statusForm.label} onChange={(e) => setStatusForm((f) => ({ ...f, label: e.target.value }))} />
+                                <input type="number" className="h-7 w-12 rounded border border-slate-200 bg-white px-2 text-xs focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200" title="Order" value={statusForm.display_order} onChange={(e) => setStatusForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))} />
+                                <div className="flex items-center gap-3 text-xs text-slate-600">
+                                  <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600 w-3.5 h-3.5" /><span>Active</span></label>
+                                  <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-emerald-600 w-3.5 h-3.5" /><span className="text-emerald-700">Won</span></label>
+                                  <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.is_lost} onChange={(e) => setStatusForm((f) => ({ ...f, is_lost: e.target.checked }))} className="rounded border-slate-300 text-red-600 w-3.5 h-3.5" /><span className="text-red-600">Lost</span></label>
+                                  <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.is_hot} onChange={(e) => setStatusForm((f) => ({ ...f, is_hot: e.target.checked }))} className="rounded border-slate-300 text-amber-500 w-3.5 h-3.5" /><span className="text-amber-600">Hot</span></label>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-slate-500">
+                                  <Tooltip content="Auto-set when quotation added"><label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.set_when_quotation_added} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quotation_added: e.target.checked }))} className="rounded border-slate-300 text-blue-600 w-3.5 h-3.5" /><span>Quote+</span></label></Tooltip>
+                                  <Tooltip content="Auto-set when lead # generated"><label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.set_when_quote_number_generated} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quote_number_generated: e.target.checked }))} className="rounded border-slate-300 text-blue-600 w-3.5 h-3.5" /><span>Lead#</span></label></Tooltip>
+                                  <Tooltip content="Require attachment on Kanban move"><label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-blue-600 w-3.5 h-3.5" /><span>Attach req.</span></label></Tooltip>
+                                </div>
+                                <div className="flex gap-1 ml-auto">
+                                  <Button size="xs" onClick={saveStatus} disabled={savingStatus || !statusForm.label?.trim()}>{savingStatus ? '...' : 'Save'}</Button>
+                                  <Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false, attachment_required_on_kanban_change: false, is_hot: false }); }}>Cancel</Button>
+                                </div>
+                              </div>
                             </div>
-                          </td>
-                        </tr>
-                        {canEdit && statusForm.group_id === groupId && !editingStatus && (
-                          <tr className="border-b border-slate-100 bg-slate-50/80">
-                            <td className="py-2 pr-2 align-middle">
-                              <input className="h-8 w-full max-w-[7rem] rounded border border-slate-200 bg-white px-2 text-sm font-mono focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200" placeholder="Code" value={statusForm.code} onChange={(e) => setStatusForm((f) => ({ ...f, code: e.target.value }))} />
-                            </td>
-                            <td className="py-2 pr-2 align-middle">
-                              <input className="h-8 w-full max-w-[8rem] rounded border border-slate-200 bg-white px-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200" placeholder="Label" value={statusForm.label} onChange={(e) => setStatusForm((f) => ({ ...f, label: e.target.value }))} />
-                            </td>
-                            <td className="py-2 pr-2 align-middle">
-                              <input type="number" className="h-8 w-14 rounded border border-slate-200 bg-white px-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200" value={statusForm.display_order} onChange={(e) => setStatusForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))} />
-                            </td>
-                            <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
-                                <span>Active</span>
-                              </label>
-                            </td>
-                            <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
-                                <span>Final</span>
-                              </label>
-                            </td>
-                            <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.is_lost} onChange={(e) => setStatusForm((f) => ({ ...f, is_lost: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
-                                <span>Lost</span>
-                              </label>
-                            </td>
-                            <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.is_hot} onChange={(e) => setStatusForm((f) => ({ ...f, is_hot: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
-                                <span>Hot</span>
-                              </label>
-                            </td>
-                            <td className="py-2 pr-2 align-middle">
-                              <div className="flex items-center gap-1.5">
-                                <input type="color" className="h-8 w-10 cursor-pointer rounded border border-slate-200 bg-white p-0.5" value={statusForm.hex_color && /^#[0-9A-Fa-f]{6}$/.test(statusForm.hex_color) ? statusForm.hex_color : '#3b82f6'} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} title="Color" />
-                                <input className="h-8 w-20 rounded border border-slate-200 bg-white px-2 text-sm font-mono focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200" placeholder="#3b82f6" value={statusForm.hex_color} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} title="Hex color" />
+                          ) : (
+                            <div key={s.id} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50/60 transition-colors group/row">
+                              {/* Color dot + label */}
+                              <div className="flex items-center gap-2 min-w-[140px]">
+                                <span className="w-3 h-3 rounded-full shrink-0 border border-black/10" style={{ backgroundColor: s.hex_color || '#94a3b8' }} />
+                                <span className="text-sm font-medium text-slate-800 truncate">{s.label}</span>
                               </div>
-                            </td>
-                            <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.set_when_quotation_added} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quotation_added: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
-                                <span>Yes</span>
-                              </label>
-                            </td>
-                            <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.set_when_quote_number_generated} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quote_number_generated: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
-                                <span>Yes</span>
-                              </label>
-                            </td>
-                            <td className="py-2 pr-2 align-middle">
-                              <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                <input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
-                                <span>Yes</span>
-                              </label>
-                            </td>
-                            <td className="py-2 align-middle">
-                              <div className="flex gap-1">
-                                <Button size="xs" onClick={saveStatus} disabled={savingStatus || !statusForm.label?.trim()}>{savingStatus ? '...' : 'Save'}</Button>
-                              <Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false, attachment_required_on_kanban_change: false, is_hot: false }); }}>Cancel</Button>
+                              {/* Code badge */}
+                              <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{s.code}</span>
+                              {/* Order */}
+                              <span className="text-[10px] text-slate-400 tabular-nums shrink-0">#{s.display_order}</span>
+                              {/* Flag badges */}
+                              <div className="flex items-center gap-1 flex-wrap flex-1">
+                                {!s.is_active && <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Inactive</span>}
+                                {s.is_final && <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">Won</span>}
+                                {s.is_lost && <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">Lost</span>}
+                                {s.is_hot && <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">Hot</span>}
+                                {s.set_when_quotation_added && <Tooltip content="Auto-set when quotation added"><span className="text-[10px] text-blue-500 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded cursor-help">Quote+</span></Tooltip>}
+                                {s.set_when_quote_number_generated && <Tooltip content="Auto-set when lead # generated"><span className="text-[10px] text-blue-500 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded cursor-help">Lead#</span></Tooltip>}
+                                {s.attachment_required_on_kanban_change && <Tooltip content="Require attachment on Kanban move"><span className="text-[10px] text-blue-500 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded cursor-help">Attach req.</span></Tooltip>}
                               </div>
-                            </td>
-                          </tr>
-                        )}
-                        {statuses.length === 0 && !(canEdit && statusForm.group_id === groupId && !editingStatus) ? (
-                          <tr>
-                        <td colSpan={12} className="py-2 px-2 text-slate-400 text-xs italic">No statuses yet. Click &quot;Add status&quot; above.</td>
-                          </tr>
-                        ) : (
-                          statuses.map((s) =>
-                            canEdit && editingStatus?.id === s.id ? (
-                              <tr key={s.id} className="border-b border-slate-100 bg-slate-50/80">
-                                <td className="py-2 pr-2 align-middle">
-                                  <input className="h-8 w-full max-w-[7rem] rounded border border-slate-200 bg-white px-2 text-sm font-mono focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200" placeholder="Code" value={statusForm.code} onChange={(e) => setStatusForm((f) => ({ ...f, code: e.target.value }))} />
-                                </td>
-                                <td className="py-2 pr-2 align-middle">
-                                  <input className="h-8 w-full max-w-[8rem] rounded border border-slate-200 bg-white px-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200" placeholder="Label" value={statusForm.label} onChange={(e) => setStatusForm((f) => ({ ...f, label: e.target.value }))} />
-                                </td>
-                                <td className="py-2 pr-2 align-middle">
-                                  <input type="number" className="h-8 w-14 rounded border border-slate-200 bg-white px-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200" value={statusForm.display_order} onChange={(e) => setStatusForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))} />
-                                </td>
-                                <td className="py-2 pr-2 align-middle">
-                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_active} onChange={(e) => setStatusForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span>Active</span></label>
-                                </td>
-                                <td className="py-2 pr-2 align-middle">
-                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_final} onChange={(e) => setStatusForm((f) => ({ ...f, is_final: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span>Final</span></label>
-                                </td>
-                                <td className="py-2 pr-2 align-middle">
-                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm"><input type="checkbox" checked={statusForm.is_lost} onChange={(e) => setStatusForm((f) => ({ ...f, is_lost: e.target.checked }))} className="rounded border-slate-300 text-blue-600" /><span>Lost</span></label>
-                                </td>
-                                <td className="py-2 pr-2 align-middle">
-                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                    <input type="checkbox" checked={statusForm.is_hot} onChange={(e) => setStatusForm((f) => ({ ...f, is_hot: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
-                                    <span>Hot</span>
-                                  </label>
-                                </td>
-                                <td className="py-2 pr-2 align-middle">
-                                  <div className="flex items-center gap-1.5">
-                                    <input type="color" className="h-8 w-10 cursor-pointer rounded border border-slate-200 bg-white p-0.5" value={statusForm.hex_color && /^#[0-9A-Fa-f]{6}$/.test(statusForm.hex_color) ? statusForm.hex_color : '#3b82f6'} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} title="Color" />
-                                    <input className="h-8 w-20 rounded border border-slate-200 bg-white px-2 text-sm font-mono focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200" placeholder="#3b82f6" value={statusForm.hex_color} onChange={(e) => setStatusForm((f) => ({ ...f, hex_color: e.target.value }))} title="Hex color" />
-                                  </div>
-                                </td>
-                                <td className="py-2 pr-2 align-middle">
-                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                    <input type="checkbox" checked={statusForm.set_when_quotation_added} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quotation_added: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
-                                    <span>Yes</span>
-                                  </label>
-                                </td>
-                                <td className="py-2 pr-2 align-middle">
-                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                    <input type="checkbox" checked={statusForm.set_when_quote_number_generated} onChange={(e) => setStatusForm((f) => ({ ...f, set_when_quote_number_generated: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
-                                    <span>Yes</span>
-                                  </label>
-                                </td>
-                                <td className="py-2 pr-2 align-middle">
-                                  <label className="flex h-8 cursor-pointer items-center gap-1.5 text-sm">
-                                    <input type="checkbox" checked={statusForm.attachment_required_on_kanban_change} onChange={(e) => setStatusForm((f) => ({ ...f, attachment_required_on_kanban_change: e.target.checked }))} className="rounded border-slate-300 text-blue-600" />
-                                    <span>Yes</span>
-                                  </label>
-                                </td>
-                                <td className="py-2 align-middle">
-                                  <div className="flex gap-1">
-                                    <Button size="xs" onClick={saveStatus} disabled={savingStatus || !statusForm.label?.trim()}>{savingStatus ? '...' : 'Save'}</Button>
-                                    <Button size="xs" variant="outline" onClick={() => { setEditingStatus(null); setStatusForm({ code: '', label: '', display_order: 0, group_id: undefined, is_active: true, is_final: false, is_lost: false, hex_color: '', set_when_quotation_added: false, set_when_quote_number_generated: false, attachment_required_on_kanban_change: false, is_hot: false }); }}>Cancel</Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ) : (
-                              <tr key={s.id} className="border-b border-slate-100">
-                                <td className="py-2 pr-2 font-mono text-slate-700 align-middle">{s.code}</td>
-                                <td className="py-2 pr-2 align-middle">{s.label}</td>
-                                <td className="py-2 pr-2 align-middle">{s.display_order}</td>
-                                <td className="py-2 pr-2 align-middle">{s.is_active ? 'Yes' : 'No'}</td>
-                                <td className="py-2 pr-2 align-middle">{s.is_final ? 'Yes' : '—'}</td>
-                                <td className="py-2 pr-2 align-middle">{s.is_lost ? 'Yes' : '—'}</td>
-                                <td className="py-2 pr-2 align-middle">{s.is_hot ? 'Hot' : '—'}</td>
-                                <td className="py-2 pr-2 align-middle">
-                                  {s.hex_color ? (
-                                    <span className="inline-flex items-center gap-1.5">
-                                      <span className="inline-block h-5 w-5 rounded border border-slate-300 shrink-0" style={{ backgroundColor: s.hex_color }} title={s.hex_color} />
-                                      <span className="text-xs font-mono text-slate-600">{s.hex_color}</span>
-                                    </span>
-                                  ) : '—'}
-                                </td>
-                                <td className="py-2 pr-2 align-middle">{s.set_when_quotation_added ? 'Yes' : '—'}</td>
-                                <td className="py-2 pr-2 align-middle">{s.set_when_quote_number_generated ? 'Yes' : '—'}</td>
-                                <td className="py-2 pr-2 align-middle">{s.attachment_required_on_kanban_change ? 'Yes' : '—'}</td>
-                                <td className="py-2 align-middle">
-                                  {canEdit && <Button variant="ghost" size="xs" onClick={() => openEditStatus(s)}>Edit</Button>}
-                                  {canDelete && <Button variant="ghost" size="xs" className="text-rose-600" onClick={() => setDeleteStatusId(s.id)}>Delete</Button>}
-                                </td>
-                              </tr>
-                            )
+                              {/* Actions */}
+                              <div className="flex gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity shrink-0">
+                                {canEdit && <Button variant="ghost" size="xs" className="h-6 text-xs" onClick={() => openEditStatus(s)}>Edit</Button>}
+                                {canDelete && <Button variant="ghost" size="xs" className="h-6 text-xs text-rose-600" onClick={() => setDeleteStatusId(s.id)}>Delete</Button>}
+                              </div>
+                            </div>
                           )
                         )}
-                      </React.Fragment>
-                    );
-                  });
-                })()}
-              </tbody>
-            </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       </Modal>
@@ -2851,96 +2760,64 @@ export const LeadsPage: React.FC = () => {
           setLeadTypeForm({ code: '', label: '', display_order: 0, is_active: true });
         }}
         title="Lead types (Lead for)"
-        footer={
-          (editingLeadType || leadTypeForm.label || leadTypeForm.code) ? (
-            <div className="flex justify-between w-full">
-              <span />
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setEditingLeadType(null); setLeadTypeForm({ code: '', label: '', display_order: leadTypes.length, is_active: true }); }}>
-                  Cancel
-                </Button>
-                <Button size="sm" onClick={saveLeadType} disabled={savingLeadType}>
-                  {savingLeadType ? 'Saving...' : editingLeadType ? 'Update' : 'Add'}
+      >
+        <div className="space-y-3">
+          {/* Inline add form */}
+          {canEdit && !editingLeadType && (
+            <div className="border border-dashed border-blue-200 rounded-lg px-3 py-2.5 bg-blue-50/40">
+              <div className="flex items-center gap-3 flex-wrap">
+                <input className="h-7 w-full max-w-[8rem] rounded border border-slate-200 bg-white px-2 text-xs font-mono focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200" placeholder="code" value={leadTypeForm.code} onChange={(e) => setLeadTypeForm((f) => ({ ...f, code: e.target.value }))} />
+                <input className="h-7 w-full max-w-[12rem] rounded border border-slate-200 bg-white px-2 text-xs focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200" placeholder="Type name (e.g. Walk-in)" value={leadTypeForm.label} onChange={(e) => setLeadTypeForm((f) => ({ ...f, label: e.target.value }))} />
+                <input type="number" className="h-7 w-12 rounded border border-slate-200 bg-white px-2 text-xs focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200" title="Order" value={leadTypeForm.display_order} onChange={(e) => setLeadTypeForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))} />
+                <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                  <input type="checkbox" checked={leadTypeForm.is_active} onChange={(e) => setLeadTypeForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600 w-3.5 h-3.5" />
+                  Active
+                </label>
+                <Button size="xs" className="ml-auto" onClick={saveLeadType} disabled={savingLeadType || !leadTypeForm.label?.trim()} leftIcon={<Plus size={12} />}>
+                  {savingLeadType ? '...' : 'Add'}
                 </Button>
               </div>
             </div>
-          ) : undefined
-        }
-      >
-        <div className="space-y-4">
-          <div className="flex items-end gap-2 flex-wrap">
-            <Input
-              label="Code"
-              value={leadTypeForm.code}
-              onChange={(e) => setLeadTypeForm((f) => ({ ...f, code: e.target.value }))}
-              placeholder="e.g. standard_walkin"
-              containerClassName="flex-1 min-w-[120px]"
-            />
-            <Input
-              label="Label"
-              value={leadTypeForm.label}
-              onChange={(e) => setLeadTypeForm((f) => ({ ...f, label: e.target.value }))}
-              placeholder="e.g. Standard Walk-in"
-              containerClassName="flex-1 min-w-[120px]"
-            />
-            <Input
-              label="Order"
-              type="number"
-              value={String(leadTypeForm.display_order)}
-              onChange={(e) => setLeadTypeForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))}
-              containerClassName="w-20"
-            />
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={leadTypeForm.is_active}
-                onChange={(e) => setLeadTypeForm((f) => ({ ...f, is_active: e.target.checked }))}
-                className="rounded border-slate-300 text-blue-600"
-              />
-              Active
-            </label>
-            {!editingLeadType && (
-              <Button size="sm" onClick={saveLeadType} disabled={savingLeadType} leftIcon={<Plus size={14} />}>
-                Add type
-              </Button>
-            )}
-            {editingLeadType && (
-              <Button size="sm" onClick={saveLeadType} disabled={savingLeadType}>
-                Update
-              </Button>
-            )}
-          </div>
-          <div className="border-t border-slate-200 pt-3">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-slate-500 border-b border-slate-200">
-                  <th className="pb-2 pr-2">Code</th>
-                  <th className="pb-2 pr-2">Label</th>
-                  <th className="pb-2 pr-2">Order</th>
-                  <th className="pb-2 pr-2">Active</th>
-                  <th className="pb-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {leadTypes.map((t) => (
-                  <tr key={t.id} className="border-b border-slate-100">
-                    <td className="py-2 pr-2 font-mono text-slate-700">{t.code}</td>
-                    <td className="py-2 pr-2">{t.label}</td>
-                    <td className="py-2 pr-2">{t.display_order}</td>
-                    <td className="py-2 pr-2">{t.is_active ? 'Yes' : 'No'}</td>
-                    <td className="py-2">
-                      {canEdit && (
-                        <Button variant="ghost" size="xs" onClick={() => openEditLeadType(t)}>Edit</Button>
-                      )}
-                      {canDelete && (
-                        <Button variant="ghost" size="xs" className="text-rose-600" onClick={() => setDeleteLeadTypeId(t.id)}>Delete</Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          )}
+
+          {/* Type rows */}
+          {leadTypes.length === 0 ? (
+            <div className="text-center py-6 text-xs text-slate-400 italic">No lead types yet. Add one above.</div>
+          ) : (
+            <div className="border border-slate-200 rounded-lg overflow-hidden divide-y divide-slate-100">
+              {leadTypes.map((t) =>
+                canEdit && editingLeadType?.id === t.id ? (
+                  <div key={t.id} className="px-3 py-2.5 bg-amber-50/50 border-l-2 border-amber-300">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <input className="h-7 w-full max-w-[8rem] rounded border border-slate-200 bg-white px-2 text-xs font-mono focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200" placeholder="code" value={leadTypeForm.code} onChange={(e) => setLeadTypeForm((f) => ({ ...f, code: e.target.value }))} />
+                      <input className="h-7 w-full max-w-[12rem] rounded border border-slate-200 bg-white px-2 text-xs focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200" placeholder="Label" value={leadTypeForm.label} onChange={(e) => setLeadTypeForm((f) => ({ ...f, label: e.target.value }))} />
+                      <input type="number" className="h-7 w-12 rounded border border-slate-200 bg-white px-2 text-xs focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200" title="Order" value={leadTypeForm.display_order} onChange={(e) => setLeadTypeForm((f) => ({ ...f, display_order: parseInt(e.target.value, 10) || 0 }))} />
+                      <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                        <input type="checkbox" checked={leadTypeForm.is_active} onChange={(e) => setLeadTypeForm((f) => ({ ...f, is_active: e.target.checked }))} className="rounded border-slate-300 text-blue-600 w-3.5 h-3.5" />
+                        Active
+                      </label>
+                      <div className="flex gap-1 ml-auto">
+                        <Button size="xs" onClick={saveLeadType} disabled={savingLeadType || !leadTypeForm.label?.trim()}>{savingLeadType ? '...' : 'Save'}</Button>
+                        <Button size="xs" variant="outline" onClick={() => { setEditingLeadType(null); setLeadTypeForm({ code: '', label: '', display_order: leadTypes.length, is_active: true }); }}>Cancel</Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={t.id} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50/60 transition-colors group/row">
+                    <span className="text-sm font-medium text-slate-800 min-w-[140px] truncate">{t.label}</span>
+                    <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{t.code}</span>
+                    <span className="text-[10px] text-slate-400 tabular-nums shrink-0">#{t.display_order}</span>
+                    {!t.is_active && <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Inactive</span>}
+                    <div className="flex-1" />
+                    <div className="flex gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity shrink-0">
+                      {canEdit && <Button variant="ghost" size="xs" className="h-6 text-xs" onClick={() => openEditLeadType(t)}>Edit</Button>}
+                      {canDelete && <Button variant="ghost" size="xs" className="h-6 text-xs text-rose-600" onClick={() => setDeleteLeadTypeId(t.id)}>Delete</Button>}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          )}
         </div>
       </Modal>
 

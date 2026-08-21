@@ -99,14 +99,14 @@ export function DataTable<T>({
                     key={colKey}
                     id={`th-${colKey}`}
                     className={cn(
-                      // base: high-density gray header from HRMS specs
-                      'h-10 px-4 text-left select-none relative bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-bold',
+                      // base: blue-tinted header
+                      'h-10 px-4 text-left select-none relative bg-blue-50/40 text-slate-500 uppercase text-[10px] tracking-wider font-bold',
                       // divider below header
-                      'border-b border-slate-200',
+                      'border-b border-blue-100/60',
                       // first/last col border styling (if table is bordered)
                       isFirst && 'pl-6',
                       // sortable
-                      isSortable && 'cursor-pointer hover:bg-slate-100/70 transition-colors duration-150 group',
+                      isSortable && 'cursor-pointer hover:bg-blue-100/50 transition-colors duration-150 group',
                       col.headerClassName
                     )}
                     style={{
@@ -192,11 +192,12 @@ export function DataTable<T>({
                     key={String(rowKey(item))}
                     onClick={() => onRowClick?.(item)}
                     className={cn(
-                      // row interaction & hover (transition duration from HRMS specifications)
+                      // row interaction, hover & zebra striping
                       'transition-colors duration-200',
+                      'odd:bg-blue-50/[0.15]',
                       onRowClick
-                        ? 'cursor-pointer hover:bg-slate-50/60 active:bg-slate-50/90'
-                        : 'hover:bg-slate-50/40',
+                        ? 'cursor-pointer hover:bg-blue-50/30 active:bg-blue-50/50'
+                        : 'hover:bg-blue-50/20',
                       getRowClassName?.(item)
                     )}
                   >
@@ -209,7 +210,7 @@ export function DataTable<T>({
                           idx === 0 && 'pl-6',
                           col.align === 'center' && 'text-center',
                           col.align === 'right' && 'text-right',
-                          !isLastRow && 'border-b border-slate-200/60',
+                          !isLastRow && 'border-b border-blue-100/40',
                           col.cellClassName
                         )}
                       >

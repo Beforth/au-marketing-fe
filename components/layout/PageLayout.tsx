@@ -27,7 +27,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
                 <Breadcrumb items={breadcrumbs} />
             )}
             
-            <div className="flex flex-col gap-0.5 mb-3 px-1">
+            <div className="flex flex-col gap-0.5 mb-3 bg-gradient-to-r from-blue-50/40 via-blue-50/20 to-transparent rounded-2xl px-6 py-4 -mx-6">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="flex flex-col gap-1">
                         <h1 className="text-4xl font-bold text-slate-900 tracking-tight leading-none whitespace-nowrap">{title}</h1>

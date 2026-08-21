@@ -265,12 +265,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           disabled={disabled}
           className={cn(
             'w-full border rounded-lg text-left transition-all',
-            'focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600',
+            'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600',
             'bg-white border-slate-300',
             inputSize === 'sm' && 'h-9 px-3 text-xs',
             inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
             inputSize === 'lg' && 'h-12 px-5 text-base font-medium',
-            disabled && 'bg-slate-50 cursor-not-allowed opacity-50',
+            disabled && 'bg-blue-50/[0.15] cursor-not-allowed opacity-50',
             'flex items-center justify-between gap-2 group'
           )}
         >
@@ -360,10 +360,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-tight">Time</span>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400" value={hours} onChange={(e) => handleTimeChange(Number(e.target.value), minutes)} aria-label="Hour">
+                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-blue-50/[0.15] text-xs px-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" value={hours} onChange={(e) => handleTimeChange(Number(e.target.value), minutes)} aria-label="Hour">
                       {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}</option>)}
                     </select>
-                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400" value={minutes} onChange={(e) => handleTimeChange(hours, Number(e.target.value))} aria-label="Minute">
+                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-blue-50/[0.15] text-xs px-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" value={minutes} onChange={(e) => handleTimeChange(hours, Number(e.target.value))} aria-label="Minute">
                       {Array.from({ length: 60 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}</option>)}
                     </select>
                   </div>
@@ -379,13 +379,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
-                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400" value={hours} onChange={(e) => handleTimeChange(Number(e.target.value), minutes)}>
+                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-blue-50/[0.15] text-xs px-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" value={hours} onChange={(e) => handleTimeChange(Number(e.target.value), minutes)}>
                       {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}</option>)}
                     </select>
                   </div>
                   <span className="text-slate-300 font-bold">:</span>
                   <div className="flex-1">
-                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs px-2 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400" value={minutes} onChange={(e) => handleTimeChange(hours, Number(e.target.value))}>
+                    <select className="w-full h-9 rounded-lg border border-slate-200 bg-blue-50/[0.15] text-xs px-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" value={minutes} onChange={(e) => handleTimeChange(hours, Number(e.target.value))}>
                       {Array.from({ length: 60 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}</option>)}
                     </select>
                   </div>
