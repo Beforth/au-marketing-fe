@@ -63,6 +63,7 @@ export const EventDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadingName, setUploadingName] = useState<string | null>(null);
 
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
   const [confirmEnd, setConfirmEnd] = useState(false);
@@ -114,6 +115,15 @@ export const EventDetailPage: React.FC = () => {
 
   useEffect(() => { if (canView) loadEvent(); }, [canView, loadEvent]);
 
+  // Leads attributed to this exhibition (for the Analysis tab ROI view)
+  const [attribution, setAttribution] = useState<import('../lib/marketing-api').EventLeadAttribution | null>(null);
+  useEffect(() => {
+    if (!canView || !id) return;
+    marketingAPI.getEventLeadAttribution(parseInt(id))
+      .then(setAttribution)
+      .catch(() => setAttribution(null));
+  }, [canView, id]);
+
   const handleEndEvent = async () => {
     if (!event) return;
     try {
@@ -143,6 +153,7 @@ export const EventDetailPage: React.FC = () => {
   const handleFileUpload = async (fileType: 'stall_design' | 'banner_design' | 'travel_ticket' | 'local_travel_proof', file: File, vendorId?: number, entryIndex?: number) => {
     if (!event) return;
     setUploadProgress(0);
+    setUploadingName(file.name);
     try {
       const result = await marketingAPI.uploadEventFile(event.id, fileType, file, vendorId, setUploadProgress, entryIndex);
       const createdAt = new Date().toISOString();
@@ -180,8 +191,25 @@ export const EventDetailPage: React.FC = () => {
       showToast(error.message || 'Failed to upload file', 'error');
     } finally {
       setUploadProgress(null);
+      setUploadingName(null);
     }
   };
+
+  // Shown next to any upload control while a file is in flight
+  const uploadIndicator = (
+    uploadProgress !== null ? (
+      <div className="flex items-center gap-2 mt-2">
+        <div className="w-24 bg-slate-200 rounded-full h-1">
+          <div className="bg-blue-600 h-1 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+        </div>
+        {uploadingName && (
+          <span className="text-xs text-slate-500 truncate max-w-[220px]">
+            Uploading {uploadingName}… {uploadProgress}%
+          </span>
+        )}
+      </div>
+    ) : null
+  );
 
   const handleViewFile = async (fileId: number) => {
     if (!event) return;
@@ -428,7 +456,7 @@ export const EventDetailPage: React.FC = () => {
                       e.target.value = '';
                     }} disabled={isEnded || !canEdit} />
                   </label>
-                  {uploadProgress !== null && <div className="w-24 bg-slate-200 rounded-full h-1"><div className="bg-blue-600 h-1 rounded-full" style={{ width: `${uploadProgress}%` }} /></div>}
+                  {uploadIndicator}
                 </div>
 
                 {event.stall_design_files.filter(f => f.vendor_id === vendor.id).length > 0 && (
@@ -510,7 +538,7 @@ export const EventDetailPage: React.FC = () => {
               e.target.value = '';
             }} disabled={isEnded || !canEdit} />
           </label>
-          {uploadProgress !== null && <div className="w-24 bg-slate-200 rounded-full h-1"><div className="bg-blue-600 h-1 rounded-full" style={{ width: `${uploadProgress}%` }} /></div>}
+          {uploadIndicator}
         </div>
 
         {event.banner_design_files && event.banner_design_files.length > 0 && (
@@ -577,6 +605,7 @@ export const EventDetailPage: React.FC = () => {
     <div className="space-y-4">
       <Card>
         <div className="grid grid-cols-1 gap-4">
+          <CurrencyInput label="Travel Cost (₹) — flights / tickets" value={event.travel_cost ? String(event.travel_cost) : ''} onChange={(raw) => setEvent({ ...event, travel_cost: raw ? parseFloat(raw) : 0 })} disabled={isEnded || !canEdit} placeholder="0" />
           <Input label="Days Before Exhibition (for production team)" type="text" value={event.travel_days_before ? String(event.travel_days_before) : ''} onChange={(e) => setEvent({ ...event, travel_days_before: parseInt(e.target.value.replace(/\D/g, '')) || 0 })} disabled={isEnded || !canEdit} placeholder="e.g., 2" />
           {event.travel_days_before > 0 && event.start_date && (
             <p className="text-xs text-slate-500 mt-1">
@@ -597,63 +626,55 @@ export const EventDetailPage: React.FC = () => {
           <label className="text-sm font-semibold text-slate-700 mb-2 block">Assigned Employees for Travel</label>
           {event.selected_employee_ids && event.selected_employee_ids.length > 0 ? (
             <div className="space-y-2">
-              {event.selected_employee_ids.map((empId) => (
-                <div key={empId} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <span className="text-sm font-medium text-slate-700">{employeeCacheRef.current.get(empId) || `Employee #${empId}`}</span>
-                  <div className="flex items-center gap-2">
-                    {event.travel_tickets?.some(t => t.employee_id === empId) ? (
-                      <Badge variant="success">Ticket Uploaded</Badge>
+              {event.selected_employee_ids.map((empId) => {
+                const empTickets = (event.travel_tickets || []).filter(t => t.employee_id === empId);
+                return (
+                <div key={empId} className="flex items-start justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 gap-2">
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-slate-700">{employeeCacheRef.current.get(empId) || `Employee #${empId}`}</span>
+                    {empTickets.length > 0 ? (
+                      <div className="mt-1 space-y-1">
+                        {empTickets.map((ticket) => (
+                          <div key={ticket.id} className="flex items-center gap-1.5 text-xs">
+                            <FileText size={12} className="text-slate-400 shrink-0" />
+                            <span className="text-slate-600 truncate max-w-[200px]">{ticket.file_name}</span>
+                            <button onClick={() => handleViewFile(ticket.id)} className="text-blue-600 hover:text-blue-800" title="Preview">
+                              <Eye size={12} />
+                            </button>
+                            <button onClick={() => handleDownloadFile(ticket.id, ticket.file_name)} className="text-slate-400 hover:text-slate-600" title="Download">
+                              <Download size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      <span className="text-xs text-slate-400">No ticket</span>
-                    )}
-                    {canEdit && !isEnded && (
-                      <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-100">
-                        <Upload size={12} />
-                        <span>Upload Ticket</span>
-                        <input type="file" accept=".pdf,.jpg,.png" className="hidden" onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleFileUpload('travel_ticket', file, empId);
-                          e.target.value = '';
-                        }} disabled={isEnded || !canEdit} />
-                      </label>
+                      <p className="text-xs text-slate-400 mt-1">No ticket uploaded</p>
                     )}
                   </div>
+                  {canEdit && !isEnded && (
+                    <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-100 shrink-0">
+                      <Upload size={12} />
+                      <span>{empTickets.length > 0 ? 'Add' : 'Upload Ticket'}</span>
+                      <input type="file" accept=".pdf,.jpg,.png" className="hidden" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload('travel_ticket', file, empId);
+                        e.target.value = '';
+                      }} disabled={isEnded || !canEdit} />
+                    </label>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="text-sm text-slate-400">No employees selected for this event. Edit the event to add employees.</p>
           )}
+          {uploadIndicator}
         </div>
-
-        {event.travel_tickets && event.travel_tickets.length > 0 && (
-          <div className="mt-4">
-            <label className="text-sm font-semibold text-slate-700 mb-2 block">Uploaded Tickets</label>
-            <div className="space-y-1">
-              {event.travel_tickets.map((ticket) => (
-                <div key={ticket.id} className="flex items-center justify-between text-sm py-1">
-                  <div className="flex items-center gap-2">
-                    <FileText size={14} className="text-slate-400" />
-                    <span className="text-slate-700">{ticket.file_name}</span>
-                    <span className="text-xs text-slate-400">Employee #{ticket.employee_id}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => handleViewFile(ticket.id)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Preview">
-                      <Eye size={14} />
-                    </button>
-                    <button onClick={() => handleDownloadFile(ticket.id, ticket.file_name)} className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded" title="Download">
-                      <Download size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {canEdit && !isEnded && (
           <div className="flex justify-end pt-4 border-t border-slate-200 mt-4">
-            <Button onClick={() => updateField({ travel_days_before: event.travel_days_before })} disabled={saving} leftIcon={<Save size={14} />}>
+            <Button onClick={() => updateField({ travel_days_before: event.travel_days_before, travel_cost: event.travel_cost })} disabled={saving} leftIcon={<Save size={14} />}>
               {saving ? 'Saving...' : 'Save Travel'}
             </Button>
           </div>
@@ -999,7 +1020,7 @@ export const EventDetailPage: React.FC = () => {
     ] : [
       { label: 'Table Booking', amount: event.table_booking_total_cost || 0 },
     ]),
-    { label: 'Travel', amount: 0 },
+    { label: 'Travel', amount: event.travel_cost || 0 },
     { label: 'Hotel', amount: event.hotel_cost || 0 },
     { label: 'Local Travel', amount: (event.local_travel_entries || []).reduce((s, e) => s + (e.amount || 0), 0) },
     { label: 'Gifting', amount: (event.gifting_entries || []).reduce((s, e) => s + (e.amount || 0) * (e.count || 0), 0) },
@@ -1059,6 +1080,80 @@ export const EventDetailPage: React.FC = () => {
             </tfoot>
           </table>
         </div>
+      </Card>
+
+      <Card>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="font-semibold text-slate-900">Leads from this Exhibition</h4>
+          {attribution && attribution.leads_count > 0 && (
+            <button onClick={() => navigate('/leads')} className="text-xs text-blue-600 hover:text-blue-800">View in Leads →</button>
+          )}
+        </div>
+
+        {!attribution ? (
+          <p className="text-sm text-slate-400">Loading lead attribution…</p>
+        ) : attribution.leads_count === 0 ? (
+          <p className="text-sm text-slate-400">
+            No leads are attributed to this exhibition yet. Leads pick this up automatically from the contact
+            they're linked to (when that contact was met here), or you can set it on the lead directly.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Leads</p>
+                <p className="text-xl font-bold text-slate-800 mt-1">{attribution.leads_count}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{attribution.open_count} open · {attribution.won_count} won · {attribution.lost_count} lost</p>
+              </div>
+              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                <p className="text-xs text-blue-600 font-semibold uppercase tracking-wider">Open Pipeline</p>
+                <p className="text-xl font-bold text-blue-700 mt-1">₹{attribution.pipeline_value.toLocaleString('en-IN')}</p>
+              </div>
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                <p className="text-xs text-emerald-600 font-semibold uppercase tracking-wider">Won Value</p>
+                <p className="text-xl font-bold text-emerald-700 mt-1">₹{attribution.won_value.toLocaleString('en-IN')}</p>
+              </div>
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                <p className="text-xs text-amber-600 font-semibold uppercase tracking-wider">Return vs Spend</p>
+                <p className="text-xl font-bold text-amber-700 mt-1">
+                  {(totalSpent || event.total_spent || 0) > 0
+                    ? `${(attribution.won_value / (totalSpent || event.total_spent || 1)).toFixed(1)}x`
+                    : '—'}
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-hidden border border-slate-200 rounded-xl mt-3">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50">
+                    <th className="text-left px-4 py-2 font-semibold text-slate-600">Lead</th>
+                    <th className="text-left px-4 py-2 font-semibold text-slate-600">Status</th>
+                    <th className="text-right px-4 py-2 font-semibold text-slate-600">Potential</th>
+                    <th className="text-right px-4 py-2 font-semibold text-slate-600">Won</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {attribution.leads.map((l) => (
+                    <tr key={l.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/leads/${l.id}/edit`)}>
+                      <td className="px-4 py-2 text-slate-700">
+                        {l.contact_name || l.company_name || `Lead #${l.id}`}
+                        {l.series && <span className="text-xs text-slate-400 ml-1">{l.series}</span>}
+                      </td>
+                      <td className="px-4 py-2">
+                        {l.is_won ? <Badge variant="success" className="text-[10px]">Won</Badge>
+                          : l.is_lost ? <Badge variant="error" className="text-[10px]">Lost</Badge>
+                          : <span className="text-xs text-slate-500">{l.status || 'Open'}</span>}
+                      </td>
+                      <td className="px-4 py-2 text-right text-slate-700">₹{(l.potential_value || 0).toLocaleString('en-IN')}</td>
+                      <td className="px-4 py-2 text-right text-slate-700">{l.closed_value ? `₹${l.closed_value.toLocaleString('en-IN')}` : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </Card>
     </div>
   );

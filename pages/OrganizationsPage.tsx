@@ -15,7 +15,7 @@ import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { marketingAPI, Organization, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
 import { NavLink } from 'react-router-dom';
-import { Users, UserCircle, Search, Plus, Edit, Trash2, Building2 } from 'lucide-react';
+import { Users, UserCircle, Search, Plus, Edit, Trash2, Building2, IdCard } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Tooltip } from '../UI/Tooltip';
 
@@ -122,6 +122,7 @@ export const OrganizationsPage: React.FC = () => {
                 { path: '/database/organizations', label: 'Organizations', icon: Building2, permission: 'marketing.view_organization' },
                 { path: '/database/customers', label: 'Customers', icon: Users, permission: 'marketing.view_customer' },
                 { path: '/database/contacts', label: 'Contacts', icon: UserCircle, permission: 'marketing.view_contact' },
+                { path: '/database/visiting-card-contacts', label: 'Visiting Cards', icon: IdCard, permission: 'marketing.view_visiting_card_contact' },
               ].map((tab) => (
                 <NavLink
                   key={tab.path}

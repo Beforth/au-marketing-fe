@@ -34,6 +34,9 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5, 1.2.10
 - [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6
 - [Design System Documentation](#design-system-documentation) — rev 1.2.6
+- [External Visiting Card Integration](#external-visiting-card-integration) — rev 1.3.0
+- [Events & Exhibitions](#events--exhibitions) — rev 1.3.0
+- [API Reference Documentation](#api-reference-documentation) — rev 1.3.0
 
 ---
 
@@ -181,6 +184,10 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 ---
 
 ## Dashboard, Reports & Performance Leaderboard
+
+### Rev 24 — 2026-08-30 (v1.3.0) — [Issue]
+- **`NameError: name 'logger' is not defined` in the reports router.** `au-marketing-api/app/routers/reports.py` called `logger.warning(...)` in three permission-denied branches (report summary, expected orders, OD plans for another employee) but never imported `logging` or defined `logger` — so instead of logging "access denied" and returning a clean 403, the request crashed with a 500. Pre-existing; only triggered on the denied-access path. Fixed by adding `import logging` + `logger = logging.getLogger(__name__)`, matching every other router.
+- Files: `au-marketing-api/app/routers/reports.py`
 
 ### Rev 23 — 2026-08-15 (v1.2.9) — [Revision]
 - **Won vs Target 6-month trend (per-role, per-month targets)**:
@@ -419,3 +426,63 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - **New sections**: §0 explains that there is no Tailwind build (browser CDN, stock defaults, no config, globals inline in `index.html`); §12 documents the two scrollbar treatments; §15 lists known inconsistencies left in place deliberately.
 - **Flagged, not fixed**: `components/ui/Button.tsx` relies on `ring-ring` / `ring-offset-background`, which are undefined without a Tailwind config — buttons currently render no visible focus ring. Also documented that ~29 `animate-in` / `zoom-in-95` usages are inert because `tailwindcss-animate` isn't installed.
 - Files: `design.md`
+
+---
+
+## External Visiting Card Integration
+
+### Rev 2 — 2026-08-30 (v1.3.0) — [Revision]
+- **Exhibition attribution.** A visiting card can now carry which exhibition/roadshow it was collected at (`exhibition_id` on `visiting_card_contacts`, FK to `events`). The external scanner app already has an exhibition picker (`GET /api/exhibitions/active`) but there was nowhere to send the choice — now `POST /api/visiting-card-contacts` and the PUT accept `exhibition_id`, validated against a real event. Convert-to-Contact copies it onto the new `Contact`. See the matching **Events & Exhibitions** Rev 2 for the Contact→Lead→reporting half.
+- Frontend: `VisitingCardContactsPage` shows an "Exhibition" column and an exhibition `Select` in the manual add/edit modal.
+- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/routers/visiting_card_contacts.py`, `lib/marketing-api.ts`, `pages/VisitingCardContactsPage.tsx`
+
+### Rev 1 — 2026-08-30 (v1.3.0) — [Revision]
+- **New entity: Visiting Card Contact.** A separate external system (business-card capture app, same HRMS login/JWT as this app) pushes raw card data — name, company, designation, multiple phone numbers, multiple emails, website, multiple social links, a single-line address, notes — into a new, deliberately unscoped table (no domain/region, visible to any user with view permission, like a shared inbox). Kept separate from the existing `Contact` entity rather than reused, since `Contact` is single-phone/email and tightly wired into domain/region scoping that this external data has no source for.
+- New model `VisitingCardContact`, schemas, and router at `/api/visiting-card-contacts` (list/get/create/update/delete). New permission codes needed in HRMS: `marketing.view_visiting_card_contact`, `create_`, `edit_`, `delete_` — external system's login needs `create`, marketing staff need `view` (+ others as needed). **Not yet granted in HRMS** — every call 403s until that's done there.
+- **Convert-to-Contact**: `POST /api/visiting-card-contacts/{id}/convert-to-contact` promotes a card into a real, scoped `Contact` (mirrors the existing Contact→Customer conversion pattern). Frontend redirects straight into the existing `ContactFormPage` afterward so the user assigns domain/region/organization there, instead of rebuilding that whole cascading picker in a new modal.
+- Frontend: new `VisitingCardContactsPage.tsx`, added as a 4th tab ("Visiting Cards") next to Organizations/Customers/Contacts in the Database section; table view, search, manual add/edit modal (multi-value fields as simple add/remove row lists), Convert and Delete actions.
+- **New lightweight exhibitions endpoint**: `GET /api/exhibitions/active` returns only `id, name, location, start_date, end_date, domain_id` for currently-active exhibitions (`type=exhibition`, `status=active`), across all domains, unscoped. Added specifically so the external system can offer an exhibition picker **without** exposing the full `Events` API's budget/vendor/payment internals. Gated by the existing `marketing.view_events` permission (same data, smaller shape) — no new permission needed.
+- **Employee domain/region for the external system**: no new endpoint needed — the existing `GET /api/auth/scope` (`au-marketing-api/app/routers/auth.py`) already returns the caller's `domain_id`/`region_id` and needs only a valid token, no extra permission.
+- **Still outstanding**: DB migration for the new table (`alembic revision --autogenerate` + `alembic upgrade head`, not run — no reachable local DB in this environment); the 4 new HRMS permission codes need to be created and granted. `CHANGELOG.md` (both copies) updated — merged into the same `v1.3.0` entry as the same-day Events & Exhibitions travel-cost change below, rather than forking a separate patch version.
+- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/routers/visiting_card_contacts.py`, `au-marketing-api/app/routers/exhibitions.py`, `au-marketing-api/app/main.py`, `lib/marketing-api.ts`, `pages/VisitingCardContactsPage.tsx`, `pages/ContactsPage.tsx`, `pages/OrganizationsPage.tsx`, `pages/CustomersPage.tsx`, `components/layout/DatabaseLayout.tsx`, `App.tsx`
+
+---
+
+## Events & Exhibitions
+
+### Rev 3 — 2026-08-30 (v1.3.0) — [Issue]
+- **Events were never role-scoped.** `ROLE_SCOPING_RULES.md` §4 has always said exhibitions/roadshows are domain-scoped (domain head → their domain, employee → only events they're on, etc.), but `GET /api/events/` had **no scope filter at all** — every user with `marketing.view_events` saw every event in every domain, and could open any of them by ID. Now enforced.
+- New `apply_event_scope()` / `can_access_event()` in `au-marketing-api/app/scope.py` (events have `domain_id` but no `region_id`, so they need their own helper): super = all; domain head/coordinator = their domain(s); region head/supervisor/coordinator = the domain(s) their region(s) belong to; plain employee = only events where their id is in `selected_employee_ids` / `travel_employee_ids` / `hotel_employee_ids`, or that they created.
+- Applied to `GET /api/events/`, `GET /api/events/{id}` (out-of-scope → 404, so IDs can't be probed), `GET /api/events/{id}/lead-attribution`, and the event file-download endpoint.
+- `GET /api/exhibitions/active` (the picker endpoint for the in-app card modal **and** the external scanner app) is now scoped too, but at **domain level for every role including employees** (`strict_employee=False`) — so a booth worker who isn't formally on the event still sees their domain's live exhibitions in the picker.
+- **Create is intentionally NOT domain-restricted**: `marketing.create_events` alone lets you create an event in any domain (per the decision to keep creation open for that permission). Edit/delete keep their existing permission gates; a non-super user can only reach an event they can already see.
+- Frontend: the Events list and detail page inherit scoping automatically (they render whatever the API returns; an out-of-scope id already redirects to the list with a toast). The **Visiting Cards** modal's exhibition picker was switched from `getEvents()` (now employee-strict) to a new `getActiveExhibitions()` → `GET /api/exhibitions/active` (domain-level), so it stays populated for employee-role staff. New `getActiveExhibitions()` method + `ExhibitionLite` type in `lib/marketing-api.ts`.
+- No migration.
+- Files: `au-marketing-api/app/scope.py`, `au-marketing-api/app/routers/events.py`, `au-marketing-api/app/routers/exhibitions.py`, `lib/marketing-api.ts`, `pages/VisitingCardContactsPage.tsx`, `ROLE_SCOPING_RULES.md`
+
+### Rev 2 — 2026-08-30 (v1.3.0) — [Revision]
+- **Per-exhibition lead attribution & ROI.** You can now see how many leads (and how much value) came from a given exhibition. Chain: `exhibition_id` was added to `contacts` and `leads` (both nullable FKs to `events`). When a visiting card is converted to a Contact, its exhibition carries over. When a Lead is created for a contact that has an exhibition, the Lead inherits it (unless the caller sets one explicitly). `LeadCreate`/`LeadUpdate`/`ContactCreate`/`ContactUpdate` all accept `exhibition_id`; responses include `exhibition_name`.
+- **New endpoint** `GET /api/events/{id}/lead-attribution` — returns the attributed leads plus roll-ups: total/open/won/lost counts, open-pipeline value (Σ potential_value of open leads), won value (Σ closed_value of won leads), and total potential. Gated by `marketing.view_events`, not role-scoped (matches the rest of the event detail view).
+- Frontend: the event **Analysis tab** gets a "Leads from this Exhibition" section — 4 stat tiles (leads, open pipeline, won value, return-vs-spend multiple) and a table of the leads, each row linking to the lead.
+- **Not wired yet:** there is no exhibition picker on the Lead form or Contact form in this rev — attribution flows automatically via the card→contact→lead chain, or can be set through the API. Manual pickers on those two forms are a follow-up.
+- **Migration:** three new nullable columns — `visiting_card_contacts.exhibition_id`, `contacts.exhibition_id`, `leads.exhibition_id` — all picked up by a plain `alembic revision --autogenerate` + `alembic upgrade head`.
+- **Perf note:** `exhibition_name` on the Lead/Contact responses is a model `@property` that lazy-loads the event; it only fires for rows that actually have an `exhibition_id`, but a `joinedload` on the leads/contacts list endpoints is a sensible follow-up if exhibition tagging becomes common.
+- **Import placement:** `ExhibitionEvent` is imported at the **top** of `leads.py` (not inside `create_lead`/`update_lead`). A function-local `from app.models import …` makes *every* name it lists function-local for the whole function, which had already bitten this file's sibling name `EmployeeRegionAssignment` on the server (an `UnboundLocalError` in `create_lead` — see ISSUES.md).
+- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/routers/events.py`, `au-marketing-api/app/routers/contacts.py`, `au-marketing-api/app/routers/leads.py`, `au-marketing-api/app/routers/visiting_card_contacts.py`, `lib/marketing-api.ts`, `pages/EventDetailPage.tsx`, `pages/VisitingCardContactsPage.tsx`
+
+### Rev 1 — 2026-08-30 (v1.3.0) — [Issue] + [Revision]
+- **[Issue] Travel spend was always ₹0.** The event Travel tab only let you upload plane/train tickets as files — there was no field for what the travel actually cost. So the Analysis tab's "Travel" expense row was hard-coded to ₹0 and the backend's `total_spent` formula skipped travel entirely, understating every event's real spend. Added a single **Travel Cost (₹) — flights / tickets** amount on the Travel tab (mirrors how Hotel Cost already works), saved with the existing "Save Travel" button, fed into the Analysis breakdown and into the backend `total_spent` recalculation. Already-saved events show ₹0 for travel until someone opens the tab and enters the figure — no backfill possible since the number was never captured.
+- **[Revision] Show uploaded file names.** On the Travel tab each assigned employee now shows the actual name of their uploaded ticket file (with preview + download inline) instead of just a green "Ticket Uploaded" badge; the separate bottom "Uploaded Tickets" list is removed as redundant. Every file-upload control on the page (stall design, banner design, travel tickets, local travel proofs) now shows "Uploading <filename>… NN%" while the upload is in flight instead of a bare progress bar.
+- **Migration:** new `events.travel_cost` column — picked up by a plain `alembic revision --autogenerate` + `alembic upgrade head` on production, no hand-written migration.
+- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/routers/events.py`, `lib/marketing-api.ts`, `pages/EventDetailPage.tsx`
+
+---
+
+## API Reference Documentation
+
+### Rev 1 — 2026-08-30 (v1.3.0) — [Revision]
+- **New `docs/api/` folder — a full HTTP reference for every Marketing API endpoint**, written so a person or an AI assistant can look up an endpoint and see its required permission, path/query params, and example request + response bodies without reading router source. One Markdown file per resource group (Leads, Orders, Events, …) plus an index `README.md` listing all 206 endpoints across 29 groups.
+- Generated by `docs/api/generate_api_docs.py` from two sources: a snapshot of the live API's OpenAPI schema (`docs/api/openapi.json`, refreshed via `curl http://localhost:8003/openapi.json`) for paths/params/schemas, and a parse of `au-marketing-api/app/routers/*.py` to recover each route's `require_permission(...)` code (FastAPI doesn't put that in the schema). Response examples are synthetic (generated from schema types, nesting capped at 4 levels) and deduped into a per-file "Models" section. Everything except the script and the snapshot is generated — regenerate, don't hand-edit.
+- Snapshot is API v1.2.10, so anything shipped after that deploy (the `events.travel_cost` field, the `exhibition_id` fields, the `GET /api/events/{id}/lead-attribution` endpoint) shows up only after the deploy + a re-run of the generator.
+- Linked from `docs/README.md`.
+- Files: `docs/api/generate_api_docs.py`, `docs/api/openapi.json`, `docs/api/*.md` (generated), `docs/README.md`

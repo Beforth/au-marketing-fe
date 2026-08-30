@@ -13,6 +13,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RoleDashboardRouter } from './pages/dashboards/RoleDashboardRouter';
 import { LeadsPage } from './pages/LeadsPage';
 import { ContactsPage } from './pages/ContactsPage';
+import { VisitingCardContactsPage } from './pages/VisitingCardContactsPage';
 import { DomainsPage } from './pages/DomainsPage';
 import { DomainFormPage } from './pages/DomainFormPage';
 import { RegionFormPage } from './pages/RegionFormPage';
@@ -256,6 +257,7 @@ const AppMain: React.FC = () => {
                 <Route path="organizations" element={<OrganizationsPage />} />
                 <Route path="customers" element={<CustomersPage />} />
                 <Route path="contacts" element={<ContactsPage />} />
+                <Route path="visiting-card-contacts" element={<VisitingCardContactsPage />} />
               </Route>
               <Route path="domains" element={<DomainsPage />} />
               <Route path="domains/new" element={<DomainFormPage />} />

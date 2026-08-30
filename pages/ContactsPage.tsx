@@ -12,7 +12,7 @@ import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
 import { NavLink } from 'react-router-dom';
-import { Users, UserCircle, UserPlus, Edit, Trash2, Building2, Mail } from 'lucide-react';
+import { Users, UserCircle, UserPlus, Edit, Trash2, Building2, Mail, IdCard } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Tooltip } from '../UI/Tooltip';
 import { DataTable } from '../components/ui/DataTable';
@@ -151,6 +151,7 @@ export const ContactsPage: React.FC = () => {
                 { path: '/database/organizations', label: 'Organizations', icon: Building2, permission: 'marketing.view_organization' },
                 { path: '/database/customers', label: 'Customers', icon: Users, permission: 'marketing.view_customer' },
                 { path: '/database/contacts', label: 'Contacts', icon: UserCircle, permission: 'marketing.view_contact' },
+                { path: '/database/visiting-card-contacts', label: 'Visiting Cards', icon: IdCard, permission: 'marketing.view_visiting_card_contact' },
               ].map((tab) => (
                 <NavLink
                   key={tab.path}

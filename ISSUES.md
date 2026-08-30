@@ -21,6 +21,75 @@
 ## Feature index
 
 - [Quote Numbers / Enquiry Log](#quote-numbers--enquiry-log)
+- [Events & Exhibitions](#events--exhibitions)
+- [Leads](#leads)
+- [Reports](#reports)
+
+---
+
+## Leads
+
+### 2026-08-30 — `POST /api/leads/` fails with "cannot access local variable 'EmployeeRegionAssignment'"
+
+**What was reported:** Creating a lead on the live API (`http://api-marketing.encryptedbar.com/api/leads/`) returned `cannot access local variable 'EmployeeRegionAssignment' where it is not associated with a value` (a Python `UnboundLocalError`).
+
+**Root cause:** `EmployeeRegionAssignment` is imported once at the top of `au-marketing-api/app/routers/leads.py` and used inside `create_lead` (the "add lead on behalf of another employee" coordinator check, ~line 1447). Python's rule: if a name is *assigned or imported anywhere in a function*, it is treated as **local for the entire function** — so a `from app.models import …, EmployeeRegionAssignment` placed *inside* `create_lead` (below that check) makes the earlier use at line 1447 read an unassigned local and crash. The committed repo code does **not** have such a local import — the version running on the server does (an edit made directly on the host, not committed; the deployment bakes in whatever `.py` files physically sit in the directory regardless of git — see CLAUDE.md "Database migrations" note about the same drift with migration files).
+
+**Fix:**
+- On the server: open `app/routers/leads.py`, find the `from app.models import …` line **inside** `create_lead()`, and delete it (everything it imports is already imported at the top of the file) — or at minimum remove `EmployeeRegionAssignment` from it. Then rebuild/restart.
+- In the repo (hardening so a redeploy can't reintroduce it): `ExhibitionEvent` — added this session for exhibition attribution — was moved from two function-local `from app.models import ExhibitionEvent` statements up into the module-level import block, so no name in `create_lead`/`update_lead` is function-local by accident.
+- `au-marketing-api/app/routers/leads.py`
+
+**Status:** Repo hardened, not yet committed. The actual crash is in the server's own uncommitted copy of `leads.py` and must be fixed there (or replaced by deploying the repo version).
+
+---
+
+## Reports
+
+### 2026-08-30 — Reports crash with 500 instead of "access denied"
+
+**What was reported:** `name 'logger' is not defined` error hit while using a reports endpoint.
+
+**Root cause:** `au-marketing-api/app/routers/reports.py` used `logger.warning(...)` in three spots — the permission checks for viewing another employee's *report summary* (`reports.py:502`), *expected orders* (`reports.py:732`), and *OD plans* (`reports.py:829`) — but the file never ran `import logging` or created a `logger`. Every other router does. So on the exact path where a user asked for a report they weren't allowed to see, the code tried to log the denial, hit the undefined name, and returned a generic HTTP 500 instead of a clean 403. Pre-existing bug (not introduced by recent work); only reachable on the denied-access branch, which is why it went unnoticed.
+
+**Fix:** added `import logging` and `logger = logging.getLogger(__name__)` at the top of `reports.py`, matching the pattern in every other router. No behaviour change beyond denials now logging and returning 403 as intended.
+- `au-marketing-api/app/routers/reports.py`
+
+**Status:** Fixed, not yet committed.
+
+---
+
+## Events & Exhibitions
+
+### 2026-08-30 — Exhibitions were visible to every user regardless of domain
+
+**What was reported:** An employee who isn't in a given domain could still see that domain's exhibitions (in the Events list and in the new exhibition picker) — "that isn't good".
+
+**Root cause:** `ROLE_SCOPING_RULES.md` §4 documents that exhibition/roadshow events are domain-scoped, but `get_events` in `au-marketing-api/app/routers/events.py` never implemented it — the query was a plain `db.query(ExhibitionEvent)` with only type/status/search filters, no `get_user_scope` call. `GET /api/events/{id}` was likewise open, so any event could be opened by ID. The generic `apply_scope_to_query` helper couldn't be reused because it keys off `model.region_id`, which `ExhibitionEvent` doesn't have (events carry only `domain_id`).
+
+**Fix:** new `apply_event_scope()` and `can_access_event()` in `app/scope.py` implementing §4 (super = all; domain/region roles = domain-level; plain employee = only events they're listed on or created). Wired into `GET /api/events/`, `GET /api/events/{id}`, `GET /api/events/{id}/lead-attribution`, and the file-download endpoint (out-of-scope → 404). `GET /api/exhibitions/active` is scoped at domain level for all roles so the card-capture picker stays usable. Event **creation** deliberately left unrestricted by domain (permission-only), per product decision.
+- `au-marketing-api/app/scope.py`, `au-marketing-api/app/routers/events.py`, `au-marketing-api/app/routers/exhibitions.py`
+
+**Status:** Fixed, not yet committed. No data migration. Needs a backend restart; verify with a domain-head and an employee account after deploy.
+
+---
+
+### 2026-08-30 — Travel expense for exhibitions was never counted
+
+**What was reported:** In an exhibition's Travel section you can only upload tickets (plane/train), there's nowhere to record what the travel cost — so travel spend never shows up anywhere. It should be a proper expense, sitting before Local Travel like it does now.
+
+**Root cause:** The Travel tab (`pages/EventDetailPage.tsx`) was built to capture only two things — how many days before the event the production team travels, and per-employee ticket file uploads. There was never an amount field. As a result:
+- The Analysis tab listed a "Travel" row but its amount was the literal `0` (`pages/EventDetailPage.tsx`, `expenseCategories` array).
+- The backend's `total_spent` recalculation (`au-marketing-api/app/routers/events.py`, in `update_event`) summed space booking + table booking + hotel + local travel + gifting, with no travel term at all.
+
+So every exhibition's reported total spend was understated by the entire cost of flights/tickets.
+
+**Fix:**
+- New `travel_cost` column on the events table (`au-marketing-api/app/models.py`, `ExhibitionEvent`), exposed through `EventUpdate` / `EventResponse` (`au-marketing-api/app/schemas.py`) and returned + included in the `total_spent` sum in `au-marketing-api/app/routers/events.py`.
+- Frontend: `travel_cost` added to `ExhibitionEvent` / `EventUpdateInput` (`lib/marketing-api.ts`); a "Travel Cost (₹) — flights / tickets" `CurrencyInput` on the Travel tab, saved by the existing "Save Travel" button; Analysis tab "Travel" row now reads `event.travel_cost`.
+- Tab order unchanged — Travel already sits before Local Travel.
+
+**Status:** Fixed, not yet committed. Needs the `events.travel_cost` migration run on production (`alembic revision --autogenerate` + `alembic upgrade head`). Existing events show ₹0 travel until someone opens the Travel tab and enters the amount — the figure was never captured before, so there is nothing to backfill from.
 
 ---
 

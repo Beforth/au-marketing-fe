@@ -157,8 +157,8 @@ export const Navbar: React.FC = () => {
 
   return (
     <>
-      <header className="h-16 sticky top-0 bg-white/5 backdrop-blur-md z-40 ml-60 px-16 flex items-center justify-between relative transition-all duration-300">
-      <div className="absolute bottom-0 left-16 right-16 h-px bg-slate-200/50" />
+      <header className="h-16 sticky top-0 bg-white/5 backdrop-blur-md z-40 ml-60 px-[var(--ui-padding)] flex items-center justify-between relative transition-all duration-300">
+      <div className="absolute bottom-0 left-[var(--ui-padding)] right-[var(--ui-padding)] h-px bg-slate-200/50" />
       <div className="flex-1 max-w-lg relative">
         <SearchInput
           ref={searchInputRef}

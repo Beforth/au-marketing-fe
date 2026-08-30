@@ -118,6 +118,8 @@ export interface Contact {
   series?: string;  // Generated number from numbering series (e.g. CONT-0001)
   notes?: string;
   source?: string;
+  exhibition_id?: number | null;  // Exhibition/roadshow (Event) this contact was met at
+  exhibition_name?: string | null;  // Populated by API for display
   created_by_employee_id: number;
   created_by_username?: string;
   assigned_to_employee_id?: number;
@@ -128,6 +130,30 @@ export interface Contact {
   region?: Region;
   organization?: Organization | null;  // Populated when API includes it
   plant?: Plant | null;  // Organization plant with address
+}
+
+// Visiting Card Contact Types — raw data pushed in from the external business-card system.
+// Unscoped (no domain/region): anyone with view permission sees all records, like a shared inbox.
+export interface VisitingCardContact {
+  id: number;
+  name?: string;
+  company_name?: string;
+  designation?: string;
+  phone_numbers: string[];
+  emails: string[];
+  website?: string;
+  social_media: string[];  // list of URLs
+  address?: string;  // single free-text line
+  notes?: string;
+  source?: string;
+  exhibition_id?: number | null;  // Exhibition/roadshow (Event id) the card was scanned at
+  exhibition_name?: string | null;  // Populated by API for display
+  is_converted: boolean;
+  converted_to_contact_id?: number;
+  created_by_employee_id?: number;
+  created_by_username?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // Customer Types (primary contact via primary_contact_contact_id / primary_contact_contact)
@@ -281,6 +307,8 @@ export interface Lead {
   quote_value?: number | null;
   quotation_count?: number;
   notes?: string;
+  exhibition_id?: number | null;  // Exhibition/roadshow this lead is attributed to (defaults from the linked contact)
+  exhibition_name?: string | null;  // Populated by API for display
   closed_value?: number | null;
   closed_at?: string | null;
   series_code?: string;
@@ -386,6 +414,7 @@ export interface CreateLeadRequest {
   referred_by_customer_id?: number | null;  // Person who referred: customer
   potential_value?: number;
   notes?: string;
+  exhibition_id?: number | null;  // Exhibition/roadshow to attribute this lead to; defaults from the linked contact
   series_code?: string;
   quote_series_code?: string;
   quote_number?: string;
@@ -1270,6 +1299,47 @@ class MarketingAPIService {
     return apiClient.post<{ success: boolean; customer_id: number; contact_id: number }>(`/api/contacts/${contactId}/convert-to-customer`);
   }
 
+  // Visiting Card Contacts
+  async getVisitingCardContacts(params?: {
+    page?: number;
+    page_size?: number;
+    is_converted?: boolean;
+    search?: string;
+  }): Promise<PaginatedResponse<VisitingCardContact>> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', String(params?.page ?? 1));
+    queryParams.append('page_size', String(params?.page_size ?? DEFAULT_PAGE_SIZE));
+    if (params?.is_converted !== undefined) queryParams.append('is_converted', params.is_converted.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    return apiClient.get<PaginatedResponse<VisitingCardContact>>(`/api/visiting-card-contacts/?${queryParams.toString()}`);
+  }
+
+  async getVisitingCardContact(id: number): Promise<VisitingCardContact> {
+    return apiClient.get<VisitingCardContact>(`/api/visiting-card-contacts/${id}`);
+  }
+
+  async createVisitingCardContact(data: Partial<VisitingCardContact>): Promise<VisitingCardContact> {
+    return apiClient.post<VisitingCardContact>('/api/visiting-card-contacts/', data);
+  }
+
+  async updateVisitingCardContact(id: number, data: Partial<VisitingCardContact>): Promise<VisitingCardContact> {
+    return apiClient.put<VisitingCardContact>(`/api/visiting-card-contacts/${id}`, data);
+  }
+
+  async deleteVisitingCardContact(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/visiting-card-contacts/${id}`);
+  }
+
+  async convertVisitingCardContactToContact(
+    id: number,
+    data?: { domain_id?: number; region_id?: number; organization_id?: number; plant_id?: number }
+  ): Promise<{ success: boolean; contact_id: number; visiting_card_contact_id: number }> {
+    return apiClient.post<{ success: boolean; contact_id: number; visiting_card_contact_id: number }>(
+      `/api/visiting-card-contacts/${id}/convert-to-contact`,
+      data ?? {}
+    );
+  }
+
   // Customers
   async getCustomers(params?: {
     page?: number;
@@ -1954,6 +2024,16 @@ class MarketingAPIService {
 
   async getEvent(id: number): Promise<ExhibitionEvent> {
     return apiClient.get<ExhibitionEvent>(`/api/events/${id}`);
+  }
+
+  /** Currently-active exhibitions, trimmed shape, scoped to the caller's domain(s). For pickers. */
+  async getActiveExhibitions(): Promise<ExhibitionLite[]> {
+    return apiClient.get<ExhibitionLite[]>('/api/exhibitions/active');
+  }
+
+  /** Leads attributed to this exhibition/roadshow (Lead.exhibition_id === id), with value roll-ups for the ROI view. */
+  async getEventLeadAttribution(id: number): Promise<EventLeadAttribution> {
+    return apiClient.get<EventLeadAttribution>(`/api/events/${id}/lead-attribution`);
   }
 
   async createEvent(data: EventCreateInput): Promise<ExhibitionEvent> {
@@ -2703,6 +2783,7 @@ export interface ExhibitionEvent {
   // Travel
   travel_days_before: number;
   travel_employee_ids: number[];
+  travel_cost: number;
   travel_tickets: TravelTicket[];
   // Hotel
   hotel_name: string;
@@ -2713,6 +2794,42 @@ export interface ExhibitionEvent {
   local_travel_proofs: UploadedFileResponse[];
   // Gifting
   gifting_entries: GiftingEntry[];
+}
+
+/** One lead attributed to an exhibition (from GET /api/events/:id/lead-attribution). */
+export interface AttributedLead {
+  id: number;
+  series?: string | null;
+  contact_name?: string | null;
+  company_name?: string | null;
+  status?: string | null;
+  is_won: boolean;
+  is_lost: boolean;
+  potential_value: number;
+  closed_value: number;
+}
+
+/** Lead attribution + value roll-ups for an exhibition's ROI view. */
+export interface EventLeadAttribution {
+  event_id: number;
+  leads_count: number;
+  won_count: number;
+  lost_count: number;
+  open_count: number;
+  pipeline_value: number;        // sum of potential_value for still-open leads
+  won_value: number;             // sum of closed_value for won leads
+  total_potential_value: number; // sum of potential_value across every attributed lead
+  leads: AttributedLead[];
+}
+
+/** Trimmed exhibition shape from GET /api/exhibitions/active (domain-scoped picker list). */
+export interface ExhibitionLite {
+  id: number;
+  name: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  domain_id: number;
 }
 
 export interface EventCreateInput {
@@ -2750,6 +2867,7 @@ export interface EventUpdateInput {
   table_booking_cost_per_table?: number;
   travel_days_before?: number;
   travel_employee_ids?: number[];
+  travel_cost?: number;
   hotel_name?: string;
   hotel_employee_ids?: number[];
   hotel_cost?: number;

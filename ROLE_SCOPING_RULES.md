@@ -192,10 +192,18 @@ Scoping rules applied in [contacts.py](file:///Users/ady/Documents/au-marketing-
 Rules governing who can see and modify Exhibition/Roadshow events and visitors:
 
 ### 📅 Events Access boundaries:
-* **Super Admin**: Full access to view, create, edit, and delete all events.
-* **Domain Head / Domain Coordinator**: Full access to events scoped to their assigned domain(s).
-* **Region Head / Region Coordinator**: Full access to events scoped to regions under their domain(s) or assigned region scope.
-* **Employee**: Can view events they are explicitly selected for (i.e. listed in `selected_employee_ids`, `travel_employee_ids`, or `hotel_employee_ids`).
+
+**View** (enforced server-side since 2026-08-30 in `apply_event_scope` / `can_access_event` in `app/scope.py`; events carry `domain_id` but no `region_id`):
+* **Super Admin**: sees all events.
+* **Domain Head / Domain Coordinator**: events whose `domain_id` is in their domain(s).
+* **Region Head / Supervisor / Region Coordinator**: events in the domain(s) their assigned region(s) belong to (a region's domain).
+* **Employee**: only events they are explicitly on — their id in `selected_employee_ids`, `travel_employee_ids`, or `hotel_employee_ids`, or events they created.
+
+Applied to `GET /api/events/`, `GET /api/events/{id}`, `GET /api/events/{id}/lead-attribution`, and the event file-download endpoint (out-of-scope → 404).
+
+**Exhibition picker** (`GET /api/exhibitions/active`, used by the in-app card-capture modal and the external scanner app): scoped to the caller's **domain(s)** for *every* role including plain employees (not the strict "must be on the event" rule) — so the picker stays usable for staff working a booth who aren't formally added to the event record.
+
+**Create**: `marketing.create_events` permission alone — a holder can create an event in **any** domain (deliberate; event creation is not domain-restricted). Edit/delete still require `marketing.edit_events` / `marketing.delete_events`; in practice a non-super user can only reach an event they can already see (the detail fetch is scoped).
 
 ### 👥 Visitor Allocation & Sharing Rules:
 * **Unique Links**: When linking a visitor to an existing contact, the contact's pre-existing assignment is preserved and displayed in the UI (*"Allocated to: [Employee Name]"*).

@@ -5,6 +5,46 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-08-30] — Visiting Cards, Exhibition Attribution & Access Control (v1.3.0)
+
+### 🖥️ Frontend
+
+#### Visiting Card Contacts
+- New **"Visiting Cards"** tab in the Database section, alongside Organizations, Customers, and Contacts.
+- Shows business-card contacts — name, company, designation, phone numbers, emails, website, social links, address, notes — either pushed in automatically from the external card-capture app or added by hand here.
+- Search, add, and edit visiting cards directly from this tab.
+- **Convert to Contact**: turn a visiting card into a full Contact with one click, then finish assigning it a company, domain, and region on the familiar Contact form.
+
+#### Exhibition Attribution
+- A visiting card can now record **which exhibition it was collected at**. That choice carries over automatically when the card becomes a Contact, and again to any Lead created for that contact.
+- Each exhibition's **Analysis tab** has a new **"Leads from this Exhibition"** section: number of leads generated, open pipeline value, won value, and a return-vs-spend figure, plus the list of those leads.
+- The exhibition dropdown on the Visiting Cards form lists only exhibitions in your own domain.
+
+#### Exhibition Travel Cost
+- The Travel section of an exhibition or roadshow now has a **Travel Cost (₹)** field for flight and train ticket spend. Until now you could only attach ticket files with no way to record what they cost, so travel spend never appeared anywhere.
+- The Analysis tab and the event's total spend now include travel cost alongside space booking, hotel, local travel, and gifting.
+- Existing events show ₹0 for travel until someone opens the Travel tab and enters the amount — the figure was never captured before.
+
+#### Uploaded File Names
+- Each assigned person's uploaded travel ticket now shows its file name, with preview and download, instead of just a "Ticket Uploaded" tag.
+- While a file is uploading anywhere on an event (stall design, banner design, travel tickets, local travel proofs), the file name and progress percentage are now shown instead of a bare progress bar.
+
+### ⚙️ Backend
+- New API for the external card-capture system to push captured business cards in and for staff to manage them.
+- New lightweight "active exhibitions" endpoint so the external card-capture app can offer an exhibition picker without exposing internal budget or vendor details.
+- Visiting cards, contacts, and leads can now carry an exhibition reference; a lead inherits it from its linked contact automatically. New per-exhibition lead and value report.
+- Event records now store a travel cost value, included in the automatic total-spend calculation.
+
+#### Exhibition Access Control
+- Exhibitions and roadshows are now restricted by domain — previously every user could see every event across all domains.
+  - Domain heads and coordinators see events in their domain(s); region heads, supervisors and region coordinators see events in their region's domain; other staff see only the events they are assigned to or created.
+  - Creating an event stays open to anyone with the create-event permission, in any domain.
+- The exhibition picker (in the app and for the external card-capture app) now only lists exhibitions in the user's own domain.
+
+#### Fixes
+- Fixed a server error when opening a report for a team member you don't have access to — it now returns a clear "access denied" instead of failing.
+- Fixed a crash that could occur when creating a lead.
+
 ## [2026-08-20] — Leads Toolbar Cleanup & UI Color Tints (v1.2.10)
 
 ### 🖥️ Frontend

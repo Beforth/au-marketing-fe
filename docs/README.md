@@ -4,6 +4,7 @@ This document is the entry point into `/docs`. See also:
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — diagram-first map of what connects to what: system landscape, integrations, auth flow, data layer, deployment
 - [`USER_GUIDE.md`](./USER_GUIDE.md) — for end users (salespeople, sales managers, admins)
 - [`DEVELOPER_GUIDE.md`](./DEVELOPER_GUIDE.md) — for engineers working on the codebase
+- [`api/`](./api/README.md) — full HTTP API reference: every Marketing API endpoint with permission, parameters, and request/response examples (auto-generated from the live OpenAPI schema; regenerate with `python3 docs/api/generate_api_docs.py`)
 - [`CHANGELOG_TEMPLATE.md`](./CHANGELOG_TEMPLATE.md) — blank Keep a Changelog template for future releases
 
 > **Note:** Both repos already had substantial docs before this `/docs` folder was written — root `README.md`, `CLAUDE.md`, `design.md`, `UI_COMPONENTS_LIBRARY.md`, `HRMS_RBAC_AND_PERMISSIONS.md` (frontend) and `README.md`, `QUICK_START.md`, `REQUIRED_PERMISSIONS.md` (backend, in `au-marketing-api/`). This `/docs` folder doesn't replace them — it's a single, consolidated pass covering both repos together, split for a technical vs. non-technical audience, and correcting a couple of inaccuracies found in the existing diagrams (see Known Limitations in the Developer Guide).

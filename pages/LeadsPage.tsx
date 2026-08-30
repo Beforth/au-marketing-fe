@@ -1559,7 +1559,7 @@ export const LeadsPage: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="flex flex-row gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-220px)] -mx-16 px-4" onDragOver={handleBoardDragOver}>
+              <div className="flex flex-row gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-220px)] -mx-[var(--ui-padding)] px-4" onDragOver={handleBoardDragOver}>
                 {statusGroupsForBoard.map(({ groupId, groupLabel, statuses }) => {
                   const visibleStatuses = hideEmptyColumns
                     ? statuses.filter((s) => (leadsByStatus[s.code]?.length ?? 0) > 0)

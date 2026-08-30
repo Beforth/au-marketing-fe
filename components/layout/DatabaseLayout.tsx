@@ -20,6 +20,7 @@ export const DatabaseLayout: React.FC = () => {
   const hasViewOrganization = useAppSelector(selectHasPermission('marketing.view_organization'));
   const hasViewCustomer = useAppSelector(selectHasPermission('marketing.view_customer'));
   const hasViewContact = useAppSelector(selectHasPermission('marketing.view_contact'));
+  const hasViewVisitingCardContact = useAppSelector(selectHasPermission('marketing.view_visiting_card_contact'));
 
   // If path is exactly /database or /database/
   if (location.pathname.replace(/\/$/, '') === '/database') {
@@ -31,6 +32,9 @@ export const DatabaseLayout: React.FC = () => {
     }
     if (hasViewContact) {
       return <Navigate to="contacts" replace />;
+    }
+    if (hasViewVisitingCardContact) {
+      return <Navigate to="visiting-card-contacts" replace />;
     }
     return <Navigate to="/" replace />;
   }
