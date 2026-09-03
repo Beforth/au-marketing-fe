@@ -37,6 +37,7 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [External Visiting Card Integration](#external-visiting-card-integration) — rev 1.3.0
 - [Events & Exhibitions](#events--exhibitions) — rev 1.3.0
 - [API Reference Documentation](#api-reference-documentation) — rev 1.3.0
+- [Intranet SSO](#intranet-sso) — rev 1.3.1
 
 ---
 
@@ -486,3 +487,18 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - Snapshot is API v1.2.10, so anything shipped after that deploy (the `events.travel_cost` field, the `exhibition_id` fields, the `GET /api/events/{id}/lead-attribution` endpoint) shows up only after the deploy + a re-run of the generator.
 - Linked from `docs/README.md`.
 - Files: `docs/api/generate_api_docs.py`, `docs/api/openapi.json`, `docs/api/*.md` (generated), `docs/README.md`
+
+---
+
+## Intranet SSO
+
+### Rev 1 — 2026-09-02 (v1.3.1) — [Revision]
+- **New `/login-redirect` doorway page — lets the Intranet portal (or another app's app-switcher) drop a user straight into Marketing already signed in, no password.** The portal redirects to `/login-redirect?sso_token=<one-time token>&user_id=<id>`; the page strips those params from the URL immediately, calls `POST /api/rbac/sso/validate/` on HRMS, and on success stores the token + user/permissions/scope exactly the way the normal password login does, then routes to the app. On failure it shows an error with a "Go to sign in" button. Registered as a **public** route (outside `ProtectedRoute`), alongside `/login`.
+- **New sidebar app-switcher — the *outgoing* direction.** The "S&M Hub" name in the sidebar header becomes a dropdown trigger (small chevron; the logo image stays a separate link home). The popover lists the other Intranet apps, **fetched live** from HRMS `GET {HRMS origin}/intranet-app/` (needs `intranet.view`). Picking one calls `POST /api/rbac/sso/generate/` with the token we already hold, then `window.location.href = redirect_url` — Marketing builds nothing itself. The current app is detected by host match and dropped from the list; per-item spinner; inline error for 401/403/404. When there are no other apps (logged out, no `intranet.view`, fetch failed) the name just renders as plain text.
+- New `hrmsRBACClient.validateSSO(ssoToken, userId)` + `SSOValidateResponse` type; new `loginWithSSO` Redux thunk (mirrors the `login` thunk's storage + reducer cases); new `lib/intranet-sso.ts` (`listIntranetApps`, `generateSSOToken`, `isCurrentApp`); new `components/ui/AppSwitcher.tsx`.
+- **HRMS status (verified live 2026-09-03):**
+  - `demo-hrms.encryptedbar.com` — SSO fully working: `sso/validate/` returns `{ valid, token, user, employee, roles, permissions }` (the `RolePermission` crash is fixed and the auth `token` is included), `sso/generate/` returns `{ token, redirect_url }` pointing at `demo-marketing.encryptedbar.com/login-redirect`, `intranet-app/` lists the apps.
+  - `hrms.encryptedbar.com` (prod) — still **500s** on `sso/validate/` with a real token: `NameError: name 'RolePermission' is not defined` (`employees/api_views.py`, `sso_validate_token`). The same fix demo already has must be applied to prod before SSO is used on `marketing.aureolegroup.com`.
+- **Remaining to go live:** deploy this branch to `demo-marketing.encryptedbar.com` (currently on an old build with no `/login-redirect`); its `.env` already points at `demo-hrms`.
+- **Reusable guide:** `docs/INTRANET_SSO_INTEGRATION.md` — a **stack-agnostic** spec for adding the same SSO (both directions) to any other module: endpoint contracts, the known HRMS-side bugs, behaviour requirements (not framework code), a "what to find in your module" adaptation table, and a test checklist. This repo (React + Redux) is listed as one worked example.
+- Files: `pages/SSORedirectPage.tsx`, `App.tsx`, `lib/hrms-rbac.ts`, `store/slices/authSlice.ts`, `lib/intranet-sso.ts`, `components/ui/AppSwitcher.tsx`, `components/ui/Sidebar.tsx`, `docs/INTRANET_SSO_INTEGRATION.md`, `docs/README.md`

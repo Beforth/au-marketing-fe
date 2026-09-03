@@ -10,6 +10,7 @@ import { initWebPushRegistration } from './lib/firebase-push';
 import { requestNotificationPermissionWhenLoggedIn } from './lib/notification-permission';
 import { handleGlobalPaste } from './lib/paste-sanitizer';
 import { LoginPage } from './pages/LoginPage';
+import { SSORedirectPage } from './pages/SSORedirectPage';
 import { RoleDashboardRouter } from './pages/dashboards/RoleDashboardRouter';
 import { LeadsPage } from './pages/LeadsPage';
 import { ContactsPage } from './pages/ContactsPage';
@@ -246,6 +247,7 @@ const AppMain: React.FC = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/login-redirect" element={<SSORedirectPage />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <DashboardLayout />

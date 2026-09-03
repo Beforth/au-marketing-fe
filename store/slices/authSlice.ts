@@ -153,6 +153,56 @@ export const login = createAsyncThunk(
   }
 );
 
+// SSO login: exchange a one-time token from the Intranet portal for a real session.
+// Stores token + user data exactly like the password `login` thunk above.
+export const loginWithSSO = createAsyncThunk(
+  'auth/loginWithSSO',
+  async ({ ssoToken, userId }: { ssoToken: string; userId: number }) => {
+    const response = await hrmsRBACClient.validateSSO(ssoToken, userId);
+
+    if (!response.valid) {
+      throw new Error(response.detail || 'SSO validation failed');
+    }
+    if (!response.token) {
+      // HRMS confirmed the user but did not return an auth token — our app cannot
+      // make a single API call without one. HRMS must add `token` to the
+      // /api/rbac/sso/validate/ response (same as its /login/ endpoint).
+      throw new Error('SSO succeeded but HRMS returned no auth token. Please sign in with your password.');
+    }
+
+    const token = response.token;
+    apiClient.setToken(token);
+
+    // Prefer canonical user/employee/roles from the same endpoint the rest of the
+    // app uses; fall back to the fields the SSO response already carried.
+    let user = response.user ?? null;
+    let employee = response.employee ?? null;
+    let roles: HRMSRole[] = [];
+    try {
+      const userInfo = await hrmsRBACClient.getUserInfo(token);
+      if (userInfo && userInfo.success) {
+        user = userInfo.user ?? user;
+        employee = userInfo.employee ?? employee;
+        roles = userInfo.roles ?? [];
+      }
+    } catch {
+      // keep the SSO-provided values
+    }
+
+    const permList = await hrmsRBACClient.getUserPermissionsList(token);
+    const permissions = permList.success
+      ? permList.permissions
+      : (Array.isArray(response.permissions) ? response.permissions : []);
+
+    localStorage.setItem('auth_token', token);
+    localStorage.setItem('auth_user_data', JSON.stringify({ user, employee, roles, permissions }));
+    localStorage.setItem('auth_login_time', Date.now().toString());
+    await fetchAndStoreMarketingScope();
+
+    return { token, user, employee, roles, permissions };
+  }
+);
+
 // Logout action
 export const logout = createAsyncThunk(
   'auth/logout',
@@ -322,6 +372,33 @@ const authSlice = createSlice({
         state.permissions = [];
         state.isLoading = false;
         state.error = action.error.message || 'Login failed';
+      });
+
+    // SSO login (mirrors the password-login cases)
+    builder
+      .addCase(loginWithSSO.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(loginWithSSO.fulfilled, (state, action) => {
+        state.isAuthenticated = true;
+        state.token = action.payload.token;
+        state.user = action.payload.user;
+        state.employee = action.payload.employee;
+        state.roles = action.payload.roles;
+        state.permissions = action.payload.permissions;
+        state.isLoading = false;
+        state.error = null;
+      })
+      .addCase(loginWithSSO.rejected, (state, action) => {
+        state.isAuthenticated = false;
+        state.token = null;
+        state.user = null;
+        state.employee = null;
+        state.roles = [];
+        state.permissions = [];
+        state.isLoading = false;
+        state.error = action.error.message || 'SSO login failed';
       });
 
     // Logout

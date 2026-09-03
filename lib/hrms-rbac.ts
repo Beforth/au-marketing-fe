@@ -83,6 +83,28 @@ export interface LoginResponse {
   error?: string;
 }
 
+/**
+ * Response from POST /api/rbac/sso/validate/ — called by our /sso doorway page
+ * when the Intranet portal (or another app's switcher) redirects a user here with
+ * a one-time SSO token in the URL.
+ *
+ * NOTE: `token` is what our whole app runs on (every Marketing API + HRMS call
+ * sends `Authorization: Token <token>`). The SSO doc's sample response does NOT
+ * include it yet — HRMS must add it (same `Token.objects.get_or_create` the
+ * normal /login/ endpoint already does). Until then `loginWithSSO` fails with a
+ * clear message.
+ */
+export interface SSOValidateResponse {
+  valid: boolean;
+  token?: string;
+  user?: HRMSUser;
+  employee?: HRMSEmployee;
+  /** SSO endpoint returns role rows keyed as role__id / role__name / role__role_type. */
+  roles?: Array<Record<string, unknown>>;
+  permissions?: string[];
+  detail?: string;
+}
+
 export interface PermissionCheckResponse {
   success: boolean;
   has_permission: boolean;
@@ -156,6 +178,39 @@ class HRMSRBACClient {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Network error',
+      };
+    }
+  }
+
+  /**
+   * Validate a one-time SSO token from the Intranet portal redirect.
+   * POST /api/rbac/sso/validate/  { token, user_id }
+   */
+  async validateSSO(ssoToken: string, userId: number): Promise<SSOValidateResponse> {
+    try {
+      const response = await fetch(`${this.baseURL}/sso/validate/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ token: ssoToken, user_id: userId }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.valid) {
+        return {
+          valid: false,
+          detail: data.detail || `HTTP ${response.status}`,
+        };
+      }
+
+      return data as SSOValidateResponse;
+    } catch (error) {
+      return {
+        valid: false,
+        detail: error instanceof Error ? error.message : 'Network error',
       };
     }
   }

@@ -6,6 +6,7 @@ import { NavItem } from '../../types';
 import { useAppSelector } from '../../store/hooks';
 import { selectUserDisplayName, selectEmployee, selectUser, selectHasPermission } from '../../store/slices/authSlice';
 import { VersionsModal } from '../VersionsModal';
+import { AppSwitcher } from './AppSwitcher';
 import { Avatar } from './Avatar';
 import { ChevronDown, ShieldCheck, Hash, Users } from 'lucide-react';
 import { API_CONFIG } from '../../lib/api';
@@ -112,19 +113,16 @@ export const Sidebar: React.FC = () => {
   return (
     <aside className="w-60 h-screen bg-white border-r border-slate-200/60 flex flex-col fixed left-0 top-0 z-30">
       <div className="p-5 flex flex-col h-full">
-        <Link
-          to="/"
-          className="flex items-center gap-2.5 mb-7 px-2 hover:opacity-80 transition-all"
-        >
-          <img
-            src="/aureole-logo.png"
-            alt="Aureole"
-            className="w-10 h-10 rounded object-contain flex-shrink-0"
-          />
-          <span className="text-lg font-bold tracking-tight text-slate-900">
-            S&amp;M Hub
-          </span>
-        </Link>
+        <div className="flex items-center gap-2.5 mb-7 px-2">
+          <Link to="/" className="flex-shrink-0 hover:opacity-80 transition-all" aria-label="S&M Hub home">
+            <img
+              src="/aureole-logo.png"
+              alt="Aureole"
+              className="w-10 h-10 rounded object-contain"
+            />
+          </Link>
+          <AppSwitcher currentName="S&M Hub" />
+        </div>
         <div className="px-2 -mt-5 mb-5 flex items-center justify-between gap-2">
           <p className="text-[11px] font-medium text-slate-500">
             Powered by <span className="font-semibold text-slate-700">BeForth</span>
