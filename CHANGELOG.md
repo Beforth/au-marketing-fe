@@ -5,6 +5,18 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-09-03] — Intranet Single Sign-On (v1.3.1)
+
+### 🖥️ Frontend
+
+#### Sign in from the Intranet portal
+- Open S&M Hub straight from the Intranet portal (or from another Intranet app) and you are signed in automatically — no need to type your username and password again.
+- If a sign-in link is broken or has expired, S&M Hub shows a clear message and a button to the normal sign-in page.
+
+#### Switch to other apps from the sidebar
+- The **"S&M Hub"** name at the top of the sidebar is now a menu. Click it to see the other Intranet apps you have access to and jump to any of them — again without signing in again.
+- The menu only appears if there are other apps you can open; otherwise the name just shows as before.
+
 ## [2026-08-30] — Visiting Cards, Exhibition Attribution & Access Control (v1.3.0)
 
 ### 🖥️ Frontend
