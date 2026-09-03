@@ -47,6 +47,30 @@ user/password store; HRMS is the identity provider.
 
 One-time SSO tokens: 5-minute TTL, single use, bound to one `user_id` and one app.
 
+### Who HRMS lets through
+
+Two HRMS permission codes gate the ring. **Neither is enforced by the module** —
+they're context for what a request reaching you already implies:
+
+| Code | Meaning |
+|---|---|
+| `intranet.view` | May use the switcher and launch registered apps via SSO. |
+| `intranet.manage` | Admin: may add/edit/remove which apps are registered. Does not affect who can *use* them. |
+
+**HRMS gates the door, so the module doesn't re-gate it:**
+- `sso/generate/` and the HRMS launch path both enforce `intranet.view` *before*
+  issuing a one-time token. So a **successful `sso/validate/` response already
+  means the user was authorized to arrive** — do not add a separate "intranet"
+  permission check on `/login-redirect`.
+- What the module *does* still check is its **own** app-specific
+  permissions/roles, taken from the `roles` / `permissions` in the validate
+  response (or a follow-up `user/info/` call) — exactly as it would after a
+  password login.
+- `GET /intranet-app/` also enforces `intranet.view` (a past HRMS bug showed the
+  app list in the switcher UI to users without it; fixed, and it never affected
+  token issuance). Treat a 403 there as "hide the switcher", never as a security
+  boundary you're relying on.
+
 ---
 
 ## 2. HRMS prerequisites — verify first
@@ -173,6 +197,11 @@ it obtains the token:
    `r.permissions`.
 7. Run the same post-login side effects as password login.
 8. Mark the session authenticated.
+
+Do **not** add an "is this user allowed into the Intranet" check here — HRMS
+already enforced `intranet.view` before issuing the token (see §1 "Who HRMS lets
+through"). The module's own permission gates run afterwards, off the loaded
+permission list, exactly as they do after a password login.
 
 ### A3. The `/login-redirect` entry point
 
