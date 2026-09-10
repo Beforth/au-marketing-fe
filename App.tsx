@@ -36,6 +36,17 @@ import { ExpectedOrderNewPage } from './pages/ExpectedOrderNewPage';
 import { ODPlanPage } from './pages/ODPlanPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SupportTicketsPage } from './pages/SupportTicketsPage';
+import { ServiceContractsPage } from './pages/ServiceContractsPage';
+import { ServiceContractFormPage } from './pages/ServiceContractFormPage';
+import { ServiceContractPlanPage } from './pages/ServiceContractPlanPage';
+import { ServiceVisitsPage } from './pages/ServiceVisitsPage';
+import { ServiceWorkOrderPage } from './pages/ServiceWorkOrderPage';
+import { ServiceWorkOrdersPage } from './pages/ServiceWorkOrdersPage';
+import { ServiceStorePage } from './pages/ServiceStorePage';
+import { ServiceComplaintsPage } from './pages/ServiceComplaintsPage';
+import { ServiceComplaintFormPage } from './pages/ServiceComplaintFormPage';
+import { ServiceComplaintDetailPage } from './pages/ServiceComplaintDetailPage';
+import { ServiceVisitReportPage } from './pages/ServiceVisitReportPage';
 import { SchemaPage } from './pages/SchemaPage';
 import { ReportTemplatesPage } from './pages/ReportTemplatesPage';
 import { MyTeamPage } from './pages/MyTeamPage';
@@ -297,6 +308,67 @@ const AppMain: React.FC = () => {
               <Route path="reports/od-plan" element={<ODPlanPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="support" element={<SupportTicketsPage />} />
+              <Route path="service" element={<Navigate to="/service/contracts" replace />} />
+              <Route path="service/contracts" element={
+                <ProtectedRoute requiredPermission="service.view">
+                  <ServiceContractsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="service/contracts/new" element={
+                <ProtectedRoute requiredPermission="service.create_contract">
+                  <ServiceContractFormPage />
+                </ProtectedRoute>
+              } />
+              <Route path="service/contracts/:id/edit" element={
+                <ProtectedRoute requiredPermission="service.view">
+                  <ServiceContractFormPage />
+                </ProtectedRoute>
+              } />
+              <Route path="service/contracts/:id/plan" element={
+                <ProtectedRoute requiredPermission="service.view">
+                  <ServiceContractPlanPage />
+                </ProtectedRoute>
+              } />
+              <Route path="service/visits" element={
+                <ProtectedRoute requiredPermission="service.view">
+                  <ServiceVisitsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="service/visits/:visitId/work-order" element={
+                <ProtectedRoute requiredPermission="service.view">
+                  <ServiceWorkOrderPage />
+                </ProtectedRoute>
+              } />
+              <Route path="service/visits/:visitId/report" element={
+                <ProtectedRoute requiredPermission="service.view">
+                  <ServiceVisitReportPage />
+                </ProtectedRoute>
+              } />
+              <Route path="service/work-orders" element={
+                <ProtectedRoute requiredPermission="service.view">
+                  <ServiceWorkOrdersPage />
+                </ProtectedRoute>
+              } />
+              <Route path="service/store" element={
+                <ProtectedRoute requiredPermission="service.view">
+                  <ServiceStorePage />
+                </ProtectedRoute>
+              } />
+              <Route path="service/complaints" element={
+                <ProtectedRoute requiredPermission="service.view">
+                  <ServiceComplaintsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="service/complaints/new" element={
+                <ProtectedRoute requiredPermission="service.create_complaint">
+                  <ServiceComplaintFormPage />
+                </ProtectedRoute>
+              } />
+              <Route path="service/complaints/:id" element={
+                <ProtectedRoute requiredPermission="service.view">
+                  <ServiceComplaintDetailPage />
+                </ProtectedRoute>
+              } />
               <Route path="numbering-series" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
               <Route path="numbering-series/new" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />
               <Route path="numbering-series/:id/edit" element={<Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}><NumberingSeriesPage /></Suspense>} />

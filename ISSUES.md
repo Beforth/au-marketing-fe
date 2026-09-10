@@ -24,6 +24,21 @@
 - [Events & Exhibitions](#events--exhibitions)
 - [Leads](#leads)
 - [Reports](#reports)
+- [Service Module](#service-module)
+
+---
+
+## Service Module
+
+### 2026-09-09 — Saving a work order crashes when it has checklist items
+
+**What was reported:** "Instance '<ServiceWorkOrderPrerequisite …>' has been deleted. Use the make_transient() function…" error when clicking Save on a work order.
+
+**Root cause:** on save, the backend rebuilt the material list and the site-checklist from scratch — it called `wo.materials.clear()` / `wo.prerequisites.clear()` and then re-added the rows. Because both collections use SQLAlchemy's `delete-orphan` cascade, `.clear()` marks *every* existing row for deletion, and the following `db.flush()` actually deletes them. The prerequisites helper then tried to re-attach the rows it wanted to keep (to preserve their tick state), but those Python objects now pointed at deleted database rows → SQLAlchemy raised "instance has been deleted". The materials helper didn't crash (it always created fresh rows) but it had a quieter data-loss bug: every save wiped the store's dispatch status (Not/Partly/Fully sent), dispatch note and proof attachments for parts that were already handled.
+
+**Fix:** both helpers now do a proper diff instead of clear-and-recreate — [`_apply_materials`](au-marketing-api/app/routers/service_work_orders.py:100) and [`_apply_prerequisites`](au-marketing-api/app/routers/service_work_orders.py) match incoming lines against stored ones by name/text, remove only the ones actually taken out, add only the new ones, and leave the rest in place. Existing material lines keep their dispatch state + attachments; existing checklist items keep their is_done / confirmed_by / confirmed_at.
+
+**Status:** fixed, not yet committed. No data migration needed. Any dispatch status / proof lost to a prior save of an affected work order is not recoverable — the store would need to re-enter it.
 
 ---
 

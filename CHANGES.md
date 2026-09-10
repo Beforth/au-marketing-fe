@@ -32,12 +32,113 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [DSR (Daily Status Reports)](#dsr-daily-status-reports) — rev 1.2.7
 - [Audit Log](#audit-log) — rev 1.2.7
 - [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5, 1.2.10
-- [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6
+- [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6, 1.4.8, 1.4.9
 - [Design System Documentation](#design-system-documentation) — rev 1.2.6
 - [External Visiting Card Integration](#external-visiting-card-integration) — rev 1.3.0
 - [Events & Exhibitions](#events--exhibitions) — rev 1.3.0
 - [API Reference Documentation](#api-reference-documentation) — rev 1.3.0
 - [Intranet SSO](#intranet-sso) — rev 1.3.1
+- [Service Module](#service-module) — rev 1.4.0, 1.4.1, 1.4.2, 1.4.3, 1.4.4, 1.4.5, 1.4.6, 1.4.7
+
+---
+
+## Service Module
+
+New module covering everything after the sale — maintenance contracts, service visits, work orders, store material dispatch, complaints and service reports. Built in stages so each is reviewable on its own. Built straight from the client's 22-step requirement doc.
+
+### Rev 8 — 2026-09-09 (v1.4.7) — [Revision]
+- **Renamed every Service permission from `marketing.*` to `service.*`** so the module owns its own namespace. 15 codes:
+  `service.view`, `service.create_contract`, `service.edit_contract`, `service.delete_contract`, `service.manage_visit`, `service.manage_work_order`, `service.approve_work_order`, `service.manage_dispatch`, `service.create_complaint`, `service.manage_complaint`, `service.approve_complaint`, `service.reopen_complaint`, `service.close_complaint`, `service.manage_report`, `service.delete`.
+  Nothing had shipped yet, so no compatibility concern — the HRMS codes just need to be created under the new names. `marketing.admin` still grants visibility (not action bypass), unchanged.
+- Files: all 5 service routers, all 11 Service pages, `App.tsx`, `constants.tsx`, `components/ui/Sidebar.tsx`, `au-marketing-api/REQUIRED_PERMISSIONS.md`, `ROLE_SCOPING_RULES.md`, `SERVICE_MODULE_GUIDE.md`
+
+### Rev 7 — 2026-09-09 (v1.4.6) — [Issue]
+- **Saving a work order crashed when it had checklist items** ("Instance … has been deleted"). Both the material list and the site-checklist were rebuilt from scratch on every save — `clear()` on a `delete-orphan` collection deletes every row, then the code re-attached now-dead objects. Also silently wiped the store's dispatch status + proof attachments on parts already handled. Both now do a keyed diff — remove only what was taken out, add only what's new, leave the rest (and their dispatch state / tick state) alone. See `ISSUES.md`.
+- Files: `au-marketing-api/app/routers/service_work_orders.py`
+
+### Rev 6 — 2026-09-09 (v1.4.5) — [Revision]
+- **Stage 6 — Permissions & scoping review** (Step 22). Mostly verification — per-action permissions were added stage by stage, so there was little to change:
+  - **Audited every service endpoint** (5 routers, 40+ routes) — confirmed each has a `require_permission` dependency and that the frontend permission gates on all 11 Service pages match the backend. No gaps found.
+  - **HRMS setup checklist** added to `REQUIRED_PERMISSIONS.md` — all 16 permission codes with a recommended role matrix (Engineer / Coordinator / Store keeper / Manager / Accounts) and the two hard splits from Step 22 (prepare/check ≠ approve; manage complaint ≠ close/reopen).
+  - **Scoping decision settled** in `ROLE_SCOPING_RULES.md` — visibility stays permission-only (not row-scoped); the domain-scoping option is documented for later if ever needed.
+- Files: `au-marketing-api/REQUIRED_PERMISSIONS.md`, `ROLE_SCOPING_RULES.md`
+
+### Rev 5 — 2026-09-09 (v1.4.4) — [Revision]
+- **Stage 5 — Visit reports** (Steps 8, 9, 10, 16, 17, 18, 20, 21). New **"Visit report"** page per visit (`/service/visits/:visitId/report`, opened from the "Report" button on any visit row).
+  - **What was done** — visit type **Normal / Fitting-only / Migration**. Fitting-only captures which part. Migration captures the machine **MAKE**, whether required material was sent, and the departments involved (Steps 8, 21). Plus an "what the engineer did" narrative.
+  - **Calibration / validation** (Step 9) — add any number of records, each **With Load (WL) / Without Load (WOL)**, hours, and compressor count.
+  - **PO difference** (Step 10) — record "PO says X / actually needed Y" with an optional extra charge; mark whether the customer **accepted or rejected**; the charge only counts as applying once accepted. "Email customer" button is present but disabled ("email not set up yet").
+  - **Attachments** — upload/download/remove photos & documents for the visit.
+  - **Service report** (Step 17) — summary + an optional paste box for customer machine-software data. Save draft, then **Submit** (needs a summary). Once submitted: "Send to Accounts" and "Send feedback email" buttons appear but are disabled pending the email decision.
+  - **Complaint close gate** (Step 18) — a complaint tied to a visit now **can't be closed** until that visit's service report is submitted; submitting the report unblocks it automatically.
+  - **Email deferred** — every record and timestamp exists; the three send endpoints return a clear "email not configured" error and the buttons are disabled. Search `EMAIL_NOT_CONFIGURED` in `service_reports.py` for the wiring spots.
+  - **New HRMS permission**: `service.manage_report`. Visit-type / calibration / PO-variance / attachments reuse `service.manage_visit`.
+  - **New DB**: `service_visits` gains `visit_type`, `fitting_part`, `migration_machine_make`, `migration_material_sent`, `migration_departments`, `engineer_notes`; new tables `service_visit_attachments`, `service_visit_calibrations`, `service_po_variances`, `service_reports` — one `alembic revision --autogenerate` + `alembic upgrade head`.
+  - **Visit report page redesigned for clarity** — a status strip at the top ("report not started / draft / submitted" + what's blocked), five numbered sections (1 The visit · 2 Calibration · 3 PO difference · 4 Photos · 5 Service report), "optional" tags on 2–4, calibration and PO difference moved into proper modals instead of cramped inline rows, the service report card visually emphasised.
+  - This completes the Service module's feature stages. Stage 6 (permissions/scoping tidy-up) and the email wiring remain.
+- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/routers/service_reports.py`, `au-marketing-api/app/routers/service_plans.py`, `au-marketing-api/app/routers/service_complaints.py`, `au-marketing-api/app/main.py`, `au-marketing-api/REQUIRED_PERMISSIONS.md`, `lib/marketing-api.ts`, `pages/ServiceVisitReportPage.tsx`, `pages/ServiceContractPlanPage.tsx`, `pages/ServiceVisitsPage.tsx`, `App.tsx`, `ROLE_SCOPING_RULES.md`
+
+### Rev 4 — 2026-09-08 (v1.4.3) — [Revision]
+- **Stage 4 — Complaints** (Steps 11–15, 18, 19). New "Complaints" sidebar item.
+  - **Raise a complaint** — customer + plant/site (required), issue type **H/W · S/W · PLC** (with the doc's guidance text on what each covers), title, description, optional planned-hours and numbering series. `/service/complaints/new`.
+  - **Assign / reassign** to an employee (searchable HRMS picker); the assignee gets an in-app + push notification.
+  - **Status flow** — Open → In progress → Resolved, with a "not fixed, resume" step back. `service.manage_complaint`.
+  - **Approve** (Step 14) — an issue an engineer reports from a visit ("Report issue" button on the visit row) starts as **Needs approval** and can't be worked until a `service.approve_complaint` holder approves it.
+  - **Reopen** (Step 15) — a resolved/closed complaint can be reopened with a mandatory reason; the display number gains an **"i" suffix** per reopen (CMP-1 → CMP-1i → CMP-1ii).
+  - **Close** (Step 18) — `service.close_complaint`; captures actual hours. A code comment marks where the "can't close without a service report" gate goes once Stage 5 lands.
+  - **Full history** (Step 13) — every action (created, assigned, reassigned, status change, approved, reopened, closed, comment) is logged to a per-complaint timeline shown on the detail page; the list page filters by status, type and free text. Every complaint is tied to a customer plant/site.
+  - **Time** (Step 19) — planned vs actual hours shown on the complaint.
+  - **Under which contract?** — a complaint can optionally be linked to one of the customer's AMC/CMC contracts ("Not under a contract (chargeable)" is the default). Picking a contract prefills the plant if the contract names one, filters the complaint into that contract's history, and shows the contract on the detail page. `service_complaints.contract_id` (nullable).
+  - **Plant / site is optional** — `service_complaints.plant_id` is now nullable. The form's site dropdown just has **"None"** as the first choice (like the rest of the app); when no plant is set, the complaint's "site" shows the customer's own address.
+  - **New customers created inline through Service always get a site** — the contract form's "create customer" flow now always creates at least one plant ("Main site" at the company address if you don't name one), and inline-created plants now save their domain/region (`au-marketing-api/app/routers/customers.py` — the `create_customer` inline-plant block was dropping `domain_id`/`region_id`; this also benefits the normal CRM customer form).
+  - **New HRMS permissions now required**: `service.create_complaint`, `service.manage_complaint`, `service.approve_complaint`, `service.reopen_complaint`, `service.close_complaint`, `service.delete`.
+  - **New DB tables**: `service_complaints`, `service_complaint_activities` — one `alembic revision --autogenerate` + `alembic upgrade head` on the server.
+- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/routers/service_complaints.py`, `au-marketing-api/app/routers/customers.py`, `au-marketing-api/app/main.py`, `au-marketing-api/REQUIRED_PERMISSIONS.md`, `lib/marketing-api.ts`, `pages/ServiceComplaintsPage.tsx`, `pages/ServiceComplaintFormPage.tsx`, `pages/ServiceComplaintDetailPage.tsx`, `pages/ServiceContractFormPage.tsx`, `pages/ServiceContractPlanPage.tsx`, `App.tsx`, `constants.tsx`, `ROLE_SCOPING_RULES.md`
+
+### Rev 3 — 2026-09-08 (v1.4.2) — [Revision]
+- **Stage 3 — Work Orders, Material Dispatch & Site Prerequisites** (Steps 3, 4, 5, 7).
+  - Each visit can have one **work order**, opened from the visit row on the Service Plan (or the new "Work Orders" list). Route `/service/visits/:visitId/work-order`.
+  - **Prepared → Checked → Approved** pipeline with who/when stamps. **Mark Checked** and **Back to Prepared** use `service.manage_work_order`; **Approve** / **Reopen** use the separate `service.approve_work_order`. Editing an already-approved work order bumps a **revision** counter (Step 3: "can still be revised" after approval).
+  - **Material list** — item, quantity, description, required-by date. Required-by defaults to the visit date minus a per-work-order **store lead time** (default 3 days) but is editable per line.
+  - **Store / Dispatch** screen (new sidebar item) — the store's worklist: approved work orders with pending material, earliest required-by first, overdue/urgent dates flagged red/amber. Per line the storekeeper sets **Not / Partly / Fully dispatched**, adds a "what was actually sent" note, and uploads proof files (challan/photo). Gated by `service.manage_dispatch`. Dispatch status also shows on the work order.
+  - **"What the customer must have ready before the visit"** checklist (Step 7) — add items on the work order, "Send list to customer" stamps a sent date, and each row has a confirm checkbox (who/when recorded) for when the customer says the site is ready. Rendered as a compact bordered list; unsaved rows are tagged "not saved".
+  - **Plain-language labels** throughout the work-order and store screens — "Days the store needs to get parts ready" instead of "lead time", "Parts & materials needed", "Not sent yet / Partly sent / Fully sent", "edited N× after approval" instead of "revision N".
+  - **Save is always in reach** — a Create/Save button sits in the page header and in a **sticky bar at the bottom** of the work-order page, with a note that parts and checklist items are only stored on save (they were easy to lose to a refresh before). "Add" buttons moved out of the card header (which the shared Card component only reveals on hover) into the card body.
+  - The Work Orders and Service Visits lists now have **action icons** per row (open work order / open plan / jump to Store) and the Work Orders list shows a plain **"next step" hint** under each status ("Next: coordinator marks it Checked", etc.). Parts column reads "0 of 1 parts sent" instead of "0/1 dispatched". A blank "needed by" date on a part no longer breaks the save.
+  - The work-order status bar is now a **3-step progress tracker** — numbered/ticked circles for Prepared → Checked → Approved with who did each step and when, a "This work order is [status]" line, and a plain "→ Next: …" sentence next to the action button (instead of three greyed pills that were hard to read).
+  - **Store nudge** — a scheduler job flags the work order creator once when an approved work order has material due within a day and not fully dispatched (`service_work_orders.material_reminder_sent`).
+  - New sidebar items: **"Work Orders"** (`/service/work-orders`) and **"Store / Dispatch"** (`/service/store`).
+  - Built self-contained inside the Service module — no dependency on the not-yet-built Production module (as agreed). When Production lands, this can link to or be replaced by it.
+  - **New HRMS permissions now required**: `service.manage_work_order`, `service.approve_work_order`, `service.manage_dispatch`.
+  - **New DB tables**: `service_work_orders`, `service_work_order_materials`, `service_work_order_material_attachments`, `service_work_order_prerequisites` — one `alembic revision --autogenerate` + `alembic upgrade head` on the server.
+- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/routers/service_work_orders.py`, `au-marketing-api/app/scheduler.py`, `au-marketing-api/app/main.py`, `au-marketing-api/REQUIRED_PERMISSIONS.md`, `lib/marketing-api.ts`, `pages/ServiceWorkOrderPage.tsx`, `pages/ServiceWorkOrdersPage.tsx`, `pages/ServiceStorePage.tsx`, `pages/ServiceContractPlanPage.tsx`, `App.tsx`, `constants.tsx`, `ROLE_SCOPING_RULES.md`
+
+### Rev 2 — 2026-09-08 (v1.4.1) — [Revision]
+- **Stage 2 — Service Plan & Visits.**
+  - Each contract gets one **service plan**: a "number of scheduled visits" reference count + a free-text note for the customer's preferred service dates. Reached from the contracts list (calendar icon) or the "Service plan" button on the contract form. Route `/service/contracts/:id/plan`.
+  - **Add scheduled visits with their dates, one at a time** — an Add-visit modal takes a title, planned date and scheduled/confirmed date (Step 2: "the customer's preferred service dates are entered"). Each visit row also has an **Edit** action to set/adjust its dates, status and notes without a reason.
+  - **Quick-add blank slots** — optional shortcut that pre-creates N dateless scheduled visits up to the reference count (tops up the difference, never duplicates); dates filled in afterwards via Edit.
+  - **Unscheduled visits** — add ad-hoc visits any time, no limit (Step 2).
+  - **Reschedule** (Step 6) — moving a visit's date requires a typed **reason**; every move is kept as history (`service_visit_reschedules`), shown as "rescheduled ×N" with the details on hover.
+  - **Mark done** (Step 16) — completed visits are highlighted green; a completed-at timestamp is recorded.
+  - **Countdown reminders** — as a visit's date approaches, an in-app + web-push notification fires at **15, 7, 3 and 1 day(s) before** (uses the confirmed date, falling back to the planned date). Each bucket fires once; changing or rescheduling the date re-arms them. Goes to the visit creator and the plan creator (and the assigned engineer once engineer assignment exists). Runs off the existing APScheduler worker every 5 min; tracked by a new `service_visits.reminder_stage` column.
+  - New sidebar item **"Service Plan"** → `/service/visits`, a filterable list of every visit across all contracts (status, kind, search), each row linking back to its contract's plan.
+  - **New HRMS permission now required**: `service.manage_visit` (create plan, generate/add/edit/reschedule/complete/delete visits). View still uses `service.view`.
+  - **New DB tables** `service_plans`, `service_visits`, `service_visit_reschedules` (plus a `service_visits.reminder_stage` column for the countdown reminders) — one `alembic revision --autogenerate` + `alembic upgrade head` on the server covers it.
+  - Visibility: permission-gated only, same as contracts (`ROLE_SCOPING_RULES.md`).
+- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/routers/service_plans.py`, `au-marketing-api/app/main.py`, `au-marketing-api/REQUIRED_PERMISSIONS.md`, `lib/marketing-api.ts`, `pages/ServiceContractPlanPage.tsx`, `pages/ServiceVisitsPage.tsx`, `pages/ServiceContractsPage.tsx`, `pages/ServiceContractFormPage.tsx`, `App.tsx`, `constants.tsx`, `ROLE_SCOPING_RULES.md`
+
+### Rev 1 — 2026-09-08 (v1.4.0) — [Revision]
+- **Stage 1 — Contracts.** New "Service" collapsible group in the sidebar (gated on `service.view`), with a Contracts list + create/edit form.
+  - A contract records: customer + plant/site, type (**AMC / AMC-I / CMC / CMC-I**), status (draft/active/expired/cancelled), start/end dates, terms & conditions, an "everything inclusive but extra charges built in" flag + note, internal notes, and an optional numbering-series code (auto-generates a contract number the same way customers/orders do).
+  - **Customer field works like the Lead form**: type a name → dropdown of matching existing customers (each row shows **company + contact person name + phone**, not just the company), or a "Create '<name>' as a new customer" row (shown only with `marketing.create_customer`). The inline creator captures company name + domain + region (prefilled from the user's scope) + a **contact person** (title/first/last name, email, phone — shown and name-required when the user has `marketing.create_contact`) + an optional plant/site. On save it creates the contact, then the customer (with that contact as primary), then the contract. Deliberately lighter than the Lead form's inline creator — no inline organization creation, no multi-plant. A shared `<CustomerQuickCreate>` component is worth extracting later (Leads/Customers forms duplicate this logic).
+  - **Inclusion/exclusion lines**: each contract holds a list of items (e.g. "Spare parts — included", "Compressor — chargeable", "PLC — chargeable") that can be flipped per customer when something is covered by specific agreement. Stored in a child table, replaced wholesale on save.
+  - **Visibility**: permission-gated only — contracts are **not** row-scoped by creator/domain yet (the requirement's Step 22 says "everyone can have basic viewing permissions"). Documented in `ROLE_SCOPING_RULES.md`; revisit in the permissions tidy-up stage.
+  - **Work order note**: Step 3's work order belongs to a Production module that doesn't exist yet, so it will be built self-contained inside the Service module in a later stage — not part of Stage 1.
+  - **New HRMS permissions required** (listed in `au-marketing-api/REQUIRED_PERMISSIONS.md`): `service.view`, `service.create_contract`, `service.edit_contract`, `service.delete_contract`. Until created + assigned in HRMS, the Service group stays hidden and the endpoints 403.
+  - **New DB tables** `service_contracts`, `service_contract_items` — need a plain `alembic revision --autogenerate` + `alembic upgrade head` on the server before use.
+  - The contracts list and API response now include `customer_contact_name` (primary contact person) alongside the company name so contracts for the same/similar company are distinguishable.
+- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/routers/service_contracts.py`, `au-marketing-api/app/main.py`, `au-marketing-api/REQUIRED_PERMISSIONS.md`, `lib/marketing-api.ts`, `pages/ServiceContractsPage.tsx`, `pages/ServiceContractFormPage.tsx`, `App.tsx`, `constants.tsx`, `components/ui/Sidebar.tsx`, `ROLE_SCOPING_RULES.md`
 
 ---
 
@@ -406,6 +507,16 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 ---
 
 ## Tooling & Scripts
+
+### Rev 4 — 2026-09-10 (v1.4.9) — [Revision]
+- `scripts/clear_and_seed_india.py` now also seeds the **Service module** so a fresh demo has a full post-sale pipeline, not just leads/orders. On the 5 seeded customers it creates: ~5 AMC/CMC contracts (4 active, 1 draft) each with a coverage line-item list (spare parts included, compressor/PLC/HMI/sensors chargeable, one customer's PLC negotiated to "included"); a service plan per active contract with 4 quarterly visits (past ones marked done, upcoming ones left planned) plus an ad-hoc unscheduled visit and one visit with a reschedule-history row; 3 work orders across the Prepared → Checked → Approved states, each with a material list (varied dispatch status) and a site-readiness checklist; calibration records, a PO-difference (one accepted with a charge, one pending), visit photos and service reports (one submitted, one draft) on completed visits; and ~6 customer complaints spread across H/W · S/W · PLC and every status (open, in progress, resolved, closed, needs-approval, one reopened → `CMP-IND-003i`), each with its activity timeline.
+- The destructive truncate step now also clears all 15 `service_*` tables (previously it left service rows behind on a re-run, which could then point at deleted customers).
+- Upcoming visits are seeded with their reminder countdown already marked sent, and the approved work order with its material nudge already sent, so re-seeding doesn't spray reminder notifications.
+- Files: `au-marketing-api/scripts/clear_and_seed_india.py`, `SERVICE_MODULE_GUIDE.md`
+
+### Rev 3 — 2026-09-10 (v1.4.8) — [Revision]
+- `scripts/clear_and_seed_india.py` now seeds lead / order / quotation amounts in **crore-scale rupees** (×100 across the board — e.g. the Reliance negotiation lead goes from ₹12,00,000 to ₹12 Cr, the smallest lost lead from ₹80,000 to ₹80 L). Relative proportions and won/closed ratios are unchanged. Before this, the seeded demo never crossed the ₹1 Cr threshold where the dashboards switch to "₹X.XX Cr" formatting, so it read like a tiny business despite being named after Tata / Reliance / L&T. The quotation-attachment fallback value was bumped to match (₹1 L → ₹1 Cr). Orders and quotation attachments derive their values from the leads, so they scaled automatically. This script seeds no monthly targets, so nothing else needed rescaling.
+- Files: `au-marketing-api/scripts/clear_and_seed_india.py`
 
 ### Rev 2 — 2026-08-11 (v1.2.6)
 - Added `scripts/fix_empty_enquiry_log.py` — one-time data-repair script for quotation rows that lost their value/number when file-less quotation support landed.

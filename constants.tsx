@@ -17,7 +17,13 @@ import {
   Building2,
   Database,
   UserCheck,
-  CalendarDays
+  CalendarDays,
+  Wrench,
+  ScrollText,
+  CalendarClock,
+  ClipboardList,
+  PackageCheck,
+  MessageSquareWarning
 } from 'lucide-react';
 import { NavItem, StatItem, Transaction } from './types';
 
@@ -36,6 +42,21 @@ export const SIDEBAR_LINKS: NavItem[] = [
   { title: 'Reports', icon: PieChart, href: '/reports', permission: 'marketing.view_report' },
   // { title: 'Report templates', icon: FileText, href: '/report-templates', permission: 'marketing.view_lead' },
   // { title: 'Employees', icon: Users, href: '/employees', permission: 'marketing.view_domain' },
+];
+
+/**
+ * Service module — sidebar group. Rendered as a collapsible section in Sidebar.tsx.
+ * The whole group is gated on `service.view`; per-page action perms are
+ * enforced on the routes and inside each page. Stage 1 ships Contracts only —
+ * the rest are placeholders for later stages.
+ */
+export const SERVICE_GROUP_PERMISSION = 'service.view';
+export const SERVICE_LINKS: NavItem[] = [
+  { title: 'Contracts', icon: ScrollText, href: '/service/contracts', permission: 'service.view' },
+  { title: 'Service Plan', icon: CalendarClock, href: '/service/visits', permission: 'service.view' },
+  { title: 'Work Orders', icon: ClipboardList, href: '/service/work-orders', permission: 'service.view' },
+  { title: 'Store / Dispatch', icon: PackageCheck, href: '/service/store', permission: 'service.view' },
+  { title: 'Complaints', icon: MessageSquareWarning, href: '/service/complaints', permission: 'service.view' },
 ];
 
 /** localStorage key for the default lead number series (assign from Leads page "Number series" button). */

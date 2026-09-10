@@ -1,21 +1,23 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { NavLink, Link } from 'react-router-dom';
-import { SIDEBAR_LINKS, SECONDARY_LINKS } from '../../constants';
+import { NavLink, Link, useLocation } from 'react-router-dom';
+import { SIDEBAR_LINKS, SECONDARY_LINKS, SERVICE_LINKS } from '../../constants';
 import { NavItem } from '../../types';
 import { useAppSelector } from '../../store/hooks';
 import { selectUserDisplayName, selectEmployee, selectUser, selectHasPermission } from '../../store/slices/authSlice';
 import { VersionsModal } from '../VersionsModal';
 import { AppSwitcher } from './AppSwitcher';
 import { Avatar } from './Avatar';
-import { ChevronDown, ShieldCheck, Hash, Users } from 'lucide-react';
+import { ChevronDown, ShieldCheck, Hash, Users, Wrench } from 'lucide-react';
 import { API_CONFIG } from '../../lib/api';
 import { resolveHrmsMediaUrl } from '../../lib/hrms-rbac';
 
 
 export const Sidebar: React.FC = () => {
+  const location = useLocation();
   const [showChangelog, setShowChangelog] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [serviceOpen, setServiceOpen] = useState(false);
   const [appVersion, setAppVersion] = useState('v1.3.1');
   const [versionLoaded, setVersionLoaded] = useState(false);
   const userDisplayName = useAppSelector(selectUserDisplayName);
@@ -51,7 +53,13 @@ export const Sidebar: React.FC = () => {
   const hasViewReport = useAppSelector(selectHasPermission('marketing.view_report'));
   const hasViewMyTeam = useAppSelector(selectHasPermission('marketing.view_myteam'));
   const hasViewEvents = useAppSelector(selectHasPermission('marketing.view_events'));
+  const hasViewService = useAppSelector(selectHasPermission('service.view'));
   const hasAdmin = useAppSelector(selectHasPermission('marketing.admin'));
+
+  const onServiceRoute = location.pathname.startsWith('/service');
+  useEffect(() => {
+    if (onServiceRoute) setServiceOpen(true);
+  }, [onServiceRoute]);
 
   // Filter links based on permissions
   const filteredSidebarLinks = useMemo(() => {
@@ -142,6 +150,57 @@ export const Sidebar: React.FC = () => {
           {filteredSidebarLinks.map((item) => (
             <SidebarItem key={item.title} item={item} />
           ))}
+
+          {hasViewService && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setServiceOpen(o => !o)}
+                className={`w-full group flex items-center justify-between rounded-lg text-[13px] transition-all duration-200 font-medium px-3 py-2 ${
+                  serviceOpen && onServiceRoute
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Wrench
+                    size={18}
+                    strokeWidth={serviceOpen && onServiceRoute ? 2.2 : 1.8}
+                    className={serviceOpen && onServiceRoute ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}
+                  />
+                  <span className={serviceOpen && onServiceRoute ? 'font-semibold' : ''}>Service</span>
+                </div>
+                <ChevronDown
+                  size={14}
+                  className={`text-slate-400 transition-transform duration-200 ${serviceOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {serviceOpen && (
+                <div className="mt-0.5 ml-3 pl-3 border-l-2 border-blue-100 space-y-0.5">
+                  {SERVICE_LINKS.map((link) => (
+                    <NavLink
+                      key={link.href}
+                      to={link.href}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2.5 w-full rounded-lg text-[12.5px] transition-all duration-200 font-medium px-2.5 py-1.5 ${
+                          isActive
+                            ? 'bg-blue-50 text-blue-700 font-semibold'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <link.icon size={15} strokeWidth={isActive ? 2.2 : 1.8} className={isActive ? 'text-blue-500' : 'text-slate-400'} />
+                          {link.title}
+                        </>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </nav>
 
         <div className="mt-auto pt-4 space-y-0">

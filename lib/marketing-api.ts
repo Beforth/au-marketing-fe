@@ -629,6 +629,349 @@ export interface PaginatedResponse<T> {
 export const DEFAULT_PAGE_SIZE = 10;
 export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
+// ── Service module — Stage 1: Contracts ──────────────────────────────────────
+export type ServiceContractType = 'AMC' | 'AMC-I' | 'CMC' | 'CMC-I';
+export type ServiceContractStatus = 'draft' | 'active' | 'expired' | 'cancelled';
+export type ServiceItemCoverage = 'included' | 'chargeable';
+
+export const SERVICE_CONTRACT_TYPES: ServiceContractType[] = ['AMC', 'AMC-I', 'CMC', 'CMC-I'];
+export const SERVICE_CONTRACT_STATUSES: ServiceContractStatus[] = ['draft', 'active', 'expired', 'cancelled'];
+
+export interface ServiceContractItem {
+  id?: number;
+  contract_id?: number;
+  name: string;
+  coverage: ServiceItemCoverage;
+  note?: string | null;
+  display_order?: number;
+  created_at?: string;
+}
+
+export interface ServiceContract {
+  id: number;
+  series_code?: string | null;
+  contract_number?: string | null;
+  customer_id: number;
+  plant_id?: number | null;
+  contract_type: ServiceContractType;
+  status: ServiceContractStatus;
+  start_date?: string | null;
+  end_date?: string | null;
+  terms?: string | null;
+  all_inclusive_with_charges: boolean;
+  additional_charges_note?: string | null;
+  notes?: string | null;
+  items: ServiceContractItem[];
+  customer_name?: string | null;
+  customer_contact_name?: string | null;
+  plant_name?: string | null;
+  created_by_employee_id: number;
+  created_by_username?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServiceContractPayload {
+  customer_id: number;
+  plant_id?: number | null;
+  contract_type: ServiceContractType;
+  status?: ServiceContractStatus;
+  start_date?: string | null;
+  end_date?: string | null;
+  terms?: string | null;
+  all_inclusive_with_charges?: boolean;
+  additional_charges_note?: string | null;
+  notes?: string | null;
+  series_code?: string | null;
+  items?: ServiceContractItem[];
+}
+
+// ── Service module — Stage 2: Plans & Visits ─────────────────────────────────
+export type ServiceVisitKind = 'scheduled' | 'unscheduled';
+export type ServiceVisitStatus = 'planned' | 'scheduled' | 'done' | 'cancelled';
+
+export const SERVICE_VISIT_STATUSES: ServiceVisitStatus[] = ['planned', 'scheduled', 'done', 'cancelled'];
+
+export interface ServiceVisitReschedule {
+  id: number;
+  visit_id: number;
+  from_date?: string | null;
+  to_date?: string | null;
+  reason: string;
+  created_by_username?: string | null;
+  created_at: string;
+}
+
+export interface ServiceVisit {
+  id: number;
+  plan_id: number;
+  contract_id: number;
+  customer_id?: number | null;
+  plant_id?: number | null;
+  kind: ServiceVisitKind;
+  visit_number?: number | null;
+  title?: string | null;
+  status: ServiceVisitStatus;
+  planned_date?: string | null;
+  scheduled_date?: string | null;
+  previous_scheduled_date?: string | null;
+  completed_at?: string | null;
+  assigned_engineer_employee_id?: number | null;
+  assigned_engineer_username?: string | null;
+  notes?: string | null;
+  visit_type: 'normal' | 'fitting_only' | 'migration';
+  fitting_part?: string | null;
+  migration_machine_make?: string | null;
+  migration_material_sent?: boolean | null;
+  migration_departments?: string | null;
+  engineer_notes?: string | null;
+  created_by_employee_id: number;
+  created_by_username?: string | null;
+  created_at: string;
+  updated_at: string;
+  reschedules: ServiceVisitReschedule[];
+  customer_name?: string | null;
+  plant_name?: string | null;
+  contract_number?: string | null;
+  has_report?: boolean;
+  report_status?: 'draft' | 'submitted' | null;
+}
+
+// ── Service module — Stage 5: visit execution, calibration, PO variance, reports ──
+export type ServiceCalibrationKind = 'wl' | 'wol';
+export type POVarianceResponseValue = 'pending' | 'accepted' | 'rejected';
+
+export interface VisitAttachment {
+  id: number;
+  visit_id: number;
+  file_name: string;
+  file_size?: number | null;
+  content_type?: string | null;
+  caption?: string | null;
+  created_by_username?: string | null;
+  created_at: string;
+}
+
+export interface ServiceCalibration {
+  id?: number;
+  visit_id?: number;
+  kind: ServiceCalibrationKind;
+  duration_hours?: number | null;
+  compressor_count?: number | null;
+  notes?: string | null;
+  created_at?: string;
+}
+
+export interface ServicePOVariance {
+  id: number;
+  visit_id: number;
+  po_requirement: string;
+  actual_requirement: string;
+  additional_charge?: number | null;
+  customer_response: POVarianceResponseValue;
+  email_sent_at?: string | null;
+  responded_at?: string | null;
+  response_note?: string | null;
+  charge_applies: boolean;
+  created_by_username?: string | null;
+  created_at: string;
+}
+
+export interface ServiceReport {
+  id: number;
+  visit_id: number;
+  summary?: string | null;
+  imported_data?: string | null;
+  status: 'draft' | 'submitted';
+  submitted_by_username?: string | null;
+  submitted_at?: string | null;
+  sent_to_accounts_at?: string | null;
+  feedback_email_sent_at?: string | null;
+  created_by_username?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VisitReportBundle {
+  visit: ServiceVisit;
+  calibrations: ServiceCalibration[];
+  po_variances: ServicePOVariance[];
+  attachments: VisitAttachment[];
+  report: ServiceReport | null;
+}
+
+export interface ServicePlan {
+  id: number;
+  contract_id: number;
+  scheduled_visits_planned: number;
+  preferred_schedule_note?: string | null;
+  notes?: string | null;
+  created_by_employee_id: number;
+  created_by_username?: string | null;
+  created_at: string;
+  updated_at: string;
+  visits: ServiceVisit[];
+  contract_number?: string | null;
+  customer_name?: string | null;
+  contract_type?: string | null;
+}
+
+// ── Service module — Stage 3: Work Orders, Material Dispatch, Prerequisites ───
+export type ServiceWorkOrderStatus = 'prepared' | 'checked' | 'approved';
+export type ServiceDispatchStatus = 'not_dispatched' | 'partial' | 'full';
+
+export const SERVICE_DISPATCH_STATUSES: ServiceDispatchStatus[] = ['not_dispatched', 'partial', 'full'];
+
+export interface WorkOrderMaterialAttachment {
+  id: number;
+  material_id: number;
+  file_name: string;
+  file_size?: number | null;
+  content_type?: string | null;
+  created_at: string;
+}
+
+export interface WorkOrderMaterial {
+  id?: number;
+  work_order_id?: number;
+  item_name: string;
+  quantity?: string | null;
+  description?: string | null;
+  required_by_date?: string | null;
+  display_order?: number;
+  dispatch_status?: ServiceDispatchStatus;
+  dispatched_note?: string | null;
+  dispatched_at?: string | null;
+  dispatched_by_username?: string | null;
+  created_at?: string;
+  attachments?: WorkOrderMaterialAttachment[];
+}
+
+export interface WorkOrderPrerequisite {
+  id?: number;
+  work_order_id?: number;
+  text: string;
+  display_order?: number;
+  is_done?: boolean;
+  confirmed_by_username?: string | null;
+  confirmed_at?: string | null;
+  created_at?: string;
+}
+
+export interface ServiceWorkOrder {
+  id: number;
+  visit_id: number;
+  contract_id: number;
+  customer_id?: number | null;
+  plant_id?: number | null;
+  series_code?: string | null;
+  wo_number?: string | null;
+  status: ServiceWorkOrderStatus;
+  revision: number;
+  prepared_by_username?: string | null;
+  prepared_at?: string | null;
+  checked_by_username?: string | null;
+  checked_at?: string | null;
+  approved_by_username?: string | null;
+  approved_at?: string | null;
+  material_lead_time_days: number;
+  prerequisites_sent_at?: string | null;
+  notes?: string | null;
+  created_by_employee_id: number;
+  created_by_username?: string | null;
+  created_at: string;
+  updated_at: string;
+  materials: WorkOrderMaterial[];
+  prerequisites: WorkOrderPrerequisite[];
+  customer_name?: string | null;
+  plant_name?: string | null;
+  contract_number?: string | null;
+  visit_title?: string | null;
+  visit_date?: string | null;
+  dispatch_summary?: string | null;
+}
+
+export interface ServiceWorkOrderPayload {
+  visit_id: number;
+  material_lead_time_days?: number;
+  notes?: string | null;
+  series_code?: string | null;
+  materials?: WorkOrderMaterial[];
+  prerequisites?: WorkOrderPrerequisite[];
+}
+
+// ── Service module — Stage 4: Complaints ─────────────────────────────────────
+export type ServiceIssueType = 'hw' | 'sw' | 'plc';
+export type ServiceComplaintStatus = 'pending_approval' | 'open' | 'in_progress' | 'resolved' | 'closed';
+export type ServiceComplaintSource = 'customer' | 'found_on_visit';
+
+export const SERVICE_ISSUE_TYPES: { value: ServiceIssueType; label: string }[] = [
+  { value: 'hw', label: 'Hardware (H/W)' },
+  { value: 'sw', label: 'Software (S/W)' },
+  { value: 'plc', label: 'PLC' },
+];
+
+export interface ServiceComplaintActivity {
+  id: number;
+  complaint_id: number;
+  activity_type: string;
+  from_value?: string | null;
+  to_value?: string | null;
+  note?: string | null;
+  created_by_username?: string | null;
+  created_at: string;
+}
+
+export interface ServiceComplaint {
+  id: number;
+  series_code?: string | null;
+  complaint_number?: string | null;
+  display_number: string;
+  customer_id: number;
+  plant_id?: number | null;
+  contract_id?: number | null;
+  contract_number?: string | null;
+  contract_type?: string | null;
+  visit_id?: number | null;
+  issue_type: ServiceIssueType;
+  title: string;
+  description?: string | null;
+  status: ServiceComplaintStatus;
+  source: ServiceComplaintSource;
+  assignee_employee_id?: number | null;
+  assignee_username?: string | null;
+  approved_by_username?: string | null;
+  approved_at?: string | null;
+  reopen_count: number;
+  planned_time_hours?: number | null;
+  actual_time_hours?: number | null;
+  resolved_at?: string | null;
+  closed_at?: string | null;
+  service_report_id?: number | null;
+  created_by_employee_id: number;
+  created_by_username?: string | null;
+  created_at: string;
+  updated_at: string;
+  activities: ServiceComplaintActivity[];
+  customer_name?: string | null;
+  plant_name?: string | null;
+}
+
+export interface ServiceComplaintPayload {
+  customer_id: number;
+  plant_id?: number | null;
+  contract_id?: number | null;
+  issue_type: ServiceIssueType;
+  title: string;
+  description?: string | null;
+  source?: ServiceComplaintSource;
+  visit_id?: number | null;
+  planned_time_hours?: number | null;
+  series_code?: string | null;
+  assignee_employee_id?: number | null;
+  assignee_username?: string | null;
+}
+
 class MarketingAPIService {
   // Leads
   async getLeads(params?: {
@@ -1378,6 +1721,355 @@ class MarketingAPIService {
 
   async deleteCustomer(id: number): Promise<void> {
     return apiClient.delete<void>(`/api/customers/${id}`);
+  }
+
+  // ── Service module — Stage 1: Contracts ──
+  async getServiceContracts(params?: {
+    page?: number;
+    page_size?: number;
+    customer_id?: number;
+    plant_id?: number;
+    contract_type?: ServiceContractType;
+    status?: ServiceContractStatus;
+    search?: string;
+  }): Promise<PaginatedResponse<ServiceContract>> {
+    const q = new URLSearchParams();
+    q.append('page', String(params?.page ?? 1));
+    q.append('page_size', String(params?.page_size ?? DEFAULT_PAGE_SIZE));
+    if (params?.customer_id != null) q.append('customer_id', String(params.customer_id));
+    if (params?.plant_id != null) q.append('plant_id', String(params.plant_id));
+    if (params?.contract_type) q.append('contract_type', params.contract_type);
+    if (params?.status) q.append('status', params.status);
+    if (params?.search?.trim()) q.append('search', params.search.trim());
+    return apiClient.get<PaginatedResponse<ServiceContract>>(`/api/service/contracts/?${q.toString()}`);
+  }
+
+  async getServiceContract(id: number): Promise<ServiceContract> {
+    return apiClient.get<ServiceContract>(`/api/service/contracts/${id}`);
+  }
+
+  async createServiceContract(data: ServiceContractPayload): Promise<ServiceContract> {
+    return apiClient.post<ServiceContract>('/api/service/contracts/', data);
+  }
+
+  async updateServiceContract(id: number, data: Partial<ServiceContractPayload>): Promise<ServiceContract> {
+    return apiClient.put<ServiceContract>(`/api/service/contracts/${id}`, data);
+  }
+
+  async deleteServiceContract(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/service/contracts/${id}`);
+  }
+
+  // ── Service module — Stage 2: Plans & Visits ──
+  async getServicePlanForContract(contractId: number): Promise<ServicePlan | null> {
+    return apiClient.get<ServicePlan | null>(`/api/service/contracts/${contractId}/plan`);
+  }
+
+  async getServicePlan(id: number): Promise<ServicePlan> {
+    return apiClient.get<ServicePlan>(`/api/service/plans/${id}`);
+  }
+
+  async createServicePlan(data: {
+    contract_id: number;
+    scheduled_visits_planned?: number;
+    preferred_schedule_note?: string | null;
+    notes?: string | null;
+  }): Promise<ServicePlan> {
+    return apiClient.post<ServicePlan>('/api/service/plans/', data);
+  }
+
+  async updateServicePlan(
+    id: number,
+    data: { scheduled_visits_planned?: number; preferred_schedule_note?: string | null; notes?: string | null },
+  ): Promise<ServicePlan> {
+    return apiClient.put<ServicePlan>(`/api/service/plans/${id}`, data);
+  }
+
+  async generateScheduledVisits(planId: number): Promise<{ created: number; total_scheduled: number; visits: ServiceVisit[] }> {
+    return apiClient.post(`/api/service/plans/${planId}/generate-visits`, {});
+  }
+
+  async getServiceVisits(params?: {
+    plan_id?: number;
+    contract_id?: number;
+    customer_id?: number;
+    status?: ServiceVisitStatus;
+    kind?: ServiceVisitKind;
+    date_from?: string;
+    date_to?: string;
+  }): Promise<ServiceVisit[]> {
+    const q = new URLSearchParams();
+    if (params?.plan_id != null) q.append('plan_id', String(params.plan_id));
+    if (params?.contract_id != null) q.append('contract_id', String(params.contract_id));
+    if (params?.customer_id != null) q.append('customer_id', String(params.customer_id));
+    if (params?.status) q.append('status', params.status);
+    if (params?.kind) q.append('kind', params.kind);
+    if (params?.date_from) q.append('date_from', params.date_from);
+    if (params?.date_to) q.append('date_to', params.date_to);
+    const qs = q.toString();
+    return apiClient.get<ServiceVisit[]>(`/api/service/visits/${qs ? `?${qs}` : ''}`);
+  }
+
+  async createServiceVisit(data: {
+    plan_id: number;
+    kind?: ServiceVisitKind;
+    title?: string;
+    planned_date?: string | null;
+    scheduled_date?: string | null;
+    assigned_engineer_employee_id?: number | null;
+    assigned_engineer_username?: string | null;
+    notes?: string | null;
+  }): Promise<ServiceVisit> {
+    return apiClient.post<ServiceVisit>('/api/service/visits/', data);
+  }
+
+  async updateServiceVisit(
+    id: number,
+    data: {
+      title?: string | null;
+      status?: ServiceVisitStatus;
+      planned_date?: string | null;
+      scheduled_date?: string | null;
+      assigned_engineer_employee_id?: number | null;
+      assigned_engineer_username?: string | null;
+      notes?: string | null;
+    },
+  ): Promise<ServiceVisit> {
+    return apiClient.put<ServiceVisit>(`/api/service/visits/${id}`, data);
+  }
+
+  async rescheduleServiceVisit(id: number, newDate: string, reason: string): Promise<ServiceVisit> {
+    return apiClient.post<ServiceVisit>(`/api/service/visits/${id}/reschedule`, { new_date: newDate, reason });
+  }
+
+  async completeServiceVisit(id: number): Promise<ServiceVisit> {
+    return apiClient.post<ServiceVisit>(`/api/service/visits/${id}/complete`, {});
+  }
+
+  async deleteServiceVisit(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/service/visits/${id}`);
+  }
+
+  // ── Service module — Stage 3: Work Orders ──
+  async getServiceWorkOrders(params?: {
+    status?: ServiceWorkOrderStatus;
+    contract_id?: number;
+    visit_id?: number;
+    customer_id?: number;
+  }): Promise<ServiceWorkOrder[]> {
+    const q = new URLSearchParams();
+    if (params?.status) q.append('status', params.status);
+    if (params?.contract_id != null) q.append('contract_id', String(params.contract_id));
+    if (params?.visit_id != null) q.append('visit_id', String(params.visit_id));
+    if (params?.customer_id != null) q.append('customer_id', String(params.customer_id));
+    const qs = q.toString();
+    return apiClient.get<ServiceWorkOrder[]>(`/api/service/work-orders/${qs ? `?${qs}` : ''}`);
+  }
+
+  async getWorkOrderForVisit(visitId: number): Promise<ServiceWorkOrder | null> {
+    return apiClient.get<ServiceWorkOrder | null>(`/api/service/visits/${visitId}/work-order`);
+  }
+
+  async getServiceWorkOrder(id: number): Promise<ServiceWorkOrder> {
+    return apiClient.get<ServiceWorkOrder>(`/api/service/work-orders/${id}`);
+  }
+
+  async createServiceWorkOrder(data: ServiceWorkOrderPayload): Promise<ServiceWorkOrder> {
+    return apiClient.post<ServiceWorkOrder>('/api/service/work-orders/', data);
+  }
+
+  async updateServiceWorkOrder(id: number, data: Partial<ServiceWorkOrderPayload>): Promise<ServiceWorkOrder> {
+    return apiClient.put<ServiceWorkOrder>(`/api/service/work-orders/${id}`, data);
+  }
+
+  async deleteServiceWorkOrder(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/service/work-orders/${id}`);
+  }
+
+  async workOrderMarkChecked(id: number): Promise<ServiceWorkOrder> {
+    return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/mark-checked`, {});
+  }
+  async workOrderMarkPrepared(id: number): Promise<ServiceWorkOrder> {
+    return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/mark-prepared`, {});
+  }
+  async workOrderApprove(id: number): Promise<ServiceWorkOrder> {
+    return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/approve`, {});
+  }
+  async workOrderReopen(id: number): Promise<ServiceWorkOrder> {
+    return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/reopen`, {});
+  }
+  async workOrderSendPrerequisites(id: number): Promise<ServiceWorkOrder> {
+    return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/send-prerequisites`, {});
+  }
+
+  async setMaterialDispatch(
+    materialId: number,
+    dispatch_status: ServiceDispatchStatus,
+    dispatched_note?: string | null,
+  ): Promise<WorkOrderMaterial> {
+    return apiClient.post<WorkOrderMaterial>(`/api/service/materials/${materialId}/dispatch`, {
+      dispatch_status,
+      dispatched_note: dispatched_note ?? null,
+    });
+  }
+
+  async uploadMaterialProof(materialId: number, files: File[]): Promise<WorkOrderMaterialAttachment[]> {
+    const fd = new FormData();
+    files.forEach((f) => fd.append('files', f));
+    return apiClient.postFormData<WorkOrderMaterialAttachment[]>(`/api/service/materials/${materialId}/attachments`, fd);
+  }
+
+  async downloadMaterialProof(materialId: number, attachmentId: number, fileName: string): Promise<void> {
+    const blob = await apiClient.getBlob(`/api/service/materials/${materialId}/attachments/${attachmentId}/download`);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName || 'attachment';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async deleteMaterialProof(materialId: number, attachmentId: number): Promise<void> {
+    return apiClient.delete<void>(`/api/service/materials/${materialId}/attachments/${attachmentId}`);
+  }
+
+  async confirmPrerequisite(prereqId: number, is_done: boolean): Promise<WorkOrderPrerequisite> {
+    return apiClient.post<WorkOrderPrerequisite>(`/api/service/prerequisites/${prereqId}/confirm`, { is_done });
+  }
+
+  async getStoreMaterialQueue(): Promise<ServiceWorkOrder[]> {
+    return apiClient.get<ServiceWorkOrder[]>('/api/service/store/material-queue');
+  }
+
+  // ── Service module — Stage 4: Complaints ──
+  async getServiceComplaints(params?: {
+    status?: ServiceComplaintStatus;
+    issue_type?: ServiceIssueType;
+    customer_id?: number;
+    plant_id?: number;
+    assignee_employee_id?: number;
+    source?: ServiceComplaintSource;
+    search?: string;
+  }): Promise<ServiceComplaint[]> {
+    const q = new URLSearchParams();
+    if (params?.status) q.append('status', params.status);
+    if (params?.issue_type) q.append('issue_type', params.issue_type);
+    if (params?.customer_id != null) q.append('customer_id', String(params.customer_id));
+    if (params?.plant_id != null) q.append('plant_id', String(params.plant_id));
+    if (params?.assignee_employee_id != null) q.append('assignee_employee_id', String(params.assignee_employee_id));
+    if (params?.source) q.append('source', params.source);
+    if (params?.search?.trim()) q.append('search', params.search.trim());
+    const qs = q.toString();
+    return apiClient.get<ServiceComplaint[]>(`/api/service/complaints/${qs ? `?${qs}` : ''}`);
+  }
+
+  async getServiceComplaint(id: number): Promise<ServiceComplaint> {
+    return apiClient.get<ServiceComplaint>(`/api/service/complaints/${id}`);
+  }
+
+  async createServiceComplaint(data: ServiceComplaintPayload): Promise<ServiceComplaint> {
+    return apiClient.post<ServiceComplaint>('/api/service/complaints/', data);
+  }
+
+  async updateServiceComplaint(
+    id: number,
+    data: { issue_type?: ServiceIssueType; title?: string; description?: string | null; plant_id?: number; contract_id?: number | null; planned_time_hours?: number | null; actual_time_hours?: number | null },
+  ): Promise<ServiceComplaint> {
+    return apiClient.put<ServiceComplaint>(`/api/service/complaints/${id}`, data);
+  }
+
+  async assignServiceComplaint(id: number, assignee_employee_id: number, assignee_username?: string, note?: string): Promise<ServiceComplaint> {
+    return apiClient.post<ServiceComplaint>(`/api/service/complaints/${id}/assign`, { assignee_employee_id, assignee_username, note });
+  }
+
+  async setServiceComplaintStatus(id: number, statusVal: 'open' | 'in_progress' | 'resolved', note?: string): Promise<ServiceComplaint> {
+    return apiClient.post<ServiceComplaint>(`/api/service/complaints/${id}/status`, { status: statusVal, note });
+  }
+
+  async approveServiceComplaint(id: number): Promise<ServiceComplaint> {
+    return apiClient.post<ServiceComplaint>(`/api/service/complaints/${id}/approve`, {});
+  }
+
+  async reopenServiceComplaint(id: number, note: string): Promise<ServiceComplaint> {
+    return apiClient.post<ServiceComplaint>(`/api/service/complaints/${id}/reopen`, { note });
+  }
+
+  async closeServiceComplaint(id: number, note?: string, actual_time_hours?: number | null): Promise<ServiceComplaint> {
+    return apiClient.post<ServiceComplaint>(`/api/service/complaints/${id}/close`, { note, actual_time_hours });
+  }
+
+  async commentServiceComplaint(id: number, note: string): Promise<ServiceComplaint> {
+    return apiClient.post<ServiceComplaint>(`/api/service/complaints/${id}/comment`, { note });
+  }
+
+  async deleteServiceComplaint(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/service/complaints/${id}`);
+  }
+
+  // ── Service module — Stage 5: visit execution, calibration, PO variance, reports ──
+  async getVisitReportBundle(visitId: number): Promise<VisitReportBundle> {
+    return apiClient.get<VisitReportBundle>(`/api/service/visits/${visitId}/report-bundle`);
+  }
+
+  async uploadVisitAttachments(visitId: number, files: File[], caption?: string): Promise<VisitAttachment[]> {
+    const fd = new FormData();
+    files.forEach((f) => fd.append('files', f));
+    if (caption) fd.append('caption', caption);
+    return apiClient.postFormData<VisitAttachment[]>(`/api/service/visits/${visitId}/attachments`, fd);
+  }
+  async downloadVisitAttachment(visitId: number, attachmentId: number, fileName: string): Promise<void> {
+    const blob = await apiClient.getBlob(`/api/service/visits/${visitId}/attachments/${attachmentId}/download`);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName || 'attachment';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  async deleteVisitAttachment(visitId: number, attachmentId: number): Promise<void> {
+    return apiClient.delete<void>(`/api/service/visits/${visitId}/attachments/${attachmentId}`);
+  }
+
+  async addCalibration(visitId: number, data: Omit<ServiceCalibration, 'id' | 'visit_id' | 'created_at'>): Promise<ServiceCalibration> {
+    return apiClient.post<ServiceCalibration>(`/api/service/visits/${visitId}/calibrations`, data);
+  }
+  async updateCalibration(id: number, data: Omit<ServiceCalibration, 'id' | 'visit_id' | 'created_at'>): Promise<ServiceCalibration> {
+    return apiClient.put<ServiceCalibration>(`/api/service/calibrations/${id}`, data);
+  }
+  async deleteCalibration(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/service/calibrations/${id}`);
+  }
+
+  async addPOVariance(
+    visitId: number,
+    data: { po_requirement: string; actual_requirement: string; additional_charge?: number | null },
+  ): Promise<ServicePOVariance> {
+    return apiClient.post<ServicePOVariance>(`/api/service/visits/${visitId}/po-variances`, data);
+  }
+  async recordPOVarianceResponse(id: number, customer_response: 'accepted' | 'rejected', response_note?: string): Promise<ServicePOVariance> {
+    return apiClient.post<ServicePOVariance>(`/api/service/po-variances/${id}/record-response`, { customer_response, response_note });
+  }
+  async sendPOVarianceEmail(id: number): Promise<ServicePOVariance> {
+    return apiClient.post<ServicePOVariance>(`/api/service/po-variances/${id}/send-email`, {});
+  }
+  async deletePOVariance(id: number): Promise<void> {
+    return apiClient.delete<void>(`/api/service/po-variances/${id}`);
+  }
+
+  async getServiceReport(visitId: number): Promise<ServiceReport | null> {
+    return apiClient.get<ServiceReport | null>(`/api/service/visits/${visitId}/report`);
+  }
+  async saveServiceReport(visitId: number, data: { summary?: string | null; imported_data?: string | null }): Promise<ServiceReport> {
+    return apiClient.put<ServiceReport>(`/api/service/visits/${visitId}/report`, data);
+  }
+  async submitServiceReport(visitId: number): Promise<ServiceReport> {
+    return apiClient.post<ServiceReport>(`/api/service/visits/${visitId}/report/submit`, {});
+  }
+  async sendReportToAccounts(reportId: number): Promise<ServiceReport> {
+    return apiClient.post<ServiceReport>(`/api/service/reports/${reportId}/send-to-accounts`, {});
+  }
+  async sendFeedbackEmail(reportId: number): Promise<ServiceReport> {
+    return apiClient.post<ServiceReport>(`/api/service/reports/${reportId}/send-feedback`, {});
   }
 
   // Organizations

@@ -213,7 +213,25 @@ Applied to `GET /api/events/`, `GET /api/events/{id}`, `GET /api/events/{id}/lea
 
 ---
 
-## 📊 5. Dashboard Scoping Rules (Widgets)
+## 🔧 5. Service Module Scoping Rules
+
+The Service module (maintenance contracts, visits, work orders, store dispatch, complaints, service reports) is being built in stages from the client's 22-step requirement doc.
+
+### Stages 1–5 — the whole Service module
+
+**Visibility is permission-gated only — contracts, service plans, visits, work orders, material lines, complaints, calibration records, PO variances and service reports are NOT row-scoped.** Anyone with `service.view` sees every complaint and its full history (Step 13 is explicitly "all tickets available in history with filtering"). Anyone holding `service.view` sees every contract; there is no creator-chain or domain filter on the list/detail endpoints (`app/routers/service_contracts.py`). This is deliberate for now: the requirement's Step 22 says *"Everyone can have basic viewing permissions, but actions such as creating, managing, approving, closing, reopening and deleting are controlled separately."* Service work is cross-team (engineers, coordinators, store, accounts, marketing), so a Leads-style "creator + managers only" filter would hide contracts from the very people who need them.
+
+**Actions** are gated per-permission (see `au-marketing-api/REQUIRED_PERMISSIONS.md`): `service.create_contract` / `edit_service_contract` / `delete_service_contract` for contracts; `service.manage_visit` for the service plan and all visit actions; `service.manage_work_order` for work-order create/edit/prepare/check + materials + prerequisites, `service.approve_work_order` for approve/reopen, and `service.manage_dispatch` for the store's dispatch actions. For complaints: `service.create_complaint`, `service.manage_complaint` (edit/assign/comment/status), `service.approve_complaint` (engineer-found issues), `service.reopen_complaint`, `service.close_complaint`, `service.delete`. For the visit report: `service.manage_visit` covers the visit-type / calibration / PO-variance / attachment records; `service.manage_report` covers writing and submitting the service report and (once email is wired) the report-to-Accounts and customer-feedback emails.
+
+> [!NOTE]
+> The work-order **Approve** step (`service.approve_work_order`) is a placeholder — it will be re-wired to route through an **HRMS approval template** (multi-step sign-off) once the user provides that context. See the memory note.
+
+> [!NOTE]
+> **Settled (Stage 6 review, 2026-09-09): permission-only visibility stays.** Every service endpoint was audited — all 40+ have a `require_permission` dependency, and the frontend gates match. No row-scoping was added: the module is cross-team by nature and Step 22 explicitly wants view to be a broad baseline with actions split. **If it ever needs tightening**, the natural move is domain-level — filter each list/detail by the linked customer's `domain_id` against `get_user_scope(...).filter_domain_ids()`, the same pattern as `apply_scope_to_organization_query`. That would touch the list/get endpoints in all five service routers plus `_load_*` access checks; it is not implemented.
+
+---
+
+## 📊 6. Dashboard Scoping Rules (Widgets)
 
 Rules governing what each role sees on the Home/Dashboard page ([DashboardPage.tsx](file:///Users/ady/Documents/au-marketing-fe/pages/DashboardPage.tsx)) and how the data inside each widget is scoped. Two independent layers apply to every widget:
 
