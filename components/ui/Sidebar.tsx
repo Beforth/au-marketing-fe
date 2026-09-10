@@ -18,7 +18,7 @@ export const Sidebar: React.FC = () => {
   const [showChangelog, setShowChangelog] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [serviceOpen, setServiceOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState('v1.3.1');
+  const [appVersion, setAppVersion] = useState('v1.4.0');
   const [versionLoaded, setVersionLoaded] = useState(false);
   const userDisplayName = useAppSelector(selectUserDisplayName);
   const employee = useAppSelector(selectEmployee);

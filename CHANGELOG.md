@@ -5,6 +5,54 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-09-10] — Service Module: Contracts, Visits, Work Orders & Complaints (v1.4.0)
+
+### 🖥️ Frontend
+
+A new **Service** section in the sidebar covers everything that happens *after* a machine is sold and installed — the maintenance contract, the engineer visits, the parts the store sends, on-site calibration, the service report for each visit, and customer complaints. It appears only for people who have been given "view service" access, and every action within it (create a contract, approve a work order, close a complaint…) is its own separate permission.
+
+#### Contracts
+- Record an **AMC / AMC-I / CMC / CMC-I** maintenance contract for a customer's plant or site — start and end dates, terms & conditions, and an automatic contract number.
+- Spell out **what's covered vs chargeable** line by line (spare parts, compressor, PLC, HMI, sensors…), and flip any line if you agreed something different with that customer.
+- A tick-box for the case where everything is inclusive but extra charges are already built into the contract.
+- If the customer isn't in the system yet, you can create them — company, contact person and a site — right from the contract form.
+
+#### Service Plan & Visits
+- Each contract gets a **service plan**: the customer's preferred service dates and how many scheduled visits the contract includes.
+- **Add each visit with its date**, or quick-add blank slots to fill in later. Add **unscheduled** visits any time the customer asks for an extra one — no limit.
+- **Rescheduling a visit requires a reason**, and every change is kept as history ("rescheduled ×2" — hover to see the old date and why).
+- Completed visits are marked **Done** and turn green.
+- Automatic reminders go out **15, 7, 3 and 1 days before** every visit (in-app and phone push). Changing the date restarts them.
+- A single **Service Plan** list shows every visit across every contract, filterable by status, type and text.
+
+#### Work Orders
+- Raise a **work order** for any visit — it moves through **Prepared → Checked → Approved**, showing who did each step and when.
+- **Approval is a separate permission** — whoever checks a work order can't approve their own. Approved work orders can still be edited; each edit is recorded as "edited N× after approval".
+- List the **parts & materials** needed, each with a "needed by" date that fills in automatically (visit date minus the store's lead time).
+- Build the **site-readiness checklist** — what the customer must have ready — send it to the customer, and tick items off as they confirm.
+
+#### Store / Dispatch
+- A dedicated **storekeeper worklist**: every approved work order still waiting on parts, most urgent first, with overdue dates in red and due-tomorrow in amber.
+- For each part the storekeeper sets **Not sent / Partly sent / Fully sent**, notes what actually went out, and attaches proof (challan photo, packing slip). That status shows straight back on the work order.
+
+#### The Visit & Service Report
+- One page per visit captures everything: the **visit type** (Normal / Fitting-only / Migration), **calibration / validation** records (With Load / Without Load, hours, compressor count), any **PO difference** ("PO said X, the site needed Y") with an extra charge that only counts once the customer accepts, and **photos & documents**.
+- Write and **submit the Service Report** — a summary plus an optional box for data exported from the customer's machine software.
+- A complaint tied to a visit **cannot be closed until that visit's service report is submitted**.
+
+#### Complaints
+- Log a customer machine complaint against a customer and plant/site — issue type **H/W · S/W · PLC**, title, description, and planned time. It can optionally be linked to one of the customer's contracts, or marked "not under a contract (chargeable)".
+- **Assign** it to an employee (who gets a notification); reassign later if needed.
+- Status flow **Open → In progress → Resolved**, with a step back for "not actually fixed", and **Close** (a separate permission) that records the actual hours.
+- An issue an engineer spots mid-visit starts as **Needs approval** and can't be worked until a coordinator approves it.
+- **Reopen** a solved complaint (reason required) — its number gains an "i" each time (CMP-1 → CMP-1i → CMP-1ii) so repeat problems stand out.
+- Every action is on the complaint's **timeline** — raised, assigned, reassigned, status changes, approved, reopened, closed, comments — and the list filters by status, type and text.
+
+#### Still to come
+- **Sending emails** — the PO-difference note to the customer, the service report to Accounts, and the customer feedback email — is fully recorded and has "send" buttons in place, but the buttons stay disabled until a mail service is connected. Nothing is lost in the meantime; only the actual send is missing.
+
+---
+
 ## [2026-09-03] — Intranet Single Sign-On (v1.3.1)
 
 ### 🖥️ Frontend
