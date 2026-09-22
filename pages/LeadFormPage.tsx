@@ -838,6 +838,7 @@ export const LeadFormPage: React.FC = () => {
       await marketingAPI.reattachLeadActivityAttachment(leadId, activityId, attachmentId, file);
       showToast('File reattached successfully', 'success');
       loadActivities();
+      loadLead();
     } catch (err: any) {
       showToast(err?.message || 'Failed to reattach file', 'error');
     } finally {

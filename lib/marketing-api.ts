@@ -704,8 +704,10 @@ export interface ServiceVisitReschedule {
 
 export interface ServiceVisit {
   id: number;
-  plan_id: number;
-  contract_id: number;
+  plan_id?: number | null;
+  contract_id?: number | null;
+  complaint_id?: number | null;
+  complaint_number?: string | null;
   customer_id?: number | null;
   plant_id?: number | null;
   kind: ServiceVisitKind;
@@ -1792,6 +1794,7 @@ class MarketingAPIService {
   async getServiceVisits(params?: {
     plan_id?: number;
     contract_id?: number;
+    complaint_id?: number;
     customer_id?: number;
     status?: ServiceVisitStatus;
     kind?: ServiceVisitKind;
@@ -1801,6 +1804,7 @@ class MarketingAPIService {
     const q = new URLSearchParams();
     if (params?.plan_id != null) q.append('plan_id', String(params.plan_id));
     if (params?.contract_id != null) q.append('contract_id', String(params.contract_id));
+    if (params?.complaint_id != null) q.append('complaint_id', String(params.complaint_id));
     if (params?.customer_id != null) q.append('customer_id', String(params.customer_id));
     if (params?.status) q.append('status', params.status);
     if (params?.kind) q.append('kind', params.kind);
@@ -2000,6 +2004,20 @@ class MarketingAPIService {
 
   async commentServiceComplaint(id: number, note: string): Promise<ServiceComplaint> {
     return apiClient.post<ServiceComplaint>(`/api/service/complaints/${id}/comment`, { note });
+  }
+
+  async scheduleVisitForComplaint(
+    id: number,
+    data: {
+      title?: string;
+      planned_date?: string | null;
+      scheduled_date?: string | null;
+      assigned_engineer_employee_id?: number | null;
+      assigned_engineer_username?: string | null;
+      notes?: string | null;
+    },
+  ): Promise<ServiceVisit> {
+    return apiClient.post<ServiceVisit>(`/api/service/complaints/${id}/visits`, data);
   }
 
   async deleteServiceComplaint(id: number): Promise<void> {

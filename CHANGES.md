@@ -21,7 +21,7 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Feature index
 
-- [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7, 1.2.10
+- [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7, 1.2.10, 1.4.16
 - [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6, 1.2.8
 - [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7
 - [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
@@ -34,17 +34,44 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5, 1.2.10
 - [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6, 1.4.8, 1.4.9
 - [Design System Documentation](#design-system-documentation) — rev 1.2.6
-- [External Visiting Card Integration](#external-visiting-card-integration) — rev 1.3.0
+- [External Visiting Card Integration](#external-visiting-card-integration) — rev 1.3.0, 1.4.10
 - [Events & Exhibitions](#events--exhibitions) — rev 1.3.0
 - [API Reference Documentation](#api-reference-documentation) — rev 1.3.0
 - [Intranet SSO](#intranet-sso) — rev 1.3.1
-- [Service Module](#service-module) — rev 1.4.0, 1.4.1, 1.4.2, 1.4.3, 1.4.4, 1.4.5, 1.4.6, 1.4.7
+- [Service Module](#service-module) — rev 1.4.0, 1.4.1, 1.4.2, 1.4.3, 1.4.4, 1.4.5, 1.4.6, 1.4.7, 1.4.11, 1.4.12, 1.4.13, 1.4.14, 1.4.15
 
 ---
 
 ## Service Module
 
 New module covering everything after the sale — maintenance contracts, service visits, work orders, store material dispatch, complaints and service reports. Built in stages so each is reviewable on its own. Built straight from the client's 22-step requirement doc.
+
+### Rev 13 — 2026-09-14 (v1.4.15) — [Revision]
+- **Kanban board for Complaints**, matching how Leads/Orders work — a `Kanban | Table` toggle on `/service/complaints`, kanban as the default view. Columns: Needs approval, Open, In progress, Resolved, Closed. Cards drag between columns; a "+" on the Open column opens an inline "New Complaint" modal so a complaint can be raised without leaving the board (same fields as the full-page form — see below).
+  - Dragging isn't a blind status write on every column: dropping on **Closed** opens the same Close modal the detail page uses (needs actual hours; refused server-side if a linked visit's report isn't submitted); dragging a **Closed** card anywhere opens the Reopen modal (mandatory reason); a **Needs approval** card can only move to Open, via Approve; everything else (Open/In progress/Resolved) is a plain status change, same as the detail page's buttons.
+  - **Reused, not duplicated**: extracted the complaint creation form into `components/service/ServiceComplaintFormFields.tsx` (used by both the full-page form and the new modal), and pulled the Close/Reopen modals out of the detail page into `components/service/CloseComplaintModal.tsx` / `ReopenComplaintModal.tsx` so the board and the detail page share one implementation instead of risking the kind of drift the Won-flow entry points already have.
+  - Fixed stale copy on the Close modal while extracting it — it still said "once service reports are added (later stage)..." even though that gate shipped in Stage 5.
+- Files: `pages/ServiceComplaintsPage.tsx`, `pages/ServiceComplaintFormPage.tsx`, `pages/ServiceComplaintDetailPage.tsx`, `components/service/ServiceComplaintFormFields.tsx`, `components/service/NewComplaintModal.tsx`, `components/service/CloseComplaintModal.tsx`, `components/service/ReopenComplaintModal.tsx`
+
+### Rev 12 — 2026-09-11 (v1.4.14) — [Revision]
+- **Inline "New customer" form on the Contract page — name fields moved up.** The contact's Title/First name/Last name used to sit lower down in a separate "Contact person" block, below Company name/Domain/Region, with an unused blank space next to Company name at the top. They now sit in that top row, next to Company name; Email/Phone stay in the "Contact person" block below.
+- Files: `pages/ServiceContractFormPage.tsx`
+
+### Rev 11 — 2026-09-11 (v1.4.13) — [Revision]
+- **"New Complaint" form reorganized.** It was one flat list of 8 fields in a row — Customer, Contract, Plant, Issue type, Title, Description, Planned hours, Numbering series — with the actual complaint content (issue type/title/description) sandwiched between two optional fields, and almost every field boxed into a `max-w-xl` wrapper regardless of the page's actual width, so the whole form sat bunched on the left with empty space to the right. Now: Customer first, then a numbered "1 The problem" section (issue type, title, description, planned hours), then a numbered "2 Coverage & location (optional)" section (contract, plant) using the card's full width via a 2-column grid instead of a narrow fixed cap. Also added a "No matching customers" empty state to the customer search — it previously went silent on zero results, unlike the same search on the Contract form.
+- Files: `pages/ServiceComplaintFormPage.tsx`
+
+### Rev 10 — 2026-09-11 (v1.4.12) — [Revision]
+- **Visit rows on the Service Plan page decluttered.** Each visit used to show 7 equal-weight buttons at once (Work order / Report / Report issue / Edit / Reschedule / Done / Delete), with nothing indicating which one to actually use next. Now the row shows just the status-appropriate primary action — "Mark done" while the visit is upcoming, then a highlighted "Fill report" once it's done and the report hasn't been submitted — plus "Work order" and a "⋯" overflow menu (Report issue / Reschedule / Edit / Delete) for the rest. No capability removed, just reordered by what the visit's current status actually calls for.
+- Files: `pages/ServiceContractPlanPage.tsx`
+
+### Rev 9 — 2026-09-11 (v1.4.11) — [Revision]
+- **A visit can now be scheduled directly against a complaint, with or without a contract.** Previously a visit could only exist under a contract's service plan — so a complaint raised on its own (no AMC/CMC contract, which is a normal, supported case) had no way to get an engineer sent out at all; even a contract-linked complaint had no "schedule a visit" action anywhere.
+  - Complaint detail page gets a new **"Visits"** card: a "Schedule a visit" button (date/title/notes, `service.manage_visit`), the resulting visit(s) listed with links straight to their Work order / Report screens, and — separately — a link to the visit an issue was originally *found on*, when the complaint came from one (this reverse link existed in the data but was never shown before).
+  - `ServiceVisit.plan_id` / `contract_id` are now nullable, and gained a `complaint_id` link, so a visit tied only to a complaint is a first-class case, not a workaround. `ServiceWorkOrder.contract_id` is nullable too, so opening "Work order" from one of these visits doesn't hit a database constraint.
+  - The all-visits list (`/service/visits`) shows "Complaint CMP-XXX" in place of a contract for these, and its row-click / plan icon route to the complaint instead of a nonexistent contract plan. The visit-reminder push notification's deep link does the same instead of linking to `/service/contracts/None/plan`.
+  - **New DB columns**: `service_visits.complaint_id` (nullable FK); `service_visits.plan_id`, `service_visits.contract_id`, `service_work_orders.contract_id` become nullable — needs `alembic revision --autogenerate` + `alembic upgrade head` (not yet run — do this before relying on the feature).
+- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/routers/service_plans.py`, `au-marketing-api/app/routers/service_complaints.py`, `au-marketing-api/app/scheduler.py`, `lib/marketing-api.ts`, `pages/ServiceComplaintDetailPage.tsx`, `pages/ServiceVisitsPage.tsx`
 
 ### Rev 8 — 2026-09-09 (v1.4.7) — [Revision]
 - **Renamed every Service permission from `marketing.*` to `service.*`** so the module owns its own namespace. 15 codes:
@@ -143,6 +170,11 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Leads Kanban
+
+### Rev 17 — 2026-09-22 (v1.4.16) — [Issue]
+- **A lead created without a quotation file, then attached later via "Attach file," never moved to the "Quotation submitted" column.** The kanban board reads a lead's column purely from `lead.status_id`. Uploading a *brand-new* quotation attachment already auto-advances `status_id` to whichever status is flagged `set_when_quotation_added` (`leads.py:1073-1088`) — but the separate reattach/`replace` endpoint used to fill in a file-less quotation placeholder (created when a lead is saved with a quote number but no file, e.g. "Inquiry 0") never had this check, so the lead's status silently never changed. Added the same status-advance logic to the reattach endpoint, guarded on `att.is_quotation` and skipped for leads already Won/Lost. Also had `LeadFormPage`'s reattach handler refresh the lead record (not just the activity list) so the status badge updates immediately without a page reload.
+- **Backfill for already-affected leads**: added `scripts/backfill_quotation_submitted_status.py` (dry-run by default, `--apply` to write) — finds leads with a real filed quotation but a status stuck before "Quotation submitted" (excluding Won/Lost) and corrects just that one field. Not yet run against production; run and reviewed on request only.
+- Files: `au-marketing-api/app/routers/leads.py`, `pages/LeadFormPage.tsx`, `au-marketing-api/scripts/backfill_quotation_submitted_status.py`
 
 ### Rev 16 — 2026-08-20 (v1.2.10) — [Revision]
 - **Leads page toolbar redesigned into a single compact command bar.** The 4 separate action buttons (Manage Statuses, Manage Lead Types, Number Series, New Lead) collapsed into a "Manage" dropdown with a popover menu. Search, filter toggles, employee avatars, and date range all sit in one `h-14` row. Filter checkboxes became pill-style toggle buttons (Won & Lost, Only mine, Hide Empty). Custom date pickers moved to a separate row below the command bar so they don't compress other buttons when selected. Fixed a runtime crash from an unresolved `Tag` icon import.
@@ -543,6 +575,10 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## External Visiting Card Integration
+
+### Rev 3 — 2026-09-11 (v1.4.10) — [Issue]
+- **Scanning a card in the external card-capture app showed "req rejected 307".** `POST /api/visiting-card-contacts` (and the `GET` list) were only registered with a trailing slash (`/api/visiting-card-contacts/`); the scanner app calls without one. FastAPI's default `redirect_slashes` behavior turns that mismatch into a `307 Temporary Redirect` rather than a 404 — but the scanner's HTTP client doesn't follow a 307 on a POST, so it surfaced the redirect itself as a rejected request. Fixed server-side by registering both the slash and no-slash paths on the same handler, so no redirect is ever issued regardless of which form the caller uses — the scanning app needs no update or reinstall. See `ISSUES.md`.
+- Files: `au-marketing-api/app/routers/visiting_card_contacts.py`
 
 ### Rev 2 — 2026-08-30 (v1.3.0) — [Revision]
 - **Exhibition attribution.** A visiting card can now carry which exhibition/roadshow it was collected at (`exhibition_id` on `visiting_card_contacts`, FK to `events`). The external scanner app already has an exhibition picker (`GET /api/exhibitions/active`) but there was nowhere to send the choice — now `POST /api/visiting-card-contacts` and the PUT accept `exhibition_id`, validated against a real event. Convert-to-Contact copies it onto the new `Contact`. See the matching **Events & Exhibitions** Rev 2 for the Contact→Lead→reporting half.

@@ -13,7 +13,7 @@ import { DataTable } from '../components/ui/DataTable';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { CalendarClock, CalendarDays, ClipboardList, FileText } from 'lucide-react';
+import { CalendarClock, CalendarDays, ClipboardList, FileText, MessageSquareWarning } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Tooltip } from '../UI/Tooltip';
 import {
@@ -74,6 +74,7 @@ export const ServiceVisitsPage: React.FC = () => {
         (v.title || '').toLowerCase().includes(term) ||
         (v.customer_name || '').toLowerCase().includes(term) ||
         (v.contract_number || '').toLowerCase().includes(term) ||
+        (v.complaint_number || '').toLowerCase().includes(term) ||
         (v.plant_name || '').toLowerCase().includes(term),
     );
   }, [visits, search]);
@@ -134,14 +135,20 @@ export const ServiceVisitsPage: React.FC = () => {
           <div className="py-24 text-center">
             <CalendarClock className="w-12 h-12 text-slate-400 mx-auto mb-4" />
             <p className="text-slate-900 font-semibold">No visits found</p>
-            <p className="text-slate-500 text-sm mt-2">Visits appear here once a contract has a service plan.</p>
+            <p className="text-slate-500 text-sm mt-2">Visits appear here once a contract has a service plan, or once one is scheduled for a complaint.</p>
           </div>
         ) : (
           <DataTable<ServiceVisit>
             bordered={false}
             data={filtered}
             rowKey={(v) => v.id}
-            onRowClick={(v) => navigate(`/service/contracts/${v.contract_id}/plan`)}
+            onRowClick={(v) =>
+              v.contract_id
+                ? navigate(`/service/contracts/${v.contract_id}/plan`)
+                : v.complaint_id
+                  ? navigate(`/service/complaints/${v.complaint_id}`)
+                  : undefined
+            }
             dense
             showVerticalLines
             columns={[
@@ -151,7 +158,9 @@ export const ServiceVisitsPage: React.FC = () => {
                 render: (v) => (
                   <div>
                     <div className="font-medium text-slate-900">{v.title || `Visit ${v.visit_number ?? v.id}`}</div>
-                    <div className="text-xs text-slate-500">{v.contract_number || `Contract #${v.contract_id}`}</div>
+                    <div className="text-xs text-slate-500">
+                      {v.contract_number || (v.complaint_number ? `Complaint ${v.complaint_number}` : v.contract_id ? `Contract #${v.contract_id}` : 'No contract')}
+                    </div>
                   </div>
                 ),
               },
@@ -185,19 +194,35 @@ export const ServiceVisitsPage: React.FC = () => {
                 align: 'right',
                 render: (v) => (
                   <div className="flex items-center justify-end gap-1">
-                    <Tooltip content="Open the contract's service plan">
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        className="w-8 h-8 p-0 text-slate-500 hover:text-blue-700 hover:bg-transparent"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/service/contracts/${v.contract_id}/plan`);
-                        }}
-                      >
-                        <CalendarDays size={16} />
-                      </Button>
-                    </Tooltip>
+                    {v.contract_id ? (
+                      <Tooltip content="Open the contract's service plan">
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="w-8 h-8 p-0 text-slate-500 hover:text-blue-700 hover:bg-transparent"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/service/contracts/${v.contract_id}/plan`);
+                          }}
+                        >
+                          <CalendarDays size={16} />
+                        </Button>
+                      </Tooltip>
+                    ) : v.complaint_id ? (
+                      <Tooltip content="Open the complaint this visit is for">
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="w-8 h-8 p-0 text-slate-500 hover:text-blue-700 hover:bg-transparent"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/service/complaints/${v.complaint_id}`);
+                          }}
+                        >
+                          <MessageSquareWarning size={16} />
+                        </Button>
+                      </Tooltip>
+                    ) : null}
                     <Tooltip content="Open this visit's work order">
                       <Button
                         variant="ghost"

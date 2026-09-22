@@ -445,7 +445,38 @@ export const ServiceContractFormPage: React.FC = () => {
                     onChange={(e) => setNewCustomer((p) => ({ ...p, company_name: e.target.value }))}
                     placeholder="Customer company name"
                   />
-                  <div className="hidden md:block" />
+                  {canCreateContact ? (
+                    <div className="flex gap-2 items-end">
+                      <div className="w-20 shrink-0">
+                        <Select
+                          label="Title"
+                          options={NAME_PREFIXES}
+                          value={newCustomer.contact_title}
+                          onChange={(v) => setNewCustomer((p) => ({ ...p, contact_title: (v ?? '') as string }))}
+                          placeholder="—"
+                          searchable={false}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Input
+                          label="First name"
+                          value={newCustomer.contact_first_name}
+                          onChange={(e) => setNewCustomer((p) => ({ ...p, contact_first_name: e.target.value }))}
+                          placeholder="First name"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Input
+                          label="Last name"
+                          value={newCustomer.contact_last_name}
+                          onChange={(e) => setNewCustomer((p) => ({ ...p, contact_last_name: e.target.value }))}
+                          placeholder="Last name"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="hidden md:block" />
+                  )}
                   <Select
                     label="Domain"
                     options={domains.map((d) => ({ value: String(d.id), label: d.name }))}
@@ -474,32 +505,6 @@ export const ServiceContractFormPage: React.FC = () => {
                   <div className="pt-2 border-t border-blue-200/60">
                     <p className="text-xs font-medium text-slate-600 mb-2">Contact person</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="flex gap-2 items-end">
-                        <div className="w-24 shrink-0">
-                          <Select
-                            label="Title"
-                            options={NAME_PREFIXES}
-                            value={newCustomer.contact_title}
-                            onChange={(v) => setNewCustomer((p) => ({ ...p, contact_title: (v ?? '') as string }))}
-                            placeholder="—"
-                            searchable={false}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <Input
-                            label="First name"
-                            value={newCustomer.contact_first_name}
-                            onChange={(e) => setNewCustomer((p) => ({ ...p, contact_first_name: e.target.value }))}
-                            placeholder="First name"
-                          />
-                        </div>
-                      </div>
-                      <Input
-                        label="Last name"
-                        value={newCustomer.contact_last_name}
-                        onChange={(e) => setNewCustomer((p) => ({ ...p, contact_last_name: e.target.value }))}
-                        placeholder="Last name"
-                      />
                       <Input
                         label="Email"
                         type="email"

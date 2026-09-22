@@ -25,6 +25,21 @@
 - [Leads](#leads)
 - [Reports](#reports)
 - [Service Module](#service-module)
+- [External Visiting Card Integration](#external-visiting-card-integration)
+
+---
+
+## External Visiting Card Integration
+
+### 2026-09-11 — Scanning a card shows "req rejected 307"
+
+**What was reported:** scanning a visiting card in the external card-capture app returned a rejection showing status `307` instead of saving the card.
+
+**Root cause:** `POST /api/visiting-card-contacts` (and the `GET` list) were only registered in FastAPI with a trailing slash — the real route is `/api/visiting-card-contacts/`. The scanner app calls the URL *without* the trailing slash. FastAPI's default `redirect_slashes` behavior doesn't 404 that mismatch — it responds with a `307 Temporary Redirect` pointing at the slash version, expecting the caller to retry there. That's normally invisible (browsers and most HTTP libraries auto-follow a 307), but the scanner app's HTTP client doesn't follow redirects on a POST, so it treated the 307 itself as the response and surfaced it as a rejected request. This is unrelated to the HRMS permission grant for this endpoint — a missing permission would show as `403`, and the redirect happens before any permission check runs.
+
+**Fix:** [`app/routers/visiting_card_contacts.py`](au-marketing-api/app/routers/visiting_card_contacts.py) now registers both the create (`POST`) and list (`GET`) routes on two paths — with and without the trailing slash — pointing at the same handler, so no redirect is ever issued no matter which form the caller uses. No change needed on the scanner app's side; it does not need to be updated or reinstalled.
+
+**Status:** fixed, not yet committed.
 
 ---
 
@@ -43,6 +58,24 @@
 ---
 
 ## Leads
+
+### 2026-09-22 — Attaching a quote file later doesn't move the card to "Quotation submitted"
+
+**What was reported:** Create a lead with no quotation file (so it has an empty "Inquiry 0" placeholder), then later upload the actual file to that placeholder — the kanban card stays in its original column instead of moving to "Quotation submitted."
+
+**Root cause:** The kanban board decides which column a lead sits in purely from `lead.status_id` (`pages/LeadsPage.tsx:370-387`). There are two different backend endpoints that can attach a quotation file, and only one of them advances that status:
+- `POST /leads/{id}/activities/{id}/attachments` (brand-new attachment) already checks for a lead status flagged `set_when_quotation_added` and moves the lead there after saving the file (`au-marketing-api/app/routers/leads.py:1073-1088`).
+- `POST /leads/{id}/activities/{id}/attachments/{id}/replace` (the "Attach file" / reattach action used to fill in a file-less quotation placeholder — exactly what a bare-created lead has) saved the file but never ran that same check, so `status_id` was left untouched.
+
+This is what a lead created with a quote number but no file goes through: the backend auto-creates a file-less "Inquiry 0" placeholder at creation time, and the user later fills it in via "Attach file," which hit the endpoint missing the fix.
+
+**Fix:** Added the identical status-advance check (skipped if the lead is already Won/Lost) to the reattach endpoint (`au-marketing-api/app/routers/leads.py:1265-1274`). Also updated `LeadFormPage`'s reattach handler to refresh the lead record, not just the activity list, so the status badge on that page updates immediately (`pages/LeadFormPage.tsx:841`).
+
+**Already-affected leads:** this fix only applies to uploads from now on — leads that already got a file attached through the broken path are still stuck. `au-marketing-api/scripts/backfill_quotation_submitted_status.py` (dry-run by default; `--apply` to write) finds and corrects exactly those leads' `status_id`, touching no other field, file, or record. Not yet run against production.
+
+**Status:** fixed, not yet committed.
+
+---
 
 ### 2026-08-30 — `POST /api/leads/` fails with "cannot access local variable 'EmployeeRegionAssignment'"
 

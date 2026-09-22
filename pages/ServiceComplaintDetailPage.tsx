@@ -10,17 +10,28 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { PageLayout } from '../components/layout/PageLayout';
+import { CloseComplaintModal } from '../components/service/CloseComplaintModal';
+import { ReopenComplaintModal } from '../components/service/ReopenComplaintModal';
+import { Tooltip } from '../UI/Tooltip';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { ArrowLeft, Check, RotateCcw, UserPlus } from 'lucide-react';
+import { ArrowLeft, Calendar, Check, ClipboardList, FileText, Plus, RotateCcw, UserPlus } from 'lucide-react';
 import {
   marketingAPI,
   HRMSEmployee,
   ServiceComplaint,
   ServiceComplaintStatus,
   ServiceIssueType,
+  ServiceVisit,
 } from '../lib/marketing-api';
+
+const VISIT_STATUS_VARIANT: Record<string, 'success' | 'warning' | 'outline' | 'error'> = {
+  planned: 'outline',
+  scheduled: 'warning',
+  done: 'success',
+  cancelled: 'error',
+};
 
 const STATUS_VARIANT: Record<ServiceComplaintStatus, 'outline' | 'warning' | 'success' | 'error'> = {
   pending_approval: 'error',
@@ -61,11 +72,15 @@ export const ServiceComplaintDetailPage: React.FC = () => {
   const canApprove = useAppSelector(selectHasPermission('service.approve_complaint'));
   const canReopen = useAppSelector(selectHasPermission('service.reopen_complaint'));
   const canClose = useAppSelector(selectHasPermission('service.close_complaint'));
+  const canManageVisit = useAppSelector(selectHasPermission('service.manage_visit'));
 
   const [c, setC] = useState<ServiceComplaint | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [comment, setComment] = useState('');
+
+  // visits scheduled to address this complaint
+  const [visits, setVisits] = useState<ServiceVisit[]>([]);
 
   // assign modal
   const [assignOpen, setAssignOpen] = useState(false);
@@ -74,10 +89,14 @@ export const ServiceComplaintDetailPage: React.FC = () => {
 
   // reopen / close modals
   const [reopenOpen, setReopenOpen] = useState(false);
-  const [reopenNote, setReopenNote] = useState('');
   const [closeOpen, setCloseOpen] = useState(false);
-  const [closeNote, setCloseNote] = useState('');
-  const [closeHours, setCloseHours] = useState('');
+
+  // schedule-a-visit modal
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [svTitle, setSvTitle] = useState('');
+  const [svDate, setSvDate] = useState('');
+  const [svNotes, setSvNotes] = useState('');
+  const [savingVisit, setSavingVisit] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -91,13 +110,43 @@ export const ServiceComplaintDetailPage: React.FC = () => {
     }
   }, [cid, navigate, showToast]);
 
+  const loadVisits = useCallback(async () => {
+    try {
+      setVisits(await marketingAPI.getServiceVisits({ complaint_id: cid }));
+    } catch {
+      setVisits([]);
+    }
+  }, [cid]);
+
+  const scheduleVisit = async () => {
+    setSavingVisit(true);
+    try {
+      await marketingAPI.scheduleVisitForComplaint(cid, {
+        title: svTitle.trim() || undefined,
+        scheduled_date: svDate || null,
+        notes: svNotes.trim() || undefined,
+      });
+      showToast('Visit scheduled', 'success');
+      setScheduleOpen(false);
+      setSvTitle('');
+      setSvDate('');
+      setSvNotes('');
+      loadVisits();
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to schedule visit', 'error');
+    } finally {
+      setSavingVisit(false);
+    }
+  };
+
   useEffect(() => {
     if (!canView) {
       setIsLoading(false);
       return;
     }
     load();
-  }, [canView, load]);
+    loadVisits();
+  }, [canView, load, loadVisits]);
 
   const run = async (fn: () => Promise<ServiceComplaint>, okMsg: string) => {
     setBusy(true);
@@ -187,12 +236,12 @@ export const ServiceComplaintDetailPage: React.FC = () => {
             </Button>
           )}
           {canClose && (c.status === 'resolved' || c.status === 'in_progress') && (
-            <Button size="sm" isLoading={busy} onClick={() => { setCloseNote(''); setCloseHours(c.actual_time_hours ? String(c.actual_time_hours) : ''); setCloseOpen(true); }}>
+            <Button size="sm" isLoading={busy} onClick={() => setCloseOpen(true)}>
               Close
             </Button>
           )}
           {canReopen && c.status === 'closed' && (
-            <Button size="sm" leftIcon={<RotateCcw size={14} />} onClick={() => { setReopenNote(''); setReopenOpen(true); }}>
+            <Button size="sm" leftIcon={<RotateCcw size={14} />} onClick={() => setReopenOpen(true)}>
               Reopen
             </Button>
           )}
@@ -209,6 +258,60 @@ export const ServiceComplaintDetailPage: React.FC = () => {
         <div className="lg:col-span-2 space-y-4">
           <Card title="Problem">
             <p className="text-sm text-slate-700 whitespace-pre-wrap">{c.description || <span className="text-slate-400">No description.</span>}</p>
+          </Card>
+
+          <Card title="Visits">
+            {canManageVisit && c.status !== 'closed' && (
+              <div className="flex justify-end mb-2">
+                <Button size="xs" variant="outline" leftIcon={<Plus size={13} />} onClick={() => setScheduleOpen(true)}>
+                  Schedule a visit
+                </Button>
+              </div>
+            )}
+            {c.source === 'found_on_visit' && c.visit_id && (
+              <button
+                type="button"
+                onClick={() => navigate(`/service/visits/${c.visit_id}/report`)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 mb-2 rounded-lg text-sm bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100 transition-colors text-left"
+              >
+                <Calendar size={14} />
+                Found during this visit — open it
+              </button>
+            )}
+            {visits.length === 0 ? (
+              <p className="text-sm text-slate-400 py-4 text-center">
+                No visit scheduled yet.{canManageVisit && c.status !== 'closed' ? ' Click "Schedule a visit" to send an engineer.' : ''}
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {visits.map((v) => (
+                  <div key={v.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-slate-100 hover:bg-slate-50">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-slate-800 truncate">{v.title || `Visit #${v.id}`}</div>
+                      <div className="text-xs text-slate-500">{v.scheduled_date || v.planned_date || 'Date not set'}</div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Badge variant={VISIT_STATUS_VARIANT[v.status] || 'outline'}>{v.status}</Badge>
+                      <Tooltip content="Work order">
+                        <Button variant="ghost" size="xs" className="w-8 h-8 p-0 text-slate-500" onClick={() => navigate(`/service/visits/${v.id}/work-order`)}>
+                          <ClipboardList size={14} />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip content="Report">
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className={`w-8 h-8 p-0 ${v.report_status === 'submitted' ? 'text-emerald-600' : 'text-slate-500'}`}
+                          onClick={() => navigate(`/service/visits/${v.id}/report`)}
+                        >
+                          <FileText size={14} />
+                        </Button>
+                      </Tooltip>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
 
           <Card title="History">
@@ -290,6 +393,36 @@ export const ServiceComplaintDetailPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Schedule a visit modal */}
+      <Modal
+        isOpen={scheduleOpen}
+        onClose={() => setScheduleOpen(false)}
+        title="Schedule a visit"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setScheduleOpen(false)}>Cancel</Button>
+            <Button onClick={scheduleVisit} isLoading={savingVisit}>Schedule</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input label="Title (optional)" value={svTitle} onChange={(e) => setSvTitle(e.target.value)} placeholder="e.g. Site visit to inspect PLC fault" />
+          <Input label="Date (optional)" type="date" value={svDate} onChange={(e) => setSvDate(e.target.value)} />
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes (optional)</label>
+            <textarea
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={3}
+              value={svNotes}
+              onChange={(e) => setSvNotes(e.target.value)}
+            />
+          </div>
+          {!c.contract_id && (
+            <p className="text-xs text-slate-400">This complaint isn't under a contract, so the visit will be tracked against it directly rather than a service plan.</p>
+          )}
+        </div>
+      </Modal>
+
       {/* Assign modal */}
       <Modal isOpen={assignOpen} onClose={() => setAssignOpen(false)} title={c.assignee_username ? 'Reassign complaint' : 'Assign complaint'}>
         <Input value={empQuery} onChange={(e) => searchEmployees(e.target.value)} placeholder="Search employee by name…" autoFocus />
@@ -307,58 +440,19 @@ export const ServiceComplaintDetailPage: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Reopen modal */}
-      <Modal
+      <ReopenComplaintModal
+        complaint={c}
         isOpen={reopenOpen}
         onClose={() => setReopenOpen(false)}
-        title="Reopen complaint"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setReopenOpen(false)}>Cancel</Button>
-            <Button
-              disabled={reopenNote.trim().length < 3 || busy}
-              onClick={async () => {
-                await run(() => marketingAPI.reopenServiceComplaint(cid, reopenNote.trim()), 'Complaint reopened');
-                setReopenOpen(false);
-                load();
-              }}
-            >
-              Reopen
-            </Button>
-          </>
-        }
-      >
-        <p className="text-sm text-slate-500 mb-3">The reopened complaint gets an “i” added to its number ({c.display_number} → {c.display_number}i).</p>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">Why is it being reopened? <span className="text-rose-500">*</span></label>
-        <textarea className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" rows={3} value={reopenNote} onChange={(e) => setReopenNote(e.target.value)} />
-      </Modal>
+        onReopened={(updated) => setC(updated)}
+      />
 
-      {/* Close modal */}
-      <Modal
+      <CloseComplaintModal
+        complaint={c}
         isOpen={closeOpen}
         onClose={() => setCloseOpen(false)}
-        title="Close complaint"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setCloseOpen(false)}>Cancel</Button>
-            <Button
-              disabled={busy}
-              onClick={async () => {
-                await run(() => marketingAPI.closeServiceComplaint(cid, closeNote.trim() || undefined, closeHours ? Number(closeHours) : null), 'Complaint closed');
-                setCloseOpen(false);
-                load();
-              }}
-            >
-              Close complaint
-            </Button>
-          </>
-        }
-      >
-        <p className="text-xs text-amber-600 mb-3">Note: once service reports are added (later stage), closing will require the report to be submitted first.</p>
-        <Input label="Actual time taken (hours)" type="number" min={0} step="0.5" value={closeHours} onChange={(e) => setCloseHours(e.target.value)} />
-        <label className="block text-sm font-medium text-slate-700 mb-1.5 mt-3">Closing note (optional)</label>
-        <textarea className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" rows={3} value={closeNote} onChange={(e) => setCloseNote(e.target.value)} />
-      </Modal>
+        onClosed={(updated) => setC(updated)}
+      />
     </PageLayout>
   );
 };

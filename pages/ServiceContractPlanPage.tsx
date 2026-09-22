@@ -11,10 +11,11 @@ import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Modal } from '../components/ui/Modal';
 import { PageLayout } from '../components/layout/PageLayout';
+import { Popover, PopoverTrigger, PopoverContent } from '../components/ui/popover';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { ArrowLeft, CalendarClock, Check, ClipboardList, FileText, MessageSquareWarning, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Check, ClipboardList, FileText, MessageSquareWarning, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import {
   marketingAPI,
   ServiceContract,
@@ -389,7 +390,41 @@ export const ServiceContractPlanPage: React.FC = () => {
                       <td className="py-2 pr-4"><Badge variant={VISIT_STATUS_VARIANT[v.status]}>{v.status}</Badge></td>
                       <td className="py-2 text-right whitespace-nowrap">
                         {canManage && (
-                          <>
+                          <div className="inline-flex items-center gap-1">
+                            {v.status !== 'done' && (
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                className="h-8 px-2 text-emerald-600"
+                                onClick={() => complete(v)}
+                                leftIcon={<Check size={14} />}
+                                title="Next step: mark the visit done once the engineer has been on site"
+                              >
+                                Mark done
+                              </Button>
+                            )}
+                            {v.status === 'done' && !(v.has_report && v.report_status === 'submitted') ? (
+                              <Button
+                                variant="outline"
+                                size="xs"
+                                className="h-8 px-2 normal-case tracking-normal font-medium text-blue-700 border-blue-200 bg-blue-50 hover:bg-blue-100"
+                                onClick={() => navigate(`/service/visits/${v.id}/report`)}
+                                leftIcon={<FileText size={14} />}
+                                title="Next step: the visit is done — fill in the service report"
+                              >
+                                Fill report
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                className={`h-8 px-2 ${v.has_report && v.report_status === 'submitted' ? 'text-emerald-600' : 'text-slate-600'}`}
+                                onClick={() => navigate(`/service/visits/${v.id}/report`)}
+                                leftIcon={<FileText size={14} />}
+                              >
+                                Report
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="xs"
@@ -399,74 +434,65 @@ export const ServiceContractPlanPage: React.FC = () => {
                             >
                               Work order
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              className={`h-8 px-2 ${v.has_report && v.report_status === 'submitted' ? 'text-emerald-600' : 'text-slate-600'}`}
-                              onClick={() => navigate(`/service/visits/${v.id}/report`)}
-                              leftIcon={<FileText size={14} />}
-                            >
-                              Report
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              className="h-8 px-2 text-slate-600"
-                              onClick={() =>
-                                navigate(
-                                  `/service/complaints/new?visit_id=${v.id}&contract_id=${contractId}` +
-                                    (contract?.customer_id ? `&customer_id=${contract.customer_id}` : '') +
-                                    (contract?.plant_id ? `&plant_id=${contract.plant_id}` : ''),
-                                )
-                              }
-                              leftIcon={<MessageSquareWarning size={14} />}
-                            >
-                              Report issue
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              className="h-8 px-2 text-slate-600"
-                              onClick={() => openEditVisit(v)}
-                              leftIcon={<Pencil size={14} />}
-                            >
-                              Edit
-                            </Button>
-                            {v.status !== 'done' && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="xs"
-                                  className="h-8 px-2 text-blue-600"
-                                  onClick={() => {
-                                    setRescheduleVisit(v);
-                                    setNewDate(v.scheduled_date || v.planned_date || '');
-                                    setReason('');
-                                  }}
-                                  leftIcon={<CalendarClock size={14} />}
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                                  title="More actions"
                                 >
-                                  Reschedule
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="xs"
-                                  className="h-8 px-2 text-emerald-600"
-                                  onClick={() => complete(v)}
-                                  leftIcon={<Check size={14} />}
+                                  <MoreHorizontal size={16} />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent align="end" sideOffset={6} className="w-48 p-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    navigate(
+                                      `/service/complaints/new?visit_id=${v.id}&contract_id=${contractId}` +
+                                        (contract?.customer_id ? `&customer_id=${contract.customer_id}` : '') +
+                                        (contract?.plant_id ? `&plant_id=${contract.plant_id}` : ''),
+                                    )
+                                  }
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100 transition-colors text-left"
                                 >
-                                  Done
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              className="h-8 w-8 p-0 text-rose-600"
-                              onClick={() => removeVisit(v)}
-                            >
-                              <Trash2 size={14} />
-                            </Button>
-                          </>
+                                  <MessageSquareWarning size={14} className="text-slate-400" />
+                                  Report issue
+                                </button>
+                                {v.status !== 'done' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setRescheduleVisit(v);
+                                      setNewDate(v.scheduled_date || v.planned_date || '');
+                                      setReason('');
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100 transition-colors text-left"
+                                  >
+                                    <CalendarClock size={14} className="text-slate-400" />
+                                    Reschedule
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => openEditVisit(v)}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100 transition-colors text-left"
+                                >
+                                  <Pencil size={14} className="text-slate-400" />
+                                  Edit
+                                </button>
+                                <div className="h-px bg-slate-100 my-1" />
+                                <button
+                                  type="button"
+                                  onClick={() => removeVisit(v)}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-rose-600 hover:bg-rose-50 transition-colors text-left"
+                                >
+                                  <Trash2 size={14} />
+                                  Delete
+                                </button>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
                         )}
                       </td>
                     </tr>

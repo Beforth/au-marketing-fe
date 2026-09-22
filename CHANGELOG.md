@@ -5,6 +5,14 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-09-22] — Leads: Quotation Status Fix (v1.4.16)
+
+### 🖥️ Frontend
+
+#### Attaching a quotation file now moves the lead correctly
+- When a lead is created without a quotation file and the file is attached later (via "Attach file" on the lead), the lead now correctly moves to **Quotation submitted** on the Leads board — this previously only happened when the file was uploaded at the time the quotation was first added.
+- The lead's status now updates immediately on the lead's page after attaching the file, without needing to refresh.
+
 ## [2026-09-10] — Service Module: Contracts, Visits, Work Orders & Complaints (v1.4.0)
 
 ### 🖥️ Frontend
