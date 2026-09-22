@@ -12,6 +12,7 @@ Format: `[Date] — Category: Description`
 #### Attaching a quotation file now moves the lead correctly
 - When a lead is created without a quotation file and the file is attached later (via "Attach file" on the lead), the lead now correctly moves to **Quotation submitted** on the Leads board — this previously only happened when the file was uploaded at the time the quotation was first added.
 - The lead's status now updates immediately on the lead's page after attaching the file, without needing to refresh.
+- **This fix only applies going forward. Any lead where a quotation file was already attached this way before today will not move on its own — please move those cards to "Quotation submitted" manually on the Leads board so their status is accurate.**
 
 ## [2026-09-10] — Service Module: Contracts, Visits, Work Orders & Complaints (v1.4.0)
 

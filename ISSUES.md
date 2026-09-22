@@ -71,7 +71,7 @@ This is what a lead created with a quote number but no file goes through: the ba
 
 **Fix:** Added the identical status-advance check (skipped if the lead is already Won/Lost) to the reattach endpoint (`au-marketing-api/app/routers/leads.py:1265-1274`). Also updated `LeadFormPage`'s reattach handler to refresh the lead record, not just the activity list, so the status badge on that page updates immediately (`pages/LeadFormPage.tsx:841`).
 
-**Already-affected leads:** this fix only applies to uploads from now on — leads that already got a file attached through the broken path are still stuck. `au-marketing-api/scripts/backfill_quotation_submitted_status.py` (dry-run by default; `--apply` to write) finds and corrects exactly those leads' `status_id`, touching no other field, file, or record. Not yet run against production.
+**Already-affected leads:** this fix only applies to uploads from now on — leads that already got a file attached through the broken path are still stuck. A one-time backfill script was drafted and tested, but was not used — decided to have users move those specific leads to "Quotation submitted" manually on the Leads board instead (see the bolded note added to CHANGELOG.md).
 
 **Status:** fixed, not yet committed.
 
