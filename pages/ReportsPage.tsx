@@ -148,6 +148,11 @@ export const ReportsPage: React.FC = () => {
       </Card>
       )}
 
+      {/* Region-wise leads and values */}
+      <Card className="mb-6" title="Leads by Region" description="Leads, quotations sent and won leads per region, with each region's leads and values. Filter by period, domain, region, status and owner.">
+        <Button onClick={() => navigate('/reports/leads-by-region')}>Open Leads by Region</Button>
+      </Card>
+
       {/* Create report actions */}
       {canCreateReport && (
         <Card className="mb-6" title="Create report" description="Create plans and forecasts.">

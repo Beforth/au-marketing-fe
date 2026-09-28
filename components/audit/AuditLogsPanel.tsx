@@ -6,6 +6,7 @@ import { DatePicker } from '../ui/DatePicker';
 import { Button } from '../ui/Button';
 import { marketingAPI, AuditLog, AuditLogFilterOptions } from '../../lib/marketing-api';
 import { cn } from '../../lib/utils';
+import { splitAuditDetails } from '../../lib/audit-details';
 
 /**
  * Settings → Audit Logs.
@@ -157,9 +158,24 @@ export const AuditLogsPanel: React.FC = () => {
             {log.entity_label && (
               <p className="text-xs font-semibold text-slate-800 leading-normal">{log.entity_label}</p>
             )}
-            <span className="text-xs text-slate-600 font-medium leading-normal break-words whitespace-normal" title={log.details || ''}>
-              {log.details || `ID: ${log.entity_id || 'n/a'}`}
-            </span>
+            {(() => {
+              // "<what happened> — <change>; <change>" → the summary, then the changes as a list.
+              const { summary, changes } = splitAuditDetails(log.details);
+              return (
+                <>
+                  <span className="text-xs text-slate-600 font-medium leading-normal break-words whitespace-normal" title={log.details || ''}>
+                    {summary || `ID: ${log.entity_id || 'n/a'}`}
+                  </span>
+                  {changes.length > 0 && (
+                    <ul className="mt-1 space-y-0.5">
+                      {changes.map((c, i) => (
+                        <li key={i} className="text-[11px] text-slate-500 leading-snug break-words pl-2 border-l-2 border-slate-200">{c}</li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )

@@ -51,6 +51,14 @@ Format: `[Date] — Category: Description`
 - Filter by **date range**, user, action and record type.
 - Search by **lead name** as well as other words in the log.
 - The list loads more entries automatically as you scroll.
+- Entries now say **exactly what was affected** — the lead, enquiry, contract, visit, work order, organization, event or person by name, plus the quote number or file — instead of ID numbers like "attachment #49".
+- Every **edit now shows what changed, from old to new** (e.g. "Phone: 98200 → 97300", "Quote value: ₹1,35,500 → ₹1,20,000"), shown as a short list under the entry.
+- Removing a quotation from a lead is now found when you search that lead's name.
+
+#### Leads by Region
+- New **Leads by Region** card on the dashboard: for each region, the number of leads, quotations sent and their value, and won leads and their value — for this month, this quarter, this financial year or all time.
+- New **Reports → Leads by Region** page listing every lead under its region with its quotation and won values, region totals and a grand total. Filter by period (or your own dates), domain, region, status, owner and search, and **download it as CSV**.
+- Quotations count once at their latest revised price, in the period they were first sent; won leads count by their Won date. You only see regions and leads you already have access to.
 
 #### Global search
 - The search bar at the top now finds real records — leads, orders, contacts, organizations, customers and more — and takes you straight to them.

@@ -168,6 +168,16 @@ So every exhibition's reported total spend was understated by the entire cost of
 
 ## Quote Numbers / Enquiry Log
 
+### 2026-09-28 — Leads list error: "1 validation error for PaginatedResponse — total: Input should be a valid integer (None)"
+
+**What was reported:** the Leads page failed to load with a Pydantic validation error on `PaginatedResponse.total`.
+
+**Root cause:** a regression from the 2026-09-25 quote-value fix. In `list_leads` the per-lead quote value was unpacked as `total, count = quote_totals.get(...)` inside the loop over leads — reusing `total`, which already held the number of leads for the paginated response. After the loop `total` was the *last lead's* quote value, which is `None` for a lead with no quotation (and a wrong number otherwise), so building the response failed.
+
+**Fix:** renamed the loop variables to `quote_total` / `quote_count` in [`leads.py`](au-marketing-api/app/routers/leads.py) (list, single lead, post-Won update), so the lead count is no longer overwritten.
+
+**Status:** fixed, not yet committed; needs a backend redeploy. No data affected — it was a response-building error only.
+
 ### 2026-09-28 — "Add another quotation" on Inquiry 0 says one quote number but saves under another
 
 **What was reported:** on lead #396 (Autopro Technologies) the Inquiry 0 "Add another quotation" box said *"Using this lead's quote number: AP/QUOTE-TT/029…"*, but the uploaded file was saved as `AP/QUOTE-CL/011…(rev1)` — a revision of a different quote.

@@ -32,6 +32,7 @@ import { DatabaseLayout } from './components/layout/DatabaseLayout';
 import { InventoryPage } from './pages/InventoryPage';
 import { FinancialsPage } from './pages/FinancialsPage';
 import { ReportsPage } from './pages/ReportsPage';
+import { LeadsByRegionPage } from './pages/LeadsByRegionPage';
 import { ExpectedOrderNewPage } from './pages/ExpectedOrderNewPage';
 import { ODPlanPage } from './pages/ODPlanPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -314,6 +315,7 @@ const AppMain: React.FC = () => {
               <Route path="report-templates" element={<ReportTemplatesPage />} />
               <Route path="reports/expected-order/new" element={<ExpectedOrderNewPage />} />
               <Route path="reports/od-plan" element={<ODPlanPage />} />
+              <Route path="reports/leads-by-region" element={<LeadsByRegionPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="support" element={<SupportTicketsPage />} />
               <Route path="service" element={<Navigate to="/service/contracts" replace />} />

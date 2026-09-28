@@ -2739,6 +2739,20 @@ class MarketingAPIService {
   }
 
   /** Navbar global search — leads, orders, contacts, customers, organizations the user can see. */
+  /** Leads by Region (dashboard widget with include_leads=false; Reports → Leads by Region page). */
+  async getLeadsByRegion(params: LeadsByRegionParams = {}): Promise<LeadsByRegionResponse> {
+    const qp = new URLSearchParams();
+    if (params.date_from) qp.append('date_from', params.date_from);
+    if (params.date_to) qp.append('date_to', params.date_to);
+    if (params.domain_id != null) qp.append('domain_id', String(params.domain_id));
+    if (params.region_id != null) qp.append('region_id', String(params.region_id));
+    if (params.status_id != null) qp.append('status_id', String(params.status_id));
+    (params.assigned_to || []).forEach(id => qp.append('assigned_to', String(id)));
+    if (params.search?.trim()) qp.append('search', params.search.trim());
+    if (params.include_leads === false) qp.append('include_leads', 'false');
+    return apiClient.get<LeadsByRegionResponse>(`/api/leads-by-region/?${qp.toString()}`);
+  }
+
   async globalSearch(q: string): Promise<GlobalSearchResponse> {
     return apiClient.get<GlobalSearchResponse>(`/api/search/?${new URLSearchParams({ q })}`);
   }
@@ -2935,6 +2949,52 @@ export interface ReportableEmployee {
   region_id?: number;
   region_name?: string;
 }
+/** GET /api/leads-by-region/ — see au-marketing-api/app/region_report.py for what counts in a period. */
+export interface LeadsByRegionParams {
+  date_from?: string;
+  date_to?: string;
+  domain_id?: number;
+  region_id?: number;
+  status_id?: number;
+  assigned_to?: number[];
+  search?: string;
+  include_leads?: boolean;
+}
+export interface RegionLeadRow {
+  lead_id: number;
+  name: string;
+  company?: string | null;
+  series?: string | null;
+  status_label?: string | null;
+  owner_name?: string | null;
+  created_at?: string | null;
+  quotation_count: number;
+  quotation_value: number;
+  won: boolean;
+  won_value: number;
+  won_at?: string | null;
+}
+export interface RegionTotals {
+  lead_count: number;
+  quotation_count: number;
+  quotation_value: number;
+  won_count: number;
+  won_value: number;
+}
+export interface RegionGroup extends RegionTotals {
+  region_id: number | null;
+  region_name: string;
+  domain_id?: number | null;
+  domain_name?: string | null;
+  leads: RegionLeadRow[];
+}
+export interface LeadsByRegionResponse {
+  date_from?: string | null;
+  date_to?: string | null;
+  totals: RegionTotals;
+  regions: RegionGroup[];
+}
+
 export interface ReportScopeResponse {
   can_select_employee: boolean;
   employees: ReportableEmployee[];

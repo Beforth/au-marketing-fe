@@ -12,6 +12,7 @@ import { FollowUpsDueList } from '../../components/dashboard/FollowUpsDueList';
 import { WonLostDonut } from '../../components/dashboard/WonLostDonut';
 import { monthOverMonthDelta } from '../../components/dashboard/trendUtils';
 import { marketingAPI, RoleDashboardSummary, PerformerOfMonthItem } from '../../lib/marketing-api';
+import { LeadsByRegionCard } from '../../components/dashboard/LeadsByRegionCard';
 
 interface RegionHeadDashboardProps {
   data: RoleDashboardSummary;
@@ -91,6 +92,9 @@ export const RegionHeadDashboard: React.FC<RegionHeadDashboardProps> = ({ data }
         </div>
         <LeadStatusChart data={data.by_status} title="Team Leads by Status" />
         <LeadSourceChart data={data.lead_source_breakdown} />
+      </div>
+      <div className="mt-3">
+        <LeadsByRegionCard />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 items-start">
         <FollowUpsDueList followUps={data.follow_ups_due} title="Team Follow-ups Due" />

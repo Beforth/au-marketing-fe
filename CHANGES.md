@@ -25,7 +25,7 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6, 1.2.8, 1.4.2
 - [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7
 - [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
-- [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.2.0, 1.2.1, 1.2.5, 1.2.9
+- [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.2.0, 1.2.1, 1.2.5, 1.2.9, 1.4.2
 - [Who's Online / Presence](#whos-online--presence) — rev 1.2.0, 1.2.1
 - [Regions, Domains & Employee Sync](#regions-domains--employee-sync) — rev 1.2.0, 1.2.4, 1.2.5
 - [Quotations Page (list & filters)](#quotations-page-list--filters) — rev 1.2.1, 1.2.2
@@ -33,7 +33,7 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Audit Log](#audit-log) — rev 1.2.7, 1.4.2
 - [Global Search](#global-search) — rev 1.4.2
 - [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5, 1.2.10
-- [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6, 1.4.8, 1.4.9
+- [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6, 1.4.8, 1.4.9, 1.4.2
 - [Design System Documentation](#design-system-documentation) — rev 1.2.6
 - [External Visiting Card Integration](#external-visiting-card-integration) — rev 1.3.0, 1.4.10
 - [Events & Exhibitions](#events--exhibitions) — rev 1.3.0
@@ -262,6 +262,10 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Quotations & Quote Numbers
 
+### Rev 10 — 2026-09-28 (v1.4.2) — [Issue]
+- **Leads list failed with "1 validation error for PaginatedResponse — total … None".** Introduced by Rev 7 (latest-revision quote value): the per-lead quote total was stored in a variable named `total`, the same name the list endpoint uses for the lead count, so the count was overwritten by the last lead's quote value — `None` whenever that lead had no quotation. Renamed to `quote_total`/`quote_count` (also in single-lead and post-Won paths). See ISSUES.md.
+- Files: `au-marketing-api/app/routers/leads.py`
+
 ### Rev 9 — 2026-09-28 (v1.4.2) — [Issue]
 - **Revisions now go under the quote number you picked.** The Inquiry 0 "Add another quotation" box showed "Using this lead's quote number: X" but sent no number, so the server saved the file as a revision of the lead's *first* quotation; and the server's revise path ignored the "Which quotation?" pick everywhere. Server now revises the given number (fallback to first only when none sent); the Inquiry 0 box has a "This file is for:" picker + "Will be saved as: …" preview, blocks upload when the picked quote still has an empty row (use its Attach file), and requires the quote value. Reworded the stale "won't be reflected in the kanban quotation bar" note on revisions. See ISSUES.md.
 - Files: `pages/LeadFormPage.tsx`, `au-marketing-api/app/routers/leads.py`
@@ -342,6 +346,13 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Dashboard, Reports & Performance Leaderboard
+
+### Rev 25 — 2026-09-28 (v1.4.2) — [Revision]
+- **New dashboard widget "Leads by Region"** (Super Admin, Domain Head, Region Head dashboards): per region — leads, quotations sent (count + ₹), won leads (count + ₹), with a total row and a period switch (This month / **This quarter** default / This financial year / All time, Apr–Mar FY). Clicking a region opens the page below filtered to it.
+- **New page Reports → Leads by Region** (`/reports/leads-by-region`): filters for period (incl. custom dates), domain, region, status, owner (for heads) and search; grand totals; regions as expandable sections with their totals and every lead (status, owner, quotes sent, quote value, won value, link to the lead); **Download CSV**. Filters live in the URL so a view can be shared. Linked from the Reports page.
+- Rules (one shared calculation so widget, page headings and row sums always match): a quotation counts once at its latest revised price, in the period it was **first sent**; a lead counts as won by **Won date** with the Won amount; a lead is listed if it was created, quoted or won in the period. Only leads the viewer can already see on the Leads page (same scoping).
+- Backend: new `GET /api/leads-by-region/` (`include_leads=false` for the widget) in `app/routers/leads_by_region.py`, rules in `app/region_report.py` (tests `tests/test_region_report.py`). No DB changes.
+- Files: `components/dashboard/LeadsByRegionCard.tsx`, `pages/LeadsByRegionPage.tsx`, `pages/dashboards/{SuperAdmin,DomainHead,RegionHead}Dashboard.tsx`, `pages/ReportsPage.tsx`, `App.tsx`, `lib/marketing-api.ts`, `lib/period-ranges.ts`, `lib/region-report.ts`, tests `src/test/{period-ranges,region-report}.test.ts`, `src/test/leads-by-region-ui.test.tsx`; backend `au-marketing-api/app/region_report.py`, `au-marketing-api/app/routers/leads_by_region.py`, `au-marketing-api/app/main.py`
 
 ### Rev 24 — 2026-08-30 (v1.3.0) — [Issue]
 - **`NameError: name 'logger' is not defined` in the reports router.** `au-marketing-api/app/routers/reports.py` called `logger.warning(...)` in three permission-denied branches (report summary, expected orders, OD plans for another employee) but never imported `logging` or defined `logger` — so instead of logging "access denied" and returning a clean 403, the request crashed with a 500. Pre-existing; only triggered on the denied-access path. Fixed by adding `import logging` + `logger = logging.getLogger(__name__)`, matching every other router.
@@ -532,6 +543,14 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Audit Log
 
+### Rev 3 — 2026-09-28 (v1.4.2) — [Revision]
+- **Log entries now say what was affected and what changed, across the whole module.** Messages that only had ids ("Deleted attachment #49 from lead #131", "Updated visit 12", "Deleted activity #5 from order #9", "Assigned dashboard to user #34", "Updated assignment for employee 88") now name the lead / enquiry / contract / visit / work order / organization / event / person, the quote number or file, and the enquiry-log entry ("'Follow-up call' (Inquiry 3)").
+- **Every "Updated …" entry lists old → new values** ("Phone: 98200 → 97300; Quote No.: CL/011 → TT/029"); id fields just say "Region changed", related record lists say "Plants updated", secrets are never written. Covers leads, enquiries, contacts, customers, organizations & plants, domains, regions & assignments, events, campaigns, series, statuses & types, employees, visiting cards, service contracts, plans, visits, work orders. Also: quote value changes show ₹old → ₹new, file replace shows old → new file name, status changes show from → to, visit reschedule shows old → new date, material dispatch shows old → new status.
+- Removing a lead quotation is now logged against the lead (type "quotation") so searching the lead's name finds it; uploads of ordinary files to a lead's enquiry log are now logged too (were missing).
+- Audit screen shows the changes as a small list under each entry.
+- New shared helpers `snapshot` / `describe_changes` / `with_changes` / `employee_label` in `app/audit_utils.py` (tests `tests/test_audit_changes.py`); frontend `lib/audit-details.ts` (test `src/test/audit-details.test.ts`). Old entries are unchanged — only new actions get the detailed text.
+- Files: `au-marketing-api/app/audit_utils.py`, `au-marketing-api/app/routers/{leads,orders,contacts,customers,organizations,domains,regions,events,campaigns,series,employees,visiting_card_contacts,saved_dashboards,service_contracts,service_plans,service_work_orders}.py`, `components/audit/AuditLogsPanel.tsx`, `lib/audit-details.ts`
+
 ### Rev 2 — 2026-09-25 (v1.4.2) — [Revision]
 - **Settings → Audit Logs rebuilt** (`components/audit/AuditLogsPanel.tsx`, moved out of `SettingsPage.tsx`): **From / To date** filter, **Type / Action / User** dropdowns (choices from new `GET /api/audit-logs/filters`, only values that occur), **Clear filters**, and **loads more as you scroll** (50 at a time) instead of page buttons.
 - **Search**: every word must match (any order), and a **lead's name/company/number** now finds its entries even when the entry only says "lead #245" (backend resolves matching leads and includes `lead`/`quotation` entries pointing at them). Lead/quotation rows show the **lead name** (`entity_label`).
@@ -568,6 +587,10 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Tooling & Scripts
+
+### Rev 5 — 2026-09-28 (v1.4.2) — [Revision]
+- Added a "check names before adding code inside an existing function, and test the endpoint you change" rule to CLAUDE.md and AGENTS.md, after the Leads list crash caused by a reused `total` variable (see Quotations & Quote Numbers Rev 10).
+- Files: `CLAUDE.md`, `AGENTS.md`
 
 ### Rev 4 — 2026-09-10 (v1.4.9) — [Revision]
 - `scripts/clear_and_seed_india.py` now also seeds the **Service module** so a fresh demo has a full post-sale pipeline, not just leads/orders. On the 5 seeded customers it creates: ~5 AMC/CMC contracts (4 active, 1 draft) each with a coverage line-item list (spare parts included, compressor/PLC/HMI/sensors chargeable, one customer's PLC negotiated to "included"); a service plan per active contract with 4 quarterly visits (past ones marked done, upcoming ones left planned) plus an ad-hoc unscheduled visit and one visit with a reschedule-history row; 3 work orders across the Prepared → Checked → Approved states, each with a material list (varied dispatch status) and a site-readiness checklist; calibration records, a PO-difference (one accepted with a charge, one pending), visit photos and service reports (one submitted, one draft) on completed visits; and ~6 customer complaints spread across H/W · S/W · PLC and every status (open, in progress, resolved, closed, needs-approval, one reopened → `CMP-IND-003i`), each with its activity timeline.

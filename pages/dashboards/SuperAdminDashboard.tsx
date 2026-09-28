@@ -13,6 +13,7 @@ import { LeadSourceChart } from '../../components/dashboard/LeadSourceChart';
 import { WonLostDonut } from '../../components/dashboard/WonLostDonut';
 import { monthOverMonthDelta } from '../../components/dashboard/trendUtils';
 import { marketingAPI, RoleDashboardSummary, PerformerOfMonthItem, HeadDashboardSummaryResponse } from '../../lib/marketing-api';
+import { LeadsByRegionCard } from '../../components/dashboard/LeadsByRegionCard';
 
 interface SuperAdminDashboardProps {
   data: RoleDashboardSummary;
@@ -96,6 +97,9 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ data }
         <RegionBreakdownChart regions={headSummary?.region_breakdown || []} />
         <LeadSourceChart data={data.lead_source_breakdown} />
         <LeadStatusChart data={data.by_status} title="Leads by Status" />
+      </div>
+      <div className="mt-3">
+        <LeadsByRegionCard />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 items-start">
         <HighValueLeadsList leads={data.high_value_leads} />

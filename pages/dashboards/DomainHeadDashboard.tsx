@@ -12,6 +12,7 @@ import { RegionBreakdownChart } from '../../components/dashboard/RegionBreakdown
 import { RevenuePipelineChart } from '../../components/dashboard/RevenuePipelineChart';
 import { monthOverMonthDelta } from '../../components/dashboard/trendUtils';
 import { marketingAPI, RoleDashboardSummary, PerformerOfMonthItem, HeadDashboardSummaryResponse } from '../../lib/marketing-api';
+import { LeadsByRegionCard } from '../../components/dashboard/LeadsByRegionCard';
 
 interface DomainHeadDashboardProps {
   data: RoleDashboardSummary;
@@ -95,6 +96,9 @@ export const DomainHeadDashboard: React.FC<DomainHeadDashboardProps> = ({ data }
         <RegionBreakdownChart regions={headSummary?.region_breakdown || []} />
         <RevenuePipelineChart pipeline={data.revenue_pipeline} />
         <LeadStatusChart data={data.by_status} title="Domain Leads by Status" />
+      </div>
+      <div className="mt-3">
+        <LeadsByRegionCard />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 items-start">
         <HighValueLeadsList leads={data.high_value_leads} />
