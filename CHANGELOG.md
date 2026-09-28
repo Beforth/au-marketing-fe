@@ -5,7 +5,7 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-09-28] — Daily Service Reports, To-Do Tasks, Quotation Values & Search (v1.4.2)
+## [2026-09-28] — Daily Service Reports, Leads by Region, Detailed Audit Log & Quotation Fixes (v1.4.2)
 
 ### 🖥️ Frontend
 
@@ -67,7 +67,9 @@ Format: `[Date] — Category: Description`
 ### ⚙️ Backend
 - New endpoint listing your own lead activity logs so they can be turned into DSRs.
 - Quotation totals on leads and the dashboard now use the latest revision of each quotation.
-- Audit log word search, lead-name matching and filter options.
+- Revised quotation uploads are numbered from the quote you pick.
+- New Leads by Region endpoint used by both the dashboard card and the report page, so their numbers always match.
+- Audit log: readable names and old → new values on every change, word search, lead-name matching and filter options.
 - New scoped global search endpoint.
 
 ## [2026-09-22] — Leads: Quotation Status Fix (v1.4.1)
