@@ -24,8 +24,7 @@ import {
 import { useApp } from '../App';
 import { VersionsSettings } from '../components/ui/VersionsSettings';
 import { PageLayout } from '../components/layout/PageLayout';
-import { DataTable, Column } from '../components/ui/DataTable';
-import { Pagination } from '../components/ui/Pagination';
+import { AuditLogsPanel } from '../components/audit/AuditLogsPanel';
 import { SearchInput } from '../components/ui/SearchInput';
 import {
   Button,
@@ -54,7 +53,7 @@ import { Select } from '../components/ui/Select';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { refreshUserInfo, selectUser, selectEmployee, selectHasPermission } from '../store/slices/authSlice';
-import { marketingAPI, AuditLog, MarketingEmployee, MarketingSettingsPayload } from '../lib/marketing-api';
+import { marketingAPI, MarketingEmployee, MarketingSettingsPayload } from '../lib/marketing-api';
 import { resolveHrmsMediaUrl } from '../lib/hrms-rbac';
 import { Avatar } from '../components/ui/Avatar';
 import { cn } from '../lib/utils';
@@ -96,93 +95,7 @@ export const SettingsPage: React.FC = () => {
   const [visibilitySaving, setVisibilitySaving] = useState(false);
   const canManageVisibility = useAppSelector(selectHasPermission('marketing.admin'));
 
-  // Audit Logs state
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [logsLoading, setLogsLoading] = useState(false);
-  const [logsTotal, setLogsTotal] = useState(0);
-  const [logsPage, setLogsPage] = useState(1);
-  const [logsPageSize, setLogsPageSize] = useState(25);
-  const [logsSearch, setLogsSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
   const canViewAuditLogs = useAppSelector(selectHasPermission('marketing.admin')) || useAppSelector(selectHasPermission('marketing.view_reports'));
-
-  const auditLogColumns = React.useMemo<Column<AuditLog>[]>(() => [
-    {
-      key: 'created_at',
-      label: 'Date & Time',
-      width: 140,
-      render: (log) => (
-        <div>
-          <div className="text-[10px] font-mono text-slate-400 tracking-tighter uppercase leading-none mb-1">
-            {new Date(log.created_at).toLocaleDateString('en-GB')}
-          </div>
-          <div className="text-xs font-semibold text-slate-700 leading-none">
-            {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'employee_name',
-      label: 'User',
-      width: 200,
-      render: (log) => {
-        const name = log.employee_name || 'System';
-        const initial = name.slice(0, 1).toUpperCase();
-        return (
-          <div className="flex items-center gap-2">
-            <div className="size-6 rounded-full bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center font-bold text-[10px] uppercase shrink-0">
-              {initial}
-            </div>
-            <span className="text-xs font-semibold text-slate-800 truncate max-w-[150px] leading-tight" title={name}>
-              {name}
-            </span>
-          </div>
-        );
-      }
-    },
-    {
-      key: 'action',
-      label: 'Action',
-      width: 100,
-      align: 'center',
-      render: (log) => {
-        const action = log.action?.toLowerCase() || '';
-        const isDanger = action.includes('delete') || action.includes('remove');
-        const isSuccess = action.includes('create') || action.includes('add') || action.includes('won') || action.includes('convert');
-        return (
-          <span className={cn(
-            "inline-flex items-center justify-center px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider border",
-            isDanger ? "bg-rose-50 text-rose-700 border-rose-200" :
-            isSuccess ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-            "bg-blue-50 text-blue-700 border-blue-200"
-          )}>
-            {log.action}
-          </span>
-        );
-      }
-    },
-    {
-      key: 'details',
-      label: 'Log Details',
-      render: (log) => {
-        const entityLabel = log.entity_type ? log.entity_type.split('_').join(' ') : 'System';
-        return (
-          <div className="flex items-start gap-2 max-w-full">
-            <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[9px] font-bold uppercase tracking-wider mt-0.5">
-              {entityLabel}
-            </span>
-            <span 
-              className="text-xs text-slate-600 font-medium leading-normal break-words whitespace-normal" 
-              title={log.details || ''}
-            >
-              {log.details || `ID: ${log.entity_id || 'n/a'}`}
-            </span>
-          </div>
-        );
-      }
-    }
-  ], []);
 
   // Profile display from cached auth (no profile API call for basic info)
   const displayName = employee
@@ -235,40 +148,6 @@ export const SettingsPage: React.FC = () => {
       .catch(() => setEmailConnection({ connected: false }))
       .finally(() => setEmailConnectionLoading(false));
   }, [activeTab]);
-
-
-
-  // Debounce search term to prevent excessive API requests
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(logsSearch);
-      setLogsPage(1);
-    }, 450);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [logsSearch]);
-
-  // Load audit logs when tab is active or pagination/search changes
-  useEffect(() => {
-    if (activeTab !== 'Audit Logs') return;
-    setLogsLoading(true);
-    marketingAPI.getAuditLogs({ 
-      page: logsPage, 
-      page_size: logsPageSize,
-      search: debouncedSearch || undefined
-    })
-      .then(res => {
-        setLogs(res.items || []);
-        setLogsTotal(res.total || 0);
-      })
-      .catch(() => {
-        setLogs([]);
-        setLogsTotal(0);
-      })
-      .finally(() => setLogsLoading(false));
-  }, [activeTab, logsPage, logsPageSize, debouncedSearch]);
 
   // Load visibility data when tab is active
   useEffect(() => {
@@ -617,44 +496,7 @@ export const SettingsPage: React.FC = () => {
         );
 
       case 'Audit Logs':
-        return (
-          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-center gap-3">
-              <SearchInput
-                placeholder="Filter by user, action, entity or details..."
-                value={logsSearch}
-                onChange={(e) => setLogsSearch(e.target.value)}
-                onClear={() => setLogsSearch('')}
-                containerClassName="max-w-md shadow-none"
-                inputSize="sm"
-              />
-            </div>
-
-            <DataTable<AuditLog>
-              bordered={true}
-              data={logs}
-              rowKey={(l) => l.id}
-              dense={true}
-              isLoading={logsLoading}
-              columns={auditLogColumns}
-            />
-
-            <div className="border-t border-slate-100 pt-3">
-              <Pagination
-                page={logsPage}
-                pageSize={logsPageSize}
-                total={logsTotal}
-                totalPages={Math.ceil(logsTotal / logsPageSize)}
-                onPageChange={setLogsPage}
-                onPageSizeChange={(sz) => {
-                  setLogsPageSize(sz);
-                  setLogsPage(1);
-                }}
-                pageSizeOptions={[10, 20, 25, 50, 100]}
-              />
-            </div>
-          </div>
-        );
+        return <AuditLogsPanel />;
 
       case 'Versions':
         return (

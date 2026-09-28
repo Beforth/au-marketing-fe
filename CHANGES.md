@@ -21,8 +21,8 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Feature index
 
-- [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7, 1.2.10, 1.4.16
-- [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6, 1.2.8
+- [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7, 1.2.10, 1.4.1, 1.4.2
+- [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6, 1.2.8, 1.4.2
 - [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7
 - [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
 - [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.2.0, 1.2.1, 1.2.5, 1.2.9
@@ -30,7 +30,8 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Regions, Domains & Employee Sync](#regions-domains--employee-sync) — rev 1.2.0, 1.2.4, 1.2.5
 - [Quotations Page (list & filters)](#quotations-page-list--filters) — rev 1.2.1, 1.2.2
 - [DSR (Daily Status Reports)](#dsr-daily-status-reports) — rev 1.2.7
-- [Audit Log](#audit-log) — rev 1.2.7
+- [Audit Log](#audit-log) — rev 1.2.7, 1.4.2
+- [Global Search](#global-search) — rev 1.4.2
 - [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5, 1.2.10
 - [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6, 1.4.8, 1.4.9
 - [Design System Documentation](#design-system-documentation) — rev 1.2.6
@@ -38,6 +39,7 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Events & Exhibitions](#events--exhibitions) — rev 1.3.0
 - [API Reference Documentation](#api-reference-documentation) — rev 1.3.0
 - [Intranet SSO](#intranet-sso) — rev 1.3.1
+- [HRMS Daily Service Reports & Expenses](#hrms-daily-service-reports--expenses) — rev 1.4.2
 - [Service Module](#service-module) — rev 1.4.0, 1.4.1, 1.4.2, 1.4.3, 1.4.4, 1.4.5, 1.4.6, 1.4.7, 1.4.11, 1.4.12, 1.4.13, 1.4.14, 1.4.15
 
 ---
@@ -171,7 +173,14 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Leads Kanban
 
-### Rev 17 — 2026-09-22 (v1.4.16) — [Issue]
+### Rev 18 — 2026-09-25 (v1.4.2) — [Revision]
+- **Better kanban search** (`lib/lead-search.ts`): every word must match somewhere on the lead, in any order ("pune ravi" works); now also searches **phone** (however it's typed — "98765 43210", "+91 98765-43210", "9876543210"), **quotation numbers**, **assigned person**, **city** and `#id`, on top of name/company/email/lead no./notes.
+- When a search finds nothing and Won/Lost leads are hidden, a hint offers **"Search them too"** (turns on Include Won/Lost).
+- Typing in the search no longer refetches all leads — the API ignored `search`; filtering was always client-side.
+- Backend: the lead list now returns `quotation_numbers` (base numbers) per lead, taken from the quotation rows it already loads for the quote total.
+- Files: `lib/lead-search.ts` (new), `pages/LeadsPage.tsx`, `lib/marketing-api.ts`, `au-marketing-api/app/routers/leads.py`, `au-marketing-api/app/schemas.py`, `src/test/lead-search.test.ts` (new)
+
+### Rev 17 — 2026-09-22 (v1.4.1) — [Issue]
 - **A lead created without a quotation file, then attached later via "Attach file," never moved to the "Quotation submitted" column.** The kanban board reads a lead's column purely from `lead.status_id`. Uploading a *brand-new* quotation attachment already auto-advances `status_id` to whichever status is flagged `set_when_quotation_added` (`leads.py:1073-1088`) — but the separate reattach/`replace` endpoint used to fill in a file-less quotation placeholder (created when a lead is saved with a quote number but no file, e.g. "Inquiry 0") never had this check, so the lead's status silently never changed. Added the same status-advance logic to the reattach endpoint, guarded on `att.is_quotation` and skipped for leads already Won/Lost. Also had `LeadFormPage`'s reattach handler refresh the lead record (not just the activity list) so the status badge updates immediately without a page reload.
 - **Already-affected leads**: decided against an automated backfill script (an initial version was written and tested, then scrapped — the pipeline-position comparison needed to safely exclude leads already past this stage added more risk than it was worth for a one-time fix). Instead, CHANGELOG.md tells users to move any already-affected lead to "Quotation submitted" manually on the Leads board.
 - Files: `au-marketing-api/app/routers/leads.py`, `pages/LeadFormPage.tsx`
@@ -252,6 +261,21 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Quotations & Quote Numbers
+
+### Rev 9 — 2026-09-28 (v1.4.2) — [Issue]
+- **Revisions now go under the quote number you picked.** The Inquiry 0 "Add another quotation" box showed "Using this lead's quote number: X" but sent no number, so the server saved the file as a revision of the lead's *first* quotation; and the server's revise path ignored the "Which quotation?" pick everywhere. Server now revises the given number (fallback to first only when none sent); the Inquiry 0 box has a "This file is for:" picker + "Will be saved as: …" preview, blocks upload when the picked quote still has an empty row (use its Attach file), and requires the quote value. Reworded the stale "won't be reflected in the kanban quotation bar" note on revisions. See ISSUES.md.
+- Files: `pages/LeadFormPage.tsx`, `au-marketing-api/app/routers/leads.py`
+
+### Rev 8 — 2026-09-28 (v1.4.2) — [Revision]
+- **"Remove" on a quotation or attachment row now asks first.** Clicking the red "Remove" link in a lead's Enquiry log used to delete the row (and its file) immediately, with no way back — one mis-click lost a quote number. It now opens a "Remove quotation" / "Remove attachment" warning that names the quote number (or file) and says it will be permanently deleted; nothing is removed until "Remove" is confirmed. Reuses the existing `ConfirmModal` (same as "Delete enquiry").
+- Files: `pages/LeadFormPage.tsx`
+
+### Rev 7 — 2026-09-25 (v1.4.2) — [Issue]
+- **Revised quote prices now count.** The kanban card's quote total and the Domains page **Quotation target** bar ("All Domains Quotation (FY …)") summed only the *original* quotation numbers and skipped every `(revN)` revision, so after a quote was revised (up or down, any number of times) they kept showing the first price. Now each quotation (base number + all its revisions) is counted **once at its latest revision's value**; a revision saved without a price falls back to the previous priced one. On the Quotation bar a quotation still counts in the period it was **first sent** — revising it later updates the value, it doesn't move it to another quarter.
+- The **Target (sales) bar is unchanged** — it counts the Won value (`Lead.closed_value`) in the month/quarter won, never quote prices.
+- Computed live from the stored quotation rows, so existing leads are corrected automatically — no migration. Past quarters' Quotation-bar figures change for any lead that had revisions. Backend redeploy needed.
+- Files: `au-marketing-api/app/quote_values.py` (new — shared rule), `au-marketing-api/app/routers/leads.py` (lead list, single lead, post-Won response), `au-marketing-api/app/routers/dashboard.py` (quotation_submitted_value), `au-marketing-api/tests/test_quote_values.py` (new)
+- See `ISSUES.md` for the full writeup.
 
 ### Rev 6 — 2026-08-14 (v1.2.8) — [Issue]
 - **Fixed the "Attach quotation file" button/label still showing after a quotation already has a file attached**, making it look like something was missing on Inquiry #0 even when it wasn't. The button is intentionally always present (it lets you add another quotation later), but its label was hard-coded to always say "Attach quotation file" for Inquiry #0 regardless of state — now it reads "Add another quotation" once a real file is already attached, matching how every other log entry's equivalent button ("Add attachments") already reads fine either way.
@@ -508,6 +532,11 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Audit Log
 
+### Rev 2 — 2026-09-25 (v1.4.2) — [Revision]
+- **Settings → Audit Logs rebuilt** (`components/audit/AuditLogsPanel.tsx`, moved out of `SettingsPage.tsx`): **From / To date** filter, **Type / Action / User** dropdowns (choices from new `GET /api/audit-logs/filters`, only values that occur), **Clear filters**, and **loads more as you scroll** (50 at a time) instead of page buttons.
+- **Search**: every word must match (any order), and a **lead's name/company/number** now finds its entries even when the entry only says "lead #245" (backend resolves matching leads and includes `lead`/`quotation` entries pointing at them). Lead/quotation rows show the **lead name** (`entity_label`).
+- Files: `au-marketing-api/app/routers/audit_logs.py`, `au-marketing-api/app/schemas.py`, `components/audit/AuditLogsPanel.tsx` (new), `pages/SettingsPage.tsx`, `lib/marketing-api.ts`
+
 ### Rev 1 — 2026-08-13 (v1.2.7)
 - **Lost leads log correctly**: marking a lead as Lost now records the audit action as `lost` instead of `edit`.
 - **Expected orders & OD Plans tracked**: creating an expected order report and saving an OD Plan now write audit-log entries (`action=create`/`edit`, `entity_type=expected_order_report`/`od_plan`) with the lead/entry counts.
@@ -635,6 +664,99 @@ New module covering everything after the sale — maintenance contracts, service
 - Snapshot is API v1.2.10, so anything shipped after that deploy (the `events.travel_cost` field, the `exhibition_id` fields, the `GET /api/events/{id}/lead-attribution` endpoint) shows up only after the deploy + a re-run of the generator.
 - Linked from `docs/README.md`.
 - Files: `docs/api/generate_api_docs.py`, `docs/api/openapi.json`, `docs/api/*.md` (generated), `docs/README.md`
+
+---
+
+## HRMS Daily Service Reports & Expenses
+
+> Separate from the Marketing "DSR (Daily Status Reports)" page above — this is the HRMS Indoor/Outdoor Daily Service Report + Daily Expense Report module, integrated per `docs/DSR_MODULE_INTEGRATION.md`.
+
+### Rev 10 — 2026-09-28 (v1.4.2) — [Revision]
+- **Guide updated for reuse:** added **§10 "React reference implementation — S&M Hub"** to `docs/DSR_MODULE_INTEGRATION.md` (+ a pointer near the top) so another React module can build the identical DSR UI: routes/navigation, files and their jobs, the shared permission function and hours rule (verbatim), display conventions (dd/mm/yyyy, employee code/"Staff", badges, Format label, tab styles, counts), create/history/pending/To-Do page behaviour, the API gaps we work around, the optional "DSR from activity" pattern with `Lead log #id` duplicate protection, and the tests to copy.
+- Our copy only (per the user). ⚠️ Re-copying the guide from the HRMS repo will drop §10 — re-add it after any re-copy.
+- Files: `docs/DSR_MODULE_INTEGRATION.md`
+
+### Rev 9 — 2026-09-28 (v1.4.2) — [Revision]
+- **Matched HRMS's real screens** (user-supplied screenshots + `templates/employees/daily_service_report_view.html` / `daily_service_report_list.html` in the local HRMS repo):
+  - **DSR History back to HRMS's 4 tabs** (Indoor, Outdoor **(Marketing View)**, Expense Report, Pending My Approval) with a **count on every tab**; title "Daily Service Report History & Log"; "‹ Back to Dashboard" + "+ Log New DSR"; fixed **"Format: DSR 2025-26"** label (hard-coded in HRMS, `DSR_FORMAT_LABEL`); Reset Filters with refresh icon; employee filter shows "Name (code or Staff)".
+  - Table: dates **dd/mm/yyyy**, Employee cell = name + employee code (or "Staff"), Task Details with **Department** (blue) and **Task Type** (grey) badges.
+  - Log DSR page: "‹ Back to Dashboard", Format label on the form card, **Employee box always shown** ("Name (Me)"; editable only for people allowed to file for others).
+- **My Tasks / Tasks I Assigned moved off DSR History to their own "My To-Do" page** (`/my-todo`, sidebar "Work & Approvals → My To-Do"), like HRMS's separate /todo/ page. Assign DSR Task now lands on My To-Do → Tasks I Assigned.
+- Kept our Edit action (HRMS has none — guide note E).
+- Known difference: HRMS shows **all employees'** reports by default to `dsr.view_all` users; its list **API** returns one employee at a time, so ours defaults to your own and uses the employee filter for others.
+- Files: `pages/DailyServiceReportsPage.tsx`, `pages/DailyServiceReportFormPage.tsx`, `pages/MyTodoPage.tsx` (new), `App.tsx`, `components/dsr/DSRHistoryTable.tsx`, `components/dsr/PendingApprovalsPanel.tsx`, `components/dsr/DSRForm.tsx`, `components/dsr/useEmployeeOptions.ts`, `components/ui/Sidebar.tsx`, `lib/dsr-options.ts`
+
+### Rev 8 — 2026-09-28 (v1.4.2) — [Revision]
+- **Pending My Approval tab** (guide §3.7 / §9.7, new HRMS `GET /dsr/pending-approval/` + `/expense/pending-approval/`): a tab on DSR History listing every Indoor DSR, Outdoor DSR and Expense Report waiting on *my* decision across all employees, in **one table** sorted by date with a coloured Type badge, a count on the tab and a "N waiting on you" pill, search only, ✓ Approve / ✗ Reject (shared modals, no Delete), "You're all caught up!" when empty; an actioned row disappears. Shown only when something is (or was, this visit) waiting — non-approvers never see it. Approvers no longer need `dsr.view_all` to act.
+- **Sidebar badge**: orange count next to "View DSR History" (links straight to the pending tab when > 0); refreshes every 5 min and right after any approve/reject (`DSR_PENDING_CHANGED_EVENT`). Approvers get the link even without DSR view permissions.
+- **Assign DSR Task now creates HRMS To-Do tasks, not DSRs** (guide §9.3, HRMS behaviour changed 2026-09-28): pick **one or more** employees (checkbox list with search), Task Title, Description, **Complete By** date (required, default today) + time (default 18:00) → `POST /todo/create/` with `employee_ids` (one independent task + notification each). HRMS creates the DSR when the assignee marks the task done. Needs only `dsr.assign_task` now; the Employee picker on the normal Indoor/Outdoor form still needs `assign_task` + `view_all` (`canFileDSRForOthers`, the DSR create API still checks view_all).
+- **My Tasks tab**: my HRMS To-Do tasks (Pending/Completed/All, search) with Assigned by, Complete by (red + "Overdue by …" when late), status badge; **Mark done** (confirm → `POST /todo/<id>/complete/`, HRMS creates the DSR, toast shows its id), **Edit** (title/description/deadline, pending only) and **Delete**. Count badge on the tab.
+- **Tasks I Assigned tab** (with `dsr.assign_task`): pick an employee → the tasks I gave them (filtered by `assigned_by` when HRMS sends it) with Edit/Delete. No "reopen" — the HRMS API doesn't have one.
+- Files: `lib/hrms-rbac.ts` (pending + To-Do client methods and types), `lib/todo-helpers.ts` (new), `lib/dsr-helpers.ts`, `components/dsr/PendingApprovalsPanel.tsx` (new), `components/dsr/TasksPanel.tsx` (new), `components/dsr/AssignDSRForm.tsx`, `components/dsr/useEmployeeOptions.ts`, `pages/DailyServiceReportsPage.tsx`, `pages/DailyServiceReportFormPage.tsx`, `components/ui/Sidebar.tsx`, tests `src/test/hrms-dsr-api.test.ts`, `src/test/dsr-helpers.test.ts`, `src/test/todo-helpers.test.ts` (new)
+
+### Rev 7 — 2026-09-25 (v1.4.2) — [Issue]
+- **No more duplicate DSRs from lead activity.** Clicking "Create DSR from lead activity" again for the same day re-offered every log, so the same log could become two DSRs. Now each DSR created from a log ends with a reference line **"Lead log #<id>"** (stored in HRMS, so no database change). When the box opens it loads the user's Indoor DSRs for that day (`GET /dsr/?filter_date=&type=indoor`) and **locks** any log that already has one — greyed out, unticked, can't be re-ticked, badge "Already in DSR · <status>"; header says how many are skipped; Create stays disabled until the check finishes.
+- DSRs created before the reference line existed are matched by their exact generated title. Rejected (and outdoor) DSRs don't count, so a rejected log can be submitted again; deleting a DSR in HRMS frees its log automatically.
+- Files: `lib/dsr-from-lead-logs.ts` (`leadLogRef`, `existingDSRsForLogs`), `components/dsr/CreateDSRFromLeadsModal.tsx`, `src/test/dsr-from-lead-logs.test.ts`
+
+### Rev 6 — 2026-09-25 (v1.4.2) — [Revision]
+- **One DSR per lead log** (user request — replaces Rev 4/5's one-combined-DSR-per-day). "Create DSR from lead activity" now lists each of the day's lead logs as its own row with a tick box and its **own Start / End Time** (Start = when it was logged, End = +30 min by default so nothing falls back to HRMS's 8-hour default; overnight allowed; duration shown per row). **Create N DSRs** submits one HRMS DSR per ticked row; any that fail stay in the box with the error so they can be retried, the rest still go through.
+- Each DSR carries the log itself: Title "Company — what was logged", Task Type from the log type (Call/Contacted/Email/Contacted different person → Calling, Quotation submitted → Quotation, Meeting → Meeting), Description = "<type>: <log title>", the log's notes, and "Contact: name, phone, email"; Calling Details from the log's contact. **DSR History's Task Details** now keeps those line breaks (`whitespace-pre-line`) so the logged content reads as written.
+- "Just fill the form" stays for editing a single ticked log before submitting.
+- Note: HRMS stores hours to 0.1 h, so e.g. 10:00–11:15 is saved as 1.3 h (shown as "1 hour 18 minutes") — same rounding as the HRMS web form.
+- Files: `lib/dsr-from-lead-logs.ts` (per-log builder replaces the daily combiner), `components/dsr/CreateDSRFromLeadsModal.tsx`, `components/dsr/DSRForm.tsx`, `components/dsr/DSRHistoryTable.tsx`, `src/test/dsr-from-lead-logs.test.ts`
+
+### Rev 5 — 2026-09-24 (v1.4.2) — [Revision]
+- **"Create DSR from lead activity" now submits in one click + confirm.** User feedback: after Rev 4's button filled the form, nothing appeared in DSR History (the user expected the click itself to create the DSR; Rev 4 only pre-filled and waited for Submit). The button now opens a confirm box showing the date, companies, one line per log and editable Start/End Time with live duration; **Confirm & Submit** creates the DSR in HRMS right away and goes to DSR History. **Just fill the form** keeps the old behaviour (copy into the form to edit first). With a single log there's no end time; the box warns that HRMS will record 8 hours unless one is added.
+- Files: `components/dsr/CreateDSRFromLeadsModal.tsx` (new), `components/dsr/DSRForm.tsx`
+
+### Rev 4 — 2026-09-24 (v1.4.2) — [Revision]
+- **"Fill from lead activity" on the Indoor DSR form**: one click pre-fills the day's DSR from the user's own lead logs on the form's date — Department "Marketing", Task Type = most common kind of work (Calling / Quotation / Meeting), Title = companies worked on ("Lead follow-ups: A, B, C +N more"), Description = one line per log (time · type · company — title (contact)), Start/End Time = first/last log (End left blank if there's only one moment), Calling Details from the most recent log with a contact. The user reviews and submits — one DSR per day, one approval (chosen over auto-creating a DSR per log, which would flood approvers and record 8 h per DSR).
+- Only work logs count: call, contacted, email, meeting, contacted different person, quotation submitted — system entries (lead edit, status change) are skipped. Only shown when creating your own report (not on edit, not when filing for another employee) and only with `marketing.view_lead`.
+- **Backend: new `GET /api/leads/activities/mine?start=&end=`** (`marketing.view_lead`) — the current user's own work logs in a time range, oldest first, with lead display name and company (customer company, else contact's organization). The client sends its local day boundaries, so no server timezone guess. Read-only, no schema change / no migration; needs a backend redeploy.
+- Files: `au-marketing-api/app/routers/leads.py`, `au-marketing-api/app/schemas.py`, `lib/marketing-api.ts`, `lib/dsr-from-lead-logs.ts` (new), `components/dsr/DSRForm.tsx`, `src/test/dsr-from-lead-logs.test.ts` (new)
+
+### Rev 3 — 2026-09-24 (v1.4.2) — [Issue]
+- **Hours now come from Start/End Time instead of a typed box.** The guide (updated §3.2, §9.3 note C) confirms the HRMS API saves whatever `hours` it's sent — defaulting to **8.0** — and ignores the times; only the HRMS web form calculates it. Our form had a separate Hours box, so a report with times but no Hours was saved as 8 hours regardless of the actual times. Now Hours is computed client-side exactly like HRMS (end − start, rounded to 0.1 h; End earlier than Start = overnight shift, +24 h) and sent with the report. With no times, nothing is sent and HRMS's 8-hour default applies, as on the web form.
+- Live **"Duration: X hours Y minutes"** line under Start/End Time (marks overnight shifts); on edit of a report without times it shows the currently recorded hours.
+- Removed the "End time must be after start time" check (overnight shifts are valid); only identical Start/End is rejected.
+- History table **Hours** cell now reads like HRMS: "09:00 - 17:30" over "(8 hours 30 minutes)", or just "8 hours" without times (singular/plural, "30 minutes" for sub-hour).
+- Already-saved reports with a wrong Hours value are left as-is; editing one recalculates Hours from its times.
+- Files: `lib/dsr-helpers.ts` (`hoursBetween`, `hoursToWords`, `formatTimeRange`), `components/dsr/DSRForm.tsx`, `components/dsr/DSRHistoryTable.tsx`, `src/test/dsr-helpers.test.ts`
+
+### Rev 2 — 2026-09-24 (v1.4.2) — [Revision]
+- **Matched the HRMS screens (guide §9)** after the guide gained a verbatim UI reference, and **added Approve/Reject** (new HRMS API §3.5/§3.6/§8.3 — the guide's checklist now requires all six actions).
+- **History page (`/daily-service-reports`, "DSR History") is now a table**, not cards: Indoor DSR / Outdoor DSR (OD Plan & Visit) / Expense Report tabs (`?tab=`); filter bar with search (client-side), date, status, Employee filter (only with `dsr.view_all` / `expense_report.view_all`) and Reset Filters; two-tier headers — Indoor "Calling Details" (6 cols), Outdoor "Contact Details" (4 cols) with Visit Plan / Reason / Appointment badges inside the "Visit Details" cell, Expense flat with all 7 amounts + Total; guide's Approved/Rejected/Pending badges; 15 rows/page (client-side — the HRMS list isn't paginated).
+- **Approve / Reject**: ✓/✗ per pending row for users with `dsr.view_all` (DSR) or `expense_report.view_all` (expenses); one shared Approve modal (optional comments) and Reject modal (reason required). Limitation: the API also lets a report's own current approver act without `view_all`, but the list response doesn't identify the approver, so such users don't see the buttons; and an approver only sees other people's reports via the Employee filter (no "pending for me" endpoint).
+- **Form page follows the guide's exact field order** with real dropdowns and the exact option lists (`lib/dsr-options.ts`): Indoor Department (11) → dependent Task Type (free text when "Other"); Outdoor Visit Plan / Department / Task Type / Reason for Visit / Appointment Status / Visit Status with HRMS defaults. Indoor calling details are a collapsible "Calling Details (Optional)" section, collapsed by default. Buttons are "Reset Form" / "Submit". No OT Minutes field (not in the API — guide note B); Hours kept.
+- **Form layout**: full page width like the other form pages (was a narrow centred column), fields laid out in rows of 2–4 (still in the guide's order), consistent spacing, labels aligned across a row.
+- **Assign DSR Task** is now its own short form (`/daily-service-reports/new?tab=assign`, no tab switcher): Employee (required) → Title → Description, filed as today's indoor DSR for that employee.
+- **Expense form**: read-only "Submitted By", Date + Tour Destination, Description & Location of Work + Company, 7 amounts with a read-only Total in the same grid.
+- **Sidebar**: new collapsible "Work & Approvals" group with "Log DSR" and "View DSR History" (permission-gated).
+- Kept an **Edit** action on your own pending reports even though HRMS's table has none (guide note E leaves it to us). Outdoor "Location / Site" column shows `region` — the API has no location/site field.
+- Files: `lib/hrms-rbac.ts`, `lib/dsr-helpers.ts`, `lib/dsr-options.ts` (new), `pages/DailyServiceReportsPage.tsx`, `pages/DailyServiceReportFormPage.tsx`, `components/dsr/DSRForm.tsx`, `components/dsr/AssignDSRForm.tsx` (new), `components/dsr/ExpenseForm.tsx`, `components/dsr/DSRHistoryTable.tsx` (new), `components/dsr/ApprovalModals.tsx` (new), `components/dsr/DSRStatusBadge.tsx` (new), `components/dsr/useEmployeeOptions.ts` (new), `components/ui/Sidebar.tsx`, `components/ui/Navbar.tsx`; removed `components/dsr/DSRTaskCard.tsx`, `components/dsr/ExpenseReportsPanel.tsx`; tests `src/test/dsr-options.test.ts` (new), `src/test/dsr-helpers.test.ts`, `src/test/hrms-dsr-api.test.ts`
+
+### Rev 1 — 2026-09-24 (v1.4.2) — [Revision]
+- **New page `/daily-service-reports`** with Daily Reports / Expenses tabs: list your own HRMS reports (filter by date and by Pending / Approved / Rejected), create Indoor or Outdoor DSRs, and edit/delete your own reports while they're still pending approval. Expenses tab lists, submits, edits and deletes daily expense reports; the total is computed by HRMS (form shows a preview).
+- **Removed the old navbar clipboard "Today's DSR" dropdown** (it listed today's HRMS DSR tasks and linked to the Marketing DSR page); the "+" menu below and the new page replace it. Its Redux cache `store/slices/dsrSlice.ts` was only used by that dropdown and is deleted.
+- **Full-page forms, not popups** (`/daily-service-reports/new`, `/daily-service-reports/:id/edit`, `/daily-service-reports/expense/:id/edit`), laid out like the HRMS form: breadcrumbs (Daily Service Reports › New/Edit Report), "View DSR History" button, and Indoor DSR / Outdoor DSR (OD Plan & Visit) / Expense Report tabs (each tab shown only with its create permission; edit locks to the report's own type). Edit takes the row from router state and falls back to re-fetching the list (HRMS has no get-one endpoint). Indoor now requires Department and Task type, matching the HRMS form.
+- **Navbar "+" (Add Task) menu**: Add DSR, Assign DSR Task, Add Expense Report, plus "View my reports". Each item only shows with the matching HRMS permission and opens the form page (`?tab=expense` for expenses).
+- **Assign DSR Task**: the form's Employee dropdown defaults to "<name> (Me)" and, for users allowed to assign, lists other employees (from the Marketing employee list, sent to HRMS as `username`). Shown only with both `dsr.assign_task` and `dsr.view_all`, because the HRMS API still checks `dsr.view_all` for this (guide §2 known inconsistency).
+- Approval status shown as "Pending level N approval" / "Approved" / "Rejected" (with reason). Client-side validation of hours (0–24, one decimal), times, title length and expense amounts, since HRMS can 500 on bad values.
+- HRMS client gained `createDSR`/`updateDSR`/`deleteDSR` and `getExpenses`/`createExpense`/`updateExpense`/`deleteExpense`; mutations throw the HRMS error message so it can be shown to the user. `status` and `total` are never sent.
+- Test setup: `src/test/setup.ts` now provides an in-memory `localStorage` when Node 25+'s built-in global shadows jsdom's (any test importing `lib/api.ts` crashed at import).
+- Not included: approve/reject (no HRMS API). The Marketing DSR page and My Team DSR list are unchanged.
+- Files: `pages/DailyServiceReportsPage.tsx`, `App.tsx`, `components/ui/Navbar.tsx`, `store/index.ts`, `store/slices/dsrSlice.ts` (deleted), `CLAUDE.md`, `pages/DailyServiceReportFormPage.tsx`, `components/dsr/DSRForm.tsx`, `components/dsr/ExpenseForm.tsx`, `lib/hrms-rbac.ts`, `lib/dsr-helpers.ts`, `src/test/setup.ts`, `src/test/dsr-helpers.test.ts`, `src/test/hrms-dsr-api.test.ts`
+
+---
+
+## Global Search
+
+### Rev 1 — 2026-09-25 (v1.4.2) — [Revision]
+- The navbar **"Search leads, contacts, orders, pages… (⌘K)"** box now searches real records, not just page names: **Leads** (incl. Won/Lost — person, company, email, phone, city, lead no., assignee, quotation no.), **Orders**, **Contacts**, **Customers**, **Companies**, grouped under headings with a subtitle (company · status · assignee, etc.); clicking opens the record. Every word must match (any order); phone numbers match however typed.
+- **Scoped exactly like the list pages**: new `GET /api/search/?q=` uses the same `app/scope.py` helpers as Leads/Orders/Database (`apply_scope_to_lead_query`, `apply_scope_to_order_query`, `apply_scope_to_contact_customer_query`, `apply_scope_to_organization_query`), and each type is included only with its view permission (`marketing.view_lead` for leads/orders, `view_contact`, `view_customer`, `view_organization`) — nobody finds a record they couldn't already see. Verified on local data that a user with no scope gets no results.
+- 5 results per type, debounced 300 ms, min 2 characters.
+- Files: `au-marketing-api/app/routers/search.py` (new), `au-marketing-api/app/main.py`, `components/ui/GlobalSearchResults.tsx` (new), `components/ui/Navbar.tsx`, `lib/marketing-api.ts`
 
 ---
 

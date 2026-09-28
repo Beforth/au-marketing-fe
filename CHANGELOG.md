@@ -5,7 +5,64 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-09-22] — Leads: Quotation Status Fix (v1.4.16)
+## [2026-09-28] — Daily Service Reports, To-Do Tasks, Quotation Values & Search (v1.4.2)
+
+### 🖥️ Frontend
+
+#### Daily Service Reports (DSR) — now connected to HRMS
+- A new **Work & Approvals** section in the sidebar with **Log DSR**, **View DSR History** and **My To-Do**. The "+" button in the top bar also has quick links to log a DSR or an expense.
+- **Log DSR** opens as its own full page (not a pop-up) with tabs for **Indoor DSR**, **Outdoor DSR** and **Expense Report** — the same fields and dropdown choices as HRMS.
+- Everything you log here is saved straight into HRMS, and anything logged in HRMS shows up here — it's the same data in both places.
+- **Hours** are worked out automatically from the start and end time.
+- You can **edit or delete** your own DSRs and expense reports while they're still waiting for approval.
+- Only the old clipboard DSR shortcut in the top bar has been removed; the existing Marketing DSR page is unchanged.
+
+#### DSR History
+- Laid out like HRMS: **Indoor DSR**, **Outdoor DSR**, **Expense Report** and **Pending My Approval** tabs, each showing how many items it has.
+- Dates shown as dd/mm/yyyy, with the employee's name and code, and Department / Task Type labels.
+- Filter by date range, status and search text; managers can pick an employee to see their reports.
+- **Pending My Approval** lists every DSR and expense report waiting for your decision in one place — approve (with an optional comment) or reject (with a reason). A count badge in the sidebar shows how many are waiting.
+
+#### Create DSRs from lead logs
+- Turn the inquiry/activity logs you added on leads into DSRs in one step.
+- **Each log becomes its own DSR**, with its own start and end time you can adjust, and the log's text filled into Task Details.
+- A log that has already been turned into a DSR is locked, so the same log can't be added twice.
+
+#### Assign tasks & My To-Do
+- Managers can **assign a task to one or more employees** with a "Complete by" date and time — each person gets their own task and a notification.
+- **My To-Do** shows the tasks assigned to you. Marking one done automatically logs it as your DSR in HRMS.
+- Managers also get a **Tasks I Assigned** view to edit or remove tasks they've given out.
+
+#### Quotation values now follow the latest revision
+- When a quotation is revised (e.g. QTN-001 → QTN-001(rev1) → QTN-001(rev2)), the lead card on the Leads board now shows the **latest revised price**, whether it went up or down.
+- The **All Domains Quotation** bar counts each quotation **once**, at its latest price, in the quarter it was **first sent** — revisions no longer add up to an inflated total. This also applies to leads already in the system.
+- The **Target** bar is unchanged — it still counts the Won amount.
+
+#### Adding & removing quotations
+- Clicking **Remove** on a quotation or attachment in a lead's Enquiry log now shows a warning with the quote number first — nothing is deleted until you confirm, so a mis-click can no longer lose a quotation.
+- When adding a quotation file to a lead's **Inquiry 0**, you now pick which quote number it's for, and the box shows exactly what it will be saved as (e.g. `…/029(rev1)`) before you upload.
+- **Revising a quotation now revises the one you choose.** On leads with several quote numbers, a revision of the second or third quote was previously saved as a revision of the first one.
+
+#### Leads board search
+- Search now also matches quotation numbers, and filtering happens instantly without reloading the board.
+- A hint shows when a lead you searched for is in a Won/Lost column.
+
+#### Audit Log
+- Filter by **date range**, user, action and record type.
+- Search by **lead name** as well as other words in the log.
+- The list loads more entries automatically as you scroll.
+
+#### Global search
+- The search bar at the top now finds real records — leads, orders, contacts, organizations, customers and more — and takes you straight to them.
+- Results respect your access: you only see records from the domains and regions you're allowed to see, the same as on the list pages.
+
+### ⚙️ Backend
+- New endpoint listing your own lead activity logs so they can be turned into DSRs.
+- Quotation totals on leads and the dashboard now use the latest revision of each quotation.
+- Audit log word search, lead-name matching and filter options.
+- New scoped global search endpoint.
+
+## [2026-09-22] — Leads: Quotation Status Fix (v1.4.1)
 
 ### 🖥️ Frontend
 

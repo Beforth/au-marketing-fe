@@ -51,6 +51,9 @@ import { SchemaPage } from './pages/SchemaPage';
 import { ReportTemplatesPage } from './pages/ReportTemplatesPage';
 import { MyTeamPage } from './pages/MyTeamPage';
 import { DSRPage } from './pages/DSRPage';
+import { DailyServiceReportsPage } from './pages/DailyServiceReportsPage';
+import { DailyServiceReportFormPage } from './pages/DailyServiceReportFormPage';
+import { MyTodoPage } from './pages/MyTodoPage';
 import { EventsListPage } from './pages/EventsListPage';
 import { EventFormPage } from './pages/EventFormPage';
 import { EventDetailPage } from './pages/EventDetailPage';
@@ -302,6 +305,11 @@ const AppMain: React.FC = () => {
               <Route path="events/:id/edit" element={<EventFormPage />} />
               <Route path="my-team" element={<MyTeamPage />} />
               <Route path="dsr" element={<DSRPage />} />
+              <Route path="daily-service-reports" element={<DailyServiceReportsPage />} />
+              <Route path="daily-service-reports/new" element={<DailyServiceReportFormPage />} />
+              <Route path="daily-service-reports/:id/edit" element={<DailyServiceReportFormPage />} />
+              <Route path="daily-service-reports/expense/:id/edit" element={<DailyServiceReportFormPage />} />
+              <Route path="my-todo" element={<MyTodoPage />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="report-templates" element={<ReportTemplatesPage />} />
               <Route path="reports/expected-order/new" element={<ExpectedOrderNewPage />} />

@@ -153,6 +153,21 @@ export const LeadFormPage: React.FC = () => {
     }
     return Array.from(qns);
   }, [activities]);
+  /** Rows on this lead that are `base` or a revision of it. */
+  const quotationRowsFor = useCallback((base: string) => {
+    const rows: LeadActivityAttachment[] = [];
+    for (const a of activities) {
+      for (const att of (a.attachments || [])) {
+        if (att.is_quotation && att.quotation_number && att.quotation_number.replace(/\(rev\d+\)\s*$/, '').trim() === base) rows.push(att);
+      }
+    }
+    return rows;
+  }, [activities]);
+  /** Number the server will give a revised upload of `base` (same rule as the upload endpoint): none yet → base, N rows → base(revN). */
+  const nextQuotationNumber = useCallback((base: string) => {
+    const n = quotationRowsFor(base).length;
+    return n === 0 ? base : `${base}(rev${n})`;
+  }, [quotationRowsFor]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activityForm, setActivityForm] = useState({
     activity_type: 'call',
@@ -222,6 +237,8 @@ export const LeadFormPage: React.FC = () => {
   const [quickAddUploadProgress, setQuickAddUploadProgress] = useState<number | null>(null);
   const [attachmentUploadProgress, setAttachmentUploadProgress] = useState<number | null>(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<number | null>(null);
+  // "Remove" on a quotation/attachment row asks for confirmation first — the delete is permanent.
+  const [removeAttachmentTarget, setRemoveAttachmentTarget] = useState<{ activityId: number; att: LeadActivityAttachment } | null>(null);
   const [reattachingId, setReattachingId] = useState<number | null>(null);
   const [savingAttachmentValueId, setSavingAttachmentValueId] = useState<number | null>(null);
   const [editingAttachmentValueId, setEditingAttachmentValueId] = useState<number | null>(null);
@@ -277,6 +294,12 @@ export const LeadFormPage: React.FC = () => {
   const [savingModal, setSavingModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentLead, setCurrentLead] = useState<Lead | null>(null);
+  // Inquiry 0 "Add another quotation": the quote numbers a file can go under — the lead's own
+  // Quote No. first (if it has no row yet), then every quotation already on the lead.
+  const quoteZeroTargets = useMemo(() => {
+    const own = currentLead?.quote_number?.trim();
+    return own && !existingBaseQuotations.includes(own) ? [own, ...existingBaseQuotations] : existingBaseQuotations;
+  }, [currentLead?.quote_number, existingBaseQuotations]);
 
   // Announce which record is open so the Who's Online panel can show
   // "Editing Lead — Acme Corp" instead of just "Editing Lead". Cleared on unmount.
@@ -1116,6 +1139,22 @@ export const LeadFormPage: React.FC = () => {
       loadActivities();
     } catch (err: any) {
       showToast(err.message || 'Failed to delete enquiry', 'error');
+    }
+  };
+
+  const handleConfirmRemoveAttachment = async () => {
+    if (!isValidId || !removeAttachmentTarget) return;
+    const { activityId, att } = removeAttachmentTarget;
+    setDeletingAttachmentId(att.id);
+    try {
+      await marketingAPI.deleteLeadActivityAttachment(leadId, activityId, att.id);
+      showToast('Removed', 'success');
+      setRemoveAttachmentTarget(null);
+      loadActivities();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to remove', 'error');
+    } finally {
+      setDeletingAttachmentId(null);
     }
   };
 
@@ -3477,7 +3516,7 @@ export const LeadFormPage: React.FC = () => {
                           </div>
                           {activityAttachmentMode === 'revise-quotation' && (
                             <p className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
-                              This value won't be reflected in the kanban quotation bar
+                              This revised value replaces the earlier one in the quotation totals
                             </p>
                           )}
                           {activityAttachmentMode === 'new-quotation' && (
@@ -4056,18 +4095,7 @@ export const LeadFormPage: React.FC = () => {
                                         {canEditDelete && (
                                           <button
                                             type="button"
-                                            onClick={async () => {
-                                              setDeletingAttachmentId(att.id);
-                                              try {
-                                                await marketingAPI.deleteLeadActivityAttachment(leadId!, a.id, att.id);
-                                                showToast('Removed', 'success');
-                                                loadActivities();
-                                              } catch (err: any) {
-                                                showToast(err.message || 'Failed to remove', 'error');
-                                              } finally {
-                                                setDeletingAttachmentId(null);
-                                              }
-                                            }}
+                                            onClick={() => setRemoveAttachmentTarget({ activityId: a.id, att })}
                                             className="text-rose-600 hover:underline"
                                           >
                                             Remove
@@ -4138,18 +4166,7 @@ export const LeadFormPage: React.FC = () => {
                                         {canEditDelete && (
                                           <button
                                             type="button"
-                                            onClick={async () => {
-                                              setDeletingAttachmentId(att.id);
-                                              try {
-                                                await marketingAPI.deleteLeadActivityAttachment(leadId!, a.id, att.id);
-                                                showToast('Removed', 'success');
-                                                loadActivities();
-                                              } catch (err: any) {
-                                                showToast(err.message || 'Failed to remove', 'error');
-                                              } finally {
-                                                setDeletingAttachmentId(null);
-                                              }
-                                            }}
+                                            onClick={() => setRemoveAttachmentTarget({ activityId: a.id, att })}
                                             className="text-rose-600 hover:underline"
                                           >
                                             Remove
@@ -4172,8 +4189,9 @@ export const LeadFormPage: React.FC = () => {
                                   setAddAttachmentActivityId(a.id);
                                   const isQuoteZero = a.inquiry_number === 0;
                                   setAddAttachmentMode('attachment');
-                                  setReviseTargetQuotation('');
-                                  setAddAttachmentRows([{ id: crypto.randomUUID(), kind: isQuoteZero ? 'quotation' as const : 'attachment' as const, file: null, quotationNumber: isQuoteZero && currentLead?.quote_number?.trim() ? currentLead.quote_number.trim() : '', title: '', quoteValue: '' }]);
+                                  // Inquiry 0: pre-pick the lead's Quote No. (or its first quotation) — changeable in the box.
+                                  setReviseTargetQuotation(isQuoteZero ? (quoteZeroTargets[0] || '') : '');
+                                  setAddAttachmentRows([{ id: crypto.randomUUID(), kind: isQuoteZero ? 'quotation' as const : 'attachment' as const, file: null, quotationNumber: '', title: '', quoteValue: '' }]);
                                 }}
                                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 border border-dashed border-blue-300 rounded-lg px-3 py-1.5 hover:bg-blue-50"
                               >
@@ -4220,6 +4238,21 @@ export const LeadFormPage: React.FC = () => {
                                       />
                                     </div>
                                   )}
+                                  {(a.inquiry_number === 0 && quoteZeroTargets.length > 0) && (
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <span className="text-xs text-slate-600">This file is for:</span>
+                                      <div className="w-64 [&_button]:!h-8 [&_button]:!min-h-0 [&_button]:!py-0">
+                                        <Select
+                                          options={quoteZeroTargets.map((q) => ({ value: q, label: q }))}
+                                          value={reviseTargetQuotation}
+                                          onChange={(val) => setReviseTargetQuotation((val || '') as string)}
+                                          placeholder="Which quotation?"
+                                          className="w-full"
+                                          searchable
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
                                   {addAttachmentMode === 'revise-quotation' && existingBaseQuotations.length > 0 && (
                                     <div className="w-44 shrink-0 [&_button]:!h-8 [&_button]:!min-h-0 [&_button]:!py-0">
                                       <Select
@@ -4250,9 +4283,9 @@ export const LeadFormPage: React.FC = () => {
                                       }}
                                     />
                                   </label>
-                                  {(addAttachmentMode !== 'attachment' || (a.inquiry_number === 0 && currentLead?.quote_number?.trim())) && (
+                                  {(addAttachmentMode !== 'attachment' || (a.inquiry_number === 0 && quoteZeroTargets.length > 0)) && (
                                     <CurrencyInput
-                                      placeholder={addAttachmentMode === 'revise-quotation' ? 'Revised Quote Value (₹) *' : a.inquiry_number === 0 ? 'Quote Value (₹)' : 'Quote Value (₹) *'}
+                                      placeholder={addAttachmentMode === 'revise-quotation' ? 'Revised Quote Value (₹) *' : 'Quote Value (₹) *'}
                                       value={addAttachmentRows[0]?.quoteValue || ''}
                                       onChange={(val) => {
                                         setAddAttachmentRows((prev) =>
@@ -4279,15 +4312,24 @@ export const LeadFormPage: React.FC = () => {
                                 </div>
                                 {addAttachmentMode === 'revise-quotation' && (
                                   <p className="text-[11px] text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
-                                    This value won't be reflected in the kanban quotation bar
+                                    This revised value replaces the earlier one in the quotation totals
                                   </p>
                                 )}
-                                {a.inquiry_number === 0 && currentLead?.quote_number?.trim() && (
-                                  <p className="text-[11px] text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                                    Using this lead's quote number: <span className="font-mono font-semibold">{currentLead.quote_number}</span>
-                                  </p>
-                                )}
-                                {addAttachmentMode === 'new-quotation' && !hasExistingQuotation && !(a.inquiry_number === 0 && currentLead?.quote_number?.trim()) && (
+                                {(a.inquiry_number === 0 && quoteZeroTargets.length > 0) && reviseTargetQuotation && (() => {
+                                  // A quote number whose row has no file yet should get its file via that row's
+                                  // "Attach file" — uploading here would add a revision next to the empty row.
+                                  const emptyRow = quotationRowsFor(reviseTargetQuotation).find((r) => !r.file_name);
+                                  return emptyRow ? (
+                                    <p className="text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                                      <span className="font-mono font-semibold">{emptyRow.quotation_number}</span> has no file yet — use <span className="font-semibold">Attach file</span> on its row above instead.
+                                    </p>
+                                  ) : (
+                                    <p className="text-[11px] text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-200">
+                                      Will be saved as: <span className="font-mono font-semibold">{nextQuotationNumber(reviseTargetQuotation)}</span>
+                                    </p>
+                                  );
+                                })()}
+                                {addAttachmentMode === 'new-quotation' && !hasExistingQuotation && !(a.inquiry_number === 0 && quoteZeroTargets.length > 0) && (
                                   <div className="flex items-end gap-3 p-2 rounded border border-blue-100 bg-blue-50/30">
                                     <div className="flex-1">
                                       <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Series</label>
@@ -4312,7 +4354,12 @@ export const LeadFormPage: React.FC = () => {
                                     disabled={
                                       uploadingAttachmentsForActivityId === a.id ||
                                       !addAttachmentRows[0]?.file ||
-                                      (addAttachmentMode === 'revise-quotation' && !reviseTargetQuotation)
+                                      (addAttachmentMode === 'revise-quotation' && !reviseTargetQuotation) ||
+                                      ((a.inquiry_number === 0 && quoteZeroTargets.length > 0) && (
+                                        !reviseTargetQuotation ||
+                                        !addAttachmentRows[0]?.quoteValue ||
+                                        quotationRowsFor(reviseTargetQuotation).some((r) => !r.file_name)
+                                      ))
                                     }
                                     onClick={async () => {
                                       const row = addAttachmentRows[0];
@@ -4320,18 +4367,21 @@ export const LeadFormPage: React.FC = () => {
                                       setUploadingAttachmentsForActivityId(a.id);
                                       setAttachmentUploadProgress(0);
                                       try {
-                                        const isRevised = addAttachmentMode === 'revise-quotation';
+                                        // Inquiry 0 uploads go under the picked quote number (revise mode), so the saved
+                                        // number is exactly the "Will be saved as" preview.
+                                        const isQuoteZero = (a.inquiry_number === 0 && quoteZeroTargets.length > 0);
+                                        const isRevised = addAttachmentMode === 'revise-quotation' || isQuoteZero;
                                         const qn = isRevised && reviseTargetQuotation ? [reviseTargetQuotation] : undefined;
                                         await marketingAPI.uploadLeadActivityAttachments(
                                           leadId,
                                           a.id,
                                           [row.file],
-                                          [isRevised || (a.inquiry_number === 0 && currentLead?.quote_number?.trim()) ? 'quotation' : 'attachment'],
+                                          [isRevised ? 'quotation' : 'attachment'],
                                           qn,
                                           [addAttachmentMode === 'attachment' ? (row.title.trim() || undefined) : undefined],
                                           undefined,
                                           isRevised || undefined,
-                                          [((addAttachmentMode !== 'attachment' || (a.inquiry_number === 0 && currentLead?.quote_number?.trim())) && row.quoteValue ? Number(row.quoteValue) : undefined)],
+                                          [((addAttachmentMode !== 'attachment' || isQuoteZero) && row.quoteValue ? Number(row.quoteValue) : undefined)],
                                           setAttachmentUploadProgress
                                         );
                                         showToast('Added', 'success');
@@ -4980,6 +5030,20 @@ export const LeadFormPage: React.FC = () => {
         title="Delete enquiry"
         message="Are you sure you want to delete this enquiry log? This cannot be undone."
         confirmLabel="Delete"
+        variant="danger"
+      />
+
+      <ConfirmModal
+        isOpen={removeAttachmentTarget !== null}
+        onClose={() => setRemoveAttachmentTarget(null)}
+        onConfirm={handleConfirmRemoveAttachment}
+        title={removeAttachmentTarget?.att.is_quotation ? 'Remove quotation' : 'Remove attachment'}
+        message={`This will permanently delete ${
+          removeAttachmentTarget?.att.is_quotation
+            ? `quotation ${removeAttachmentTarget.att.quotation_number || ''}`.trim()
+            : `"${removeAttachmentTarget?.att.title || removeAttachmentTarget?.att.file_name || 'this attachment'}"`
+        }${removeAttachmentTarget?.att.file_name ? ' and its file' : ''}. This cannot be undone.`}
+        confirmLabel="Remove"
         variant="danger"
       />
 

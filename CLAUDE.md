@@ -20,7 +20,7 @@ Auth flow: browser POSTs credentials to HRMS RBAC → gets JWT + permissions/rol
 - `pages/` — ~34 route-level components, one per URL (Leads, Orders, Domains, Events, Settings, Reports, etc.). Most list pages follow a kanban-and/or-table pattern with a paired `*FormPage.tsx` for create/edit.
 - `components/layout/` — `DashboardLayout`, `DatabaseLayout`, `PageLayout` (page chrome/sidebar/breadcrumbs); `components/ui/` — ~28 shared building blocks (DataTable, Modal, Button, Sidebar, etc.); `UI/` — lower-level atoms (Button, Input, Badge, Tooltip).
 - `lib/api.ts` — base `APIClient` (fetch wrapper, XHR upload-progress, 401 handling, `ApiError`). `lib/marketing-api.ts` — the single `marketingAPI` object with ~150 typed methods + every request/response TS interface for the Marketing API. `lib/hrms-rbac.ts` — HRMS auth client. `lib/firebase-push.ts` — FCM registration.
-- `store/` — Redux Toolkit: `authSlice` (token/user/permissions), `dsrSlice`, `organizationPlantsSlice`, plus `middleware.ts` handling forced logout on token expiry. (Zustand is used separately for calendar-local state, not global app state.)
+- `store/` — Redux Toolkit: `authSlice` (token/user/permissions), `organizationPlantsSlice`, plus `middleware.ts` handling forced logout on token expiry. (Zustand is used separately for calendar-local state, not global app state.)
 - `components/ProtectedRoute.tsx` — route guard: redirects to `/login` if unauthenticated, renders an "Access Denied" screen if the route's `requiredPermission`/`requireAnyPermission`/`requireAllPermissions` prop isn't satisfied.
 
 ## Working with this user

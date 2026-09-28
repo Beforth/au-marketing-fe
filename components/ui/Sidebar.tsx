@@ -4,13 +4,14 @@ import { NavLink, Link, useLocation } from 'react-router-dom';
 import { SIDEBAR_LINKS, SECONDARY_LINKS, SERVICE_LINKS } from '../../constants';
 import { NavItem } from '../../types';
 import { useAppSelector } from '../../store/hooks';
-import { selectUserDisplayName, selectEmployee, selectUser, selectHasPermission } from '../../store/slices/authSlice';
+import { selectUserDisplayName, selectEmployee, selectUser, selectHasPermission, selectPermissions, selectToken } from '../../store/slices/authSlice';
+import { getDSRPermissions, DSR_PENDING_CHANGED_EVENT } from '../../lib/dsr-helpers';
 import { VersionsModal } from '../VersionsModal';
 import { AppSwitcher } from './AppSwitcher';
 import { Avatar } from './Avatar';
-import { ChevronDown, ShieldCheck, Hash, Users, Wrench } from 'lucide-react';
+import { ChevronDown, ShieldCheck, Hash, Users, Wrench, Briefcase, ClipboardCheck, FileSpreadsheet, ListTodo } from 'lucide-react';
 import { API_CONFIG } from '../../lib/api';
-import { resolveHrmsMediaUrl } from '../../lib/hrms-rbac';
+import { resolveHrmsMediaUrl, hrmsRBACClient } from '../../lib/hrms-rbac';
 
 
 export const Sidebar: React.FC = () => {
@@ -18,7 +19,8 @@ export const Sidebar: React.FC = () => {
   const [showChangelog, setShowChangelog] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [serviceOpen, setServiceOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState('v1.4.16');
+  const [workOpen, setWorkOpen] = useState(false);
+  const [appVersion, setAppVersion] = useState('v1.4.2');
   const [versionLoaded, setVersionLoaded] = useState(false);
   const userDisplayName = useAppSelector(selectUserDisplayName);
   const employee = useAppSelector(selectEmployee);
@@ -60,6 +62,39 @@ export const Sidebar: React.FC = () => {
   useEffect(() => {
     if (onServiceRoute) setServiceOpen(true);
   }, [onServiceRoute]);
+
+  // HRMS Daily Service Reports — "Work & Approvals" group (docs/DSR_MODULE_INTEGRATION.md §9.1)
+  const permissionCodes = useAppSelector(selectPermissions);
+  const dsrPerms = useMemo(() => getDSRPermissions(permissionCodes, !!user?.is_superuser), [permissionCodes, user]);
+  const canLogDsr = dsrPerms.canCreateIndoor || dsrPerms.canCreateOutdoor || dsrPerms.canCreateExpense;
+  const canViewDsrHistory = canLogDsr || dsrPerms.canViewExpense || dsrPerms.canViewAllDSR
+    || permissionCodes.includes('dsr.indoor_view') || permissionCodes.includes('dsr.outdoor_view');
+  // "Pending for me" count badge on View DSR History (guide §9.1 sidebar badge / §3.7). Refreshes
+  // every 5 min and right after an approve/reject elsewhere. 0 for non-approvers → no badge.
+  const token = useAppSelector(selectToken);
+  const [pendingForMe, setPendingForMe] = useState(0);
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    const refresh = () => hrmsRBACClient.getPendingApprovals(token)
+      .then(p => { if (!cancelled) setPendingForMe(p.dsr.length + p.expense.length); })
+      .catch(() => {});
+    refresh();
+    const timer = setInterval(refresh, 5 * 60 * 1000);
+    window.addEventListener(DSR_PENDING_CHANGED_EVENT, refresh);
+    return () => { cancelled = true; clearInterval(timer); window.removeEventListener(DSR_PENDING_CHANGED_EVENT, refresh); };
+  }, [token]);
+  const workLinks = [
+    ...(canLogDsr ? [{ title: 'Log DSR', href: '/daily-service-reports/new', icon: ClipboardCheck, badge: 0 }] : []),
+    // Approvers always get the link, even without view permissions, so they can reach their queue.
+    ...(canViewDsrHistory || pendingForMe > 0 ? [{ title: 'View DSR History', href: pendingForMe > 0 ? '/daily-service-reports?tab=pending' : '/daily-service-reports', icon: FileSpreadsheet, badge: pendingForMe }] : []),
+    // HRMS To-Do tasks (anyone can be assigned one) — its own page, as in HRMS.
+    { title: 'My To-Do', href: '/my-todo', icon: ListTodo, badge: 0 },
+  ];
+  const onWorkRoute = location.pathname.startsWith('/daily-service-reports') || location.pathname.startsWith('/my-todo');
+  useEffect(() => {
+    if (onWorkRoute) setWorkOpen(true);
+  }, [onWorkRoute]);
 
   // Filter links based on permissions
   const filteredSidebarLinks = useMemo(() => {
@@ -193,6 +228,63 @@ export const Sidebar: React.FC = () => {
                         <>
                           <link.icon size={15} strokeWidth={isActive ? 2.2 : 1.8} className={isActive ? 'text-blue-500' : 'text-slate-400'} />
                           {link.title}
+                        </>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {workLinks.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setWorkOpen(o => !o)}
+                className={`w-full group flex items-center justify-between rounded-lg text-[13px] transition-all duration-200 font-medium px-3 py-2 ${
+                  workOpen && onWorkRoute
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Briefcase
+                    size={18}
+                    strokeWidth={workOpen && onWorkRoute ? 2.2 : 1.8}
+                    className={workOpen && onWorkRoute ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}
+                  />
+                  <span className={workOpen && onWorkRoute ? 'font-semibold' : ''}>Work & Approvals</span>
+                </div>
+                <ChevronDown
+                  size={14}
+                  className={`text-slate-400 transition-transform duration-200 ${workOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {workOpen && (
+                <div className="mt-0.5 ml-3 pl-3 border-l-2 border-blue-100 space-y-0.5">
+                  {workLinks.map((link) => (
+                    <NavLink
+                      key={link.href}
+                      to={link.href}
+                      end
+                      className={({ isActive }) =>
+                        `flex items-center gap-2.5 w-full rounded-lg text-[12.5px] transition-all duration-200 font-medium px-2.5 py-1.5 ${
+                          isActive
+                            ? 'bg-blue-50 text-blue-700 font-semibold'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <link.icon size={15} strokeWidth={isActive ? 2.2 : 1.8} className={isActive ? 'text-blue-500' : 'text-slate-400'} />
+                          {link.title}
+                          {link.badge > 0 && (
+                            <span className="ml-auto inline-flex min-w-[1.25rem] justify-center rounded-full bg-orange-500 px-1.5 text-[10px] font-bold text-white" title={`${link.badge} waiting for your approval`}>
+                              {link.badge}
+                            </span>
+                          )}
                         </>
                       )}
                     </NavLink>

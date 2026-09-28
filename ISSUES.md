@@ -26,6 +26,31 @@
 - [Reports](#reports)
 - [Service Module](#service-module)
 - [External Visiting Card Integration](#external-visiting-card-integration)
+- [HRMS Daily Service Reports](#hrms-daily-service-reports)
+
+---
+
+## HRMS Daily Service Reports
+
+### 2026-09-25 — The same lead log could be turned into a DSR twice
+
+**What was reported:** found internally while listing open gaps — clicking "Create DSR from lead activity" a second time for the same day offered the same logs again, so a log could become two DSRs (two approvals, double-counted hours).
+
+**Root cause:** nothing linked a DSR back to the lead log it came from. The box always listed every log of the day with its tick box on.
+
+**Fix:** every DSR created from a log now carries a last line "Lead log #<id>" in its description ([`buildDSRForLog`](lib/dsr-from-lead-logs.ts)). When the box opens, [`CreateDSRFromLeadsModal`](components/dsr/CreateDSRFromLeadsModal.tsx) loads the user's Indoor DSRs for that date from HRMS and [`existingDSRsForLogs`](lib/dsr-from-lead-logs.ts) locks any log that already has a (non-rejected) DSR — greyed out, unticked, badge "Already in DSR · <status>". The link lives in HRMS itself, so no database/migration is needed, a deleted DSR frees its log, and a rejected one can be redone.
+
+**Status:** fixed, not yet committed (frontend only). DSRs created before this fix have no reference line; they're still detected by their exact generated title. If someone edits such an old DSR's title in HRMS, its log would be offered again — rare, and only for DSRs made before this fix.
+
+### 2026-09-24 — Indoor DSR saved with the wrong Hours (8 hours regardless of Start/End Time)
+
+**What was reported:** found internally when the HRMS integration guide (`docs/DSR_MODULE_INTEGRATION.md` §3.2 / §9.3 note C) was updated: the HRMS API does not calculate Hours from Start/End Time the way the HRMS website does.
+
+**Root cause:** our Indoor DSR form had its own "Hours" box, separate from Start Time and End Time. HRMS's create/update API saves whatever `hours` value it receives and ignores the times; if no `hours` is sent it saves **8.0**. So anyone who filled in Start/End Time but left Hours empty got a report saved as 8 hours no matter what the times were, and anyone who typed Hours could contradict their own times. Our form also rejected End Time earlier than Start Time, while HRMS treats that as an overnight shift.
+
+**Fix:** the Hours box is gone. [`hoursBetween`](lib/dsr-helpers.ts) computes hours from the two times exactly like the HRMS web form (end − start, rounded to 0.1 h, +24 h when End is earlier = overnight) and [`DSRForm`](components/dsr/DSRForm.tsx) sends that as `hours`, with a live "Duration: X hours Y minutes" preview. When both times are blank nothing is sent and HRMS's own 8-hour default applies, matching the web form. The overnight-blocking check was removed. The history table's Hours cell now shows "09:00 - 17:30 (8 hours 30 minutes)" / "8 hours" ([`HoursCell`](components/dsr/DSRHistoryTable.tsx)).
+
+**Status:** fixed, not yet committed. This only affected reports created through this app's DSR page, which hadn't been released yet. Any such report already saved with the wrong Hours isn't corrected automatically; editing it (while still pending) recalculates Hours from its times.
 
 ---
 
@@ -142,6 +167,26 @@ So every exhibition's reported total spend was understated by the entire cost of
 ---
 
 ## Quote Numbers / Enquiry Log
+
+### 2026-09-28 — "Add another quotation" on Inquiry 0 says one quote number but saves under another
+
+**What was reported:** on lead #396 (Autopro Technologies) the Inquiry 0 "Add another quotation" box said *"Using this lead's quote number: AP/QUOTE-TT/029…"*, but the uploaded file was saved as `AP/QUOTE-CL/011…(rev1)` — a revision of a different quote.
+
+**Root cause:** two parts. (1) The box only *displayed* the lead's Quote No.; the upload sent no quote number at all, so the server fell back to "revision of the lead's **first** quotation" (CL). (2) The server's revise path ignored the chosen number even when one was sent — the "Revise Quotation → Which quotation?" picker in the log form and in "Add attachments" sent it, but every revision still became `first quotation(revN)`. So on any lead with several quote numbers, revising the 2nd/3rd one was saved as a revision of the 1st.
+
+**Fix:** the server now saves each revised file as the next version of the quote number it was given (`base` if none exist yet, else `base(revN)`), falling back to the first quotation only when no number is sent ([`leads.py`](au-marketing-api/app/routers/leads.py) `upload_activity_attachments`). The Inquiry 0 box now has a **"This file is for:"** picker (the lead's Quote No. + every quotation on the lead) and a **"Will be saved as: …"** preview that uses the same numbering rule; the upload sends the picked number. If the picked quote still has a file-less row, the box says to use that row's **Attach file** instead and blocks the upload (otherwise the file would land as a revision next to an empty row). Quote value is now required there (the server already required it). The outdated "This value won't be reflected in the kanban quotation bar" note on revisions was reworded — since the 2026-09-25 fix the latest revision's value *is* what counts.
+
+**Status:** fixed, not yet committed; needs a backend redeploy. **Already-saved rows are not changed** — e.g. lead #396's `CL…(rev1)` stays as is (per the user it was intended as a CL revision). Separately, lead #396's TT row is missing with no "Deleted attachment" audit entry; the code has no path that removes a row without logging, so this is still unexplained (see server checks suggested in the session).
+
+### 2026-09-25 — Revised quote price not reflected on the kanban card or the Quotation target bar
+
+**What was reported:** when a lead's quote value is updated later — the new price can be lower or higher than the original, and a quote can be revised many times — the kanban card still shows the first value, and the question was which value counts toward the targets.
+
+**Root cause:** a revised quote is saved as a new quotation row numbered `QTN-001(rev1)`, `QTN-001(rev2)`, … each with its own price. Every place that totals quote value — the lead list (kanban card), the single-lead view, the lead returned after marking Won, and the dashboard's `quotation_submitted_value` behind the Domains page "Quotation" target bar — filtered with `quotation_number NOT LIKE '%(rev%'`, i.e. summed only the original quotations and ignored all revisions. So the card and the Quotation bar were stuck on the first price. (The sales "Target" bar was never affected: it sums the Won value `Lead.closed_value` of leads won in the period, which is the intended behaviour and wasn't changed.)
+
+**Fix:** one shared rule in [`app/quote_values.py`](au-marketing-api/app/quote_values.py): group each quotation's base number with all its revisions, count it **once**, at the **latest revision's value** (highest rev number; a revision with no price falls back to the previous priced one). For date-based totals the quotation counts in the period it was **first sent**, so a revision updates the value without moving it to another quarter. Used by [`leads.py`](au-marketing-api/app/routers/leads.py) (list, single lead, post-Won) and [`dashboard.py`](au-marketing-api/app/routers/dashboard.py) (Quotation bar). Tests: `au-marketing-api/tests/test_quote_values.py`.
+
+**Status:** fixed, not yet committed; needs a backend redeploy. **Existing leads are corrected automatically** — the totals are computed live from the stored revision rows, nothing needs re-entering and no migration. Side effect to expect: past quarters' Quotation-bar figures change for any lead that had revisions (they now reflect the latest price).
 
 ### 2026-08-14 — "Attach quotation file" button still shows after a file is already attached
 

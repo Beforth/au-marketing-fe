@@ -10,6 +10,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { CurrencyInput } from '../components/ui/CurrencyInput';
 import { SearchInput } from '../components/ui/SearchInput';
+import { leadMatchesSearch } from '../lib/lead-search';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { FilterPopover } from '../components/ui/FilterPopover';
@@ -312,7 +313,8 @@ export const LeadsPage: React.FC = () => {
   useEffect(() => {
     if (!canView) return;
     loadLeads();
-  }, [canView, debouncedSearchTerm, appliedDateFrom, appliedDateTo, selectedAssignedToIds, createdByMeOnly, includeWonLost]);
+  // Search is done on screen (lib/lead-search.ts) — the API ignores `search`, so typing doesn't refetch.
+  }, [canView, appliedDateFrom, appliedDateTo, selectedAssignedToIds, createdByMeOnly, includeWonLost]);
 
   useEffect(() => {
     if (includeWonLost) return;
@@ -331,7 +333,6 @@ export const LeadsPage: React.FC = () => {
       const res = await marketingAPI.getLeads({
         page: 1,
         no_limit: true,
-        search: debouncedSearchTerm || undefined,
         date_from: isHeadOrAdmin && appliedDateFrom ? appliedDateFrom : undefined,
         date_to: isHeadOrAdmin && appliedDateTo ? appliedDateTo : undefined,
         assigned_to: selectedAssignedToIds.length > 0 ? selectedAssignedToIds : undefined,
@@ -354,18 +355,10 @@ export const LeadsPage: React.FC = () => {
     setPage(1);
   };
 
-  const filteredLeads = useMemo(() => {
-    const q = debouncedSearchTerm.trim().toLowerCase();
-    if (!q) return leads;
-    return leads.filter((lead) => {
-      const name = leadDisplayName(lead).toLowerCase();
-      const email = leadDisplayEmail(lead).toLowerCase();
-      const company = leadDisplayCompany(lead).toLowerCase();
-      const series = (lead.series ?? '').toLowerCase();
-      const notes = (lead.notes ?? '').toLowerCase();
-      return name.includes(q) || email.includes(q) || company.includes(q) || series.includes(q) || notes.includes(q);
-    });
-  }, [leads, debouncedSearchTerm]);
+  const filteredLeads = useMemo(
+    () => (debouncedSearchTerm.trim() ? leads.filter((lead) => leadMatchesSearch(lead, debouncedSearchTerm)) : leads),
+    [leads, debouncedSearchTerm]
+  );
 
   const leadsByStatus = useMemo(() => {
     const map: Record<string, Lead[]> = {};
@@ -1263,7 +1256,7 @@ export const LeadsPage: React.FC = () => {
       <div className="rounded-2xl px-5 h-14 mb-4 flex items-center gap-0">
         {/* Search */}
         <SearchInput
-          placeholder="Search leads..."
+          placeholder="Search name, company, phone, QTN no., assignee…"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onClear={() => setSearchTerm('')}
@@ -1533,6 +1526,14 @@ export const LeadsPage: React.FC = () => {
                     <p className="text-slate-400 text-sm font-medium">
                       No results for <span className="font-semibold text-slate-600">&ldquo;{debouncedSearchTerm.trim()}&rdquo;</span>
                     </p>
+                    {!includeWonLost && (
+                      <p className="mt-2 text-xs text-slate-500">
+                        Won and Lost leads are hidden.{' '}
+                        <button type="button" onClick={() => setIncludeWonLost(true)} className="font-semibold text-blue-600 hover:underline">
+                          Search them too
+                        </button>
+                      </p>
+                    )}
                     <button
                       type="button"
                       onClick={() => setSearchTerm('')}

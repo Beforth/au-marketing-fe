@@ -306,6 +306,8 @@ export interface Lead {
   potential_value?: number;
   quote_value?: number | null;
   quotation_count?: number;
+  /** Base quotation numbers (lead list only) — lets the kanban search find a lead by QTN number. */
+  quotation_numbers?: string[];
   notes?: string;
   exhibition_id?: number | null;  // Exhibition/roadshow this lead is attributed to (defaults from the linked contact)
   exhibition_name?: string | null;  // Populated by API for display
@@ -382,6 +384,22 @@ export interface LeadActivity {
   created_by_name?: string;
   created_by_email?: string;
   created_at: string;
+}
+
+/** One of the current user's own lead logs for a day (GET /api/leads/activities/mine) —
+ *  used by the HRMS DSR "Fill from lead activity" button. */
+export interface MyLeadActivity {
+  id: number;
+  lead_id: number;
+  activity_type: string;
+  title: string;
+  description?: string | null;
+  activity_date: string;
+  contact_person_name?: string | null;
+  contact_person_email?: string | null;
+  contact_person_phone?: string | null;
+  lead_name: string;
+  company_name?: string | null;
 }
 
 export interface Campaign {
@@ -616,6 +634,34 @@ export interface AuditLog {
   entity_id: number | null;
   details: string | null;
   created_at: string;
+  /** Lead name for "lead"/"quotation" entries (their details often say only "lead #N"). */
+  entity_label?: string | null;
+}
+
+/** One result in the navbar global search (GET /api/search). */
+export interface GlobalSearchHit {
+  id: number;
+  title: string;
+  subtitle?: string | null;
+  /** App route that opens the record. */
+  href: string;
+}
+
+/** Global search results, grouped by type. A type is empty when the user can't view it. */
+export interface GlobalSearchResponse {
+  query: string;
+  leads: GlobalSearchHit[];
+  orders: GlobalSearchHit[];
+  contacts: GlobalSearchHit[];
+  customers: GlobalSearchHit[];
+  organizations: GlobalSearchHit[];
+}
+
+/** Choices for the Audit Logs filter dropdowns (GET /api/audit-logs/filters). */
+export interface AuditLogFilterOptions {
+  entity_types: string[];
+  actions: string[];
+  users: { id: number; name: string }[];
 }
 
 export interface PaginatedResponse<T> {
@@ -1094,6 +1140,12 @@ class MarketingAPIService {
   /** Lead activity / history logs */
   async getLeadActivities(leadId: number): Promise<LeadActivity[]> {
     return apiClient.get<LeadActivity[]>(`/api/leads/${leadId}/activities/`);
+  }
+
+  /** The current user's own work lead logs (calls, emails, meetings, quotations…) in [start, end), oldest first. */
+  async getMyLeadActivities(start: string, end: string): Promise<MyLeadActivity[]> {
+    const qs = new URLSearchParams({ start, end });
+    return apiClient.get<MyLeadActivity[]>(`/api/leads/activities/mine?${qs}`);
   }
 
   async createLeadActivity(
@@ -2668,15 +2720,31 @@ class MarketingAPIService {
     page_size?: number;
     entity_type?: string;
     employee_id?: number;
+    action?: string;
+    /** ISO datetimes; end is inclusive. */
+    start_date?: string;
+    end_date?: string;
     search?: string;
   }): Promise<PaginatedResponse<AuditLog>> {
     const queryParams = new URLSearchParams();
     queryParams.append('page', String(params?.page ?? 1));
     queryParams.append('page_size', String(params?.page_size ?? 25));
     if (params?.entity_type) queryParams.append('entity_type', params.entity_type);
-    if (params?.employee_id) queryParams.append('employee_id', String(params.employee_id));
+    if (params?.employee_id != null) queryParams.append('employee_id', String(params.employee_id));
+    if (params?.action) queryParams.append('action', params.action);
+    if (params?.start_date) queryParams.append('start_date', params.start_date);
+    if (params?.end_date) queryParams.append('end_date', params.end_date);
     if (params?.search) queryParams.append('search', params.search);
     return apiClient.get<PaginatedResponse<AuditLog>>(`/api/audit-logs/?${queryParams.toString()}`);
+  }
+
+  /** Navbar global search — leads, orders, contacts, customers, organizations the user can see. */
+  async globalSearch(q: string): Promise<GlobalSearchResponse> {
+    return apiClient.get<GlobalSearchResponse>(`/api/search/?${new URLSearchParams({ q })}`);
+  }
+
+  async getAuditLogFilters(): Promise<AuditLogFilterOptions> {
+    return apiClient.get<AuditLogFilterOptions>('/api/audit-logs/filters');
   }
 
   // User presence (in-memory, nothing persisted)

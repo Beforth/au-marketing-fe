@@ -1,13 +1,14 @@
 
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SearchInput } from './SearchInput';
-import { Search, Bell, Settings, Command, ShoppingBag, ShieldAlert, Package, MessageSquare, User, ArrowRight, LayoutDashboard, FileText, PieChart, CreditCard, X, LogOut, UserCircle, Users, Globe, Quote, Building2, Database, ClipboardList, CheckCircle2, Clock, RefreshCw, Ticket } from 'lucide-react';
+import { GlobalSearchResults } from './GlobalSearchResults';
+import { Search, Bell, Settings, Command, ShoppingBag, ShieldAlert, Package, MessageSquare, User, ArrowRight, LayoutDashboard, FileText, PieChart, CreditCard, X, LogOut, UserCircle, Users, Globe, Quote, Building2, Database, Ticket, SquarePlus, ClipboardCheck, UserPlus } from 'lucide-react';
 import { useApp } from '../../App';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { logout, selectUserDisplayName, selectEmployee, selectUser, selectHasPermission, selectToken } from '../../store/slices/authSlice';
-import { setDSRTasks, selectDSRTasks, selectDSRIsStale } from '../../store/slices/dsrSlice';
-import { hrmsRBACClient, resolveHrmsMediaUrl } from '../../lib/hrms-rbac';
+import { logout, selectUserDisplayName, selectEmployee, selectUser, selectHasPermission, selectPermissions } from '../../store/slices/authSlice';
+import { getDSRPermissions } from '../../lib/dsr-helpers';
+import { resolveHrmsMediaUrl } from '../../lib/hrms-rbac';
 import { Tooltip } from '../../UI/Tooltip';
 import { PresencePanel } from './PresencePanel';
 import { Avatar } from './Avatar';
@@ -29,46 +30,35 @@ export const Navbar: React.FC = () => {
 
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showDSR, setShowDSR] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const addMenuRef = useRef<HTMLDivElement>(null);
+  const permissionCodes = useAppSelector(selectPermissions);
+  // HRMS Daily Service Report / Expense "+" menu (docs/DSR_MODULE_INTEGRATION.md)
+  const hrmsDsrPerms = useMemo(
+    () => getDSRPermissions(permissionCodes, !!currentUser?.is_superuser),
+    [permissionCodes, currentUser]
+  );
+  const addMenuItems = [
+    { key: 'dsr', label: 'Add DSR', icon: ClipboardCheck, to: '/daily-service-reports/new', show: hrmsDsrPerms.canCreateIndoor || hrmsDsrPerms.canCreateOutdoor },
+    { key: 'assign', label: 'Assign DSR Task', icon: UserPlus, to: '/daily-service-reports/new?tab=assign', show: hrmsDsrPerms.canAssign },
+    { key: 'expense', label: 'Add Expense Report', icon: FileText, to: '/daily-service-reports/new?tab=expense', show: hrmsDsrPerms.canCreateExpense },
+  ].filter(i => i.show);
   const [showPresence, setShowPresence] = useState(false);
-  const [dsrLoading, setDsrLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
-  const dsrRef = useRef<HTMLDivElement>(null);
-  const token = useAppSelector(selectToken);
-  const dsrTasks = useAppSelector(selectDSRTasks);
-  const dsrIsStale = useAppSelector(selectDSRIsStale);
-
-  const fetchDSR = useCallback(async () => {
-    if (!token) return;
-    setDsrLoading(true);
-    try {
-      const tasks = await hrmsRBACClient.getDSR(token, { date: new Date().toISOString().slice(0, 10) });
-      dispatch(setDSRTasks(tasks));
-    } catch {
-      dispatch(setDSRTasks([]));
-    } finally {
-      setDsrLoading(false);
-    }
-  }, [token, dispatch]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
-      if (dsrRef.current && !dsrRef.current.contains(event.target as Node)) {
-        setShowDSR(false);
+      if (addMenuRef.current && !addMenuRef.current.contains(event.target as Node)) {
+        setShowAddMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Fetch DSR when opening if stale; refresh button forces re-fetch
-  useEffect(() => {
-    if (showDSR && dsrIsStale) fetchDSR();
-  }, [showDSR, dsrIsStale, fetchDSR]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -162,7 +152,7 @@ export const Navbar: React.FC = () => {
       <div className="flex-1 max-w-lg relative">
         <SearchInput
           ref={searchInputRef}
-          placeholder="Quick search... (⌘K)"
+          placeholder="Search leads, contacts, orders, pages… (⌘K)"
           value={globalSearch}
           onChange={(e) => setGlobalSearch(e.target.value)}
           onClear={() => setGlobalSearch('')}
@@ -179,108 +169,52 @@ export const Navbar: React.FC = () => {
 
         {isSearchFocused && globalSearch.length > 0 && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 shadow-xl rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-            <div className="p-1.5 max-h-[380px] overflow-y-auto">
-              {searchResults.length > 0 ? (
-                <div className="space-y-1">
-                  {searchResults.map(item => (
-                    <button
-                      key={item.id}
-                      onClick={() => { navigate(item.href); setGlobalSearch(''); }}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-slate-50 transition-colors group"
-                    >
-                      <item.icon size={14} className="text-slate-400 group-hover:text-blue-600" />
-                      <span className="text-xs font-medium text-slate-700">{item.title}</span>
-                      <ArrowRight size={12} className="ml-auto text-slate-300 opacity-0 group-hover:opacity-100" />
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-4 text-center text-slate-400 text-xs">No matches found</div>
-              )}
-            </div>
+            <GlobalSearchResults
+              query={globalSearch}
+              pages={searchResults}
+              onPick={(href) => { navigate(href); setGlobalSearch(''); setIsSearchFocused(false); }}
+            />
           </div>
         )}
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="relative" ref={dsrRef}>
-          <button
-            onClick={() => setShowDSR(!showDSR)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all active:scale-95 ${showDSR ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-blue-50/50 border-blue-100 text-blue-600 hover:bg-blue-50'}`}
-            title="Today's DSR"
-          >
-            <ClipboardList size={16} strokeWidth={2} />
-            {dsrTasks.filter(t => t.status === 'pending').length > 0 && (
-              <span className={`text-sm font-semibold ${showDSR ? 'text-blue-50' : 'text-blue-600'}`}>
-                {dsrTasks.filter(t => t.status === 'pending').length}
-              </span>
+        {addMenuItems.length > 0 && (
+          <div className="relative" ref={addMenuRef}>
+            <Tooltip content="Add Task">
+              <button
+                onClick={() => setShowAddMenu(!showAddMenu)}
+                className={`p-2 rounded-xl transition-all active:scale-95 ${showAddMenu ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-slate-100/80 text-slate-700 hover:bg-slate-200/70'}`}
+                aria-label="Add Task"
+                aria-expanded={showAddMenu}
+              >
+                <SquarePlus size={18} strokeWidth={2} />
+              </button>
+            </Tooltip>
+            {showAddMenu && (
+              <div className="absolute top-full right-0 mt-3 w-64 bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden z-50 py-2">
+                {addMenuItems.map(item => (
+                  <button
+                    key={item.key}
+                    onClick={() => { setShowAddMenu(false); navigate(item.to); }}
+                    className="w-full flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                  >
+                    <item.icon size={17} strokeWidth={1.75} className="text-slate-400" />
+                    {item.label}
+                  </button>
+                ))}
+                <div className="border-t border-slate-100 mt-1 pt-1">
+                  <button
+                    onClick={() => { setShowAddMenu(false); navigate('/daily-service-reports'); }}
+                    className="w-full py-2 text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-widest flex items-center gap-2 justify-center"
+                  >
+                    View my reports <ArrowRight size={10} />
+                  </button>
+                </div>
+              </div>
             )}
-          </button>
-
-          {showDSR && (
-            <div className="absolute top-full right-0 mt-3 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-300">
-              <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <span className="text-xs font-semibold text-slate-500">Today's DSR</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); fetchDSR(); }}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                  title="Refresh"
-                >
-                  <RefreshCw size={13} className={dsrLoading ? 'animate-spin' : ''} />
-                </button>
-              </div>
-              <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
-                {dsrLoading ? (
-                  <div className="py-8 text-center text-slate-300">
-                    <p className="text-[10px] font-medium uppercase tracking-widest">Loading...</p>
-                  </div>
-                ) : dsrTasks.length === 0 ? (
-                  <div className="py-8 text-center text-slate-300">
-                    <p className="text-[10px] font-medium uppercase tracking-widest">No tasks for today</p>
-                  </div>
-                ) : (
-                  <div>
-                    {dsrTasks.filter(t => t.status === 'pending').length > 0 && (
-                      <div className="px-4 py-2">
-                        <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                          <Clock size={11} /> Pending
-                        </p>
-                        {dsrTasks.filter(t => t.status === 'pending').map(task => (
-                          <div key={task.id} className="px-3 py-2 rounded-lg bg-amber-50/50 mb-1.5 last:mb-0">
-                            <p className="text-xs font-semibold text-slate-800">{task.title}</p>
-                            {task.description && <p className="text-[10px] text-slate-500 mt-0.5">{task.description}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {dsrTasks.filter(t => t.status === 'completed').length > 0 && (
-                      <div className="px-4 py-2 border-t border-slate-50">
-                        <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                          <CheckCircle2 size={11} /> Completed
-                        </p>
-                        {dsrTasks.filter(t => t.status === 'completed').map(task => (
-                          <div key={task.id} className="px-3 py-2 rounded-lg bg-emerald-50/50 mb-1.5 last:mb-0">
-                            <p className="text-xs font-semibold text-slate-800">{task.title}</p>
-                            {task.description && <p className="text-[10px] text-slate-500 mt-0.5">{task.description}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="p-3 bg-slate-50/50 border-t border-slate-100">
-                <button
-                  onClick={() => { navigate('/dsr'); setShowDSR(false); }}
-                  className="w-full py-1.5 text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-widest flex items-center gap-2 justify-center"
-                >
-                  View All DSR <ArrowRight size={10} />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
+          </div>
+        )}
         <div className="relative" ref={notificationRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
