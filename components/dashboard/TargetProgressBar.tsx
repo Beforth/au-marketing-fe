@@ -37,7 +37,7 @@ export const TargetProgressBar: React.FC<TargetProgressBarProps> = ({
   const projection = achieved > 0 ? Math.round((achieved / now.getDate()) * daysInMonth) : 0;
 
   return (
-    <Card noPadding className="min-h-0">
+    <Card noPadding className="min-h-0 border-slate-200 shadow-sm">
       <div className="flex flex-col p-4 h-full">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">

@@ -20,7 +20,7 @@ export const Sidebar: React.FC = () => {
   const [adminOpen, setAdminOpen] = useState(false);
   const [serviceOpen, setServiceOpen] = useState(false);
   const [workOpen, setWorkOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState('v1.4.2');
+  const [appVersion, setAppVersion] = useState('v1.4.3');
   const [versionLoaded, setVersionLoaded] = useState(false);
   const userDisplayName = useAppSelector(selectUserDisplayName);
   const employee = useAppSelector(selectEmployee);
@@ -180,7 +180,8 @@ export const Sidebar: React.FC = () => {
           </button>
         </div>
 
-        <nav className="space-y-0.5">
+        {/* flex-1 + min-h-0 + overflow: the menu scrolls when it's taller than the screen; logo and bottom section stay put */}
+        <nav className="space-y-0.5 flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
           <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-2">Main Menu</p>
           {filteredSidebarLinks.map((item) => (
             <SidebarItem key={item.title} item={item} />
@@ -295,7 +296,7 @@ export const Sidebar: React.FC = () => {
           )}
         </nav>
 
-        <div className="mt-auto pt-4 space-y-0">
+        <div className="mt-auto pt-4 space-y-0 shrink-0">
           {/* ── Admin Section ── */}
           {hasAdmin && (
             <div className="mb-1">

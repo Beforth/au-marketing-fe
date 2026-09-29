@@ -1,25 +1,32 @@
 import React, { useEffect, useState } from 'react';
-import { Users, ShoppingBag, Flame, TrendingUp } from 'lucide-react';
-import { PageLayout } from '../../components/layout/PageLayout';
-import { DashboardStatCard } from '../../components/dashboard/DashboardStatCard';
-import { TargetProgressBar } from '../../components/dashboard/TargetProgressBar';
-import { LeadStatusChart } from '../../components/dashboard/LeadStatusChart';
+import { DashboardHero } from '../../components/dashboard/DashboardHero';
+import { BentoGrid, Tile, HalfPair, quickActions, heroSubtitle } from '../../components/dashboard/DashboardFrame';
+import { StandardKpis } from '../../components/dashboard/StandardKpis';
+import { TargetRingCard } from '../../components/dashboard/TargetRingCard';
+import { OutcomeCard } from '../../components/dashboard/OutcomeCard';
+import { PipelineStagesCard } from '../../components/dashboard/PipelineStagesCard';
 import { MonthlyTrendChart } from '../../components/dashboard/MonthlyTrendChart';
 import { RecentLeadsList } from '../../components/dashboard/RecentLeadsList';
-import { HighValueLeadsList } from '../../components/dashboard/HighValueLeadsList';
+import { FollowUpsDueList } from '../../components/dashboard/FollowUpsDueList';
 import { PerformerOfMonthCard } from '../../components/dashboard/PerformerOfMonthCard';
+import { MyTodoCard } from '../../components/dashboard/MyTodoCard';
+import { HighValueLeadsList } from '../../components/dashboard/HighValueLeadsList';
 import { RegionBreakdownChart } from '../../components/dashboard/RegionBreakdownChart';
 import { LeadSourceChart } from '../../components/dashboard/LeadSourceChart';
-import { WonLostDonut } from '../../components/dashboard/WonLostDonut';
-import { monthOverMonthDelta } from '../../components/dashboard/trendUtils';
-import { marketingAPI, RoleDashboardSummary, PerformerOfMonthItem, HeadDashboardSummaryResponse } from '../../lib/marketing-api';
 import { LeadsByRegionCard } from '../../components/dashboard/LeadsByRegionCard';
+import { marketingAPI, RoleDashboardSummary, PerformerOfMonthItem, HeadDashboardSummaryResponse } from '../../lib/marketing-api';
 
 interface SuperAdminDashboardProps {
   data: RoleDashboardSummary;
+  /** Reload the dashboard numbers (after a row action such as logging a call). */
+  onRefresh?: () => void;
 }
 
-export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ data }) => {
+/**
+ * Super admin (org-wide): Leads by Region (full width) → high-value + recent leads → To-Do +
+ * follow-ups → stages · sources · leaderboard → region won/lost.
+ */
+export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ data, onRefresh }) => {
   const [performers, setPerformers] = useState<PerformerOfMonthItem[]>([]);
   const [headSummary, setHeadSummary] = useState<HeadDashboardSummaryResponse | null>(null);
 
@@ -36,75 +43,55 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ data }
     return () => { cancelled = true; };
   }, []);
 
-  const leadsDelta = monthOverMonthDelta(data.monthly_trend, 'lead_count');
-  const ordersDelta = monthOverMonthDelta(data.monthly_trend, 'order_revenue');
-
   return (
-    <PageLayout title="Marketing Overview" description="Every domain, every region, every lead — org-wide">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <DashboardStatCard
-          label="Total Leads"
-          value={data.total_leads}
-          subtitle={`${data.open_leads} open`}
-          icon={<Users size={16} />}
-          delta={leadsDelta}
-          sparkline={data.monthly_trend.map((p) => p.lead_count)}
-          linkTo="/leads"
+    <BentoGrid>
+      {/* Row 1: hero (6) · [leads · hot leads] (3) · [open pipeline · won this month] (3) */}
+      <Tile span="wide" height="auto" index={0}>
+        <DashboardHero
+          dashboardName="Marketing Overview"
+          subtitle={heroSubtitle(
+            [
+              [data.hot_leads_count, 'hot lead', 'hot leads'],
+              [data.open_leads, 'open lead', 'open leads'],
+            ],
+            'Every domain, every region, every lead — org-wide'
+          )}
+          actions={quickActions(true)}
         />
-        <DashboardStatCard
-          label="Total Orders"
-          value={data.total_orders}
-          subtitle="all time"
-          icon={<ShoppingBag size={16} />}
-          accentClassName="bg-emerald-50 text-emerald-600"
-          delta={ordersDelta}
-          sparkline={data.monthly_trend.map((p) => p.order_revenue)}
-          linkTo="/orders"
-        />
-        <DashboardStatCard
-          label="Hot Leads"
-          value={data.hot_leads_count}
-          subtitle="overdue or due within 7 days"
-          icon={<Flame size={16} />}
-          accentClassName="bg-rose-50 text-rose-600"
-          linkTo="/leads"
-        />
-        <DashboardStatCard
-          label="Conversion"
-          value={data.conversion_ratio_pct != null ? `${data.conversion_ratio_pct}%` : '—'}
-          subtitle="won vs won+lost this period"
-          icon={<TrendingUp size={16} />}
-          accentClassName="bg-violet-50 text-violet-600"
-          right={<WonLostDonut won={data.won_count_month} lost={data.lost_count_month} centerLabel={String(data.won_count_month)} centerSub="won" />}
-        />
-      </div>
+      </Tile>
+      <StandardKpis data={data} leadsLabel="Total Leads" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-3 items-stretch">
-        <div className="lg:col-span-2">
-          <TargetProgressBar
-            target={data.monthly_target}
-            achieved={data.achieved_this_month}
-            scopeLabel={data.scope_label}
-            employeeCount={data.employee_count}
-            wonCount={data.won_count_month}
-          />
-        </div>
-        <PerformerOfMonthCard performers={performers} />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 items-stretch">
+      {/* Row 2: won-value trend (6) · target ring (3) · won vs lost (3) — 320px */}
+      <Tile span="wide" index={3}>
         <MonthlyTrendChart data={data.monthly_trend} title="Org-wide Won Value — Last 6 Months" />
-        <RegionBreakdownChart regions={headSummary?.region_breakdown || []} />
-        <LeadSourceChart data={data.lead_source_breakdown} />
-        <LeadStatusChart data={data.by_status} title="Leads by Status" />
-      </div>
-      <div className="mt-3">
-        <LeadsByRegionCard />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 items-start">
-        <HighValueLeadsList leads={data.high_value_leads} />
-        <RecentLeadsList leads={data.recent_leads} title="Recent Leads" />
-      </div>
-    </PageLayout>
+      </Tile>
+      <Tile span="small" index={4}>
+        <TargetRingCard
+          target={data.monthly_target}
+          achieved={data.achieved_this_month}
+          scopeLabel={data.scope_label}
+          employeeCount={data.employee_count}
+          wonCount={data.won_count_month}
+        />
+      </Tile>
+      <Tile span="small" index={5}>
+        <OutcomeCard won={data.won_count_month} lost={data.lost_count_month} open={data.open_leads} conversionPct={data.conversion_ratio_pct} />
+      </Tile>
+
+      {/* Row 3: the list worked from daily — full width, 384px */}
+      <Tile span="full" height="big" index={6}>
+        <LeadsByRegionCard size="big" />
+      </Tile>
+
+      {/* Row 4+: secondary pairs — 320px */}
+      {/* Row 4: high-value leads (6) · recent leads (3) · performer of the month (3) */}
+      <Tile span="wide" index={7}><HighValueLeadsList leads={data.high_value_leads} size="medium" /></Tile>
+      <Tile span="small" index={8}><RecentLeadsList leads={data.recent_leads} title="Recent Leads" size="medium" /></Tile>
+      <Tile span="small" index={9}><PerformerOfMonthCard performers={performers} /></Tile>
+      <HalfPair index={10} left={<MyTodoCard size="medium" />} right={<FollowUpsDueList followUps={data.follow_ups_due} title="Follow-ups Due" size="medium" onChanged={onRefresh} />} />
+
+      <HalfPair index={12} left={<PipelineStagesCard data={data.by_status} title="Leads by Stage" />} right={<LeadSourceChart data={data.lead_source_breakdown} />} />
+      <HalfPair index={14} left={<RegionBreakdownChart regions={headSummary?.region_breakdown || []} />} />
+    </BentoGrid>
   );
 };

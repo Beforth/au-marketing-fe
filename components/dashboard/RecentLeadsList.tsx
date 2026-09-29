@@ -1,69 +1,60 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Card } from '../ui/Card';
+import { Inbox } from 'lucide-react';
 import type { DashboardRecentLead } from '../../lib/marketing-api';
-
-const formatCurrency = (value: number) => {
-  if (value >= 1_00_00_000) return `₹${(value / 1_00_00_000).toFixed(1)} Cr`;
-  if (value >= 1_00_000) return `₹${(value / 1_00_000).toFixed(1)} L`;
-  if (value >= 1_000) return `₹${(value / 1_000).toFixed(0)} K`;
-  return `₹${value}`;
-};
+import { formatINRShort } from '../../lib/region-report';
+import { ListCard, ListRow, CardSize } from './ListCard';
+import { StatusBadge } from './StatusBadge';
 
 interface RecentLeadsListProps {
   leads: DashboardRecentLead[] | null | undefined;
   title?: string;
+  size?: CardSize;
 }
 
-export const RecentLeadsList: React.FC<RecentLeadsListProps> = ({ leads: leadsProp, title = 'Recent Leads' }) => {
+/** Most recently created leads in scope. Status pill keeps the status's own colour. */
+export const RecentLeadsList: React.FC<RecentLeadsListProps> = ({ leads: leadsProp, title = 'Recent Leads', size = 'medium' }) => {
   const leads = leadsProp || [];
   return (
-    <Card title={title} description="Most recently created, in your scope" noPadding>
-      {leads.length === 0 ? (
-        <div className="h-40 flex items-center justify-center text-sm text-slate-400">No leads yet</div>
-      ) : (
-        <>
-          <div className="divide-y divide-slate-100 max-h-[320px] overflow-y-auto">
-            {leads.map((lead) => (
-              <Link
-                key={lead.id}
-                to={`/leads/${lead.id}/edit`}
-                className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50/80 transition-colors"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 truncate">{lead.company || lead.series || `Lead #${lead.id}`}</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">{lead.series || `#${lead.id}`}</p>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  {lead.potential_value != null && (
-                    <span className="text-sm font-semibold text-slate-700 tabular-nums">{formatCurrency(lead.potential_value)}</span>
-                  )}
-                  {lead.status && (
-                    <span
-                      className="text-[11px] font-semibold px-2 py-1 rounded-full"
-                      style={{
-                        backgroundColor: lead.status_color ? `${lead.status_color}1a` : '#eff6ff',
-                        color: lead.status_color || '#2563eb',
-                      }}
-                    >
-                      {lead.status}
-                    </span>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-          <div className="border-t border-slate-100 bg-slate-50/40">
-            <Link
-              to="/leads"
-              className="flex items-center justify-between px-5 py-2.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-            >
-              View all leads
-              <span aria-hidden>→</span>
-            </Link>
-          </div>
-        </>
-      )}
-    </Card>
+    <ListCard
+      title={title}
+      subtitle="Most recently created, in your scope"
+      size={size}
+      viewAllHref="/leads"
+      isEmpty={leads.length === 0}
+      emptyIcon={<Inbox size={20} />}
+      emptyMessage="No leads yet"
+      emptyAction={{ label: '+ Add a lead', to: '/leads/new' }}
+    >
+      {leads.map((lead) => {
+        const name = lead.company || lead.series || `Lead #${lead.id}`;
+        const created = new Date(lead.created_at);
+        return (
+          <ListRow
+            key={lead.id}
+            to={`/leads/${lead.id}/edit`}
+            name={name}
+            title={name}
+            // Value sits in the sub-line so the name keeps its room when the card is narrow.
+            subtitle={[
+              lead.series,
+              lead.potential_value != null ? formatINRShort(lead.potential_value) : '',
+              Number.isNaN(created.getTime()) ? '' : created.toLocaleDateString('en-GB'),
+            ].filter(Boolean).join(' · ')}
+            trailing={
+              <>
+                {lead.status && (
+                  <StatusBadge
+                    status="info"
+                    className="max-w-[7.5rem] truncate"
+                    label={lead.status}
+                    style={lead.status_color ? { backgroundColor: `${lead.status_color}1a`, color: lead.status_color, borderColor: `${lead.status_color}40` } : undefined}
+                  />
+                )}
+              </>
+            }
+          />
+        );
+      })}
+    </ListCard>
   );
 };

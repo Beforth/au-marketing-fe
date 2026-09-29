@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactApexChart from 'react-apexcharts';
 import type { ApexAxisChartSeries, ApexOptions } from 'apexcharts';
-import { Card } from '../ui/Card';
+import { CardShell } from './ListCard';
 import type { DashboardMonthPoint } from '../../lib/marketing-api';
 
 const BRAND_BLUE = '#2563eb';
@@ -73,14 +73,14 @@ export const MonthlyTrendChart: React.FC<MonthlyTrendChartProps> = ({ data, titl
   ];
 
   return (
-    <Card title={title} description={description} contentClassName="p-4">
-      <div className="h-[320px]">
+    <CardShell title={title} subtitle={description} bodyClassName="p-4">
+      <div className="h-full">
         {points.length === 0 ? (
           <div className="h-full flex items-center justify-center text-sm text-slate-400">No data yet</div>
         ) : (
           <ReactApexChart options={options} series={series} type="area" height="100%" />
         )}
       </div>
-    </Card>
+    </CardShell>
   );
 };

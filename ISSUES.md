@@ -27,6 +27,7 @@
 - [Service Module](#service-module)
 - [External Visiting Card Integration](#external-visiting-card-integration)
 - [HRMS Daily Service Reports](#hrms-daily-service-reports)
+- [Layout & Navigation](#layout--navigation)
 
 ---
 
@@ -280,3 +281,16 @@ Confirmed edge cases handled correctly:
 **Status:** Fixed, not yet committed. Existing leads affected by the pre-fix version of this bug are **not recoverable** — the dropped number was never saved anywhere, so there's no record of what it was. Would need manual correction using the client's own outside records.
 
 ---
+
+## Layout & Navigation
+
+### 2026-09-28 — Sidebar doesn't scroll
+
+**What was reported:** the left sidebar can't be scrolled, so some menu items can't be reached.
+
+**Root cause:** the sidebar is fixed to the full screen height (`fixed … h-screen`) with an inner column (`flex flex-col h-full`), but neither the column nor the menu had any scrolling set. When the menu grew (the new Work & Approvals section added Log DSR, DSR History and My To-Do), everything below the screen edge was simply cut off — most visible on laptops and smaller windows.
+
+**Fix:** the menu list (`<nav>`) in [`components/ui/Sidebar.tsx`](components/ui/Sidebar.tsx) now takes the free space and scrolls on its own (`flex-1 min-h-0 overflow-y-auto`); the logo/version at the top and the settings/profile section at the bottom stay fixed (`shrink-0`). On screens where everything fits, nothing changes.
+
+**Status:** fixed, not yet committed. Frontend only — no data involved.
+

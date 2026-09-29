@@ -5,6 +5,31 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-09-29] — Redesigned Dashboard (v1.4.3)
+
+### 🖥️ Frontend
+
+#### A new-look dashboard
+- Every dashboard now opens with a **welcome banner** — a greeting, today's date, a one-line summary (follow-ups due, hot leads, open leads) and quick buttons for **New Lead**, **Log DSR**, **Leads board** and **Leads by Region** / **My To-Do**. The **Refresh** button (and, for admins, the role preview) now sits inside the banner.
+- A **bento-style layout**: the banner sits next to your key numbers, the trend chart sits beside your monthly target and won/lost overview, and the list you work from every day (your follow-ups, or Leads by Region for domain heads and admins) runs full width below — cards fit together neatly on desktop, tablet and phone.
+- The number cards now show **Leads, Hot leads, Open pipeline value and Quotes sent this month**.
+- **Monthly target as a progress ring**, with what's achieved, the average per day and a projection for the month.
+- A **Won vs Lost** card with your conversion rate, and **leads by stage** shown as easy-to-read bars with an open / won / lost summary.
+- **Performer of the Month** sits higher up as a compact card.
+- All cards share one clean style, lift slightly on hover, and show money the same short way everywhere (₹ Cr / L / K).
+- While the dashboard loads you see soft placeholder shapes instead of a blank page, and if something fails to load there's a **Try again** button.
+- Empty cards suggest a next step, such as **+ Add a lead** or **Go to My To-Do**.
+
+#### Get things done from the dashboard
+- **Follow-ups:** log a call or reschedule the follow-up straight from the list, without opening the lead.
+- **My To-Do:** see the tasks assigned to you, overdue ones first, and tick one to mark it done — it's logged as your DSR.
+
+#### Leads by Region graph
+- The **Leads by Region** card is now a graph: for each region, the number of leads, quotations sent and won leads, with each region's quotation value and won value shown under the graph and when you hover. Switch between this month, this quarter, this financial year or all time, and click a region to open its leads.
+
+#### Sidebar
+- The left menu now scrolls when it doesn't fit on the screen, so every item can be reached on smaller laptops.
+
 ## [2026-09-28] — Daily Service Reports, Leads by Region, Detailed Audit Log & Quotation Fixes (v1.4.2)
 
 ### 🖥️ Frontend

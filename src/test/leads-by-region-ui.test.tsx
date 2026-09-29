@@ -27,6 +27,19 @@ const sample: LeadsByRegionResponse = {
   ],
 };
 
+// ApexCharts doesn't render in jsdom — stub it: print categories/series, and a button per category
+// that fires the chart's dataPointSelection event like a bar click would.
+vi.mock('react-apexcharts', () => ({
+  default: ({ options, series }: { options: any; series: { name: string; data: number[] }[] }) => (
+    <div>
+      {series.map((s) => <p key={s.name}>{`${s.name}: ${s.data.join(',')}`}</p>)}
+      {(options.xaxis?.categories || []).map((c: string, i: number) => (
+        <button key={c} onClick={() => options.chart.events.dataPointSelection(null, null, { dataPointIndex: i })}>{c}</button>
+      ))}
+    </div>
+  ),
+}));
+
 const getLeadsByRegion = vi.fn();
 vi.mock('../../lib/marketing-api', async (orig) => ({
   ...(await orig<typeof import('../../lib/marketing-api')>()),
@@ -51,13 +64,17 @@ beforeEach(() => {
 });
 
 describe('LeadsByRegionCard (dashboard widget)', () => {
-  it('shows each region, totals, and asks for totals only for this quarter', async () => {
+  it('graphs counts per region, shows ₹ values beside the graph, and asks for totals only for this quarter', async () => {
     const { LeadsByRegionCard } = await import('../../components/dashboard/LeadsByRegionCard');
     render(<MemoryRouter><LeadsByRegionCard /></MemoryRouter>);
-    expect(await screen.findByText('West')).toBeInTheDocument();
-    expect(screen.getByText('No region')).toBeInTheDocument();
-    expect(screen.getAllByText('₹2.5 L').length).toBeGreaterThan(0); // region + total quote value
-    expect(screen.getAllByText('₹90,000').length).toBe(2);
+    expect((await screen.findAllByText('West')).length).toBe(2); // on the graph + its value chip
+    expect(screen.getAllByText('No region').length).toBe(2);
+    expect(screen.getByText('Leads: 2,1')).toBeInTheDocument();
+    expect(screen.getByText('Quotes sent: 2,0')).toBeInTheDocument();
+    expect(screen.getByText('Won: 1,0')).toBeInTheDocument();
+    // ₹ values aren't bars, but they're shown per region and in the totals
+    expect(screen.getAllByText('₹2.5 L').length).toBe(2); // West quote value + total quote value
+    expect(screen.getAllByText('₹90 K').length).toBe(2); // West won value + total won value
     const args = getLeadsByRegion.mock.calls[0][0];
     expect(args.include_leads).toBe(false);
     expect(args.date_from).toMatch(/^\d{4}-\d{2}-01$/);
@@ -73,7 +90,7 @@ describe('LeadsByRegionCard (dashboard widget)', () => {
         </Routes>
       </MemoryRouter>
     );
-    fireEvent.click(await screen.findByText('West'));
+    fireEvent.click(await screen.findByRole('button', { name: 'West' })); // the chart stub's bar click
     expect(await screen.findByText('REPORT PAGE')).toBeInTheDocument();
   });
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactApexChart from 'react-apexcharts';
 import type { ApexOptions } from 'apexcharts';
-import { Card } from '../ui/Card';
+import { CardShell } from './ListCard';
 import { CATEGORICAL } from './chartTokens';
 import type { DashboardLeadSource } from '../../lib/marketing-api';
 
@@ -39,14 +39,14 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ data }) => {
   const series = [{ name: 'Leads', data: chartData.map((d) => d.count) }];
 
   return (
-    <Card title="Lead Sources" description="Where leads in your scope are coming from" contentClassName="p-4">
+    <CardShell title="Lead Sources" subtitle="Where leads in your scope are coming from" bodyClassName="p-4">
       {chartData.length === 0 ? (
-        <div className="h-[320px] flex items-center justify-center text-sm text-slate-400">No source data yet</div>
+        <div className="h-full flex items-center justify-center text-sm text-slate-400">No source data yet</div>
       ) : (
-        <div className="h-[320px]">
+        <div className="h-full">
           <ReactApexChart options={options} series={series} type="bar" height="100%" />
         </div>
       )}
-    </Card>
+    </CardShell>
   );
 };

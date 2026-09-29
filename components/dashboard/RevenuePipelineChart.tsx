@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactApexChart from 'react-apexcharts';
 import type { ApexOptions } from 'apexcharts';
-import { Card } from '../ui/Card';
+import { CardShell } from './ListCard';
 import { SEQUENTIAL_BLUE_ORDINAL } from './chartTokens';
 import type { DashboardRevenuePipeline } from '../../lib/marketing-api';
 
@@ -52,10 +52,10 @@ export const RevenuePipelineChart: React.FC<RevenuePipelineChartProps> = ({ pipe
   const series = [{ name: 'Value', data: data.map((d) => d.value) }];
 
   return (
-    <Card title="Revenue Pipeline" description="Widest to narrowest: everything active, what's committed, what's actually won" contentClassName="p-4">
-      <div className="h-[320px]">
+    <CardShell title="Revenue Pipeline" subtitle="Widest to narrowest: everything active, what's committed, what's actually won" bodyClassName="p-4">
+      <div className="h-full">
         <ReactApexChart options={options} series={series} type="bar" height="100%" />
       </div>
-    </Card>
+    </CardShell>
   );
 };

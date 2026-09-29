@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trophy } from 'lucide-react';
-import { Card } from '../ui/Card';
+import { CardShell } from './ListCard';
 import { cn } from '../../lib/utils';
 import type { PerformerOfMonthItem } from '../../lib/marketing-api';
 
@@ -12,7 +12,7 @@ export const PerformerOfMonthCard: React.FC<PerformerOfMonthCardProps> = ({ perf
   const performers = (performersProp || []).slice(0, 3);
 
   return (
-    <Card noPadding className="min-h-0" title="Performer of the Month" description="Top by target achievement">
+    <CardShell title="Performer of the Month" subtitle="Top by target achievement" bodyClassName="overflow-y-auto">
       {performers.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-slate-400 gap-1.5 py-8">
           <Trophy size={22} />
@@ -59,6 +59,6 @@ export const PerformerOfMonthCard: React.FC<PerformerOfMonthCardProps> = ({ perf
           })}
         </div>
       )}
-    </Card>
+    </CardShell>
   );
 };

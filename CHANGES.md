@@ -25,14 +25,14 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6, 1.2.8, 1.4.2
 - [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7
 - [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
-- [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.2.0, 1.2.1, 1.2.5, 1.2.9, 1.4.2
+- [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.2.0, 1.2.1, 1.2.5, 1.2.9, 1.4.2, 1.4.3
 - [Who's Online / Presence](#whos-online--presence) — rev 1.2.0, 1.2.1
 - [Regions, Domains & Employee Sync](#regions-domains--employee-sync) — rev 1.2.0, 1.2.4, 1.2.5
 - [Quotations Page (list & filters)](#quotations-page-list--filters) — rev 1.2.1, 1.2.2
 - [DSR (Daily Status Reports)](#dsr-daily-status-reports) — rev 1.2.7
 - [Audit Log](#audit-log) — rev 1.2.7, 1.4.2
 - [Global Search](#global-search) — rev 1.4.2
-- [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5, 1.2.10
+- [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5, 1.2.10, 1.4.3
 - [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6, 1.4.8, 1.4.9, 1.4.2
 - [Design System Documentation](#design-system-documentation) — rev 1.2.6
 - [External Visiting Card Integration](#external-visiting-card-integration) — rev 1.3.0, 1.4.10
@@ -347,6 +347,56 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Dashboard, Reports & Performance Leaderboard
 
+### Rev 32 — 2026-09-29 (v1.4.3) — [Revision]
+- **UI polish pass** (frontend only):
+  - **No duplicate number:** the "Won This Month" number card (same figure as the target ring's "Achieved") is replaced by **Quotes Sent This Month** — ₹ value + count from `/api/leads-by-region/` totals for this month (same scope and "counted once at the latest price, in the month first sent" rule); links to the report for this month. Shows "could not load" if that call fails.
+  - **One money format:** `formatINRShort` now also shortens thousands (₹22.1 K, ₹90 K) — Cr / L / K everywhere on the dashboard and the Leads by Region page.
+  - **Less empty space:** Leads by Region bars get narrower when there are only a few regions; Leads by Stage opens with an Open / Won / Lost summary (count + share); Follow-ups and My To-Do end with a quiet "That's everything due" / "That's all your pending tasks" line.
+  - **Hover on every card:** slight lift + shadow + light blue border (cards, charts, number cards).
+  - **Won vs Lost:** coloured dots under Won / Lost / Open now, matching the ring.
+  - **Empty cards suggest a next step:** "+ Add a lead" (Recent leads, Leads by Stage), "Open Leads board" (Follow-ups, High-value), "Go to My To-Do" (My To-Do), "Open Leads by Region report".
+  - **Target card:** the "Projected = …" footnote is now a hover tip on Projected; the "days left" badge turns amber in the last 5 days.
+- Files: `lib/region-report.ts`, `components/dashboard/{StandardKpis,ListCard,FollowUpsDueList,MyTodoCard,RecentLeadsList,HighValueLeadsList,PipelineStagesCard,LeadsByRegionCard,OutcomeCard,TargetRingCard,DashboardStatCard}.tsx`; tests `src/test/{region-report.test.ts,leads-by-region-ui.test.tsx,role-dashboards-ui.test.tsx}`
+
+### Rev 31 — 2026-09-29 (v1.4.3) — [Revision]
+- **One card style for everything:** the charts (won-value trend, lead sources, revenue pipeline, won vs lost by region) and Performer of the Month now use the same card frame (`CardShell`) as the lists and new cards — same corners, border, header and title/sub-line — instead of the older generic `Card`.
+- **Top bar moved into the banner:** "Updated … · Refresh" and the Super Admin **Preview** switcher (now a compact dropdown) sit inside the hero; the "previewing another role" note shows under the greeting. Passed via a small context (`DashboardChrome`) from `RoleDashboardRouter`, so the four dashboards needed no extra props.
+- **Loading placeholders:** grey shimmer shapes instead of "Loading…" — list rows in list cards, bars in Leads by Region, and a whole-page skeleton in the same bento shape as the dashboard (`DashboardSkeleton` rewritten). Shimmer keyframes in `index.html`, off for reduced motion.
+- Files: new `components/dashboard/{DashboardChrome,Skeleton}.tsx`; changed `components/dashboard/{DashboardHero,DashboardSkeleton,ListCard,LeadsByRegionCard,MonthlyTrendChart,LeadSourceChart,RegionBreakdownChart,RevenuePipelineChart,PerformerOfMonthCard}.tsx`, `pages/dashboards/RoleDashboardRouter.tsx`, `index.html`
+
+### Rev 30 — 2026-09-29 (v1.4.3) — [Revision]
+- **Performer of the Month is now a small card, one row higher**: row 4 is To-Do (6) · Recent leads (3) · Performer (3) for Employee / Region Head, and High-value leads (6) · Recent leads (3) · Performer (3) for Domain Head / Super Admin (it used to be a half-width card near the bottom). The rows below were re-paired so no row has a gap (e.g. Domain Head: stages + revenue pipeline, then region won/lost full width).
+- Recent leads rows: the ₹ value moved into the grey sub-line and the status pill is width-capped, so company names aren't cut off in the narrower card.
+- Files: `pages/dashboards/{Employee,RegionHead,DomainHead,SuperAdmin}Dashboard.tsx`, `components/dashboard/RecentLeadsList.tsx`
+
+### Rev 29 — 2026-09-29 (v1.4.3) — [Revision]
+- **Dashboard improvements, parts A + B** (frontend only, no server change):
+  - **New cards:** `TargetRingCard` (monthly target as a progress ring: % of target, achieved vs target, won / avg per day / projected) replaces the target bar; `OutcomeCard` (won vs lost this month as a donut, conversion % in the middle, won / lost / open-now counts) sits beside it; `PipelineStagesCard` (leads per stage as labelled bars with count and share, Won/Lost at the bottom) replaces the status bar chart. Old `TargetProgressBar` / `LeadStatusChart` files are kept, just unused.
+  - **Same 4 number cards for every role** (`StandardKpis`): Leads (label per role), Hot leads, **Open pipeline ₹** (potential value of open leads, `revenue_pipeline.pipeline`) and **Won this month ₹** (with vs-last-month change). Removed from the number row: Orders (all time), Conversion (now in the Won vs Lost card), Team Customers (region head) and Avg lead age (domain head — moved into the banner line).
+  - **Act from the dashboard:** follow-up rows get **Log call** (adds a "call" entry to the lead's enquiry log), **Reschedule** (one-time follow-up) and **Open lead** — only for people with `marketing.edit_lead`; the dashboard reloads after. My To-Do rows get a **Mark done** tick (same confirmation and HRMS call as the To-Do page).
+  - **Errors:** My To-Do and Leads by Region show "Try again" when loading fails; the whole-dashboard error screen has a Try again button.
+  - Shared `CardShell` / `EmptyState` / `RowAction` in `ListCard.tsx`; `ListRow` supports `actions`.
+- Files: new `components/dashboard/{TargetRingCard,OutcomeCard,PipelineStagesCard,StandardKpis}.tsx`; changed `components/dashboard/{ListCard,FollowUpsDueList,MyTodoCard,LeadsByRegionCard}.tsx`, `pages/dashboards/{Employee,RegionHead,DomainHead,SuperAdmin}Dashboard.tsx`, `pages/dashboards/RoleDashboardRouter.tsx`, `src/test/role-dashboards-ui.test.tsx`
+
+### Rev 28 — 2026-09-29 (v1.4.3) — [Revision]
+- **Dashboard "Leads by Region" card is now a graph** instead of a table: grouped bars per region for **Leads, Quotes sent and Won** (counts). The ₹ quote value and ₹ won value are not drawn as bars (different scale) but are still shown: in the hover tooltip ("Quotes sent 18 · ₹24.5 L"), in a per-region value strip under the chart, and in the totals line. Period switch kept; "See all leads by region" link; clicking a region's bars, name or value chip opens the report filtered to that region. Colours from the shared chart palette (blue / orange / aqua).
+- Files: `components/dashboard/LeadsByRegionCard.tsx`, `src/test/leads-by-region-ui.test.tsx`
+
+### Rev 27 — 2026-09-29 (v1.4.3) — [Revision]
+- **Dashboards laid out as a bento grid** (UI only — same cards, same data). One grid: 1 column on phones, 2 at tablet, 12 on desktop, 16px gap; cards interlock with mixed widths instead of full-width rows:
+  Row 1 hero (6) · stack of 2 KPI cards (3) · stack of 2 KPI cards (3), stacks stretch to the hero (min 256px); Row 2 won-value trend (6) · monthly target (3) · performer of the month (3) at 320px; Row 3 the daily list full width at 384px (follow-ups for employee/region head, Leads by Region for domain head/super admin); Row 4+ secondary pairs 6 + 6 at 320px — a card without a partner spans the full width.
+- KPI cards made compact so two stack beside the hero; charts now fill their grid cell (were a fixed 320px body) and share the cards' border/shadow; Performer list scrolls inside its card.
+- New layout helpers `BentoGrid`, `Tile`, `KpiStack`, `HalfPair` replace `Pair`/`MediumSlot`/`KpiRow`.
+- Files: `components/dashboard/DashboardFrame.tsx`, `components/dashboard/{DashboardStatCard,DashboardHero,MonthlyTrendChart,LeadSourceChart,RegionBreakdownChart,LeadStatusChart,RevenuePipelineChart,TargetProgressBar,PerformerOfMonthCard}.tsx`, `pages/dashboards/{Employee,RegionHead,DomainHead,SuperAdmin}Dashboard.tsx`
+
+### Rev 26 — 2026-09-28 (v1.4.3) — [Revision]
+- **Role dashboards redesigned** (design ideas from the HRMS dashboard prompt, our own marketing widgets). Cards are sized by how often they're used: one **BIG** card per role, full width, fixed 384px (Employee/Region Head: Follow-ups due; Domain Head/Super Admin: Leads by Region); **MEDIUM** cards paired two per row at a fixed 320px (recent leads, high-value leads, My To-Do, follow-ups, target + performer of the month); charts paired with charts. A tall and a short card never share a row; list bodies scroll inside the card.
+- New **hero banner** on every dashboard: gradient, "{Dashboard} · date" line, typed-out "Good Morning/Afternoon/Evening, {name}!", a one-line summary (follow-ups due / hot / open leads), and real quick actions (New Lead, Log DSR, Leads board, Leads by Region for heads / My To-Do for employees).
+- **KPI cards** restyled (big number, accent icon box, colour by meaning: emerald good, amber waiting, rose urgent, blue neutral, violet secondary); kept the vs-last-month chip and sparkline.
+- New **My To-Do** card (pending HRMS tasks, overdue first, pulsing overdue badge) on all four dashboards. Lists now use one row style: avatar (photo → initials), title, sub-line, status pill; every empty list shows an icon + message.
+- Cards fade/rise in on load (staggered, off for "reduce motion"). Renamed the old region chart "Won vs Lost by Region" so it isn't confused with the Leads by Region card. The page header (preview switcher / Refresh) is unchanged.
+- Files: new `components/dashboard/{DashboardHero,DashboardFrame,ListCard,StatusBadge,Rise,MyTodoCard}.tsx`; restyled `components/dashboard/{DashboardStatCard,FollowUpsDueList,RecentLeadsList,HighValueLeadsList,LeadsByRegionCard,RegionBreakdownChart}.tsx`; re-laid out `pages/dashboards/{Employee,RegionHead,DomainHead,SuperAdmin}Dashboard.tsx`; `index.html` (animation keyframes); test `src/test/role-dashboards-ui.test.tsx`. Reuses `components/ui/Avatar.tsx`.
+
 ### Rev 25 — 2026-09-28 (v1.4.2) — [Revision]
 - **New dashboard widget "Leads by Region"** (Super Admin, Domain Head, Region Head dashboards): per region — leads, quotations sent (count + ₹), won leads (count + ₹), with a total row and a period switch (This month / **This quarter** default / This financial year / All time, Apr–Mar FY). Clicking a region opens the page below filtered to it.
 - **New page Reports → Leads by Region** (`/reports/leads-by-region`): filters for period (incl. custom dates), domain, region, status, owner (for heads) and search; grand totals; regions as expandable sections with their totals and every lead (status, owner, quotes sent, quote value, won value, link to the lead); **Download CSV**. Filters live in the URL so a view can be shared. Linked from the Reports page.
@@ -564,6 +614,10 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Global UI, Formatting & Bug Fixes
+
+### Rev 5 — 2026-09-28 (v1.4.3) — [Issue]
+- **Sidebar couldn't scroll.** The sidebar is fixed to the screen height but nothing inside it could scroll, so once the menu grew (Work & Approvals: Log DSR, DSR History, My To-Do) the lower items ran off the bottom on smaller screens/laptops and couldn't be reached. The menu list (`<nav>`) now scrolls (`flex-1 min-h-0 overflow-y-auto`); the logo at the top and the settings/profile section at the bottom stay fixed (`shrink-0`).
+- Files: `components/ui/Sidebar.tsx`
 
 ### Rev 4 — 2026-08-20 (v1.2.10) — [Revision]
 - **Subtle blue color tints applied across the UI.** DataTable headers use `bg-blue-50/40` with light zebra striping (`odd:bg-blue-50/[0.15]`) and blue hover effects. Input default variant bg changed from `bg-slate-50` to `bg-blue-50/[0.15]` with stronger focus rings (`blue-500/20`→`/30`). DatePicker trigger and time selects use the same blue tint. PageLayout header area now has a soft blue gradient wash (`from-blue-50/40 via-blue-50/20 to-transparent`). Major form section headings (LeadFormPage, SettingsPage) got a `border-l-2 border-blue-500/30` blue accent. Section dividers changed from `border-slate-200` to `border-blue-100/60`.

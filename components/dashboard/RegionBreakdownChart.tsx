@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactApexChart from 'react-apexcharts';
 import type { ApexOptions } from 'apexcharts';
-import { Card } from '../ui/Card';
+import { CardShell } from './ListCard';
 import type { RegionBreakdownItem } from '../../lib/marketing-api';
 
 // Won/Lost are a status pairing (good/critical), not generic categorical identity —
@@ -40,14 +40,14 @@ export const RegionBreakdownChart: React.FC<RegionBreakdownChartProps> = ({ regi
   ];
 
   return (
-    <Card title="Leads by Region" description="Domain-wide breakdown" contentClassName="p-4">
+    <CardShell title="Won vs Lost by Region" subtitle="Leads won and lost per region this month" bodyClassName="p-4">
       {data.length === 0 ? (
-        <div className="h-[320px] flex items-center justify-center text-sm text-slate-400">No region data yet</div>
+        <div className="h-full flex items-center justify-center text-sm text-slate-400">No region data yet</div>
       ) : (
-        <div className="h-[320px]">
+        <div className="h-full">
           <ReactApexChart options={options} series={series} type="bar" height="100%" />
         </div>
       )}
-    </Card>
+    </CardShell>
   );
 };

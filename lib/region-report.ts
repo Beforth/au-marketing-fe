@@ -1,10 +1,11 @@
 import type { RegionGroup } from './marketing-api';
 
-/** ₹1.2 Cr / ₹4.5 L / ₹12,300 — same short style as the dashboard cards. */
+/** One short money style everywhere on the dashboard: ₹1.20 Cr / ₹4.5 L / ₹22.1 K / ₹850. */
 export function formatINRShort(value: number | null | undefined): string {
   const v = value ?? 0;
   if (v >= 1_00_00_000) return `₹${(v / 1_00_00_000).toFixed(2)} Cr`;
   if (v >= 1_00_000) return `₹${(v / 1_00_000).toFixed(1)} L`;
+  if (v >= 1_000) return `₹${(v / 1_000).toFixed(1).replace(/\.0$/, '')} K`;
   return `₹${Math.round(v).toLocaleString('en-IN')}`;
 }
 

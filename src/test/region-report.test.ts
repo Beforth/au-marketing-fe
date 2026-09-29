@@ -6,7 +6,9 @@ describe('formatINRShort', () => {
   it('formats crore / lakh / plain', () => {
     expect(formatINRShort(25_000_000)).toBe('₹2.50 Cr');
     expect(formatINRShort(135_500)).toBe('₹1.4 L');
-    expect(formatINRShort(12_300)).toBe('₹12,300');
+    expect(formatINRShort(12_300)).toBe('₹12.3 K');
+    expect(formatINRShort(90_000)).toBe('₹90 K');
+    expect(formatINRShort(850)).toBe('₹850');
     expect(formatINRShort(null)).toBe('₹0');
   });
 });
