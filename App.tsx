@@ -45,6 +45,7 @@ import { ServiceWorkOrderPage } from './pages/ServiceWorkOrderPage';
 import { ServiceWorkOrdersPage } from './pages/ServiceWorkOrdersPage';
 import { ServiceStorePage } from './pages/ServiceStorePage';
 import { ServiceComplaintsPage } from './pages/ServiceComplaintsPage';
+import { ServiceReportsPage } from './pages/ServiceReportsPage';
 import { ServiceComplaintFormPage } from './pages/ServiceComplaintFormPage';
 import { ServiceComplaintDetailPage } from './pages/ServiceComplaintDetailPage';
 import { ServiceVisitReportPage } from './pages/ServiceVisitReportPage';
@@ -344,6 +345,11 @@ const AppMain: React.FC = () => {
                   <ServiceVisitsPage />
                 </ProtectedRoute>
               } />
+              <Route path="service/contracts/:contractId/work-order" element={
+                <ProtectedRoute requiredPermission="service.view">
+                  <ServiceWorkOrderPage />
+                </ProtectedRoute>
+              } />
               <Route path="service/visits/:visitId/work-order" element={
                 <ProtectedRoute requiredPermission="service.view">
                   <ServiceWorkOrderPage />
@@ -357,6 +363,11 @@ const AppMain: React.FC = () => {
               <Route path="service/work-orders" element={
                 <ProtectedRoute requiredPermission="service.view">
                   <ServiceWorkOrdersPage />
+                </ProtectedRoute>
+              } />
+              <Route path="service/reports" element={
+                <ProtectedRoute requiredPermission="service.view">
+                  <ServiceReportsPage />
                 </ProtectedRoute>
               } />
               <Route path="service/store" element={

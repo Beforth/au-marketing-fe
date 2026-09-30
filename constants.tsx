@@ -57,6 +57,7 @@ export const SERVICE_LINKS: NavItem[] = [
   { title: 'Work Orders', icon: ClipboardList, href: '/service/work-orders', permission: 'service.view' },
   { title: 'Store / Dispatch', icon: PackageCheck, href: '/service/store', permission: 'service.view' },
   { title: 'Complaints', icon: MessageSquareWarning, href: '/service/complaints', permission: 'service.view' },
+  { title: 'Reports', icon: PieChart, href: '/service/reports', permission: 'service.view' },
 ];
 
 /** localStorage key for the default lead number series (assign from Leads page "Number series" button). */

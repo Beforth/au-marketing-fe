@@ -57,7 +57,7 @@ export const CloseComplaintModal: React.FC<CloseComplaintModalProps> = ({ compla
       }
     >
       <p className="text-xs text-amber-600 mb-3">
-        If this complaint is tied to a visit, that visit's service report must be submitted first — closing will be refused otherwise.
+        If this complaint is tied to a visit, the visit report for that visit must be submitted first — closing will be refused otherwise.
       </p>
       <Input label="Actual time taken (hours)" type="number" min={0} step="0.5" value={hours} onChange={(e) => setHours(e.target.value)} />
       <label className="block text-sm font-medium text-slate-700 mb-1.5 mt-3">Closing note (optional)</label>

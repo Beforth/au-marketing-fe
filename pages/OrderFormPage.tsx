@@ -787,7 +787,7 @@ export const OrderFormPage: React.FC = () => {
             }
           }}
           title="Delete order?"
-          message="This order will be permanently removed. This action cannot be undone."
+          message={order?.order_value ? `This order will be permanently removed, and its value (₹${Number(order.order_value).toLocaleString('en-IN')}) will be taken off the target. This action cannot be undone.` : 'This order will be permanently removed. This action cannot be undone.'}
           confirmLabel="Delete"
           variant="danger"
         />

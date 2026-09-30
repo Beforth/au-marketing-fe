@@ -18,6 +18,7 @@ import { Button } from '../components/ui/Button';
 import { Tooltip } from '../UI/Tooltip';
 import {
   marketingAPI,
+  visitWorkOrderPath,
   ServiceVisit,
   ServiceVisitStatus,
   SERVICE_VISIT_STATUSES,
@@ -179,7 +180,7 @@ export const ServiceVisitsPage: React.FC = () => {
                 key: 'date',
                 label: 'Date',
                 render: (v) => (
-                  <span className="text-sm text-slate-600">{v.scheduled_date || v.planned_date || '—'}</span>
+                  <span className="text-sm text-slate-600">{v.planned_date || v.scheduled_date || '—'}</span>
                 ),
               },
               {
@@ -230,7 +231,7 @@ export const ServiceVisitsPage: React.FC = () => {
                         className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/service/visits/${v.id}/work-order`);
+                          navigate(visitWorkOrderPath(v));
                         }}
                       >
                         <ClipboardList size={16} />

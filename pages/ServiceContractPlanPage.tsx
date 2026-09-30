@@ -10,14 +10,16 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Modal } from '../components/ui/Modal';
+import { EngineerPicker, EngineerValue } from '../components/service/EngineerPicker';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Popover, PopoverTrigger, PopoverContent } from '../components/ui/popover';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { ArrowLeft, CalendarClock, Check, ClipboardList, FileText, MessageSquareWarning, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Check, ClipboardList, FileText, MessageSquareWarning, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   marketingAPI,
+  visitWorkOrderPath,
   ServiceContract,
   ServicePlan,
   ServiceVisit,
@@ -50,10 +52,6 @@ export const ServiceContractPlanPage: React.FC = () => {
   const [contract, setContract] = useState<ServiceContract | null>(null);
   const [plan, setPlan] = useState<ServicePlan | null>(null);
 
-  const [plannedCount, setPlannedCount] = useState(0);
-  const [scheduleNote, setScheduleNote] = useState('');
-  const [savingPlan, setSavingPlan] = useState(false);
-  const [generating, setGenerating] = useState(false);
 
   // reschedule modal
   const [rescheduleVisit, setRescheduleVisit] = useState<ServiceVisit | null>(null);
@@ -69,6 +67,7 @@ export const ServiceContractPlanPage: React.FC = () => {
   const [vfScheduled, setVfScheduled] = useState('');
   const [vfStatus, setVfStatus] = useState<ServiceVisitStatus>('planned');
   const [vfNotes, setVfNotes] = useState('');
+  const [vfEngineer, setVfEngineer] = useState<EngineerValue>({ id: null, name: null });
   const [savingVisit, setSavingVisit] = useState(false);
 
   const load = useCallback(async () => {
@@ -81,8 +80,6 @@ export const ServiceContractPlanPage: React.FC = () => {
       setContract(c);
       setPlan(p);
       if (p) {
-        setPlannedCount(p.scheduled_visits_planned);
-        setScheduleNote(p.preferred_schedule_note || '');
       }
     } catch (e: any) {
       showToast(e?.message || 'Failed to load service plan', 'error');
@@ -100,52 +97,17 @@ export const ServiceContractPlanPage: React.FC = () => {
     load();
   }, [canView, load]);
 
-  const createPlan = async () => {
-    setSavingPlan(true);
-    try {
-      const p = await marketingAPI.createServicePlan({
-        contract_id: contractId,
-        scheduled_visits_planned: plannedCount,
-        preferred_schedule_note: scheduleNote.trim() || null,
-      });
-      setPlan(p);
-      showToast('Service plan created', 'success');
-    } catch (e: any) {
-      showToast(e?.message || 'Failed to create plan', 'error');
-    } finally {
-      setSavingPlan(false);
-    }
-  };
-
-  const savePlan = async () => {
-    if (!plan) return;
-    setSavingPlan(true);
-    try {
-      const p = await marketingAPI.updateServicePlan(plan.id, {
-        scheduled_visits_planned: plannedCount,
-        preferred_schedule_note: scheduleNote.trim() || null,
-      });
-      setPlan(p);
-      showToast('Plan updated', 'success');
-    } catch (e: any) {
-      showToast(e?.message || 'Failed to update plan', 'error');
-    } finally {
-      setSavingPlan(false);
-    }
-  };
-
-  const generate = async () => {
-    if (!plan) return;
-    setGenerating(true);
-    try {
-      const res = await marketingAPI.generateScheduledVisits(plan.id);
-      showToast(res.created > 0 ? `${res.created} blank visit slot(s) added` : 'Nothing to add — count already met', 'success');
-      await load();
-    } catch (e: any) {
-      showToast(e?.message || 'Failed to add visit slots', 'error');
-    } finally {
-      setGenerating(false);
-    }
+  // The plan is created automatically the first time it is needed (first visit added, or dates note saved),
+  // so nobody has to "create a service plan" or type a visit count first.
+  const ensurePlan = async (): Promise<ServicePlan> => {
+    if (plan) return plan;
+    const p = await marketingAPI.createServicePlan({
+      contract_id: contractId,
+      scheduled_visits_planned: 0,
+      preferred_schedule_note: null,
+    });
+    setPlan(p);
+    return p;
   };
 
   const openAddVisit = (kind: ServiceVisitKind) => {
@@ -155,6 +117,7 @@ export const ServiceContractPlanPage: React.FC = () => {
     setVfScheduled('');
     setVfStatus('planned');
     setVfNotes('');
+    setVfEngineer({ id: null, name: null });
     setVisitModal({ mode: 'add' });
   };
 
@@ -165,21 +128,30 @@ export const ServiceContractPlanPage: React.FC = () => {
     setVfScheduled(v.scheduled_date || '');
     setVfStatus(v.status);
     setVfNotes(v.notes || '');
+    setVfEngineer({ id: v.assigned_engineer_employee_id ?? null, name: v.assigned_engineer_username ?? null });
     setVisitModal({ mode: 'edit', visit: v });
   };
 
   const saveVisit = async () => {
-    if (!plan || !visitModal) return;
+    if (!visitModal) return;
     setSavingVisit(true);
     try {
       if (visitModal.mode === 'add') {
+        const activePlan = await ensurePlan();
         await marketingAPI.createServiceVisit({
-          plan_id: plan.id,
+          plan_id: activePlan.id,
           kind: vfKind,
           title: vfTitle.trim() || undefined,
           planned_date: vfPlanned || null,
           scheduled_date: vfScheduled || null,
+          assigned_engineer_employee_id: vfEngineer.id,
+          assigned_engineer_username: vfEngineer.name,
         });
+        if (vfKind === 'scheduled') {
+          // keep the plan's visit count in step with the visits actually added
+          const n = (activePlan.visits ?? []).filter((v) => v.kind === 'scheduled').length + 1;
+          await marketingAPI.updateServicePlan(activePlan.id, { scheduled_visits_planned: n }).catch(() => undefined);
+        }
         showToast('Visit added', 'success');
       } else if (visitModal.visit) {
         await marketingAPI.updateServiceVisit(visitModal.visit.id, {
@@ -187,6 +159,8 @@ export const ServiceContractPlanPage: React.FC = () => {
           planned_date: vfPlanned || null,
           scheduled_date: vfScheduled || null,
           status: vfStatus,
+          assigned_engineer_employee_id: vfEngineer.id,
+          assigned_engineer_username: vfEngineer.name,
           notes: vfNotes.trim() || null,
         });
         showToast('Visit updated', 'success');
@@ -275,7 +249,6 @@ export const ServiceContractPlanPage: React.FC = () => {
   }
 
   const visits = plan?.visits ?? [];
-  const scheduledCount = visits.filter((v) => v.kind === 'scheduled').length;
 
   return (
     <PageLayout
@@ -287,60 +260,25 @@ export const ServiceContractPlanPage: React.FC = () => {
       }
       breadcrumbs={breadcrumbs}
       actions={
-        <Button variant="outline" size="sm" onClick={() => navigate(`/service/contracts/${contractId}/edit`)} leftIcon={<ArrowLeft size={14} />}>
-          Back to contract
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => navigate(`/service/contracts/${contractId}/work-order`)} leftIcon={<ClipboardList size={14} />}>
+            Work order
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate(`/service/contracts/${contractId}/edit`)} leftIcon={<ArrowLeft size={14} />}>
+            Back to contract
+          </Button>
+        </div>
       }
     >
-      {/* Plan setup */}
-      <Card title="Plan" className="mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Number of scheduled visits (for reference)"
-            type="number"
-            min={0}
-            value={String(plannedCount)}
-            onChange={(e) => setPlannedCount(Math.max(0, Number(e.target.value) || 0))}
-            disabled={!canManage}
-          />
-          <div className="md:row-span-2">
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Customer's preferred service dates</label>
-            <textarea
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows={4}
-              value={scheduleNote}
-              onChange={(e) => setScheduleNote(e.target.value)}
-              disabled={!canManage}
-              placeholder="e.g. First week of every quarter; avoid month-end; contact plant a week ahead"
-            />
-          </div>
-        </div>
-        {canManage && (
-          <div className="flex flex-wrap gap-3 mt-4">
-            {plan ? (
-              <>
-                <Button size="sm" onClick={savePlan} isLoading={savingPlan}>Save plan</Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={generate}
-                  isLoading={generating}
-                  leftIcon={<RefreshCw size={14} />}
-                  title="Quick-add blank visit slots up to the number above; fill in dates afterwards"
-                >
-                  Quick-add {plannedCount} blank slot(s) ({scheduledCount} exist)
-                </Button>
-              </>
-            ) : (
-              <Button size="sm" onClick={createPlan} isLoading={savingPlan}>Create service plan</Button>
-            )}
-          </div>
-        )}
-      </Card>
+      {/* Older free-text note about the customer's preferred dates (dates are now entered on each visit) */}
+      {plan?.preferred_schedule_note && (
+        <p className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          <span className="font-medium text-slate-700">Earlier note on customer's preferred dates:</span> {plan.preferred_schedule_note}
+        </p>
+      )}
 
       {/* Visits */}
-      {plan && (
-        <Card title={`Visits (${visits.length})`}>
+      <Card title={`Visits (${visits.length})`}>
           {canManage && (
             <div className="flex flex-wrap gap-2 mb-3">
               <Button size="sm" variant="outline" leftIcon={<Plus size={14} />} onClick={() => openAddVisit('scheduled')}>
@@ -353,7 +291,7 @@ export const ServiceContractPlanPage: React.FC = () => {
           )}
           {visits.length === 0 ? (
             <p className="text-sm text-slate-400 py-6 text-center">
-              No visits yet. Click “Add scheduled visit” to add each visit with its date.
+              No visits yet. Click “Add scheduled visit” to add the first one — add more one by one as needed.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -363,8 +301,9 @@ export const ServiceContractPlanPage: React.FC = () => {
                     <th className="text-left pb-2 pr-4">#</th>
                     <th className="text-left pb-2 pr-4">Visit</th>
                     <th className="text-left pb-2 pr-4">Kind</th>
-                    <th className="text-left pb-2 pr-4">Planned</th>
-                    <th className="text-left pb-2 pr-4">Scheduled</th>
+                    <th className="text-left pb-2 pr-4">Customer's date</th>
+                    <th className="text-left pb-2 pr-4">Our date</th>
+                    <th className="text-left pb-2 pr-4">Engineer</th>
                     <th className="text-left pb-2 pr-4">Status</th>
                     <th className="text-right pb-2" />
                   </tr>
@@ -387,6 +326,7 @@ export const ServiceContractPlanPage: React.FC = () => {
                       <td className="py-2 pr-4"><Badge variant="outline">{v.kind}</Badge></td>
                       <td className="py-2 pr-4 text-slate-600">{fmtDate(v.planned_date)}</td>
                       <td className="py-2 pr-4 text-slate-600">{fmtDate(v.scheduled_date)}</td>
+                      <td className="py-2 pr-4 text-slate-600">{v.assigned_engineer_username || <span className="text-slate-400">—</span>}</td>
                       <td className="py-2 pr-4"><Badge variant={VISIT_STATUS_VARIANT[v.status]}>{v.status}</Badge></td>
                       <td className="py-2 text-right whitespace-nowrap">
                         {canManage && (
@@ -410,9 +350,9 @@ export const ServiceContractPlanPage: React.FC = () => {
                                 className="h-8 px-2 normal-case tracking-normal font-medium text-blue-700 border-blue-200 bg-blue-50 hover:bg-blue-100"
                                 onClick={() => navigate(`/service/visits/${v.id}/report`)}
                                 leftIcon={<FileText size={14} />}
-                                title="Next step: the visit is done — fill in the service report"
+                                title="Next step: the visit is done — fill in the visit report"
                               >
-                                Fill report
+                                Fill visit report
                               </Button>
                             ) : (
                               <Button
@@ -422,14 +362,14 @@ export const ServiceContractPlanPage: React.FC = () => {
                                 onClick={() => navigate(`/service/visits/${v.id}/report`)}
                                 leftIcon={<FileText size={14} />}
                               >
-                                Report
+                                Visit report
                               </Button>
                             )}
                             <Button
                               variant="ghost"
                               size="xs"
                               className="h-8 px-2 text-slate-600"
-                              onClick={() => navigate(`/service/visits/${v.id}/work-order`)}
+                              onClick={() => navigate(visitWorkOrderPath(v))}
                               leftIcon={<ClipboardList size={14} />}
                             >
                               Work order
@@ -464,7 +404,7 @@ export const ServiceContractPlanPage: React.FC = () => {
                                     type="button"
                                     onClick={() => {
                                       setRescheduleVisit(v);
-                                      setNewDate(v.scheduled_date || v.planned_date || '');
+                                      setNewDate(v.planned_date || v.scheduled_date || '');
                                       setReason('');
                                     }}
                                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100 transition-colors text-left"
@@ -501,8 +441,7 @@ export const ServiceContractPlanPage: React.FC = () => {
               </table>
             </div>
           )}
-        </Card>
-      )}
+      </Card>
 
       {/* Add / edit visit modal */}
       <Modal
@@ -531,10 +470,13 @@ export const ServiceContractPlanPage: React.FC = () => {
             />
           )}
           <Input label="Title (optional)" value={vfTitle} onChange={(e) => setVfTitle(e.target.value)} placeholder="e.g. Q2 preventive visit" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input label="Planned date" type="date" value={vfPlanned} onChange={(e) => setVfPlanned(e.target.value)} />
-            <Input label="Scheduled / confirmed date" type="date" value={vfScheduled} onChange={(e) => setVfScheduled(e.target.value)} />
-          </div>
+          <Input label="Our visit date" type="date" value={vfScheduled} onChange={(e) => setVfScheduled(e.target.value)} />
+          <Input label="Customer's preferred date (optional)" type="date" value={vfPlanned} onChange={(e) => setVfPlanned(e.target.value)} />
+          <p className="text-xs text-slate-400 -mt-1">
+            If the customer's date is filled in, it takes priority — reminders, the visit list and the work order's “needed by” dates all follow it.
+          </p>
+          <EngineerPicker value={vfEngineer} onChange={setVfEngineer} />
+          <p className="text-xs text-slate-400 -mt-1">The engineer gets the visit reminders and is counted for this visit in the reports.</p>
           {visitModal?.mode === 'edit' && (
             <>
               <Select

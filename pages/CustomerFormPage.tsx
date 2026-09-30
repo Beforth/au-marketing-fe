@@ -13,7 +13,7 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission, selectEmployee, selectUser } from '../store/slices/authSlice';
-import { marketingAPI, Customer, Domain, Region, Organization, Contact, Plant, contactCompanyName } from '../lib/marketing-api';
+import { marketingAPI, Customer, Domain, Region, Organization, Contact, Plant, ServiceWorkOrder, workOrderPath, contactCompanyName } from '../lib/marketing-api';
 import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, INDIAN_STATES, INDUSTRY_OPTIONS } from '../constants';
 import { parseNameWithPrefix, serializeNameWithPrefix, parsePhoneWithCountryCode, serializePhoneWithCountryCode } from '../lib/name-phone-utils';
 import { getStoredMarketingScope } from '../lib/marketing-scope';
@@ -61,6 +61,17 @@ export const CustomerFormPage: React.FC = () => {
   const canCreateOrg = useAppSelector(selectHasPermission('marketing.create_organization'));
   const canCreateContact = useAppSelector(selectHasPermission('marketing.create_contact'));
   const canCreatePlant = useAppSelector(selectHasPermission('marketing.create_plant'));
+  const canViewService = useAppSelector(selectHasPermission('service.view'));
+
+  // Service work orders of this customer (edit page only)
+  const [serviceWorkOrders, setServiceWorkOrders] = useState<ServiceWorkOrder[]>([]);
+  useEffect(() => {
+    if (!isEdit || !id || !canViewService) return;
+    marketingAPI
+      .getServiceWorkOrders({ customer_id: Number(id) })
+      .then((r) => setServiceWorkOrders(r || []))
+      .catch(() => setServiceWorkOrders([]));
+  }, [isEdit, id, canViewService]);
   const [createContactForm, setCreateContactForm] = useState<{ name_prefix: string; first_name: string; last_name: string; contact_email: string; phone_country_code: string; contact_phone: string; plant_id: number | null | undefined }>({ name_prefix: '', first_name: '', last_name: '', contact_email: '', phone_country_code: DEFAULT_COUNTRY_CODE, contact_phone: '', plant_id: undefined });
   const [primaryContactSearchQuery, setPrimaryContactSearchQuery] = useState('');
   const [selectedPrimaryContact, setSelectedPrimaryContact] = useState<Contact | null>(null);
@@ -923,6 +934,34 @@ export const CustomerFormPage: React.FC = () => {
           </div>
         </form>
       </Card>
+
+      {isEdit && canViewService && (
+        <Card title={`Service work orders (${serviceWorkOrders.length})`} className="mt-4">
+          {serviceWorkOrders.length === 0 ? (
+            <p className="text-sm text-slate-400">No service work orders for this customer yet.</p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {serviceWorkOrders.map((w) => (
+                <button
+                  key={w.id}
+                  type="button"
+                  onClick={() => navigate(workOrderPath(w))}
+                  className="w-full flex flex-wrap items-center justify-between gap-2 py-2 text-left hover:bg-slate-50 px-1 rounded"
+                >
+                  <span className="text-sm">
+                    <span className="font-medium text-slate-800">{w.wo_number || `WO #${w.id}`}</span>
+                    <span className="text-slate-500">
+                      {' '}· {w.contract_number || 'no contract'}{w.plant_name ? ` · ${w.plant_name}` : ''}
+                      {w.visit_id ? ` · ${w.visit_title || 'single visit'}` : ' · all visits'}
+                    </span>
+                  </span>
+                  <span className="text-xs font-semibold capitalize text-slate-600">{w.status}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
     </PageLayout>
   );
 };

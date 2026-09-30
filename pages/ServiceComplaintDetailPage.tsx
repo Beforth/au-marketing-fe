@@ -8,10 +8,13 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
 import { Modal } from '../components/ui/Modal';
 import { PageLayout } from '../components/layout/PageLayout';
+import { EngineerPicker, EngineerValue } from '../components/service/EngineerPicker';
 import { CloseComplaintModal } from '../components/service/CloseComplaintModal';
 import { ReopenComplaintModal } from '../components/service/ReopenComplaintModal';
+import { useIssueTypes } from '../components/service/useIssueTypes';
 import { Tooltip } from '../UI/Tooltip';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
@@ -19,6 +22,7 @@ import { selectHasPermission } from '../store/slices/authSlice';
 import { ArrowLeft, Calendar, Check, ClipboardList, FileText, Plus, RotateCcw, UserPlus } from 'lucide-react';
 import {
   marketingAPI,
+  visitWorkOrderPath,
   HRMSEmployee,
   ServiceComplaint,
   ServiceComplaintStatus,
@@ -47,7 +51,6 @@ const STATUS_LABEL: Record<ServiceComplaintStatus, string> = {
   resolved: 'Resolved',
   closed: 'Closed',
 };
-const ISSUE_LABEL: Record<ServiceIssueType, string> = { hw: 'Hardware (H/W)', sw: 'Software (S/W)', plc: 'PLC' };
 
 const ACTIVITY_TEXT: Record<string, string> = {
   created: 'raised the complaint',
@@ -69,6 +72,9 @@ export const ServiceComplaintDetailPage: React.FC = () => {
 
   const canView = useAppSelector(selectHasPermission('service.view'));
   const canManage = useAppSelector(selectHasPermission('service.manage_complaint'));
+  // the department list needs this permission (or the older marketing.view_domain)
+  const canViewDepartments =
+    useAppSelector(selectHasPermission('service.view_departments')) || useAppSelector(selectHasPermission('marketing.view_domain'));
   const canApprove = useAppSelector(selectHasPermission('service.approve_complaint'));
   const canReopen = useAppSelector(selectHasPermission('service.reopen_complaint'));
   const canClose = useAppSelector(selectHasPermission('service.close_complaint'));
@@ -84,7 +90,11 @@ export const ServiceComplaintDetailPage: React.FC = () => {
 
   // assign modal
   const [assignOpen, setAssignOpen] = useState(false);
+  const { labelOf } = useIssueTypes();
   const [empQuery, setEmpQuery] = useState('');
+  // department to assign to (optional; can be combined with an employee) — from HRMS
+  const [departments, setDepartments] = useState<{ id: number; name: string }[]>([]);
+  const [assignDept, setAssignDept] = useState<number | null>(null);
   const [empResults, setEmpResults] = useState<HRMSEmployee[]>([]);
 
   // reopen / close modals
@@ -96,6 +106,7 @@ export const ServiceComplaintDetailPage: React.FC = () => {
   const [svTitle, setSvTitle] = useState('');
   const [svDate, setSvDate] = useState('');
   const [svNotes, setSvNotes] = useState('');
+  const [svEngineer, setSvEngineer] = useState<EngineerValue>({ id: null, name: null });
   const [savingVisit, setSavingVisit] = useState(false);
 
   const load = useCallback(async () => {
@@ -124,6 +135,8 @@ export const ServiceComplaintDetailPage: React.FC = () => {
       await marketingAPI.scheduleVisitForComplaint(cid, {
         title: svTitle.trim() || undefined,
         scheduled_date: svDate || null,
+        assigned_engineer_employee_id: svEngineer.id,
+        assigned_engineer_username: svEngineer.name,
         notes: svNotes.trim() || undefined,
       });
       showToast('Visit scheduled', 'success');
@@ -131,6 +144,7 @@ export const ServiceComplaintDetailPage: React.FC = () => {
       setSvTitle('');
       setSvDate('');
       setSvNotes('');
+      setSvEngineer({ id: null, name: null });
       loadVisits();
     } catch (e: any) {
       showToast(e?.message || 'Failed to schedule visit', 'error');
@@ -169,10 +183,31 @@ export const ServiceComplaintDetailPage: React.FC = () => {
       .catch(() => setEmpResults([]));
   };
 
+  const openAssign = () => {
+    setAssignDept(c?.assignee_department_id ?? null);
+    setAssignOpen(true);
+    if (canViewDepartments && departments.length === 0) {
+      marketingAPI.getDepartments().then((d) => setDepartments(d || [])).catch(() => setDepartments([]));
+    }
+  };
+
+  const deptPayload = () => {
+    const dept = departments.find((x) => x.id === assignDept);
+    return assignDept != null ? { assignee_department_id: assignDept, assignee_department_name: dept?.name ?? c?.assignee_department_name ?? null } : {};
+  };
+
+  // Department only (keeps nobody in particular responsible until someone picks it up)
+  const doAssignDepartment = async () => {
+    if (assignDept == null) return;
+    await run(() => marketingAPI.assignServiceComplaint(cid, deptPayload()), 'Assigned to the department');
+    setAssignOpen(false);
+    load();
+  };
+
   const doAssign = async (emp: HRMSEmployee) => {
     const uid = emp.user_id ?? emp.id;
     const name = `${emp.first_name} ${emp.last_name}`.trim() || emp.username || `#${uid}`;
-    await run(() => marketingAPI.assignServiceComplaint(cid, uid, name), `Assigned to ${name}`);
+    await run(() => marketingAPI.assignServiceComplaint(cid, { assignee_employee_id: uid, assignee_username: name, ...deptPayload() }), `Assigned to ${name}`);
     setAssignOpen(false);
     setEmpQuery('');
     setEmpResults([]);
@@ -201,7 +236,7 @@ export const ServiceComplaintDetailPage: React.FC = () => {
   return (
     <PageLayout
       title={`${c.display_number} — ${c.title}`}
-      description={`${ISSUE_LABEL[c.issue_type]} · ${c.customer_name || `Customer #${c.customer_id}`}${c.plant_name ? ` · ${c.plant_name}` : ''}`}
+      description={`${labelOf(c.issue_type)} · ${c.customer_name || `Customer #${c.customer_id}`}${c.plant_name ? ` · ${c.plant_name}` : ''}${c.contract_id ? ` · Contract ${c.contract_number || `#${c.contract_id}`}` : ' · Not under a contract'}`}
       breadcrumbs={breadcrumbs}
       actions={<Button variant="outline" size="sm" leftIcon={<ArrowLeft size={14} />} onClick={() => navigate('/service/complaints')}>Back</Button>}
     >
@@ -288,16 +323,16 @@ export const ServiceComplaintDetailPage: React.FC = () => {
                   <div key={v.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-slate-100 hover:bg-slate-50">
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-slate-800 truncate">{v.title || `Visit #${v.id}`}</div>
-                      <div className="text-xs text-slate-500">{v.scheduled_date || v.planned_date || 'Date not set'}</div>
+                      <div className="text-xs text-slate-500">{v.planned_date || v.scheduled_date || 'Date not set'}</div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <Badge variant={VISIT_STATUS_VARIANT[v.status] || 'outline'}>{v.status}</Badge>
                       <Tooltip content="Work order">
-                        <Button variant="ghost" size="xs" className="w-8 h-8 p-0 text-slate-500" onClick={() => navigate(`/service/visits/${v.id}/work-order`)}>
+                        <Button variant="ghost" size="xs" className="w-8 h-8 p-0 text-slate-500" onClick={() => navigate(visitWorkOrderPath(v))}>
                           <ClipboardList size={14} />
                         </Button>
                       </Tooltip>
-                      <Tooltip content="Report">
+                      <Tooltip content="Visit report">
                         <Button
                           variant="ghost"
                           size="xs"
@@ -353,10 +388,19 @@ export const ServiceComplaintDetailPage: React.FC = () => {
         <div className="space-y-4">
           <Card title="Assigned to">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm text-slate-800">{c.assignee_username || <span className="text-slate-400">Unassigned</span>}</span>
+              <div className="text-sm text-slate-800">
+                {c.assignee_username || c.assignee_department_name ? (
+                  <>
+                    {c.assignee_username && <div>{c.assignee_username}</div>}
+                    {c.assignee_department_name && <div className="text-xs text-slate-500">{c.assignee_department_name} department</div>}
+                  </>
+                ) : (
+                  <span className="text-slate-400">Unassigned</span>
+                )}
+              </div>
               {canManage && c.status !== 'closed' && (
-                <Button size="xs" variant="outline" leftIcon={<UserPlus size={13} />} onClick={() => setAssignOpen(true)}>
-                  {c.assignee_username ? 'Reassign' : 'Assign'}
+                <Button size="xs" variant="outline" leftIcon={<UserPlus size={13} />} onClick={openAssign}>
+                  {c.assignee_username || c.assignee_department_name ? 'Reassign' : 'Assign'}
                 </Button>
               )}
             </div>
@@ -371,7 +415,7 @@ export const ServiceComplaintDetailPage: React.FC = () => {
 
           <Card title="Details">
             <dl className="text-sm space-y-1.5">
-              <div className="flex justify-between"><dt className="text-slate-500">Type</dt><dd>{ISSUE_LABEL[c.issue_type]}</dd></div>
+              <div className="flex justify-between"><dt className="text-slate-500">Type</dt><dd>{labelOf(c.issue_type)}</dd></div>
               <div className="flex justify-between gap-2">
                 <dt className="text-slate-500">Contract</dt>
                 <dd className="text-right">
@@ -408,6 +452,7 @@ export const ServiceComplaintDetailPage: React.FC = () => {
         <div className="space-y-4">
           <Input label="Title (optional)" value={svTitle} onChange={(e) => setSvTitle(e.target.value)} placeholder="e.g. Site visit to inspect PLC fault" />
           <Input label="Date (optional)" type="date" value={svDate} onChange={(e) => setSvDate(e.target.value)} />
+          <EngineerPicker value={svEngineer} onChange={setSvEngineer} label="Engineer to send (optional)" />
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes (optional)</label>
             <textarea
@@ -424,7 +469,25 @@ export const ServiceComplaintDetailPage: React.FC = () => {
       </Modal>
 
       {/* Assign modal */}
-      <Modal isOpen={assignOpen} onClose={() => setAssignOpen(false)} title={c.assignee_username ? 'Reassign complaint' : 'Assign complaint'}>
+      <Modal isOpen={assignOpen} onClose={() => setAssignOpen(false)} title={c.assignee_username || c.assignee_department_name ? 'Reassign complaint' : 'Assign complaint'}>
+        {canViewDepartments && (
+        <div className="mb-3 flex items-end gap-2">
+          <div className="flex-1">
+            <Select
+              label="Department (optional)"
+              options={departments.map((x) => ({ value: String(x.id), label: x.name }))}
+              value={assignDept != null ? String(assignDept) : ''}
+              onChange={(v) => setAssignDept(v ? Number(v) : null)}
+              placeholder="Select department"
+              searchable
+            />
+          </div>
+          <Button size="sm" variant="outline" disabled={assignDept == null} onClick={doAssignDepartment}>
+            Assign to department only
+          </Button>
+        </div>
+        )}
+        {canViewDepartments && <p className="text-xs text-slate-500 mb-2">Or pick a person below — they will be assigned along with the department chosen above.</p>}
         <Input value={empQuery} onChange={(e) => searchEmployees(e.target.value)} placeholder="Search employee by name…" autoFocus />
         <div className="mt-2 divide-y divide-slate-100 border border-slate-200 rounded-lg max-h-64 overflow-auto">
           {empResults.length === 0 ? (

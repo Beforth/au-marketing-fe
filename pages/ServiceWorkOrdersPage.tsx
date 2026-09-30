@@ -12,11 +12,11 @@ import { SearchInput } from '../components/ui/SearchInput';
 import { DataTable } from '../components/ui/DataTable';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
-import { selectHasPermission } from '../store/slices/authSlice';
+import { selectHasPermission, selectEmployee, selectUser } from '../store/slices/authSlice';
 import { ClipboardList, PackageCheck, SquarePen } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Tooltip } from '../UI/Tooltip';
-import { marketingAPI, ServiceWorkOrder, ServiceWorkOrderStatus } from '../lib/marketing-api';
+import { marketingAPI, ServiceWorkOrder, ServiceWorkOrderStatus, workOrderPath } from '../lib/marketing-api';
 
 const NEXT_STEP: Record<ServiceWorkOrderStatus, string> = {
   prepared: 'Next: coordinator marks it Checked',
@@ -34,11 +34,16 @@ export const ServiceWorkOrdersPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useApp();
   const canView = useAppSelector(selectHasPermission('service.view'));
+  const myDepartment = useAppSelector(selectEmployee)?.department || null;
+  const myUsername = (useAppSelector(selectUser)?.username || '').toLowerCase();
 
   const [rows, setRows] = useState<ServiceWorkOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | ServiceWorkOrderStatus>('');
+  const [deptFilter, setDeptFilter] = useState('');
+  const [onlyMine, setOnlyMine] = useState(false);
+  const [waitingForMe, setWaitingForMe] = useState(false);
 
   useEffect(() => {
     if (!canView) {
@@ -56,17 +61,38 @@ export const ServiceWorkOrdersPage: React.FC = () => {
       .finally(() => setIsLoading(false));
   }, [canView, statusFilter, showToast]);
 
+  const departmentNames = useMemo(
+    () => Array.from(new Set(rows.flatMap((w) => (w.departments ?? []).map((d) => d.name)))).sort(),
+    [rows],
+  );
+
+  // work orders where it is this person's turn to approve (HRMS approval template)
+  const isWaitingForMe = (w: ServiceWorkOrder) => {
+    if (!myUsername || w.status === 'approved') return false;
+    const step = (w.approval_chain ?? [])[w.current_level ?? 0];
+    return !!step && (step.approver_username || '').toLowerCase() === myUsername;
+  };
+  const waitingCount = useMemo(() => rows.filter(isWaitingForMe).length, [rows, myUsername]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const filtered = useMemo(() => {
     const t = search.trim().toLowerCase();
-    if (!t) return rows;
-    return rows.filter(
+    const mine = (myDepartment || '').trim().toLowerCase();
+    const base = rows.filter(
       (w) =>
+        (!deptFilter || (w.departments ?? []).some((d) => d.name === deptFilter)) &&
+        (!onlyMine || (!!mine && (w.departments ?? []).some((d) => d.name.trim().toLowerCase() === mine))) &&
+        (!waitingForMe || isWaitingForMe(w)),
+    );
+    if (!t) return base;
+    return base.filter(
+      (w) =>
+        (w.departments ?? []).some((d) => d.name.toLowerCase().includes(t)) ||
         (w.wo_number || '').toLowerCase().includes(t) ||
         (w.customer_name || '').toLowerCase().includes(t) ||
         (w.contract_number || '').toLowerCase().includes(t) ||
         (w.visit_title || '').toLowerCase().includes(t),
     );
-  }, [rows, search]);
+  }, [rows, search, deptFilter, onlyMine, myDepartment, waitingForMe, myUsername]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const breadcrumbs = [{ label: 'Service', href: '/service/contracts' }, { label: 'Work Orders' }];
 
@@ -88,6 +114,35 @@ export const ServiceWorkOrdersPage: React.FC = () => {
           onClear={() => setSearch('')}
           containerClassName="max-w-sm shadow-none"
         />
+        <div className="w-48">
+          <Select
+            options={[{ value: '', label: 'All departments' }, ...departmentNames.map((n) => ({ value: n, label: n }))]}
+            value={deptFilter}
+            onChange={(v) => setDeptFilter((v as string) || '')}
+            searchable={false}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setWaitingForMe((v) => !v)}
+          className={`h-9 px-3 rounded-lg border text-sm font-medium transition-colors inline-flex items-center gap-2 ${waitingForMe ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+          title="Work orders where it is your turn to approve"
+        >
+          Waiting for me
+          {waitingCount > 0 && (
+            <span className="inline-flex min-w-[1.25rem] justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-bold text-white">{waitingCount}</span>
+          )}
+        </button>
+        {myDepartment && (
+          <button
+            type="button"
+            onClick={() => setOnlyMine((v) => !v)}
+            className={`h-9 px-3 rounded-lg border text-sm font-medium transition-colors ${onlyMine ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+            title={`Only work orders sent to ${myDepartment}`}
+          >
+            My department
+          </button>
+        )}
         <div className="w-44">
           <Select
             options={[
@@ -117,7 +172,7 @@ export const ServiceWorkOrdersPage: React.FC = () => {
             bordered={false}
             data={filtered}
             rowKey={(w) => w.id}
-            onRowClick={(w) => navigate(`/service/visits/${w.visit_id}/work-order`)}
+            onRowClick={(w) => navigate(workOrderPath(w))}
             dense
             showVerticalLines
             columns={[
@@ -127,9 +182,19 @@ export const ServiceWorkOrdersPage: React.FC = () => {
                 render: (w) => (
                   <div>
                     <div className="font-medium text-slate-900">{w.wo_number || `WO #${w.id}`}</div>
-                    <div className="text-xs text-slate-500">{w.visit_title || `Visit #${w.visit_id}`}{w.visit_date ? ` · ${w.visit_date}` : ''}</div>
+                    <div className="text-xs text-slate-500">{w.visit_id ? `${w.visit_title || `Visit #${w.visit_id}`}${w.visit_date ? ` · ${w.visit_date}` : ''}` : 'Whole contract — all visits'}</div>
                   </div>
                 ),
+              },
+              {
+                key: 'files',
+                label: 'Files',
+                render: (w) => <span className="text-sm text-slate-600">{(w.files ?? []).length || <span className="text-slate-400">—</span>}</span>,
+              },
+              {
+                key: 'departments',
+                label: 'Department',
+                render: (w) => <span className="text-sm text-slate-600">{(w.departments ?? []).map((d) => d.name).join(', ') || <span className="text-slate-400">—</span>}</span>,
               },
               {
                 key: 'customer_name',
@@ -150,8 +215,16 @@ export const ServiceWorkOrdersPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Badge variant={STATUS_VARIANT[w.status]}>{w.status.charAt(0).toUpperCase() + w.status.slice(1)}</Badge>
                       {w.revision > 0 && <span className="text-[11px] text-amber-600">edited {w.revision}×</span>}
+                      {(w.times_reopened ?? 0) > 0 && <Badge variant="warning">Reopened {w.times_reopened}×</Badge>}
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-0.5">{NEXT_STEP[w.status]}</div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">
+                      {(w.approval_chain ?? []).length > 0 && w.status !== 'approved'
+                        ? (() => {
+                            const step = (w.approval_chain ?? [])[w.current_level ?? 0];
+                            return `Waiting for ${step?.approver_name || step?.approver_username || 'approver'} (level ${(w.current_level ?? 0) + 1} of ${(w.approval_chain ?? []).length})`;
+                          })()
+                        : NEXT_STEP[w.status]}
+                    </div>
                   </div>
                 ),
               },
@@ -185,7 +258,7 @@ export const ServiceWorkOrdersPage: React.FC = () => {
                         className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/service/visits/${w.visit_id}/work-order`);
+                          navigate(workOrderPath(w));
                         }}
                       >
                         <SquarePen size={16} />

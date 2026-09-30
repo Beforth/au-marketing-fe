@@ -9,6 +9,10 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { useApp } from '../../App';
+import { useAppSelector } from '../../store/hooks';
+import { selectHasPermission } from '../../store/slices/authSlice';
+import { useIssueTypes } from './useIssueTypes';
+import { SeriesSelect } from './SeriesSelect';
 import {
   marketingAPI,
   Customer,
@@ -16,9 +20,30 @@ import {
   ServiceContract,
   ServiceComplaint,
   ServiceIssueType,
-  SERVICE_ISSUE_TYPES,
   ServiceComplaintSource,
+  customerPrimaryContactName,
+  customerDisambiguator,
 } from '../../lib/marketing-api';
+
+const fmtDay = (d?: string | null) =>
+  d ? new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : null;
+
+/** One line that tells one contract from another: "AMC-0012 · AMC · 1 Apr 2026 – 31 Mar 2027 · Kalinganagar Plant · Active" */
+const contractLabel = (ct: ServiceContract) => {
+  const period = ct.start_date || ct.end_date ? `${fmtDay(ct.start_date) || '…'} – ${fmtDay(ct.end_date) || '…'}` : null;
+  const status = ct.status.charAt(0).toUpperCase() + ct.status.slice(1);
+  return [ct.contract_number || `Contract #${ct.id}`, ct.contract_type, period, ct.plant_name, status].filter(Boolean).join(' · ');
+};
+
+/** Active contracts first (soonest to end first), then the rest */
+const CONTRACT_RANK: Record<string, number> = { active: 0, draft: 1, expired: 2, cancelled: 3 };
+const sortContracts = (list: ServiceContract[]) =>
+  [...list].sort(
+    (a, b) =>
+      (CONTRACT_RANK[a.status] ?? 9) - (CONTRACT_RANK[b.status] ?? 9) ||
+      (a.end_date || '9999-12-31').localeCompare(b.end_date || '9999-12-31') ||
+      a.id - b.id,
+  );
 
 const SectionHeading: React.FC<{ n: number; title: string; optional?: boolean }> = ({ n, title, optional }) => (
   <div className="flex items-center gap-2.5 mb-3">
@@ -63,6 +88,11 @@ export const ServiceComplaintFormFields: React.FC<ServiceComplaintFormFieldsProp
   const [contractId, setContractId] = useState<number | undefined>(initialContractId);
 
   const [issueType, setIssueType] = useState<ServiceIssueType | ''>('');
+  const { activeTypes, reload: reloadIssueTypes } = useIssueTypes();
+  const canAddIssueType = useAppSelector(selectHasPermission('service.manage_complaint'));
+  const [addingType, setAddingType] = useState(false);
+  const [newTypeLabel, setNewTypeLabel] = useState('');
+  const [savingType, setSavingType] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [plannedHours, setPlannedHours] = useState('');
@@ -160,7 +190,7 @@ export const ServiceComplaintFormFields: React.FC<ServiceComplaintFormFieldsProp
               value={customerQuery}
               onChange={(e) => onQueryChange(e.target.value)}
               onBlur={() => setTimeout(() => setShowMenu(false), 150)}
-              placeholder="Type to search by name, email or phone"
+              placeholder="Type a company or contact name, email or phone"
             />
             {showMenu && customerQuery.trim().length >= 2 && (
               <div className="absolute left-0 right-0 top-full z-20 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-auto">
@@ -171,18 +201,24 @@ export const ServiceComplaintFormFields: React.FC<ServiceComplaintFormFieldsProp
                   <button
                     key={c.id}
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex flex-col"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       setCustomerId(c.id);
-                      setCustomerLabel(c.company_name);
+                      setCustomerLabel(customerPrimaryContactName(c) ? `${c.company_name} — ${customerPrimaryContactName(c)}` : c.company_name);
                       setCustomerQuery('');
                       setShowMenu(false);
                       setPlantId(undefined);
                       setContractId(undefined);
                     }}
                   >
-                    {c.company_name}
+                    <span className="font-medium text-slate-800">{c.company_name}</span>
+                    {(customerPrimaryContactName(c) || c.primary_contact_contact?.contact_phone) && (
+                      <span className="text-xs text-slate-500">
+                        {[customerPrimaryContactName(c), c.primary_contact_contact?.contact_phone].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                    <span className="text-[11px] text-slate-400">{customerDisambiguator(c)}</span>
                   </button>
                 ))}
               </div>
@@ -197,14 +233,50 @@ export const ServiceComplaintFormFields: React.FC<ServiceComplaintFormFieldsProp
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Select
             label="Issue type"
-            options={SERVICE_ISSUE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+            options={activeTypes.map((t) => ({ value: t.code, label: t.label }))}
             value={issueType}
             onChange={(v) => setIssueType((v as ServiceIssueType) || '')}
-            placeholder="Hardware / Software / PLC"
+            placeholder="Select the issue type"
             clearable={false}
           />
           <Input label="Short title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Compressor tripping on overload" />
         </div>
+        {canAddIssueType && (
+          <div className="mt-1.5">
+            {!addingType ? (
+              <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => setAddingType(true)}>
+                + Type not listed? Add a new issue type
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 max-w-md">
+                <Input value={newTypeLabel} onChange={(e) => setNewTypeLabel(e.target.value)} placeholder="New issue type, e.g. Electrical" />
+                <Button
+                  type="button"
+                  size="sm"
+                  isLoading={savingType}
+                  onClick={async () => {
+                    if (!newTypeLabel.trim()) return;
+                    setSavingType(true);
+                    try {
+                      const created = await marketingAPI.createServiceIssueType(newTypeLabel.trim());
+                      await reloadIssueTypes();
+                      setIssueType(created.code);
+                      setNewTypeLabel('');
+                      setAddingType(false);
+                    } catch (e: any) {
+                      showToast(e?.message || 'Failed to add issue type', 'error');
+                    } finally {
+                      setSavingType(false);
+                    }
+                  }}
+                >
+                  Add
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => { setAddingType(false); setNewTypeLabel(''); }}>Cancel</Button>
+              </div>
+            )}
+          </div>
+        )}
         <p className="text-xs text-slate-400 mt-1.5">
           Software covers installs, reinstalls, licence keys, connecting equipment to a PC. PLC covers PLC faults and modification requests.
         </p>
@@ -234,9 +306,9 @@ export const ServiceComplaintFormFields: React.FC<ServiceComplaintFormFieldsProp
               label="Under which contract?"
               options={[
                 { value: '', label: 'Not under a contract (chargeable)' },
-                ...contracts.map((ct) => ({
+                ...sortContracts(contracts).map((ct) => ({
                   value: String(ct.id),
-                  label: `${ct.contract_number || `Contract #${ct.id}`} · ${ct.contract_type}${ct.plant_name ? ` · ${ct.plant_name}` : ''}`,
+                  label: contractLabel(ct),
                 })),
               ]}
               value={contractId != null ? String(contractId) : ''}
@@ -244,9 +316,32 @@ export const ServiceComplaintFormFields: React.FC<ServiceComplaintFormFieldsProp
               placeholder={customerId == null ? 'Pick a customer first' : contracts.length ? 'Select contract' : 'This customer has no contracts'}
               searchable
             />
-            <p className="text-xs text-slate-400 mt-1.5">
-              Linking a contract shows whether the fix is covered or chargeable, and keeps the complaint in that contract's history.
-            </p>
+            {(() => {
+              // a summary of the contract you picked, so you can be sure it is the right one
+              const ct = contracts.find((x) => x.id === contractId);
+              if (!ct) {
+                return (
+                  <p className="text-xs text-slate-400 mt-1.5">
+                    Linking a contract shows whether the fix is covered or chargeable, and keeps the complaint in that contract's history.
+                  </p>
+                );
+              }
+              const included = (ct.items || []).filter((i) => i.coverage === 'included').map((i) => i.name);
+              const chargeable = (ct.items || []).filter((i) => i.coverage === 'chargeable').map((i) => i.name);
+              return (
+                <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600 space-y-0.5">
+                  <p className="font-semibold text-slate-800">
+                    {ct.contract_number || `Contract #${ct.id}`} · {ct.contract_type} · {ct.status}
+                  </p>
+                  <p>
+                    {ct.plant_name ? `${ct.plant_name} · ` : ''}
+                    {ct.start_date || ct.end_date ? `${fmtDay(ct.start_date) || '…'} – ${fmtDay(ct.end_date) || '…'}` : 'No dates set'}
+                  </p>
+                  {included.length > 0 && <p><span className="font-medium text-emerald-700">Included:</span> {included.join(', ')}</p>}
+                  {chargeable.length > 0 && <p><span className="font-medium text-amber-700">Chargeable:</span> {chargeable.join(', ')}</p>}
+                </div>
+              );
+            })()}
           </div>
           <Select
             label="Plant / site"
@@ -264,7 +359,7 @@ export const ServiceComplaintFormFields: React.FC<ServiceComplaintFormFieldsProp
       </div>
 
       <div className="max-w-xs">
-        <Input label="Numbering series code (optional)" value={seriesCode} onChange={(e) => setSeriesCode(e.target.value)} placeholder="e.g. complaint_no" />
+        <SeriesSelect value={seriesCode} onChange={setSeriesCode} />
       </div>
 
       <div className="flex justify-end gap-3 pt-3 border-t border-slate-200">

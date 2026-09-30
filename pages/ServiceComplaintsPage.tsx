@@ -15,6 +15,7 @@ import { DataTable } from '../components/ui/DataTable';
 import { NewComplaintModal } from '../components/service/NewComplaintModal';
 import { CloseComplaintModal } from '../components/service/CloseComplaintModal';
 import { ReopenComplaintModal } from '../components/service/ReopenComplaintModal';
+import { useIssueTypes } from '../components/service/useIssueTypes';
 import { Tooltip } from '../UI/Tooltip';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
@@ -41,7 +42,6 @@ const STATUS_LABEL: Record<ServiceComplaintStatus, string> = {
   resolved: 'Resolved',
   closed: 'Closed',
 };
-const ISSUE_LABEL: Record<ServiceIssueType, string> = { hw: 'H/W', sw: 'S/W', plc: 'PLC' };
 
 const COLUMNS: { status: ServiceComplaintStatus; label: string }[] = [
   { status: 'pending_approval', label: 'Needs approval' },
@@ -69,6 +69,7 @@ export const ServiceComplaintsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | ServiceComplaintStatus>('');
   const [typeFilter, setTypeFilter] = useState<'' | ServiceIssueType>('');
+  const { types: issueTypes, labelOf } = useIssueTypes();
 
   const [newOpen, setNewOpen] = useState(false);
   const [closeTarget, setCloseTarget] = useState<ServiceComplaint | null>(null);
@@ -104,7 +105,9 @@ export const ServiceComplaintsPage: React.FC = () => {
         c.title.toLowerCase().includes(t) ||
         (c.customer_name || '').toLowerCase().includes(t) ||
         (c.plant_name || '').toLowerCase().includes(t) ||
-        (c.assignee_username || '').toLowerCase().includes(t),
+        (c.contract_number || '').toLowerCase().includes(t) ||
+        (c.assignee_username || '').toLowerCase().includes(t) ||
+        (c.assignee_department_name || '').toLowerCase().includes(t),
     );
   }, [rows, search]);
 
@@ -217,12 +220,7 @@ export const ServiceComplaintsPage: React.FC = () => {
         </div>
         <div className="w-36">
           <Select
-            options={[
-              { value: '', label: 'All types' },
-              { value: 'hw', label: 'Hardware' },
-              { value: 'sw', label: 'Software' },
-              { value: 'plc', label: 'PLC' },
-            ]}
+            options={[{ value: '', label: 'All types' }, ...issueTypes.map((t) => ({ value: t.code, label: t.label }))]}
             value={typeFilter}
             onChange={(v) => setTypeFilter((v as ServiceIssueType) || '')}
             searchable={false}
@@ -291,12 +289,13 @@ export const ServiceComplaintsPage: React.FC = () => {
                   >
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <span className="text-sm font-semibold text-slate-900">{c.display_number}</span>
-                      <Badge variant="outline">{ISSUE_LABEL[c.issue_type]}</Badge>
+                      <Badge variant="outline">{labelOf(c.issue_type)}</Badge>
                     </div>
                     <p className="text-sm text-slate-700 line-clamp-2 mb-2">{c.title}</p>
                     <div className="text-xs text-slate-500">{c.customer_name || '—'}{c.plant_name ? ` · ${c.plant_name}` : ''}</div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">{c.contract_id ? `Contract ${c.contract_number || `#${c.contract_id}`}` : 'Not under a contract'}</div>
                     <div className="flex items-center justify-between mt-2">
-                      <span className="text-xs text-slate-400">{c.assignee_username || 'Unassigned'}</span>
+                      <span className="text-xs text-slate-400">{[c.assignee_username, c.assignee_department_name].filter(Boolean).join(' · ') || 'Unassigned'}</span>
                       {c.reopen_count > 0 && <span className="text-[11px] text-amber-600">reopened ×{c.reopen_count}</span>}
                     </div>
                   </div>
@@ -325,7 +324,7 @@ export const ServiceComplaintsPage: React.FC = () => {
                   <div>
                     <div className="font-medium text-slate-900 flex items-center gap-2">
                       {c.display_number}
-                      <Badge variant="outline">{ISSUE_LABEL[c.issue_type]}</Badge>
+                      <Badge variant="outline">{labelOf(c.issue_type)}</Badge>
                       {c.reopen_count > 0 && <span className="text-[11px] text-amber-600">reopened ×{c.reopen_count}</span>}
                     </div>
                     <div className="text-xs text-slate-500 truncate max-w-[280px]">{c.title}</div>
@@ -342,7 +341,20 @@ export const ServiceComplaintsPage: React.FC = () => {
                   </div>
                 ),
               },
-              { key: 'assignee_username', label: 'Assigned to', render: (c) => <span className="text-sm text-slate-600">{c.assignee_username || <span className="text-slate-400">Unassigned</span>}</span> },
+              {
+                key: 'contract_number',
+                label: 'Contract #',
+                render: (c) =>
+                  c.contract_id ? (
+                    <div>
+                      <div className="text-sm font-medium text-slate-900">{c.contract_number || `#${c.contract_id}`}</div>
+                      {c.contract_type && <div className="text-xs text-slate-500">{c.contract_type}</div>}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400">Not under a contract</span>
+                  ),
+              },
+              { key: 'assignee_username', label: 'Assigned to', render: (c) => <span className="text-sm text-slate-600">{[c.assignee_username, c.assignee_department_name].filter(Boolean).join(' · ') || <span className="text-slate-400">Unassigned</span>}</span> },
               {
                 key: 'status',
                 label: 'Status',

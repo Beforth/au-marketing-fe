@@ -9,7 +9,7 @@ import { getDSRPermissions, DSR_PENDING_CHANGED_EVENT } from '../../lib/dsr-help
 import { VersionsModal } from '../VersionsModal';
 import { AppSwitcher } from './AppSwitcher';
 import { Avatar } from './Avatar';
-import { ChevronDown, ShieldCheck, Hash, Users, Wrench, Briefcase, ClipboardCheck, FileSpreadsheet, ListTodo } from 'lucide-react';
+import { ChevronDown, Clock, ShieldCheck, Hash, Users, Wrench, Briefcase, ClipboardCheck, FileSpreadsheet, ListTodo } from 'lucide-react';
 import { API_CONFIG } from '../../lib/api';
 import { resolveHrmsMediaUrl, hrmsRBACClient } from '../../lib/hrms-rbac';
 
@@ -20,7 +20,7 @@ export const Sidebar: React.FC = () => {
   const [adminOpen, setAdminOpen] = useState(false);
   const [serviceOpen, setServiceOpen] = useState(false);
   const [workOpen, setWorkOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState('v1.4.3');
+  const [appVersion, setAppVersion] = useState('v1.4.4');
   const [versionLoaded, setVersionLoaded] = useState(false);
   const userDisplayName = useAppSelector(selectUserDisplayName);
   const employee = useAppSelector(selectEmployee);
@@ -59,6 +59,8 @@ export const Sidebar: React.FC = () => {
   const hasAdmin = useAppSelector(selectHasPermission('marketing.admin'));
 
   const onServiceRoute = location.pathname.startsWith('/service');
+  // Admin only gets the blue highlight while you are on one of its pages (same rule as Service)
+  const onAdminRoute = location.pathname.startsWith('/numbering-series') || location.pathname.startsWith('/roles');
   useEffect(() => {
     if (onServiceRoute) setServiceOpen(true);
   }, [onServiceRoute]);
@@ -122,12 +124,20 @@ export const Sidebar: React.FC = () => {
   const filteredSecondaryLinks = SECONDARY_LINKS;
   
   // Get designation or role for subtitle
+  // Live clock for the profile card ("3:49 pm • 29 Sept")
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
+  const clockLabel = `${now.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()} • ${now.getDate()} ${now.toLocaleString('en-IN', { month: 'short' })}`;
+
   const getUserRole = () => {
+    if (user?.is_superuser) {
+      return 'Super Admin';
+    }
     if (employee?.designation) {
       return employee.designation;
-    }
-    if (user?.is_superuser) {
-      return 'Administrator';
     }
     return 'User';
   };
@@ -309,7 +319,7 @@ export const Sidebar: React.FC = () => {
                 type="button"
                 onClick={() => setAdminOpen(o => !o)}
                 className={`w-full group flex items-center justify-between rounded-lg text-[13px] transition-all duration-200 font-medium px-3 py-2 ${
-                  adminOpen
+                  (adminOpen && onAdminRoute)
                     ? 'bg-blue-50 text-blue-700'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
@@ -317,10 +327,10 @@ export const Sidebar: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <ShieldCheck
                     size={18}
-                    strokeWidth={adminOpen ? 2.2 : 1.8}
-                    className={adminOpen ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}
+                    strokeWidth={adminOpen && onAdminRoute ? 2.2 : 1.8}
+                    className={adminOpen && onAdminRoute ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}
                   />
-                  <span className={adminOpen ? 'font-semibold' : ''}>Administration</span>
+                  <span className={adminOpen && onAdminRoute ? 'font-semibold' : ''}>Administration</span>
                 </div>
                 <ChevronDown
                   size={14}
@@ -381,24 +391,28 @@ export const Sidebar: React.FC = () => {
           )}
 
           {/* Secondary links (Settings / Support) */}
-          <div className={`border-t border-slate-100 pt-3 space-y-0.5 ${hasAdmin ? '' : 'mt-3'}`}>
+          <div className={`space-y-0.5 ${hasAdmin ? 'mt-1' : 'mt-3 border-t border-slate-100 pt-3'}`}>
             {filteredSecondaryLinks.map((item) => (
               <SidebarItem key={item.title} item={item} />
             ))}
           </div>
 
-          <div className="mt-4 flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100/80 bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer">
+          <div
+            className="mt-2 flex items-center gap-2.5 px-3 py-2 rounded-xl border border-slate-200/70 bg-slate-50/60"
+            title={userDisplayName}
+          >
             <Avatar
               src={resolveHrmsMediaUrl(employee?.profile_picture || user?.profile_picture)}
               name={userDisplayName}
-              className="w-8 h-8 rounded-lg bg-blue-100 border border-blue-200/50 text-blue-600 text-xs"
+              className="w-10 h-10 rounded-full bg-blue-100 border border-blue-200/50 text-blue-600 text-xs shrink-0"
             />
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold text-slate-900 truncate">
-                {userDisplayName}
-              </p>
-              <p className="text-[10px] text-slate-500 font-medium truncate">
-                {getUserRole()}
+              <p className="text-[14px] font-semibold text-slate-900 truncate leading-tight">{userDisplayName}</p>
+              <span className="mt-px inline-flex max-w-full items-center rounded border border-blue-200 bg-blue-50 px-1.5 text-[11px] leading-[16px] font-semibold text-blue-700">
+                <span className="truncate">{getUserRole()}</span>
+              </span>
+              <p className="mt-0.5 flex items-center gap-1 text-[11px] leading-tight text-slate-400 font-medium">
+                <Clock size={11} /> {clockLabel}
               </p>
             </div>
           </div>

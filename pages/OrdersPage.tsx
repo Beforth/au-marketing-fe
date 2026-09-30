@@ -1352,7 +1352,10 @@ export const OrdersPage: React.FC = () => {
 
       <ConfirmModal isOpen={deleteGroupId !== null} onClose={() => setDeleteGroupId(null)} onConfirm={confirmDeleteOrderGroup} title="Delete group?" message="Remove this status group? Statuses in it must be moved or deleted first." confirmLabel="Delete" variant="danger" />
       <ConfirmModal isOpen={deleteStatusId !== null} onClose={() => setDeleteStatusId(null)} onConfirm={confirmDeleteOrderStatus} title="Delete status?" message="Remove this status? Orders using it must be reassigned first." confirmLabel="Delete" variant="danger" />
-      <ConfirmModal isOpen={deleteOrderId !== null} onClose={() => setDeleteOrderId(null)} onConfirm={confirmDeleteOrder} title="Delete order?" message="This order will be permanently removed. This action cannot be undone." confirmLabel="Delete" variant="danger" />
+      <ConfirmModal isOpen={deleteOrderId !== null} onClose={() => setDeleteOrderId(null)} onConfirm={confirmDeleteOrder} title="Delete order?" message={(() => {
+        const v = orders.find((o) => o.id === deleteOrderId)?.order_value;
+        return v ? `This order will be permanently removed, and its value (₹${Number(v).toLocaleString('en-IN')}) will be taken off the target. This action cannot be undone.` : 'This order will be permanently removed. This action cannot be undone.';
+      })()} confirmLabel="Delete" variant="danger" />
     </PageLayout>
   );
 };

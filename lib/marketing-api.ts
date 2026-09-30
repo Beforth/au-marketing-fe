@@ -175,6 +175,8 @@ export interface Customer {
   converted_from_contact_id?: number;
   organization_id?: number | null;
   plant_id?: number | null;
+  /** set by the customer search: name of this customer's plant */
+  plant_name?: string | null;
   primary_contact_contact_id?: number | null;
   series_code?: string;
   series?: string;
@@ -503,6 +505,12 @@ export function leadDisplayPhone(lead: Lead): string {
 }
 
 /** Primary contact display name for Customer (from linked Contact). */
+/** A short line that tells look-alike customers apart: "Customer #12 · Kalinganagar Plant · CUST-0012" */
+export function customerDisambiguator(customer: Customer): string {
+  const plant = customer.plant_name || customer.plants?.[0]?.plant_name || customer.city || '';
+  return [`Customer #${customer.id}`, plant, customer.series].filter(Boolean).join(' · ');
+}
+
 export function customerPrimaryContactName(customer: Customer): string {
   const c = customer.primary_contact_contact;
   if (!c) return '';
@@ -693,6 +701,14 @@ export interface ServiceContractItem {
   created_at?: string;
 }
 
+export interface ServiceContractPartAlias {
+  id?: number;
+  contract_id?: number;
+  our_name: string;
+  customer_name: string;
+  display_order?: number;
+}
+
 export interface ServiceContract {
   id: number;
   series_code?: string | null;
@@ -708,6 +724,7 @@ export interface ServiceContract {
   additional_charges_note?: string | null;
   notes?: string | null;
   items: ServiceContractItem[];
+  part_aliases?: ServiceContractPartAlias[];
   customer_name?: string | null;
   customer_contact_name?: string | null;
   plant_name?: string | null;
@@ -730,6 +747,7 @@ export interface ServiceContractPayload {
   notes?: string | null;
   series_code?: string | null;
   items?: ServiceContractItem[];
+  part_aliases?: ServiceContractPartAlias[];
 }
 
 // ── Service module — Stage 2: Plans & Visits ─────────────────────────────────
@@ -782,6 +800,8 @@ export interface ServiceVisit {
   plant_name?: string | null;
   contract_number?: string | null;
   has_report?: boolean;
+  /** this visit's own single-visit work order (older / complaint visits); contract work orders are not per visit */
+  work_order_id?: number | null;
   report_status?: 'draft' | 'submitted' | null;
 }
 
@@ -870,6 +890,40 @@ export type ServiceDispatchStatus = 'not_dispatched' | 'partial' | 'full';
 
 export const SERVICE_DISPATCH_STATUSES: ServiceDispatchStatus[] = ['not_dispatched', 'partial', 'full'];
 
+/** The client's work order document (PDF / Excel / Word) for a visit */
+export interface WorkOrderFile {
+  id: number;
+  work_order_id: number;
+  visit_id?: number | null;
+  file_name: string;
+  file_size?: number | null;
+  content_type?: string | null;
+  uploaded_by_username?: string | null;
+  created_at: string;
+}
+
+/** One shipment of a part — a part can be sent several times, each recorded on its own */
+export interface WorkOrderDispatch {
+  id: number;
+  material_id: number;
+  sent_on: string;
+  quantity_sent?: string | null;
+  docket_no?: string | null;
+  transporter?: string | null;
+  note?: string | null;
+  created_by_username?: string | null;
+  created_at: string;
+}
+
+export interface WorkOrderDispatchInput {
+  sent_on?: string | null;
+  quantity_sent?: string | null;
+  docket_no?: string | null;
+  transporter?: string | null;
+  note?: string | null;
+  completes_part?: boolean;
+}
+
 export interface WorkOrderMaterialAttachment {
   id: number;
   material_id: number;
@@ -883,7 +937,14 @@ export interface WorkOrderMaterial {
   id?: number;
   work_order_id?: number;
   item_name: string;
+  /** which visit the part is for (contract-level work orders); null = whole year */
+  visit_id?: number | null;
+  visit_title?: string | null;
+  visit_date?: string | null;
+  customer_item_name?: string | null;
   quantity?: string | null;
+  unit?: string | null;
+  unit_note?: string | null;
   description?: string | null;
   required_by_date?: string | null;
   display_order?: number;
@@ -893,6 +954,7 @@ export interface WorkOrderMaterial {
   dispatched_by_username?: string | null;
   created_at?: string;
   attachments?: WorkOrderMaterialAttachment[];
+  dispatches?: WorkOrderDispatch[];
 }
 
 export interface WorkOrderPrerequisite {
@@ -906,16 +968,47 @@ export interface WorkOrderPrerequisite {
   created_at?: string;
 }
 
+/** One level of a work order's HRMS approval chain */
+export interface WorkOrderApprovalStep {
+  level: number;
+  approver_username?: string | null;
+  approver_name?: string | null;
+  approver_employee_id?: number | null;
+  approver_user_id?: number | null;
+}
+
+/** History entry: a level approved, or the work order sent back */
+export interface WorkOrderApprovalRecord {
+  id: number;
+  level?: number | null;
+  action: 'approved' | 'sent_back' | string;
+  by_username?: string | null;
+  note?: string | null;
+  created_at: string;
+}
+
 export interface ServiceWorkOrder {
   id: number;
-  visit_id: number;
-  contract_id: number;
+  /** null = the contract's single work order covering all its visits */
+  visit_id?: number | null;
+  contract_id?: number | null;
   customer_id?: number | null;
   plant_id?: number | null;
   series_code?: string | null;
   wo_number?: string | null;
+  /** departments the work order is sent to (one or several) */
+  departments?: { id: number; name: string; head_name?: string | null }[];
+  files?: WorkOrderFile[];
   status: ServiceWorkOrderStatus;
   revision: number;
+  /** HRMS approval template (category service_work_order). Empty chain = plain permission buttons. */
+  approval_template_name?: string | null;
+  approval_chain?: WorkOrderApprovalStep[];
+  current_level?: number;
+  rejection_reason?: string | null;
+  /** how many times it was sent back / reopened */
+  times_reopened?: number;
+  approvals?: WorkOrderApprovalRecord[];
   prepared_by_username?: string | null;
   prepared_at?: string | null;
   checked_by_username?: string | null;
@@ -932,7 +1025,11 @@ export interface ServiceWorkOrder {
   materials: WorkOrderMaterial[];
   prerequisites: WorkOrderPrerequisite[];
   customer_name?: string | null;
+  customer_contact_name?: string | null;
+  customer_contact_phone?: string | null;
+  customer_contact_email?: string | null;
   plant_name?: string | null;
+  plant_address?: string | null;
   contract_number?: string | null;
   visit_title?: string | null;
   visit_date?: string | null;
@@ -940,7 +1037,10 @@ export interface ServiceWorkOrder {
 }
 
 export interface ServiceWorkOrderPayload {
-  visit_id: number;
+  /** give exactly one: contract_id (one work order for all the contract's visits) or visit_id (a complaint visit) */
+  contract_id?: number;
+  visit_id?: number;
+  departments?: { id: number; name: string }[];
   material_lead_time_days?: number;
   notes?: string | null;
   series_code?: string | null;
@@ -948,8 +1048,32 @@ export interface ServiceWorkOrderPayload {
   prerequisites?: WorkOrderPrerequisite[];
 }
 
+/** Where to open a work order: a contract's single work order, or a single-visit one (complaint / older visits). */
+export const workOrderPath = (w: { visit_id?: number | null; contract_id?: number | null }): string =>
+  w.visit_id ? `/service/visits/${w.visit_id}/work-order` : `/service/contracts/${w.contract_id}/work-order`;
+
+/** A visit's work order: plan visits share the contract's work order (unless they still have an older single-visit one); complaint visits have their own. */
+export const visitWorkOrderPath = (v: { id: number; plan_id?: number | null; contract_id?: number | null; work_order_id?: number | null }): string =>
+  v.plan_id && v.contract_id && !v.work_order_id ? `/service/contracts/${v.contract_id}/work-order` : `/service/visits/${v.id}/work-order`;
+
 // ── Service module — Stage 4: Complaints ─────────────────────────────────────
-export type ServiceIssueType = 'hw' | 'sw' | 'plc';
+/** An issue type code: 'hw' | 'sw' | 'plc' are built in; more can be added, so this is any string */
+export type ServiceIssueType = string;
+
+export interface ServiceReportSummary {
+  group_by: 'company' | 'equipment' | 'person' | 'department';
+  columns: { key: string; label: string }[];
+  rows: { label: string; values: Record<string, number> }[];
+  totals: Record<string, number>;
+}
+
+export interface ServiceIssueTypeOption {
+  id: number;
+  code: string;
+  label: string;
+  is_active: boolean;
+  display_order: number;
+}
 export type ServiceComplaintStatus = 'pending_approval' | 'open' | 'in_progress' | 'resolved' | 'closed';
 export type ServiceComplaintSource = 'customer' | 'found_on_visit';
 
@@ -988,6 +1112,8 @@ export interface ServiceComplaint {
   source: ServiceComplaintSource;
   assignee_employee_id?: number | null;
   assignee_username?: string | null;
+  assignee_department_id?: number | null;
+  assignee_department_name?: string | null;
   approved_by_username?: string | null;
   approved_at?: string | null;
   reopen_count: number;
@@ -1922,6 +2048,10 @@ class MarketingAPIService {
     return apiClient.get<ServiceWorkOrder[]>(`/api/service/work-orders/${qs ? `?${qs}` : ''}`);
   }
 
+  async getWorkOrderForContract(contractId: number): Promise<ServiceWorkOrder | null> {
+    return apiClient.get<ServiceWorkOrder | null>(`/api/service/contracts/${contractId}/work-order`);
+  }
+
   async getWorkOrderForVisit(visitId: number): Promise<ServiceWorkOrder | null> {
     return apiClient.get<ServiceWorkOrder | null>(`/api/service/visits/${visitId}/work-order`);
   }
@@ -1945,17 +2075,31 @@ class MarketingAPIService {
   async workOrderMarkChecked(id: number): Promise<ServiceWorkOrder> {
     return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/mark-checked`, {});
   }
-  async workOrderMarkPrepared(id: number): Promise<ServiceWorkOrder> {
-    return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/mark-prepared`, {});
+  async workOrderMarkPrepared(id: number, reason: string): Promise<ServiceWorkOrder> {
+    return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/mark-prepared`, { reason });
   }
   async workOrderApprove(id: number): Promise<ServiceWorkOrder> {
     return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/approve`, {});
   }
-  async workOrderReopen(id: number): Promise<ServiceWorkOrder> {
-    return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/reopen`, {});
+  async workOrderSendBack(id: number, reason: string): Promise<ServiceWorkOrder> {
+    return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/send-back`, { reason });
+  }
+  async workOrderSubmit(id: number): Promise<ServiceWorkOrder> {
+    return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/submit`, {});
+  }
+  async workOrderReopen(id: number, reason: string): Promise<ServiceWorkOrder> {
+    return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/reopen`, { reason });
   }
   async workOrderSendPrerequisites(id: number): Promise<ServiceWorkOrder> {
     return apiClient.post<ServiceWorkOrder>(`/api/service/work-orders/${id}/send-prerequisites`, {});
+  }
+
+  async addMaterialDispatch(materialId: number, data: WorkOrderDispatchInput): Promise<WorkOrderMaterial> {
+    return apiClient.post<WorkOrderMaterial>(`/api/service/materials/${materialId}/dispatches`, data);
+  }
+
+  async deleteMaterialDispatch(materialId: number, dispatchId: number): Promise<WorkOrderMaterial> {
+    return apiClient.delete<WorkOrderMaterial>(`/api/service/materials/${materialId}/dispatches/${dispatchId}`);
   }
 
   async setMaterialDispatch(
@@ -1973,6 +2117,27 @@ class MarketingAPIService {
     const fd = new FormData();
     files.forEach((f) => fd.append('files', f));
     return apiClient.postFormData<WorkOrderMaterialAttachment[]>(`/api/service/materials/${materialId}/attachments`, fd);
+  }
+
+  async uploadWorkOrderFiles(workOrderId: number, files: File[], visitId?: number | null): Promise<WorkOrderFile[]> {
+    const fd = new FormData();
+    files.forEach((f) => fd.append('files', f));
+    const q = visitId != null ? `?visit_id=${visitId}` : '';
+    return apiClient.postFormData<WorkOrderFile[]>(`/api/service/work-orders/${workOrderId}/files${q}`, fd);
+  }
+
+  async downloadWorkOrderFile(workOrderId: number, fileId: number, fileName: string): Promise<void> {
+    const blob = await apiClient.getBlob(`/api/service/work-orders/${workOrderId}/files/${fileId}/download`);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName || 'work-order-file';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async deleteWorkOrderFile(workOrderId: number, fileId: number): Promise<void> {
+    return apiClient.delete<void>(`/api/service/work-orders/${workOrderId}/files/${fileId}`);
   }
 
   async downloadMaterialProof(materialId: number, attachmentId: number, fileName: string): Promise<void> {
@@ -2034,8 +2199,31 @@ class MarketingAPIService {
     return apiClient.put<ServiceComplaint>(`/api/service/complaints/${id}`, data);
   }
 
-  async assignServiceComplaint(id: number, assignee_employee_id: number, assignee_username?: string, note?: string): Promise<ServiceComplaint> {
-    return apiClient.post<ServiceComplaint>(`/api/service/complaints/${id}/assign`, { assignee_employee_id, assignee_username, note });
+  /** Assign a complaint to an employee, a department, or both */
+  async getServiceReportSummary(params: {
+    group_by: 'company' | 'equipment' | 'person' | 'department';
+    date_from?: string;
+    date_to?: string;
+  }): Promise<ServiceReportSummary> {
+    const q = new URLSearchParams({ group_by: params.group_by });
+    if (params.date_from) q.append('date_from', params.date_from);
+    if (params.date_to) q.append('date_to', params.date_to);
+    return apiClient.get<ServiceReportSummary>(`/api/service/report-summary?${q.toString()}`);
+  }
+
+  async getServiceIssueTypes(): Promise<ServiceIssueTypeOption[]> {
+    return apiClient.get<ServiceIssueTypeOption[]>('/api/service/complaints/meta/issue-types');
+  }
+
+  async createServiceIssueType(label: string): Promise<ServiceIssueTypeOption> {
+    return apiClient.post<ServiceIssueTypeOption>('/api/service/complaints/meta/issue-types', { label });
+  }
+
+  async assignServiceComplaint(
+    id: number,
+    data: { assignee_employee_id?: number | null; assignee_username?: string | null; assignee_department_id?: number | null; assignee_department_name?: string | null; note?: string },
+  ): Promise<ServiceComplaint> {
+    return apiClient.post<ServiceComplaint>(`/api/service/complaints/${id}/assign`, data);
   }
 
   async setServiceComplaintStatus(id: number, statusVal: 'open' | 'in_progress' | 'resolved', note?: string): Promise<ServiceComplaint> {

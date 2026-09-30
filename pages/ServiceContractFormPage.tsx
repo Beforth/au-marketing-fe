@@ -15,52 +15,92 @@ import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { getStoredMarketingScope } from '../lib/marketing-scope';
-import { NAME_PREFIXES } from '../constants';
-import { ArrowLeft, Plus, X, Building2, UserPlus } from 'lucide-react';
+import { NAME_PREFIXES, COUNTRY_CODES, DEFAULT_COUNTRY_CODE, getCountryCodeSearchText, INDIAN_STATES, INDUSTRY_OPTIONS } from '../constants';
+import { SearchSuggestion } from '../components/ui/SearchSuggestion';
+import { SeriesSelect } from '../components/service/SeriesSelect';
+import { serializePhoneWithCountryCode, parsePhoneWithCountryCode } from '../lib/name-phone-utils';
+import { ArrowLeft, Plus, X, Building2, Factory, User as UserIcon, UserPlus } from 'lucide-react';
 import {
   marketingAPI,
   ServiceContractItem,
+  ServiceContractPartAlias,
   ServiceContractPayload,
   ServiceContractType,
   ServiceContractStatus,
   SERVICE_CONTRACT_TYPES,
   SERVICE_CONTRACT_STATUSES,
   Plant,
+  Organization,
   Customer,
   Contact,
   Domain,
   Region,
   customerPrimaryContactName,
+  customerDisambiguator,
 } from '../lib/marketing-api';
 
+const emptyAlias = (): ServiceContractPartAlias => ({ our_name: '', customer_name: '' });
 const emptyItem = (): ServiceContractItem => ({ name: '', coverage: 'included', note: '' });
 
+const ORGANIZATION_SIZES = [
+  { value: '1-10', label: '1-10 employees' },
+  { value: '11-50', label: '11-50 employees' },
+  { value: '51-200', label: '51-200 employees' },
+  { value: '201-500', label: '201-500 employees' },
+  { value: '501-1000', label: '501-1000 employees' },
+  { value: '1000+', label: '1000+ employees' },
+];
+
+// New customer = contact person -> company (organization) -> plant, same order as the Lead form.
 interface NewCustomerForm {
-  company_name: string;
-  domain_id?: number;
-  region_id?: number;
   contact_title: string;
   contact_first_name: string;
   contact_last_name: string;
-  contact_email: string;
+  contact_phone_code: string;
   contact_phone: string;
+  contact_email: string;
+  contact_job_title: string;
+  // Only used when a NEW organization is created (an existing one is picked via selectedOrg)
+  org_code: string;
+  org_website: string;
+  org_industry: string;
+  org_size: string;
+  domain_id?: number;
+  region_id?: number;
+}
+
+interface NewPlantForm {
   plant_name: string;
-  plant_city: string;
-  plant_address: string;
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  state: string;
+  postal_code: string;
 }
 
 const emptyNewCustomer = (): NewCustomerForm => ({
-  company_name: '',
-  domain_id: undefined,
-  region_id: undefined,
   contact_title: '',
   contact_first_name: '',
   contact_last_name: '',
-  contact_email: '',
+  contact_phone_code: DEFAULT_COUNTRY_CODE,
   contact_phone: '',
+  contact_email: '',
+  contact_job_title: '',
+  org_code: '',
+  org_website: '',
+  org_industry: '',
+  org_size: '',
+  domain_id: undefined,
+  region_id: undefined,
+});
+
+const emptyNewPlant = (): NewPlantForm => ({
   plant_name: '',
-  plant_city: '',
-  plant_address: '',
+  address_line1: '',
+  address_line2: '',
+  city: '',
+  state: '',
+  postal_code: '',
 });
 
 export const ServiceContractFormPage: React.FC = () => {
@@ -73,6 +113,8 @@ export const ServiceContractFormPage: React.FC = () => {
   const canEdit = useAppSelector(selectHasPermission('service.edit_contract'));
   const canCreateCustomer = useAppSelector(selectHasPermission('marketing.create_customer'));
   const canCreateContact = useAppSelector(selectHasPermission('marketing.create_contact'));
+  const canCreateOrg = useAppSelector(selectHasPermission('marketing.create_organization'));
+  const canCreatePlant = useAppSelector(selectHasPermission('marketing.create_plant'));
 
   const [isLoading, setIsLoading] = useState(isEdit);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,6 +131,26 @@ export const ServiceContractFormPage: React.FC = () => {
   const [newCustomer, setNewCustomer] = useState<NewCustomerForm>(emptyNewCustomer());
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Company (organization) + plant for a NEW customer
+  const [orgQuery, setOrgQuery] = useState('');
+  const [orgSuggestions, setOrgSuggestions] = useState<Organization[]>([]);
+  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [orgPlants, setOrgPlants] = useState<Plant[]>([]);
+  const [newCustPlantId, setNewCustPlantId] = useState<number | undefined>(undefined);
+  const [addingNewPlant, setAddingNewPlant] = useState(false);
+  const [newPlant, setNewPlant] = useState<NewPlantForm>(emptyNewPlant());
+  const orgSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // "Did you mean an existing contact?" — typing a name looks for contacts that already exist
+  type NameSuggestion = { kind: 'contact'; contact: Contact } | { kind: 'customer'; customer: Customer };
+  const [contactSuggestions, setContactSuggestions] = useState<NameSuggestion[]>([]);
+  const [linkedContact, setLinkedContact] = useState<Contact | null>(null);
+  const contactSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Organization of the picked EXISTING customer, so its (organization) plants can be offered too
+  const [addingPlantExisting, setAddingPlantExisting] = useState(false);
+  const [existingNewPlant, setExistingNewPlant] = useState<NewPlantForm>(emptyNewPlant());
+  const [savingPlantExisting, setSavingPlantExisting] = useState(false);
+  const [customerOrgId, setCustomerOrgId] = useState<number | undefined>(undefined);
+
   const [domains, setDomains] = useState<Domain[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
 
@@ -104,7 +166,9 @@ export const ServiceContractFormPage: React.FC = () => {
   const [additionalChargesNote, setAdditionalChargesNote] = useState('');
   const [notes, setNotes] = useState('');
   const [seriesCode, setSeriesCode] = useState('');
+  const [contractNumber, setContractNumber] = useState('');  // the contract's existing number (edit mode) — never changed
   const [items, setItems] = useState<ServiceContractItem[]>([]);
+  const [aliases, setAliases] = useState<ServiceContractPartAlias[]>([]);
 
   useEffect(() => {
     if (isEdit && !canEdit) {
@@ -132,8 +196,12 @@ export const ServiceContractFormPage: React.FC = () => {
         return;
       }
       try {
-        const pl = await marketingAPI.getPlants({ customer_id: customerId });
-        if (!cancelled) setPlants(pl || []);
+        const own = await marketingAPI.getPlants({ customer_id: customerId }).catch(() => [] as Plant[]);
+        // Customers linked to an organization keep their plants on the organization
+        const orgLevel = customerOrgId ? await marketingAPI.getOrganizationPlants(customerOrgId).catch(() => [] as Plant[]) : [];
+        const seen = new Set<number>();
+        const merged = [...(own || []), ...(orgLevel || [])].filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true)));
+        if (!cancelled) setPlants(merged);
       } catch {
         if (!cancelled) setPlants([]);
       }
@@ -141,7 +209,14 @@ export const ServiceContractFormPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [customerId]);
+  }, [customerId, customerOrgId]);
+
+  // A new contract opens straight on the contact -> organization -> plant form (like the Lead form).
+  // Users without permission to create customers keep the plain "Find customer" search.
+  useEffect(() => {
+    if (!isEdit && canCreateCustomer && !creatingCustomer && customerId == null) startCreateCustomer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, canCreateCustomer, creatingCustomer, customerId]);
 
   // Load domains once we might create a customer
   useEffect(() => {
@@ -172,7 +247,10 @@ export const ServiceContractFormPage: React.FC = () => {
       setCustomerLabel(c.customer_name || `Customer #${c.customer_id}`);
       marketingAPI
         .getCustomer(c.customer_id)
-        .then((full) => setCustomerLabel(customerDisplay(full)))
+        .then((full) => {
+          setCustomerLabel(customerDisplay(full));
+          setCustomerOrgId(full.organization_id ?? undefined);
+        })
         .catch(() => {});
       setPlantId(c.plant_id ?? undefined);
       setContractType(c.contract_type);
@@ -184,7 +262,9 @@ export const ServiceContractFormPage: React.FC = () => {
       setAdditionalChargesNote(c.additional_charges_note || '');
       setNotes(c.notes || '');
       setSeriesCode(c.series_code || '');
+      setContractNumber(c.contract_number || '');
       setItems((c.items || []).map((it) => ({ name: it.name, coverage: it.coverage, note: it.note || '' })));
+      setAliases((c.part_aliases || []).map((a) => ({ our_name: a.our_name, customer_name: a.customer_name })));
     } catch (e: any) {
       showToast(e?.message || 'Failed to load contract', 'error');
       navigate('/service/contracts');
@@ -221,13 +301,179 @@ export const ServiceContractFormPage: React.FC = () => {
   };
 
   const pickCustomer = (c: Customer) => {
+    setContactSuggestions([]);
     setCustomerId(c.id);
+    setCustomerOrgId(c.organization_id ?? undefined);
     setCustomerLabel(customerDisplay(c));
     setCustomerQuery('');
     setCustomerResults([]);
     setShowCustomerMenu(false);
     setCreatingCustomer(false);
     setPlantId(undefined);
+  };
+
+  const setContactName = (field: 'contact_first_name' | 'contact_last_name', value: string) => {
+    const next = { ...newCustomer, [field]: value };
+    setNewCustomer(next);
+    if (contactSearchTimeoutRef.current) clearTimeout(contactSearchTimeoutRef.current);
+    const q = [next.contact_first_name, next.contact_last_name].filter(Boolean).join(' ').trim();
+    if (q.length < 2) {
+      setContactSuggestions([]);
+      return;
+    }
+    contactSearchTimeoutRef.current = setTimeout(() => {
+      Promise.all([
+        marketingAPI.searchContacts(q, 6).catch(() => [] as Contact[]),
+        marketingAPI.searchCustomers(q, 6).catch(() => [] as Customer[]),
+      ]).then(([contacts, customers]) =>
+        setContactSuggestions([
+          ...(contacts || []).map((contact): NameSuggestion => ({ kind: 'contact', contact })),
+          ...(customers || []).map((customer): NameSuggestion => ({ kind: 'customer', customer })),
+        ])
+      );
+    }, 300);
+  };
+
+  const contactDisplayName = (c: Contact) =>
+    [c.title, c.first_name, c.last_name].filter(Boolean).join(' ').trim() || c.contact_person_name || '';
+
+  // Use an existing contact instead of creating a duplicate; bring its company and plant along
+  const pickExistingContact = (c: Contact) => {
+    // This person already became a customer (like Leads: one contact = one customer) — connect to that customer, don't make another
+    if (c.is_converted && c.converted_to_customer_id) {
+      setContactSuggestions([]);
+      marketingAPI
+        .getCustomer(c.converted_to_customer_id)
+        .then((cust) => {
+          pickCustomer(cust);
+          showToast(`${contactDisplayName(c)} is already a customer — connected to it`, 'success');
+        })
+        .catch(() => showToast('Could not load that customer', 'error'));
+      return;
+    }
+    const { code, number } = parsePhoneWithCountryCode(c.contact_phone);
+    setLinkedContact(c);
+    setContactSuggestions([]);
+    setNewCustomer((p) => ({
+      ...p,
+      contact_title: c.title || '',
+      contact_first_name: c.first_name || '',
+      contact_last_name: c.last_name || '',
+      contact_phone_code: code || DEFAULT_COUNTRY_CODE,
+      contact_phone: number,
+      contact_email: c.contact_email || '',
+      contact_job_title: c.contact_job_title || '',
+      domain_id: c.domain_id ?? p.domain_id,
+      region_id: c.region_id ?? p.region_id,
+    }));
+    if (c.organization_id && c.organization) {
+      setSelectedOrg(c.organization);
+      setOrgQuery(c.organization.name);
+      setOrgSuggestions([]);
+      setAddingNewPlant(false);
+      marketingAPI
+        .getOrganizationPlants(c.organization_id)
+        .then((pl) => {
+          setOrgPlants(pl || []);
+          if (c.plant_id && (pl || []).some((x) => x.id === c.plant_id)) setNewCustPlantId(c.plant_id ?? undefined);
+          else if (pl?.length === 1) setNewCustPlantId(pl[0].id);
+        })
+        .catch(() => setOrgPlants([]));
+    }
+    showToast('Existing contact linked', 'success');
+  };
+
+  // Add a plant to the already-chosen customer (on its organization if it has one)
+  const saveExistingCustomerPlant = async () => {
+    if (customerId == null) return;
+    if (!existingNewPlant.plant_name.trim()) {
+      showToast('Enter a name for the new plant', 'error');
+      return;
+    }
+    setSavingPlantExisting(true);
+    try {
+      const payload = {
+        plant_name: existingNewPlant.plant_name.trim(),
+        address_line1: existingNewPlant.address_line1.trim() || undefined,
+        address_line2: existingNewPlant.address_line2.trim() || undefined,
+        city: existingNewPlant.city.trim() || undefined,
+        state: existingNewPlant.state.trim() || undefined,
+        postal_code: existingNewPlant.postal_code.trim() || undefined,
+      };
+      const created = customerOrgId
+        ? await marketingAPI.createOrganizationPlant(customerOrgId, payload)
+        : await marketingAPI.createPlant({ ...payload, customer_id: customerId } as Partial<Plant>);
+      setPlants((prev) => [...prev, created]);
+      setPlantId(created.id);
+      setAddingPlantExisting(false);
+      setExistingNewPlant(emptyNewPlant());
+      showToast('Plant added', 'success');
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to add plant', 'error');
+    } finally {
+      setSavingPlantExisting(false);
+    }
+  };
+
+  const unlinkContact = () => {
+    setLinkedContact(null);
+    setNewCustomer((p) => ({
+      ...p,
+      contact_title: '',
+      contact_first_name: '',
+      contact_last_name: '',
+      contact_phone_code: DEFAULT_COUNTRY_CODE,
+      contact_phone: '',
+      contact_email: '',
+      contact_job_title: '',
+    }));
+  };
+
+  const resetOrgAndPlant = (orgName = '') => {
+    setLinkedContact(null);
+    setContactSuggestions([]);
+    setOrgQuery(orgName);
+    setOrgSuggestions([]);
+    setSelectedOrg(null);
+    setOrgPlants([]);
+    setNewCustPlantId(undefined);
+    setAddingNewPlant(false);
+    setNewPlant(emptyNewPlant());
+  };
+
+  const onOrgQueryChange = (v: string) => {
+    setOrgQuery(v);
+    setSelectedOrg(null);
+    setOrgPlants([]);
+    setNewCustPlantId(undefined);
+    setAddingNewPlant(false);
+    if (orgSearchTimeoutRef.current) clearTimeout(orgSearchTimeoutRef.current);
+    const term = v.trim();
+    if (term.length < 2) {
+      setOrgSuggestions([]);
+      return;
+    }
+    orgSearchTimeoutRef.current = setTimeout(() => {
+      marketingAPI
+        .getOrganizations({ page: 1, page_size: 15, search: term, is_active: true })
+        .then((res) => setOrgSuggestions(res?.items || []))
+        .catch(() => setOrgSuggestions([]));
+    }, 300);
+  };
+
+  const pickOrganization = (org: Organization) => {
+    setSelectedOrg(org);
+    setOrgQuery(org.name);
+    setOrgSuggestions([]);
+    setAddingNewPlant(false);
+    setNewCustPlantId(undefined);
+    marketingAPI
+      .getOrganizationPlants(org.id)
+      .then((pl) => {
+        setOrgPlants(pl || []);
+        if (pl?.length === 1) setNewCustPlantId(pl[0].id);
+      })
+      .catch(() => setOrgPlants([]));
   };
 
   const startCreateCustomer = () => {
@@ -240,17 +486,19 @@ export const ServiceContractFormPage: React.FC = () => {
     setShowCustomerMenu(false);
     setNewCustomer({
       ...emptyNewCustomer(),
-      company_name: customerQuery.trim(),
       domain_id: scope?.domain_id,
       region_id: scope?.region_id ?? scope?.region_ids?.[0],
     });
+    resetOrgAndPlant(customerQuery.trim());
   };
 
   const clearCustomer = () => {
     setCustomerId(undefined);
+    setCustomerOrgId(undefined);
     setCustomerLabel('');
     setCreatingCustomer(false);
     setNewCustomer(emptyNewCustomer());
+    resetOrgAndPlant();
     setPlants([]);
     setPlantId(undefined);
   };
@@ -272,20 +520,41 @@ export const ServiceContractFormPage: React.FC = () => {
     let effectivePlantId = plantId;
 
     if (!isEdit && creatingCustomer) {
-      if (!newCustomer.company_name.trim()) {
-        showToast('Enter a company name for the new customer', 'error');
+      if (canCreateContact && !linkedContact && !newCustomer.contact_first_name.trim() && !newCustomer.contact_last_name.trim()) {
+        showToast('Enter the contact person’s name for the new customer', 'error');
+        return;
+      }
+      if (!selectedOrg && !orgQuery.trim()) {
+        showToast('Select or enter the company (organization) for the new customer', 'error');
+        return;
+      }
+      if (!selectedOrg && !canCreateOrg) {
+        showToast('You can only link an existing organization — pick one from the list', 'error');
+        return;
+      }
+      const creatingPlant = !selectedOrg || addingNewPlant;
+      if (creatingPlant) {
+        if (!newPlant.plant_name.trim()) {
+          showToast(selectedOrg ? 'Enter a name for the new plant' : 'Plant name is required when creating a new organization', 'error');
+          return;
+        }
+        if (selectedOrg && !canCreatePlant) {
+          showToast('You do not have permission to add plants — pick an existing one', 'error');
+          return;
+        }
+      } else if (!newCustPlantId) {
+        showToast('Select a plant for the new customer', 'error');
         return;
       }
       if (!newCustomer.domain_id) {
         showToast('Select a domain for the new customer', 'error');
         return;
       }
-      if (canCreateContact && !newCustomer.contact_first_name.trim() && !newCustomer.contact_last_name.trim()) {
-        showToast('Enter the contact person’s name for the new customer', 'error');
-        return;
-      }
     } else if (effectiveCustomerId == null) {
       showToast('Please select a customer', 'error');
+      return;
+    } else if (effectivePlantId == null) {
+      showToast('Select or add a plant for this contract', 'error');
       return;
     }
 
@@ -293,25 +562,76 @@ export const ServiceContractFormPage: React.FC = () => {
       .map((it) => ({ ...it, name: it.name.trim(), note: (it.note || '').trim() || undefined }))
       .filter((it) => it.name);
 
+    const cleanAliases = aliases
+      .map((a) => ({ our_name: a.our_name.trim(), customer_name: a.customer_name.trim() }))
+      .filter((a) => a.our_name && a.customer_name);
+
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
       // 1. Create the customer first if we're in inline-create mode
       if (!isEdit && creatingCustomer) {
-        // Always give a new customer at least one site — the company's own location
-        // if they didn't name a separate plant.
-        const plantName = newCustomer.plant_name.trim() || 'Main site';
+        const plantPayload = {
+          plant_name: newPlant.plant_name.trim(),
+          address_line1: newPlant.address_line1.trim() || undefined,
+          address_line2: newPlant.address_line2.trim() || undefined,
+          city: newPlant.city.trim() || undefined,
+          state: newPlant.state.trim() || undefined,
+          postal_code: newPlant.postal_code.trim() || undefined,
+          domain_id: newCustomer.domain_id,
+          region_id: newCustomer.region_id,
+        };
 
-        // 1a. Create the contact person, if named and allowed
+        // 1a. Company (organization) + plant — link existing or create new
+        let org = selectedOrg;
+        let plantIdForCustomer: number | undefined = newCustPlantId;
+        if (!org) {
+          org = await marketingAPI.createOrganization({
+            name: orgQuery.trim(),
+            code: newCustomer.org_code.trim() || undefined,
+            website: newCustomer.org_website.trim() || undefined,
+            industry: newCustomer.org_industry.trim() || undefined,
+            organization_size: newCustomer.org_size.trim() || undefined,
+            is_active: true,
+            plants: [plantPayload],
+          });
+          // Remember it so a retry after a later failure re-uses it instead of creating a duplicate
+          setSelectedOrg(org);
+          const pl = await marketingAPI.getOrganizationPlants(org.id).catch(() => [] as Plant[]);
+          setOrgPlants(pl || []);
+          plantIdForCustomer = pl?.[0]?.id;
+          setNewCustPlantId(plantIdForCustomer);
+          setAddingNewPlant(false);
+        } else if (addingNewPlant) {
+          const created = await marketingAPI.createOrganizationPlant(org.id, plantPayload);
+          plantIdForCustomer = created.id;
+          setOrgPlants((prev) => [...prev, created]);
+          setNewCustPlantId(created.id);
+          setAddingNewPlant(false);
+        }
+
+        // 1b. Contact person, if named and allowed
         let primaryContactId: number | undefined;
         const hasContactName = newCustomer.contact_first_name.trim() || newCustomer.contact_last_name.trim();
-        if (canCreateContact && hasContactName) {
+        if (linkedContact) {
+          // Re-use the existing contact. Only if it had no company yet do we attach the one chosen here.
+          primaryContactId = linkedContact.id;
+          if (!linkedContact.organization_id) {
+            await marketingAPI
+              .updateContact(linkedContact.id, { organization_id: org.id, plant_id: plantIdForCustomer } as Partial<Contact>)
+              .catch(() => undefined);
+          }
+        } else if (canCreateContact && hasContactName) {
           const contact = await marketingAPI.createContact({
             title: newCustomer.contact_title.trim() || undefined,
             first_name: newCustomer.contact_first_name.trim() || undefined,
             last_name: newCustomer.contact_last_name.trim() || undefined,
+            contact_job_title: newCustomer.contact_job_title.trim() || undefined,
             contact_email: newCustomer.contact_email.trim() || undefined,
-            contact_phone: newCustomer.contact_phone.trim() || undefined,
+            contact_phone:
+              serializePhoneWithCountryCode(newCustomer.contact_phone_code, newCustomer.contact_phone)?.trim() || undefined,
+            organization_id: org.id,
+            plant_id: plantIdForCustomer,
             domain_id: newCustomer.domain_id,
             region_id: newCustomer.region_id,
           } as Partial<Contact>);
@@ -319,25 +639,17 @@ export const ServiceContractFormPage: React.FC = () => {
         }
 
         const created = await marketingAPI.createCustomer({
-          company_name: newCustomer.company_name.trim(),
+          company_name: org.name,
+          organization_id: org.id,
+          plant_id: plantIdForCustomer,
           domain_id: newCustomer.domain_id,
           region_id: newCustomer.region_id,
           primary_contact_contact_id: primaryContactId,
-          plants: [
-            {
-              plant_name: plantName,
-              city: newCustomer.plant_city.trim() || undefined,
-              address_line1: newCustomer.plant_address.trim() || undefined,
-              domain_id: newCustomer.domain_id,
-              region_id: newCustomer.region_id,
-            },
-          ],
+          // marks the contact as converted (same as Leads), so the next contract for this person finds this customer
+          converted_from_contact_id: primaryContactId,
         } as Partial<Customer>);
         effectiveCustomerId = created.id;
-        {
-          const pl = await marketingAPI.getPlants({ customer_id: created.id }).catch(() => []);
-          effectivePlantId = pl?.[0]?.id;
-        }
+        effectivePlantId = plantIdForCustomer;
       }
 
       const payload: ServiceContractPayload = {
@@ -353,6 +665,7 @@ export const ServiceContractFormPage: React.FC = () => {
         notes: notes.trim() || null,
         series_code: seriesCode.trim() || null,
         items: cleanItems,
+        part_aliases: cleanAliases,
       };
 
       if (isEdit && id) {
@@ -429,65 +742,246 @@ export const ServiceContractFormPage: React.FC = () => {
                 )}
               </div>
             ) : creatingCustomer ? (
-              <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-4 space-y-3">
+              <div className="rounded-lg border border-slate-200 bg-slate-50/30 p-5 space-y-5">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                     <UserPlus size={15} /> New customer
                   </p>
                   <button type="button" onClick={clearCustomer} className="text-sm text-slate-600 hover:text-rose-600">
-                    Cancel
+                    Clear form
                   </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <Input
-                    label="Company name"
-                    value={newCustomer.company_name}
-                    onChange={(e) => setNewCustomer((p) => ({ ...p, company_name: e.target.value }))}
-                    placeholder="Customer company name"
-                  />
-                  {canCreateContact ? (
-                    <div className="flex gap-2 items-end">
-                      <div className="w-20 shrink-0">
-                        <Select
-                          label="Title"
-                          options={NAME_PREFIXES}
-                          value={newCustomer.contact_title}
-                          onChange={(v) => setNewCustomer((p) => ({ ...p, contact_title: (v ?? '') as string }))}
-                          placeholder="—"
-                          searchable={false}
-                        />
+
+                {/* 1. Primary contact */}
+                {canCreateContact && (
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight border-l-2 border-blue-500/30 pl-3">
+                      <UserIcon size={18} /> Primary contact
+                    </h3>
+                    <p className="text-sm text-slate-500 font-medium">Who is the main contact for this customer?</p>
+                    {linkedContact && (
+                      <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                        <span>
+                          Using existing contact <span className="font-semibold">{contactDisplayName(linkedContact)}</span>
+                          {linkedContact.organization?.name ? ` · ${linkedContact.organization.name}` : ' · no organization yet'}
+                        </span>
+                        <button type="button" onClick={unlinkContact} className="text-xs font-medium text-emerald-700 hover:text-rose-600 underline">
+                          Not this person — unlink
+                        </button>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <Input
-                          label="First name"
-                          value={newCustomer.contact_first_name}
-                          onChange={(e) => setNewCustomer((p) => ({ ...p, contact_first_name: e.target.value }))}
-                          placeholder="First name"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <Input
-                          label="Last name"
-                          value={newCustomer.contact_last_name}
-                          onChange={(e) => setNewCustomer((p) => ({ ...p, contact_last_name: e.target.value }))}
-                          placeholder="Last name"
-                        />
+                    )}
+                    <div className="rounded-lg border border-slate-200 bg-white p-5">
+                      <div className="grid grid-cols-12 gap-x-4 gap-y-4">
+                        <div className="col-span-12 lg:col-span-2">
+                          <Select
+                            label="Title"
+                            options={NAME_PREFIXES}
+                            value={newCustomer.contact_title}
+                            onChange={(v) => setNewCustomer((p) => ({ ...p, contact_title: (v ?? '') as string }))}
+                            placeholder="—"
+                            searchable={false}
+                            inputSize="md"
+                          />
+                        </div>
+                        <div className="col-span-12 md:col-span-6 lg:col-span-5">
+                          <Input
+                            label="First name"
+                            value={newCustomer.contact_first_name}
+                            disabled={!!linkedContact}
+                            onChange={(e) => setContactName('contact_first_name', e.target.value)}
+                            placeholder="First name"
+                            className="h-10"
+                          />
+                        </div>
+                        <div className="col-span-12 md:col-span-6 lg:col-span-5 relative">
+                          <Input
+                            label="Last name"
+                            value={newCustomer.contact_last_name}
+                            disabled={!!linkedContact}
+                            onChange={(e) => setContactName('contact_last_name', e.target.value)}
+                            placeholder="Last name"
+                            className="h-10"
+                          />
+                          {!linkedContact && (
+                            <SearchSuggestion
+                              items={contactSuggestions}
+                              onSelect={(it) => (it.kind === 'contact' ? pickExistingContact(it.contact) : pickCustomer(it.customer))}
+                              title="Did you mean an existing contact or customer?"
+                              renderItem={(it) =>
+                                it.kind === 'contact'
+                                  ? {
+                                      id: `contact-${it.contact.id}`,
+                                      title: contactDisplayName(it.contact),
+                                      subtitle: it.contact.organization?.name || 'No Organization',
+                                      rightText: it.contact.contact_phone || undefined,
+                                    }
+                                  : {
+                                      id: `customer-${it.customer.id}`,
+                                      title: it.customer.company_name,
+                                      subtitle: `${customerPrimaryContactName(it.customer) ? `${customerPrimaryContactName(it.customer)} · ` : ''}${customerDisambiguator(it.customer)}`,
+                                    }
+                              }
+                            />
+                          )}
+                        </div>
+
+                        <div className="col-span-12 md:col-span-4 lg:col-span-3">
+                          <Select
+                            label="Country Code"
+                            options={COUNTRY_CODES}
+                            value={newCustomer.contact_phone_code}
+                            onChange={(v) => setNewCustomer((p) => ({ ...p, contact_phone_code: (v ?? '') as string }))}
+                            placeholder="Code"
+                            searchable
+                            getSearchText={getCountryCodeSearchText}
+                            inputSize="md"
+                            clearable={false}
+                          />
+                        </div>
+                        <div className="col-span-12 md:col-span-8 lg:col-span-9">
+                          <Input
+                            label="Phone number"
+                            type="tel"
+                            value={newCustomer.contact_phone}
+                            disabled={!!linkedContact}
+                            onChange={(e) => setNewCustomer((p) => ({ ...p, contact_phone: e.target.value }))}
+                            placeholder="Number"
+                            className="h-10"
+                          />
+                        </div>
+
+                        <div className="col-span-12 md:col-span-6">
+                          <Input
+                            label="Email address"
+                            type="email"
+                            value={newCustomer.contact_email}
+                            disabled={!!linkedContact}
+                            onChange={(e) => setNewCustomer((p) => ({ ...p, contact_email: e.target.value }))}
+                            placeholder="email@example.com"
+                            className="h-10"
+                          />
+                        </div>
+                        <div className="col-span-12 md:col-span-6">
+                          <Input
+                            label="Designation / Job title"
+                            value={newCustomer.contact_job_title}
+                            disabled={!!linkedContact}
+                            onChange={(e) => setNewCustomer((p) => ({ ...p, contact_job_title: e.target.value }))}
+                            placeholder="e.g. Director"
+                            className="h-10"
+                          />
+                        </div>
                       </div>
                     </div>
-                  ) : (
-                    <div className="hidden md:block" />
+                  </div>
+                )}
+
+                {/* 2. Company / organization */}
+                <div className="space-y-3 border-t border-slate-200 pt-4">
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight border-l-2 border-blue-500/30 pl-3">
+                    <Building2 size={18} /> Organization
+                  </h3>
+                  <p className="text-sm text-slate-500 font-medium">Link the company or add a new one.</p>
+                  <div className="relative">
+                    <Input
+                      label="Company / Organization name"
+                      value={orgQuery}
+                      onChange={(e) => onOrgQueryChange(e.target.value)}
+                      onBlur={() => setTimeout(() => setOrgSuggestions([]), 150)}
+                      placeholder="Type to search and link existing organization..."
+                      rightElement={
+                        selectedOrg ? (
+                          <button type="button" onClick={() => { setOrgQuery(''); onOrgQueryChange(''); }} className="p-1.5 text-slate-400 hover:text-rose-600" title="Clear">
+                            <X size={16} />
+                          </button>
+                        ) : undefined
+                      }
+                    />
+                    <SearchSuggestion
+                      items={orgSuggestions}
+                      onSelect={pickOrganization}
+                      title="Existing organizations"
+                      icon={Building2}
+                      renderItem={(o) => ({ id: o.id, title: o.name, subtitle: o.industry || undefined })}
+                    />
+                  </div>
+                  {selectedOrg && (
+                    <p className="text-xs text-emerald-700">Linked to existing organization “{selectedOrg.name}”.</p>
                   )}
+                  {!selectedOrg && orgQuery.trim().length >= 2 && (
+                    <>
+                      {canCreateOrg ? (
+                        <p className="text-xs text-slate-500">No match picked — a new organization “{orgQuery.trim()}” will be created on save.</p>
+                      ) : (
+                        <p className="text-xs text-amber-700">You can only link an existing organization — pick one from the list.</p>
+                      )}
+                      {canCreateOrg && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input label="Code" value={newCustomer.org_code} onChange={(e) => setNewCustomer((p) => ({ ...p, org_code: e.target.value }))} placeholder="Optional code" />
+                          <Input label="Website" value={newCustomer.org_website} onChange={(e) => setNewCustomer((p) => ({ ...p, org_website: e.target.value }))} placeholder="https://..." />
+                          <Select label="Industry" options={INDUSTRY_OPTIONS} value={newCustomer.org_industry} onChange={(v) => setNewCustomer((p) => ({ ...p, org_industry: (v as string) || '' }))} placeholder="Select industry..." />
+                          <Select label="Size of organization" options={ORGANIZATION_SIZES} value={newCustomer.org_size} onChange={(v) => setNewCustomer((p) => ({ ...p, org_size: (v as string) || '' }))} placeholder="Select size" searchable />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* 3. Plant */}
+                {(selectedOrg || (orgQuery.trim().length >= 2 && canCreateOrg)) && (
+                  <div className="space-y-3 border-t border-slate-200 pt-4">
+                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 tracking-tight border-l-2 border-blue-500/30 pl-3">
+                      <Factory size={18} /> Plant
+                    </h3>
+                    <p className="text-sm text-slate-500 font-medium">
+                      {selectedOrg ? "Pick one of this company's plants or add a new one." : 'Required for a new company.'}
+                    </p>
+                    {selectedOrg && !addingNewPlant && (
+                      <div className="flex items-end gap-2 max-w-xl">
+                        <div className="flex-1">
+                          <Select
+                            label="Plant / Site"
+                            options={orgPlants.map((pl) => ({ value: String(pl.id), label: pl.plant_name || `Plant ${pl.id}` }))}
+                            value={newCustPlantId != null ? String(newCustPlantId) : ''}
+                            onChange={(val) => setNewCustPlantId(val ? Number(val) : undefined)}
+                            placeholder={orgPlants.length ? 'Select plant' : 'No plants yet — add one'}
+                            searchable
+                          />
+                        </div>
+                        {canCreatePlant && (
+                          <Button type="button" variant="outline" size="sm" leftIcon={<Plus size={14} />} onClick={() => setAddingNewPlant(true)}>
+                            New plant
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    {(!selectedOrg || addingNewPlant) && (
+                      <div className="space-y-3">
+                        {selectedOrg && (
+                          <button type="button" className="text-xs text-slate-600 hover:text-blue-700" onClick={() => { setAddingNewPlant(false); setNewPlant(emptyNewPlant()); }}>
+                            ← Pick an existing plant instead
+                          </button>
+                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input label="Plant name" value={newPlant.plant_name} onChange={(e) => setNewPlant((p) => ({ ...p, plant_name: e.target.value }))} placeholder="e.g. Main Plant" />
+                          <Input label="City" value={newPlant.city} onChange={(e) => setNewPlant((p) => ({ ...p, city: e.target.value }))} />
+                          <Input label="Address line 1" value={newPlant.address_line1} onChange={(e) => setNewPlant((p) => ({ ...p, address_line1: e.target.value }))} />
+                          <Input label="Address line 2" value={newPlant.address_line2} onChange={(e) => setNewPlant((p) => ({ ...p, address_line2: e.target.value }))} />
+                          <Select label="State" options={INDIAN_STATES} value={newPlant.state} onChange={(v) => setNewPlant((p) => ({ ...p, state: (v as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable />
+                          <Input label="Pin / Postal code" value={newPlant.postal_code} onChange={(e) => setNewPlant((p) => ({ ...p, postal_code: e.target.value }))} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Territory */}
+                <div className="border-t border-slate-200 pt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                   <Select
                     label="Domain"
                     options={domains.map((d) => ({ value: String(d.id), label: d.name }))}
                     value={newCustomer.domain_id != null ? String(newCustomer.domain_id) : ''}
-                    onChange={(val) =>
-                      setNewCustomer((p) => ({
-                        ...p,
-                        domain_id: val ? Number(val) : undefined,
-                        region_id: undefined,
-                      }))
-                    }
+                    onChange={(val) => setNewCustomer((p) => ({ ...p, domain_id: val ? Number(val) : undefined, region_id: undefined }))}
                     placeholder="Select domain"
                     searchable
                   />
@@ -499,52 +993,6 @@ export const ServiceContractFormPage: React.FC = () => {
                     placeholder={newCustomer.domain_id ? 'Select region' : 'Select a domain first'}
                     searchable
                   />
-                </div>
-
-                {canCreateContact && (
-                  <div className="pt-2 border-t border-blue-200/60">
-                    <p className="text-xs font-medium text-slate-600 mb-2">Contact person</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <Input
-                        label="Email"
-                        type="email"
-                        value={newCustomer.contact_email}
-                        onChange={(e) => setNewCustomer((p) => ({ ...p, contact_email: e.target.value }))}
-                        placeholder="email@example.com"
-                      />
-                      <Input
-                        label="Phone"
-                        type="tel"
-                        value={newCustomer.contact_phone}
-                        onChange={(e) => setNewCustomer((p) => ({ ...p, contact_phone: e.target.value }))}
-                        placeholder="Phone number"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="pt-2 border-t border-blue-200/60">
-                  <p className="text-xs font-medium text-slate-600 mb-2">
-                    Plant / site <span className="font-normal text-slate-400">— leave blank and we'll create a "Main site" at the company address</span>
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <Input
-                      label="Plant name"
-                      value={newCustomer.plant_name}
-                      onChange={(e) => setNewCustomer((p) => ({ ...p, plant_name: e.target.value }))}
-                      placeholder="e.g. Main Plant"
-                    />
-                    <Input
-                      label="City"
-                      value={newCustomer.plant_city}
-                      onChange={(e) => setNewCustomer((p) => ({ ...p, plant_city: e.target.value }))}
-                    />
-                    <Input
-                      label="Address"
-                      value={newCustomer.plant_address}
-                      onChange={(e) => setNewCustomer((p) => ({ ...p, plant_address: e.target.value }))}
-                    />
-                  </div>
                 </div>
               </div>
             ) : (
@@ -582,6 +1030,7 @@ export const ServiceContractFormPage: React.FC = () => {
                         >
                           <span className="font-medium text-slate-800">{c.company_name}</span>
                           {sub && <span className="text-xs text-slate-500">{sub}</span>}
+                          <span className="text-[11px] text-slate-400">{customerDisambiguator(c)}</span>
                         </button>
                       );
                     })}
@@ -608,20 +1057,43 @@ export const ServiceContractFormPage: React.FC = () => {
               </div>
             )}
 
-            {/* Plant selector for an existing customer */}
+            {/* Plant selector for an existing customer — required */}
             {customerId != null && (
-              <div className="max-w-xl">
-                <Select
-                  label="Plant / Site (optional)"
-                  options={[
-                    { value: '', label: 'None' },
-                    ...plants.map((p) => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` })),
-                  ]}
-                  value={plantId != null ? String(plantId) : ''}
-                  onChange={(val) => setPlantId(val ? Number(val) : undefined)}
-                  placeholder={plants.length ? 'Select plant' : 'No plants on this customer'}
-                  searchable
-                />
+              <div className="space-y-3">
+                {!addingPlantExisting ? (
+                  <div className="flex items-end gap-2 max-w-xl">
+                    <div className="flex-1">
+                      <Select
+                        label="Plant / Site *"
+                        options={plants.map((p) => ({ value: String(p.id), label: p.plant_name || `Plant ${p.id}` }))}
+                        value={plantId != null ? String(plantId) : ''}
+                        onChange={(val) => setPlantId(val ? Number(val) : undefined)}
+                        placeholder={plants.length ? 'Select plant' : 'No plants yet — add one'}
+                        searchable
+                      />
+                    </div>
+                    <Button type="button" variant="outline" size="sm" leftIcon={<Plus size={14} />} onClick={() => setAddingPlantExisting(true)}>
+                      New plant
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+                    <button type="button" className="text-xs text-slate-600 hover:text-blue-700" onClick={() => { setAddingPlantExisting(false); setExistingNewPlant(emptyNewPlant()); }}>
+                      ← Pick an existing plant instead
+                    </button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Input label="Plant name" value={existingNewPlant.plant_name} onChange={(e) => setExistingNewPlant((p) => ({ ...p, plant_name: e.target.value }))} placeholder="e.g. Main Plant" />
+                      <Input label="City" value={existingNewPlant.city} onChange={(e) => setExistingNewPlant((p) => ({ ...p, city: e.target.value }))} />
+                      <Input label="Address line 1" value={existingNewPlant.address_line1} onChange={(e) => setExistingNewPlant((p) => ({ ...p, address_line1: e.target.value }))} />
+                      <Input label="Address line 2" value={existingNewPlant.address_line2} onChange={(e) => setExistingNewPlant((p) => ({ ...p, address_line2: e.target.value }))} />
+                      <Select label="State" options={INDIAN_STATES} value={existingNewPlant.state} onChange={(v) => setExistingNewPlant((p) => ({ ...p, state: (v as string) || '' }))} placeholder="Select or type state..." isCombobox creatable searchable />
+                      <Input label="Pin / Postal code" value={existingNewPlant.postal_code} onChange={(e) => setExistingNewPlant((p) => ({ ...p, postal_code: e.target.value }))} />
+                    </div>
+                    <Button type="button" size="sm" onClick={saveExistingCustomerPlant} disabled={savingPlantExisting}>
+                      {savingPlantExisting ? 'Saving…' : 'Save plant'}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -739,15 +1211,65 @@ export const ServiceContractFormPage: React.FC = () => {
             )}
           </div>
 
+          {/* Customer part names (per contract) */}
+          <div className="space-y-3 border-t border-slate-200 pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Customer's part names</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  If this customer calls a part by a different name, add it here. Work orders under this contract will then show the customer's name next to ours. Applies to this contract only.
+                </p>
+              </div>
+              <Button type="button" variant="outline" size="sm" leftIcon={<Plus size={14} />} onClick={() => setAliases((p) => [...p, emptyAlias()])}>
+                Add name
+              </Button>
+            </div>
+            {aliases.length === 0 ? (
+              <p className="text-sm text-slate-400 py-2">No customer part names yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {aliases.map((a, idx) => (
+                  <div key={idx} className="flex flex-wrap items-start gap-2 rounded-lg border border-slate-200 p-2">
+                    <div className="flex-1 min-w-[160px]">
+                      <Input
+                        placeholder="Our name / code"
+                        value={a.our_name}
+                        onChange={(e) => setAliases((p) => p.map((x, i) => (i === idx ? { ...x, our_name: e.target.value } : x)))}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-[160px]">
+                      <Input
+                        placeholder="Customer's name for it"
+                        value={a.customer_name}
+                        onChange={(e) => setAliases((p) => p.map((x, i) => (i === idx ? { ...x, customer_name: e.target.value } : x)))}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAliases((p) => p.filter((_, i) => i !== idx))}
+                      className="p-2 text-slate-400 hover:text-rose-600"
+                      title="Remove"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Misc */}
           <div className="space-y-3 border-t border-slate-200 pt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Numbering series code (optional)"
-                value={seriesCode}
-                onChange={(e) => setSeriesCode(e.target.value)}
-                placeholder="e.g. service_contract_no"
-              />
+              {isEdit && contractNumber ? (
+                <div>
+                  <p className="text-xs font-semibold text-slate-700 ml-0.5 mb-1.5">Contract number</p>
+                  <div className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 flex items-center text-sm font-semibold text-slate-800">{contractNumber}</div>
+                  <p className="text-[11px] text-slate-400 font-medium mt-1 ml-0.5">Already numbered — a number can't be changed.</p>
+                </div>
+              ) : (
+                <SeriesSelect value={seriesCode} onChange={setSeriesCode} />
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Internal notes</label>

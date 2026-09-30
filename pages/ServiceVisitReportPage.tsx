@@ -13,8 +13,8 @@ import { Modal } from '../components/ui/Modal';
 import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
-import { selectHasPermission } from '../store/slices/authSlice';
-import { ArrowLeft, FileText, Paperclip, Plus, Trash2 } from 'lucide-react';
+import { selectHasPermission, selectUser } from '../store/slices/authSlice';
+import { ArrowLeft, FileText, Paperclip, Plus, SquarePen, Trash2 } from 'lucide-react';
 import { marketingAPI, VisitReportBundle, ServiceCalibrationKind } from '../lib/marketing-api';
 
 const VISIT_TYPE_OPTS = [
@@ -32,6 +32,18 @@ const SectionHeading: React.FC<{ n: number; title: string; optional?: boolean; d
   </div>
 );
 
+/** A label + value pair for the read-only view */
+const ReadField: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div>
+    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+    <div className="text-sm font-semibold text-slate-800">{children}</div>
+  </div>
+);
+
+/** A section: its own Card while editing; in the read-only view a part of ONE shared box (thin dividers) */
+const Box: React.FC<{ editing: boolean; className?: string; children: React.ReactNode }> = ({ editing, className, children }) =>
+  editing ? <Card className={`mb-4 ${className || ''}`}>{children}</Card> : <section className="p-5">{children}</section>;
+
 export const ServiceVisitReportPage: React.FC = () => {
   const { visitId: vid } = useParams<{ visitId: string }>();
   const visitId = Number(vid);
@@ -39,10 +51,15 @@ export const ServiceVisitReportPage: React.FC = () => {
   const { showToast } = useApp();
 
   const canView = useAppSelector(selectHasPermission('service.view'));
-  const canVisit = useAppSelector(selectHasPermission('service.manage_visit'));
-  const canReport = useAppSelector(selectHasPermission('service.manage_report'));
+  const canVisitPerm = useAppSelector(selectHasPermission('service.manage_visit'));
+  const canReportPerm = useAppSelector(selectHasPermission('service.manage_report'));
+  const currentUser = useAppSelector(selectUser);
 
   const [b, setB] = useState<VisitReportBundle | null>(null);
+  // the engineer assigned to this visit can fill in and submit its report even without the general permission
+  const isMyVisit = !!b && currentUser?.id != null && b.visit.assigned_engineer_employee_id === currentUser.id;
+  const canVisit = canVisitPerm || isMyVisit;
+  const canReport = canReportPerm || isMyVisit;
   const [isLoading, setIsLoading] = useState(true);
 
   const [vt, setVt] = useState('normal');
@@ -69,25 +86,34 @@ export const ServiceVisitReportPage: React.FC = () => {
   const [savingReport, setSavingReport] = useState(false);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
+  // A saved report opens as a read-only view; Edit switches to the form. A report not started yet opens in the form.
+  const [editing, setEditing] = useState(false);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
+
+  const applyDrafts = (data: VisitReportBundle) => {
+    setVt(data.visit.visit_type || 'normal');
+    setFittingPart(data.visit.fitting_part || '');
+    setMigMake(data.visit.migration_machine_make || '');
+    setMigMaterial(data.visit.migration_material_sent == null ? '' : data.visit.migration_material_sent ? 'yes' : 'no');
+    setMigDepts(data.visit.migration_departments || '');
+    setEngNotes(data.visit.engineer_notes || '');
+    setSummary(data.report?.summary || '');
+    setImported(data.report?.imported_data || '');
+  };
+
+  // `silent` = refresh the data after an action (upload, save…) without the full-page spinner and without
+  // overwriting what the user has typed but not saved yet. The first load is not silent.
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const data = await marketingAPI.getVisitReportBundle(visitId);
       setB(data);
-      setVt(data.visit.visit_type || 'normal');
-      setFittingPart(data.visit.fitting_part || '');
-      setMigMake(data.visit.migration_machine_make || '');
-      setMigMaterial(data.visit.migration_material_sent == null ? '' : data.visit.migration_material_sent ? 'yes' : 'no');
-      setMigDepts(data.visit.migration_departments || '');
-      setEngNotes(data.visit.engineer_notes || '');
-      setSummary(data.report?.summary || '');
-      setImported(data.report?.imported_data || '');
+      if (!silent) applyDrafts(data);
     } catch (e: any) {
       showToast(e?.message || 'Failed to load', 'error');
-      navigate('/service/visits');
+      if (!silent) navigate('/service/visits');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [visitId, navigate, showToast]);
 
@@ -103,7 +129,7 @@ export const ServiceVisitReportPage: React.FC = () => {
     try {
       await fn();
       showToast(ok, 'success');
-      await load();
+      await load(true);
     } catch (e: any) {
       showToast(e?.message || 'Action failed', 'error');
     }
@@ -121,7 +147,7 @@ export const ServiceVisitReportPage: React.FC = () => {
         engineer_notes: engNotes.trim() || null,
       } as any);
       showToast('Visit details saved', 'success');
-      await load();
+      await load(true);
     } catch (e: any) {
       showToast(e?.message || 'Failed to save', 'error');
     } finally {
@@ -132,6 +158,11 @@ export const ServiceVisitReportPage: React.FC = () => {
   const report = b?.report;
   const reportSubmitted = report?.status === 'submitted';
   const reportState = reportSubmitted ? 'submitted' : report ? 'draft' : 'not_started';
+  const isEditing = reportState === 'not_started' || editing;
+  const cancelEdit = () => {
+    if (b) applyDrafts(b);
+    setEditing(false);
+  };
 
   const breadcrumbs = [
     { label: 'Service', href: '/service/contracts' },
@@ -156,7 +187,17 @@ export const ServiceVisitReportPage: React.FC = () => {
       title="Visit report"
       description={`${b.visit.customer_name || ''}${b.visit.plant_name ? ` · ${b.visit.plant_name}` : ''}${b.visit.scheduled_date ? ` · ${b.visit.scheduled_date}` : ''}`}
       breadcrumbs={breadcrumbs}
-      actions={<Button variant="outline" size="sm" leftIcon={<ArrowLeft size={14} />} onClick={() => navigate(-1)}>Back</Button>}
+      actions={
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" leftIcon={<ArrowLeft size={14} />} onClick={() => navigate(-1)}>Back</Button>
+          {!isEditing && (canVisit || canReport) && (
+            <Button size="sm" leftIcon={<SquarePen size={14} />} onClick={() => setEditing(true)}>Edit</Button>
+          )}
+          {isEditing && reportState !== 'not_started' && (
+            <Button size="sm" variant="outline" onClick={cancelEdit}>Cancel</Button>
+          )}
+        </div>
+      }
     >
       {/* Status strip */}
       <div className={`rounded-xl border px-4 py-3 mb-4 flex flex-wrap items-center gap-3 ${
@@ -165,9 +206,9 @@ export const ServiceVisitReportPage: React.FC = () => {
         <FileText size={18} className={reportSubmitted ? 'text-emerald-600' : 'text-amber-600'} />
         <div className="text-sm">
           <span className="font-semibold text-slate-800">
-            {reportState === 'submitted' && 'Service report submitted'}
-            {reportState === 'draft' && 'Service report is a draft'}
-            {reportState === 'not_started' && 'Service report not started'}
+            {reportState === 'submitted' && 'Visit report submitted'}
+            {reportState === 'draft' && 'Visit report is a draft'}
+            {reportState === 'not_started' && 'Visit report not started'}
           </span>
           <span className="text-slate-500">
             {reportState === 'submitted' && ` · by ${report?.submitted_by_username || '—'}${report?.submitted_at ? ` on ${new Date(report.submitted_at).toLocaleDateString()}` : ''}`}
@@ -176,13 +217,45 @@ export const ServiceVisitReportPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Read-only view: all five sections share ONE box (thin dividing lines); while editing they are separate cards */}
+      <div
+        className={isEditing ? '' : 'mb-4 bg-white border border-slate-200/50 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_10px_40px_-15px_rgba(0,0,0,0.02)] divide-y divide-slate-100 overflow-hidden'}
+        style={isEditing ? undefined : { borderRadius: '1.25rem' }}
+      >
       {/* 1. The visit */}
-      <Card className="mb-4">
+      <Box editing={isEditing}>
         <SectionHeading n={1} title="What was done on the visit" done={vt !== 'normal' || !!engNotes.trim()} />
+        {!isEditing ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+              <ReadField label="Visit type">{VISIT_TYPE_OPTS.find((o) => o.value === vt)?.label || vt}</ReadField>
+              {vt === 'fitting_only' && <ReadField label="Part fitted">{fittingPart || '—'}</ReadField>}
+              {vt === 'migration' && (
+                <>
+                  <ReadField label="Machine make">{migMake || '—'}</ReadField>
+                  <ReadField label="Material sent">{migMaterial === 'yes' ? 'Yes' : migMaterial === 'no' ? 'No' : '—'}</ReadField>
+                  <ReadField label="Departments involved">{migDepts || '—'}</ReadField>
+                </>
+              )}
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">What the engineer did</p>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap">{engNotes.trim() || <span className="text-slate-400">Nothing written yet</span>}</p>
+            </div>
+          </div>
+        ) : (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Select label="Visit type" options={VISIT_TYPE_OPTS} value={vt} onChange={(v) => setVt(String(v ?? 'normal'))} clearable={false} disabled={!canVisit} />
+          {/* same label markup above both fields so their boxes line up */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 ml-0.5 mb-1.5">Visit type</label>
+            <Select options={VISIT_TYPE_OPTS} value={vt} onChange={(v) => setVt(String(v ?? 'normal'))} clearable={false} disabled={!canVisit} />
+          </div>
           {vt === 'fitting_only' && (
-            <Input label="Which part was fitted?" value={fittingPart} onChange={(e) => setFittingPart(e.target.value)} disabled={!canVisit} />
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 ml-0.5 mb-1.5">Which part was fitted?</label>
+              <Input value={fittingPart} onChange={(e) => setFittingPart(e.target.value)} disabled={!canVisit} />
+            </div>
           )}
         </div>
         {vt === 'migration' && (
@@ -215,10 +288,12 @@ export const ServiceVisitReportPage: React.FC = () => {
             <Button size="sm" onClick={saveVisitType} isLoading={savingVisit}>Save</Button>
           </div>
         )}
-      </Card>
+        </>
+        )}
+      </Box>
 
       {/* 2. Calibration */}
-      <Card className="mb-4">
+      <Box editing={isEditing}>
         <SectionHeading n={2} title="Calibration / validation" optional done={b.calibrations.length > 0} />
         {b.calibrations.length === 0 ? (
           <p className="text-sm text-slate-400 mb-2">Nothing recorded — add one if the visit involved calibration or validation.</p>
@@ -233,7 +308,7 @@ export const ServiceVisitReportPage: React.FC = () => {
                   </span>
                   {c.notes && <span className="text-slate-500">· {c.notes}</span>}
                 </div>
-                {canVisit && (
+                {canVisit && isEditing && (
                   <button className="text-slate-400 hover:text-rose-600" onClick={() => wrap(() => marketingAPI.deleteCalibration(c.id!), 'Removed')}>
                     <Trash2 size={14} />
                   </button>
@@ -242,17 +317,18 @@ export const ServiceVisitReportPage: React.FC = () => {
             ))}
           </div>
         )}
-        {canVisit && (
+        {canVisit && isEditing && (
           <Button size="sm" variant="outline" leftIcon={<Plus size={14} />} onClick={() => { setCalKind('wl'); setCalHours(''); setCalComp(''); setCalNotes(''); setCalOpen(true); }}>
             Add calibration
           </Button>
         )}
-      </Card>
+      </Box>
 
       {/* 3. PO difference */}
-      <Card className="mb-4">
+      <Box editing={isEditing}>
         <SectionHeading n={3} title="PO difference" optional done={b.po_variances.length > 0} />
-        <p className="text-sm text-slate-400 mb-3">Only if the customer's PO said one thing but the site needed another. The extra charge counts only once the customer accepts.</p>
+        {isEditing && <p className="text-sm text-slate-400 mb-3">Only if the customer's PO said one thing but the site needed another. The extra charge counts only once the customer accepts.</p>}
+        {!isEditing && b.po_variances.length === 0 && <p className="text-sm text-slate-400">Nothing recorded.</p>}
         {b.po_variances.length > 0 && (
           <div className="space-y-2 mb-3">
             {b.po_variances.map((p) => (
@@ -278,7 +354,7 @@ export const ServiceVisitReportPage: React.FC = () => {
                     </>
                   )}
                   {canReport && <Button size="xs" variant="ghost" disabled title={EMAIL_HINT}>Email customer (soon)</Button>}
-                  {canVisit && (
+                  {canVisit && isEditing && (
                     <button className="text-slate-400 hover:text-rose-600" onClick={() => wrap(() => marketingAPI.deletePOVariance(p.id), 'Removed')}>
                       <Trash2 size={14} />
                     </button>
@@ -288,15 +364,15 @@ export const ServiceVisitReportPage: React.FC = () => {
             ))}
           </div>
         )}
-        {canVisit && (
+        {canVisit && isEditing && (
           <Button size="sm" variant="outline" leftIcon={<Plus size={14} />} onClick={() => { setPoReq(''); setPoActual(''); setPoCharge(''); setPoOpen(true); }}>
             Add a PO difference
           </Button>
         )}
-      </Card>
+      </Box>
 
       {/* 4. Attachments */}
-      <Card className="mb-4">
+      <Box editing={isEditing}>
         <SectionHeading n={4} title="Photos & documents" optional done={b.attachments.length > 0} />
         {b.attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3">
@@ -304,7 +380,7 @@ export const ServiceVisitReportPage: React.FC = () => {
               <div key={a.id} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs">
                 <Paperclip size={12} className="text-slate-400" />
                 <button className="text-blue-600 hover:underline" onClick={() => marketingAPI.downloadVisitAttachment(visitId, a.id, a.file_name)}>{a.file_name}</button>
-                {canVisit && (
+                {canVisit && isEditing && (
                   <button className="text-slate-400 hover:text-rose-600" onClick={() => wrap(() => marketingAPI.deleteVisitAttachment(visitId, a.id), 'Removed')}>
                     <Trash2 size={12} />
                   </button>
@@ -322,16 +398,36 @@ export const ServiceVisitReportPage: React.FC = () => {
             <Button size="sm" variant="outline" leftIcon={<Paperclip size={14} />} onClick={() => fileRef.current?.click()}>Upload files</Button>
           </>
         )}
-      </Card>
+      </Box>
 
       {/* 5. Service report — the deliverable */}
-      <Card className="mb-4 border-blue-200 ring-1 ring-blue-100">
-        <SectionHeading n={5} title="Service report" done={reportSubmitted} />
+      <Box editing={isEditing} className="border-blue-200 ring-1 ring-blue-100">
+        <SectionHeading n={5} title="Visit report" done={reportSubmitted} />
         <p className="text-sm text-slate-500 mb-3">
           {reportSubmitted
             ? `Submitted by ${report?.submitted_by_username} on ${report?.submitted_at ? new Date(report.submitted_at).toLocaleDateString() : ''}.`
             : 'Required for every visit. Write a summary, then submit.'}
         </p>
+        {!isEditing ? (
+          <div className="space-y-4">
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Summary</p>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap">{summary.trim() || <span className="text-slate-400">No summary yet</span>}</p>
+            </div>
+            {imported.trim() && (
+              <details>
+                <summary className="text-sm text-slate-600 cursor-pointer">Customer machine-software data</summary>
+                <pre className="mt-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600 whitespace-pre-wrap">{imported}</pre>
+              </details>
+            )}
+            {canReport && !reportSubmitted && report && (
+              <div className="flex justify-end pt-1">
+                <Button size="sm" disabled={!summary.trim()} onClick={() => wrap(() => marketingAPI.submitServiceReport(visitId), 'Report submitted')}>Submit report</Button>
+              </div>
+            )}
+          </div>
+        ) : (
+        <>
         <label className="block text-sm font-medium text-slate-700 mb-1.5">Summary <span className="text-rose-500">*</span></label>
         <textarea
           className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -360,15 +456,19 @@ export const ServiceVisitReportPage: React.FC = () => {
               try {
                 await marketingAPI.saveServiceReport(visitId, { summary: summary.trim() || null, imported_data: imported.trim() || null });
                 showToast('Draft saved', 'success');
-                await load();
+                await load(true);
+                setEditing(false);
               } catch (e: any) { showToast(e?.message || 'Failed to save', 'error'); }
               finally { setSavingReport(false); }
             }}>Save draft</Button>
             <Button size="sm" disabled={!summary.trim()} onClick={async () => {
               try { await marketingAPI.saveServiceReport(visitId, { summary: summary.trim(), imported_data: imported.trim() || null }); } catch { /* submit will surface it */ }
-              wrap(() => marketingAPI.submitServiceReport(visitId), 'Report submitted');
+              await wrap(() => marketingAPI.submitServiceReport(visitId), 'Report submitted');
+              setEditing(false);
             }}>Submit report</Button>
           </div>
+        )}
+        </>
         )}
         {reportSubmitted && (
           <div className="flex flex-wrap justify-end gap-2 mt-4">
@@ -380,7 +480,9 @@ export const ServiceVisitReportPage: React.FC = () => {
             </Button>
           </div>
         )}
-      </Card>
+      </Box>
+
+      </div>
 
       {/* Calibration modal */}
       <Modal

@@ -12,9 +12,10 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { Package, Paperclip } from 'lucide-react';
+import { Package, Paperclip, Truck, X } from 'lucide-react';
 import {
   marketingAPI,
+  workOrderPath,
   ServiceWorkOrder,
   ServiceDispatchStatus,
   WorkOrderMaterial,
@@ -34,6 +35,35 @@ const dueClass = (d?: string | null) => {
   return 'text-slate-600';
 };
 
+const daysFromToday = (d?: string | null): number | null => {
+  if (!d) return null;
+  const t = new Date(d + 'T00:00:00').getTime();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((t - today.getTime()) / 86400000);
+};
+
+/** "Due in 2 days" / "Due today" / "Overdue by 1 day" tag for a part's needed-by date */
+const dueTag = (d?: string | null): { text: string; className: string } | null => {
+  const n = daysFromToday(d);
+  if (n === null) return null;
+  if (n < 0) return { text: `Overdue by ${-n} day${n === -1 ? '' : 's'}`, className: 'bg-rose-50 text-rose-700 border-rose-200' };
+  if (n === 0) return { text: 'Due today', className: 'bg-rose-50 text-rose-700 border-rose-200' };
+  if (n <= 2) return { text: `Due in ${n} day${n === 1 ? '' : 's'}`, className: 'bg-amber-50 text-amber-700 border-amber-200' };
+  return { text: `Due in ${n} days`, className: 'bg-slate-50 text-slate-600 border-slate-200' };
+};
+
+/** Countdown to the visit; the store is reminded at 30 / 15 / 7 days before, so colour the same steps */
+const visitTag = (d?: string | null): { text: string; className: string } | null => {
+  const n = daysFromToday(d);
+  if (n === null || n < 0) return null;
+  const text = n === 0 ? 'Visit today' : n === 1 ? 'Visit tomorrow' : `Visit in ${n} days`;
+  if (n <= 7) return { text, className: 'bg-rose-50 text-rose-700 border-rose-200' };
+  if (n <= 15) return { text, className: 'bg-amber-50 text-amber-700 border-amber-200' };
+  if (n <= 30) return { text, className: 'bg-blue-50 text-blue-700 border-blue-200' };
+  return { text, className: 'bg-slate-50 text-slate-600 border-slate-200' };
+};
+
 export const ServiceStorePage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useApp();
@@ -44,6 +74,12 @@ export const ServiceStorePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [noteDraft, setNoteDraft] = useState<Record<number, string>>({});
   const fileInputs = useRef<Record<number, HTMLInputElement | null>>({});
+
+  // "Record shipment" form (a part can be sent several times)
+  const emptyShip = { sent_on: new Date().toISOString().slice(0, 10), quantity_sent: '', docket_no: '', transporter: '', note: '', completes_part: false };
+  const [shipFor, setShipFor] = useState<number | null>(null);
+  const [ship, setShip] = useState(emptyShip);
+  const [savingShip, setSavingShip] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -76,6 +112,39 @@ export const ServiceStorePage: React.FC = () => {
     }
   };
 
+  const recordShipment = async (m: WorkOrderMaterial) => {
+    if (!m.id) return;
+    setSavingShip(true);
+    try {
+      await marketingAPI.addMaterialDispatch(m.id, {
+        sent_on: ship.sent_on || null,
+        quantity_sent: ship.quantity_sent.trim() || null,
+        docket_no: ship.docket_no.trim() || null,
+        transporter: ship.transporter.trim() || null,
+        note: ship.note.trim() || null,
+        completes_part: ship.completes_part,
+      });
+      showToast('Shipment recorded', 'success');
+      setShipFor(null);
+      setShip(emptyShip);
+      await load();
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to record shipment', 'error');
+    } finally {
+      setSavingShip(false);
+    }
+  };
+
+  const removeShipment = async (m: WorkOrderMaterial, dispatchId: number) => {
+    if (!m.id || !window.confirm('Remove this shipment record?')) return;
+    try {
+      await marketingAPI.deleteMaterialDispatch(m.id, dispatchId);
+      await load();
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to remove', 'error');
+    }
+  };
+
   const uploadProof = async (m: WorkOrderMaterial, files: FileList | null) => {
     if (!m.id || !files || files.length === 0) return;
     try {
@@ -100,7 +169,7 @@ export const ServiceStorePage: React.FC = () => {
   return (
     <PageLayout
       title="Store / Dispatch"
-      description="Approved work orders that still need material — earliest required-by first."
+      description="Approved work orders that still need material — earliest needed-by first. You are reminded 30, 15 and 7 days before each visit."
       breadcrumbs={breadcrumbs}
     >
       {isLoading ? (
@@ -121,7 +190,7 @@ export const ServiceStorePage: React.FC = () => {
                 <div>
                   <button
                     className="font-semibold text-slate-900 hover:text-blue-700"
-                    onClick={() => navigate(`/service/visits/${wo.visit_id}/work-order`)}
+                    onClick={() => navigate(workOrderPath(wo))}
                   >
                     {wo.wo_number || `WO #${wo.id}`}
                   </button>
@@ -130,22 +199,46 @@ export const ServiceStorePage: React.FC = () => {
                     {wo.visit_date ? ` · visit ${wo.visit_date}` : ''}
                   </p>
                 </div>
-                <Badge variant="outline">{wo.dispatch_summary}</Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  {(() => {
+                    const t = visitTag(wo.visit_date);
+                    return t ? <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${t.className}`}>{t.text}</span> : null;
+                  })()}
+                  <Badge variant="outline">{wo.dispatch_summary}</Badge>
+                </div>
               </div>
 
               <div className="space-y-3">
                 {(wo.materials || [])
                   .filter((m) => m.dispatch_status !== 'full')
-                  .map((m) => (
-                    <div key={m.id} className="rounded-lg border border-slate-200 p-3">
+                  // contract-level work order: group the parts by the visit they are for, soonest visit first
+                  .sort((a, b) => (a.visit_date || '9999-12-31').localeCompare(b.visit_date || '9999-12-31') || (a.visit_id ?? 0) - (b.visit_id ?? 0))
+                  .map((m, i, arr) => (
+                    <React.Fragment key={m.id}>
+                    {!wo.visit_id && (i === 0 || arr[i - 1].visit_id !== m.visit_id) && (
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <span className="text-sm font-semibold text-slate-800">
+                          {m.visit_id ? `${m.visit_title || 'Visit'}${m.visit_date ? ` · ${m.visit_date}` : ''}` : 'Whole year / not tied to a visit'}
+                        </span>
+                        {(() => {
+                          const t = m.visit_id ? visitTag(m.visit_date) : null;
+                          return t ? <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${t.className}`}>{t.text}</span> : null;
+                        })()}
+                      </div>
+                    )}
+                    <div className="rounded-lg border border-slate-200 p-3">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <div className="font-medium text-slate-800">
-                            {m.item_name} {m.quantity ? <span className="text-slate-500">· {m.quantity}</span> : null}
+                            {m.item_name}{m.customer_item_name ? <span className="text-slate-500"> ({m.customer_item_name})</span> : null} {m.quantity ? <span className="text-slate-500">· {m.quantity}{m.unit && m.unit !== 'other' ? ` ${m.unit}` : ''}</span> : null}
                           </div>
                           {m.description && <div className="text-xs text-slate-500">{m.description}</div>}
-                          <div className={`text-xs mt-1 ${dueClass(m.required_by_date)}`}>
-                            Needed by: {m.required_by_date || '—'}
+                          <div className={`text-xs mt-1 flex flex-wrap items-center gap-2 ${dueClass(m.required_by_date)}`}>
+                            <span>Needed at site by: {m.required_by_date || '—'}</span>
+                            {(() => {
+                              const t = dueTag(m.required_by_date);
+                              return t ? <span className={`inline-flex items-center rounded border px-1.5 py-px text-[11px] font-semibold ${t.className}`}>{t.text}</span> : null;
+                            })()}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -191,6 +284,61 @@ export const ServiceStorePage: React.FC = () => {
                           onChange={(e) => setNoteDraft((p) => ({ ...p, [m.id!]: e.target.value }))}
                         />
                       )}
+                      {/* Shipments so far — a part can be sent several times */}
+                      {(m.dispatches?.length ?? 0) > 0 && (
+                        <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 space-y-1">
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Sent so far</p>
+                          {m.dispatches!.map((d) => (
+                            <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                              <span>
+                                <span className="font-medium text-slate-800">{d.sent_on}</span>
+                                {d.quantity_sent ? ` · ${d.quantity_sent}` : ''}
+                                {d.docket_no ? ` · Docket ${d.docket_no}` : ''}
+                                {d.transporter ? ` (${d.transporter})` : ''}
+                                {d.note ? ` — ${d.note}` : ''}
+                              </span>
+                              {canDispatch && (
+                                <button type="button" className="text-slate-400 hover:text-rose-600" title="Remove this record" onClick={() => removeShipment(m, d.id)}>
+                                  <X size={13} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {canDispatch && shipFor !== m.id && (
+                        <Button size="xs" variant="outline" className="mt-2" leftIcon={<Truck size={14} />}
+                          onClick={() => { setShip(emptyShip); setShipFor(m.id!); }}>
+                          Record a shipment
+                        </Button>
+                      )}
+                      {canDispatch && shipFor === m.id && (
+                        <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50/40 p-3 space-y-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <label className="text-xs text-slate-600">Sent on
+                              <input type="date" className="mt-0.5 w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white" value={ship.sent_on} onChange={(e) => setShip((p) => ({ ...p, sent_on: e.target.value }))} />
+                            </label>
+                            <label className="text-xs text-slate-600">Quantity sent
+                              <input className="mt-0.5 w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white" placeholder="e.g. 2 nos" value={ship.quantity_sent} onChange={(e) => setShip((p) => ({ ...p, quantity_sent: e.target.value }))} />
+                            </label>
+                            <label className="text-xs text-slate-600">Docket / consignment no.
+                              <input className="mt-0.5 w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white" value={ship.docket_no} onChange={(e) => setShip((p) => ({ ...p, docket_no: e.target.value }))} />
+                            </label>
+                            <label className="text-xs text-slate-600">Courier / transporter
+                              <input className="mt-0.5 w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white" value={ship.transporter} onChange={(e) => setShip((p) => ({ ...p, transporter: e.target.value }))} />
+                            </label>
+                          </div>
+                          <input className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white" placeholder="Note (optional)" value={ship.note} onChange={(e) => setShip((p) => ({ ...p, note: e.target.value }))} />
+                          <label className="flex items-center gap-2 text-sm text-slate-700">
+                            <input type="checkbox" checked={ship.completes_part} onChange={(e) => setShip((p) => ({ ...p, completes_part: e.target.checked }))} />
+                            This shipment completes the part (mark as Fully sent)
+                          </label>
+                          <div className="flex gap-2">
+                            <Button size="xs" onClick={() => recordShipment(m)} isLoading={savingShip}>Save shipment</Button>
+                            <Button size="xs" variant="ghost" onClick={() => setShipFor(null)}>Cancel</Button>
+                          </div>
+                        </div>
+                      )}
                       {(m.attachments?.length ?? 0) > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2">
                           {m.attachments!.map((a) => (
@@ -205,6 +353,7 @@ export const ServiceStorePage: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    </React.Fragment>
                   ))}
               </div>
             </Card>

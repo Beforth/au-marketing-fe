@@ -5,6 +5,47 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-09-30] — Service module: one work order per contract, approvals, reminders & reports (v1.4.4)
+
+### 🖥️ Frontend
+
+#### Contracts
+- Creating a contract for a **new customer** now asks for the **contact person first, then the company, then the plant** — the same way the Lead form does. Type a name and you are offered existing contacts and customers to connect to, so the same person is **not turned into a second customer**. A **plant is now required** on every contract.
+- The **numbering series** is picked from a list of your active series (no more typing a code that silently gave no number), and a contract that has no number yet can be given one while editing.
+- **Customer part names, per contract:** record what a customer calls one of your parts, and the work order and the store screen show it next to yours.
+- Customer search now finds the **contact person by name**, and look-alike customers show their customer number and plant so you can tell them apart.
+
+#### Service plan & visits
+- **Add visits one by one** — no more typing a number of visits and creating a plan first.
+- Each visit has **our date** and the **customer's preferred date**; when the customer's date is filled in it takes priority for reminders, lists and work order dates.
+- Choose the **engineer** for a visit (also when scheduling a visit from a complaint). The **assigned engineer can fill in and submit that visit's report**.
+- The report is now called the **Visit report**. Once saved it opens as a clean read-only view with an **Edit** button, and uploading photos or documents no longer reloads the whole page.
+
+#### Work orders
+- **One work order per contract**, covering all its visits; each part says which visit it is for. Parts have a **unit**, and old work orders keep working.
+- Send a work order to **one or several departments**. Upload the client's **work order file for each visit** (one file per visit; uploading opens 2 months before the visit), shared with those departments.
+- **Approval follows the approval template set up in HRMS:** the work order shows who has to approve at each level, only that person can approve, and an approver can send it back with a reason. A **Reopened** tag and a history show when that happened, and a **Waiting for me** button lists what needs your approval. Reopening a work order now asks why.
+- A cleaner work order page: a **Customer box** (company, contact person, plant), the status steps, and one tidy box for details, parts and the customer checklist — with **Edit** to change it. Editing a part no longer erases its shipment history, and changing a contract's plant now updates its visits and work order.
+
+#### Store
+- Record **each shipment of a part** with its date, quantity, docket number and courier — a part can be sent several times. The store screen groups parts by visit and shows a **countdown** to each visit.
+
+#### Complaints
+- Assign a complaint to a **department**, **add your own issue types**, see the **contract number** on every complaint, and tell contracts apart in the contract list (dates, plant, what is covered).
+
+#### Reports
+- A new **Service → Reports** page: by company, equipment, person and department, with dates and a CSV export.
+
+#### Sidebar and orders
+- A cleaner profile card and Administration section in the sidebar.
+- **Deleting an order now takes its value off the target**, and the delete box tells you how much.
+
+### ⚙️ Backend
+
+#### Reminders
+- Automatic reminders across the whole Service module: **contracts** ending, ended but still active, with no visits planned, or still a draft; **visits** overdue, done without a submitted visit report, or moved to a new date; **work orders** stuck waiting for approval, parts overdue, or the customer checklist not confirmed; **complaints** not assigned, waiting for approval, with no movement, or resolved but not closed; and a **PO difference** the customer has not answered.
+- Parts still to send are reminded **30, 15 and 7 days** before each visit, and a missing work order file **30, 15 and 7 days** before too, to the department heads chosen on the work order.
+
 ## [2026-09-29] — Redesigned Dashboard (v1.4.3)
 
 ### 🖥️ Frontend
