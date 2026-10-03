@@ -152,6 +152,14 @@
             background: #cbd5e1;
         }
 
+        /* Sidebar menu: a thin scrollbar that only shows while hovering the menu */
+        .sidebar-scroll { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+        .sidebar-scroll:hover { scrollbar-color: #cbd5e1 transparent; }
+        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+        .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; }
+        .sidebar-scroll:hover::-webkit-scrollbar-thumb { background: #cbd5e1; }
+
         ::selection {
             background: rgba(37, 99, 235, 0.1);
             color: #2563eb;
@@ -295,6 +303,25 @@
 
         .animate-backdrop-fade-out {
             animation: backdropFadeOut 0.2s ease-in forwards;
+        }
+
+        @keyframes selectPop {
+            from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .animate-select-pop {
+            animation: selectPop 0.14s ease-out both;
+            transform-origin: top;
+        }
+
+        @keyframes misFade {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-mis-fade {
+            animation: misFade 0.26s ease-out both;
         }
 
         .static-followup-glow {

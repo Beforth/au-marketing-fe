@@ -283,7 +283,7 @@ Grid gaps:              gap-4 (side-by-side cards)
                         gap-6 (between major rows)
                         gap-3 (inline filter items)
 
-Form control heights:   sm h-9 / md h-10 / lg h-12    (Input, Select, DatePicker)
+Form control heights:   sm h-9 / md h-10 / lg h-12    (Input, Select, DatePicker — finish refined 2026-10-03: light border, no heavy shadow, soft focus ring; sizes unchanged)
 Button heights:         xxs h-7 / xs h-8 / sm h-9 / md h-10 / lg h-12
 ```
 

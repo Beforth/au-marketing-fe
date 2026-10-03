@@ -127,7 +127,7 @@ export const LeadsByRegionPage: React.FC = () => {
     <PageLayout
       title="Leads by Region"
       description="Every lead created, quoted or won in the period, grouped by region. Quotations count once at their latest price, in the period they were first sent; won leads count by Won date with the Won amount."
-      breadcrumbs={[{ label: 'Reports', href: '/reports' }, { label: 'Leads by Region', href: '/reports/leads-by-region' }]}
+      breadcrumbs={[{ label: 'MIS', href: '/reports' }, { label: 'Leads by Region', href: '/reports/leads-by-region' }]}
       actions={
         <div className="flex items-center gap-2">
           <Button variant="ghost" onClick={() => navigate('/reports')} className="flex items-center gap-1 text-slate-600">

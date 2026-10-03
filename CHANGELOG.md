@@ -5,6 +5,43 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-10-04] — MIS month-end review, OD plan and expected order upgrades, multi-entry DSR & a cleaner look (v1.4.5)
+
+### 🖥️ Frontend
+
+#### MIS (formerly Reports)
+- The **Reports** page is now called **MIS**, built as a **month-end review**: from the 1st to the 10th it opens on last month, and you can switch months any time. Each month shows whether it is complete or in progress.
+- **Team overview** for domain heads, region heads and admins: one row per person with won value against their monthly target, leads, activities, lost, last activity, and whether the OD plan and expected order are filed — with ▲/▼ changes against the month before, a **Needs attention** filter, search, sorting, grouping by region, and a **Download Excel** button.
+- Click anyone to open their month in a **side panel** (with Previous / Next to move through the team): a summary, the **Plans** (OD plan calendar and visit table, expected order and the leads **carried forward**), and the **Won / Lost** leads. Wins show whether they came from the expected order or outside the plan.
+- Each person's next-month plans show as **On time**, **Late**, **Not filed** or **Not due yet**, with alerts for anyone who missed.
+
+#### OD plan
+- For a visit, choose **who or where**: an **existing contact**, a **company and plant** (no person needed — add a new company and plant right there with its domain and region), or **just a place**. Companies you can pick follow the same visibility rules as the Organizations pages.
+- **Unplanned visits:** record a visit that was not in the plan (today or earlier in the month). It works after the plan deadline, is tagged **Unplanned**, and shows in MIS next to the planned visits.
+- The page now tells you what to do: **Step 1** pick the days, **Step 2** add a plan for each day, with clear **Add plan** buttons, visit / travel / return home as three buttons with hints, and a **Saved** tick after each save.
+- Plans can only be made for **next month**; other months open read-only. The submission deadline is now the **last day of the month, 8:30 PM**.
+
+#### Expected order
+- A lead already in next month's plan is greyed out and **can't be added twice**; adding more later goes into the same plan.
+- A richer **lead picker**: name, company, plant and region, stage, potential and quoted value, expected closing date, last activity and follow-up, with a stage filter, a "closing within 30 days" toggle and a bar showing the selected count and total value.
+
+#### Daily Service Reports
+- **Indoor, Outdoor and Expense reports take several entries in one submission** — several tasks, visits or days — as in the updated HRMS form. Each finished entry folds into a one-line summary you can edit or delete, with **Add another task / visit / day**, a total duration (Indoor) and a total of all days (Expense). Tasks may overlap in time.
+- An Outdoor visit now needs a **company name or a reason for the visit** (either one).
+
+#### A cleaner look
+- **Dropdowns, inputs, date pickers, cards, buttons and pop-up windows** have a lighter, more modern finish: thinner borders, softer shadows, and a tick on the selected option. Sizes are unchanged. The smallest buttons now use normal text instead of tiny capitals.
+- The **sidebar's** bottom section is more compact: Settings and Support sit side by side, the profile is slimmer, and the menu scrollbar only appears when you hover over it.
+
+### ⚙️ Backend
+
+#### MIS and plans
+- New MIS data for the team overview and each person's month (wins, losses, quotations counted once with revisions, targets, plan filing times).
+- OD plan entries can now hold a company, a plant and an unplanned flag, and saving a plan never removes unplanned visits.
+- Expected orders and OD plans can only be created for next month, an expected order never repeats a lead, and a company or plant must be one you are allowed to see.
+
+---
+
 ## [2026-09-30] — Service module: one work order per contract, approvals, reminders & reports (v1.4.4)
 
 ### 🖥️ Frontend

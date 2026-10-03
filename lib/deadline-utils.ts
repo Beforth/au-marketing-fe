@@ -4,7 +4,7 @@ export function getSubmissionDeadline() {
   const month = now.getMonth() + 1;
 
   const lastDay = new Date(year, month, 0).getDate();
-  const day = lastDay - 2;
+  const day = lastDay;
 
   const deadline = new Date(year, month - 1, day, 20, 30, 0, 0);
   const isPast = now >= deadline;

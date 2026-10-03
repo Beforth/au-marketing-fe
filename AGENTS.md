@@ -2,6 +2,10 @@
 
 S&M Hub — React 19 + TypeScript + Vite 6 SPA (Aureole Group sales/marketing: leads, orders, quotations, contacts, events, DSR). **Read `CLAUDE.md` first — it is the primary, authoritative project guide.** Consult it before touching auth, permissions, role scoping, changelog logic, or anything it covers; treat it as the source of truth wherever this file or other docs conflict. This file covers only the traps that are easy to hit.
 
+## Plan first, in simple words (applies to every agent)
+
+Before changing any code, tell the user a short plain-language plan and wait for their go-ahead: what already exists, what you will build/change step by step, which files are involved, what the user will see differently afterwards, and any risks or open questions. No code and no jargon in the plan — write it so someone with no coding background can follow. Only edit files after the user says to proceed. Full details: `CLAUDE.md` → "Working with this user".
+
 ## Layout trap: source is at repo root, not `src/`
 
 App code lives at the **repo root**: `App.tsx`, `index.tsx`, `pages/`, `components/`, `lib/`, `store/`, `UI/`, `constants.tsx`, `types.ts`. The `src/` directory contains **only Vitest setup + smoke tests** (`src/test/`). Do not search `src/` for pages or components.

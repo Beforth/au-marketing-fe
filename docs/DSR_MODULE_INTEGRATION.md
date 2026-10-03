@@ -255,9 +255,9 @@ What happens server-side (mirrors the web form):
 
 201 response includes the new `dsr_id` and the saved `title`/`description`.
 
-> **The 9am–7pm submission window does NOT apply here.** The web form
+> **The 9am–10pm submission window does NOT apply here.** The web form
 > (`daily_service_report_list` view) blocks create actions outside
-> 9:00–19:00 local time; `api_dsr_create` has no such check. If your
+> 9:00–22:00 local time (9 AM–10 PM); `api_dsr_create` has no such check. If your
 > integration needs the same restriction, enforce it in your own module
 > before calling this endpoint — don't assume the API mirrors every web
 > form rule.
@@ -674,7 +674,7 @@ with the model's own fallback chain, writes a `DailyExpenseVoucherHistory`
 "Submitted" entry, and notifies the approver (`expense_submitted`
 notification type). 201 response includes `expense_id`.
 
-> Like `api_dsr_create`, this endpoint does **not** enforce the 9am–7pm
+> Like `api_dsr_create`, this endpoint does **not** enforce the 9am–10pm
 > submission window (§8.4) — that's a web-form-only rule.
 
 **Update — `POST|PUT|PATCH /api/rbac/expense/<id>/update/`**
@@ -739,10 +739,10 @@ curl http://<host>/api/rbac/expense/pending-approval/ \
 #    ]}
 ```
 
-### 8.4 Same 9am–7pm submission window as DSR (web form only)
+### 8.4 Same 9am–10pm submission window as DSR (web form only)
 
 `create_expense` is gated by the same
-`DSR_SUBMISSION_WINDOW_START`/`END` (9:00–19:00 local time) check as
+`DSR_SUBMISSION_WINDOW_START`/`END` (9:00–22:00 local time, i.e. 9 AM–10 PM) check as
 `create_indoor`/`create_outdoor`, in the same view
 (`daily_service_report_list`). Backdating to any past date is allowed —
 only the **time of day you submit at** is restricted, not the date on the
@@ -948,7 +948,79 @@ Below the tabs, one card holds the active form:
 
 **Field order, exact:**
 
-- **Indoor DSR**: Employee picker (only if `dsr.assign_task`) → Date → Department + Task Type (two custom-dropdowns side by side; Task Type's options depend on Department picked, see table below) → Title → Description → Start Time / End Time / OT Minutes (one row, 3 fields — **but see the OT Minutes API gap noted below**), immediately followed by a **live "Duration: X hours Y minutes" line** that appears the instant both times are filled and updates on every keystroke — computed client-side with the exact same overnight-shift/rounding rules as the server (see `updateDsrDuration`/`hoursToWords` in the template's JS), so what's previewed always matches what gets saved → collapsible "Calling Details (Optional)" section (collapsed by default) → Contact Person, Contact Number, Mail ID, Call For, Remarks, Next Follow-up Date.
+- **Indoor DSR** (multi-task, see "Indoor DSR: several tasks in one submission" below): Employee picker (only if `dsr.assign_task`) → Date (shared) → **a list of task rows**, each of: Department + Task Type (two custom-dropdowns side by side; Task Type's options depend on Department picked, see table below) → Title → Description → Start Time / End Time / OT Minutes (one row, 3 fields — **but see the OT Minutes API gap noted below**), immediately followed by a **live "Duration: X hours Y minutes" line** that appears the instant both times are filled and updates on every keystroke — computed client-side with the exact same overnight-shift/rounding rules as the server (see `updateDsrDuration`/`hoursToWords` in the template's JS), so what's previewed always matches what gets saved → collapsible "Calling Details (Optional)" section (collapsed by default) → Contact Person, Contact Number, Mail ID, Call For, Remarks, Next Follow-up Date.
+
+**Indoor DSR: several tasks in one submission (added 2026-10-03).** The
+Indoor form no longer takes one task per submit. The Employee picker and
+Date are entered once; below them is a list of **task rows**, each with
+its own Department, Task Type, Title, Description, Start/End Time, OT
+Minutes and Calling Details. One submit creates **one `DailyServiceReport`
+per row** — identical fields, `DailyServiceReportHistory` entry and
+approval routing to a single-task submit — so Approve/Reject/Edit/History,
+the Submission Tracker and the reports are unchanged. No model change, no
+migration, and the REST API (§3) is unchanged (it still creates one DSR per
+call; a client wanting a batch just calls it once per task).
+
+*UI behaviour (web form, `templates/employees/daily_service_report_list.html`):*
+- **Add another task** appends a row; its Start Time pre-fills with the
+  previous row's End Time. Before adding, the open task must have every
+  required field filled, otherwise a
+  toast explains and nothing is added.
+- Finished tasks **fold into a compact summary row**: number badge, title,
+  `Department › Task Type · start – end (duration)`, plus a **pencil**
+  (re-opens it; other complete open tasks fold away) and a **trash**
+  (deletes it; hidden when only one task is left). An open task ends with a
+  green **Done** button that validates it and folds it back. Summary icons
+  are 40px buttons with 20px icons (forced by a scoped CSS rule).
+- A "Total: X" line shows the summed duration once there are 2+ rows.
+- Folded rows are only hidden — their inputs stay in the DOM and submit.
+
+*POST contract (`action_type=create_indoor`):* every task row posts the
+**same field names** (`department`, `task_type`, `title`, `description`,
+`start_time`, `end_time`, `ot_minutes`, `contact_person`, `contact_number`,
+`mail_id`, `call_for`, `remarks`, `next_follow_up`) once per row, always all
+of them (blank string when empty) so the lists stay aligned; the server
+reads them with `request.POST.getlist(name)` and zips by index. `date` and
+`employee_id` appear once. A legacy single-task POST is just a one-element
+list, so older clients keep working.
+
+*Server rules:*
+- All rows are parsed and validated **first**, then saved inside one
+  `transaction.atomic()` — if any row is invalid (e.g. no Department/Task
+  Type/title) nothing is saved and the 400 message is prefixed `Task N:`.
+- **Overlapping times between rows are allowed** (decided 2026-10-04) —
+  tasks can legitimately run in parallel, so each row just keeps its own
+  start/end time and computed hours; there is no overlap check.
+- The Level 1 approver gets **one** `dsr_submitted` notification per
+  submission (`"<name> submitted N Daily Service Report tasks for
+  dd/mm/yyyy."`), not one per task. Success message:
+  `"N Indoor DSR tasks submitted successfully for dd/mm/yyyy."`
+- Same 9 AM–10 PM window and `dsr.indoor_create` permission as before.
+- Outdoor and Expense are multi-entry too — see below.
+
+**Outdoor DSR and Expense Report: several entries in one submission (added
+2026-10-03).** Same pattern as Indoor (summary rows with pencil/trash/Done,
+"Add another visit" / "Add another day", all-or-nothing save in one
+transaction, one approver notification per submission, no model/migration/API
+change):
+- **Outdoor** (`action_type=create_outdoor`): `date` (Visit Date) and
+  `employee_id` once; per visit row: `visit_plan`, `department`, `task_type`
+  (dropdown, or the free-typed input when Department = Other — exactly one is
+  submitted per row), `region`, `company_name`, `contact_person`,
+  `contact_number`, `mail_id`, `reason_for_visit`, `appointment_status`,
+  `visit_status`, `visited_date`, `meeting_output`, `next_action_needed`,
+  `next_follow_up`, `mail_status`, `remarks` — repeated under the same names,
+  read with `getlist`. Each row needs Company Name or Reason for Visit (error
+  prefixed `Visit N:`). One `DailyServiceReport(dsr_type='outdoor')` per row.
+- **Expense** (`action_type=create_expense`): each *day row* posts its own
+  `expense_date`, `tour_destination`, `description`, `company_name` and the 7
+  amount fields; the server recomputes each row's `total`. One
+  `DailyExpenseVoucher` per row, each with its own date. The page shows a
+  per-row total and a "Total of all days".
+- Neither form has an overlap check (no times). Rows are aligned by position,
+  so a required `<select>` left on its disabled placeholder (which submits
+  nothing) can misalign rows for a hand-built POST; the web form's `required`
+  validation prevents this.
 - **Outdoor DSR**: Employee picker (same rule) → Date → Visit Plan (fixed 3 options, see table) → Region (free text) → Department + Task Type (outdoor-specific options, see table) → Company Name → Contact Person / Contact Number / Mail ID → Reason for Visit (fixed list, see table) → Appointment Status (fixed 2 options) → Visit Status (fixed 3 options) → Visited Date → Meeting Output (free text) → Next Action Needed (free text) → Mail Status (free text, no fixed list) → Remarks → Next Follow-up Date.
 - **Expense Report** (§8.2): Submitted By (read-only) → Date + Tour Destination (one row) → Description & Location of Work + Company Name (one row) → 4-column grid of the 7 amount fields + a read-only live-computed Total.
 - **Assign DSR Task** (`?dsr_type=assign`, tab switcher hidden entirely): **Assign To** — a searchable multi-select picker (required, picks one *or more* employees the task is for; see the multi-assign note below) → Task Title → Task Description → **Complete By Date** (required, defaults to today) + **Complete By Time** (defaults to 18:00). Submitted with `action_type=assign_task` (not `create_indoor` — see the behavior change below).
@@ -1663,7 +1735,7 @@ line under the time row: *"Duration: 5 hours 30 minutes (overnight)"*; on edit w
 | No get-one endpoint | Edit pages use router state, else re-fetch the list and find by id. |
 | No Edit button in HRMS's table | We add one (own + pending) — optional; HRMS note E leaves it to you. |
 | No To-Do "reopen" | Not offered. |
-| 9am–7pm window is web-form only | Not enforced (the API doesn't). |
+| 9am–10pm window is web-form only | Not enforced (the API doesn't). |
 
 ### 10.8 Optional: create DSRs from another module's activity (S&M Hub leads)
 

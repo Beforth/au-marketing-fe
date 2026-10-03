@@ -21,7 +21,9 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
+  Building2,
   Edit3,
+  MapPin,
   Plus,
   Save,
   Trash2,
@@ -67,6 +69,10 @@ export const ODPlanPage: React.FC = () => {
   const month = monthParam ? parseInt(monthParam, 10) : nextMonth.month;
 
   const deadline = getSubmissionDeadline();
+  // Plans can only be made for NEXT month; every other month is read-only (unplanned visits are the exception)
+  const canEditPlan = year === nextMonth.year && month === nextMonth.month;
+  const monthName = (y: number, m: number) => new Date(y, m - 1).toLocaleString('default', { month: 'long' });
+  const isCurrentMonthView = year === new Date().getFullYear() && month === new Date().getMonth() + 1;
 
   const [report, setReport] = useState<ODPlanReportItem | null>(null);
   const [entries, setEntries] = useState<ODPlanEntryItem[]>([]);
@@ -81,7 +87,15 @@ export const ODPlanPage: React.FC = () => {
     }
     return new Set([todaysKey]);
   });
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  // every picked day opens expanded so its "Add plan" button is visible; this holds the ones the user closed
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set());
+  const [justSaved, setJustSaved] = useState(false);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashSaved = useCallback(() => {
+    setJustSaved(true);
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    savedTimerRef.current = setTimeout(() => setJustSaved(false), 3000);
+  }, []);
   const [deleteConfirmEntryId, setDeleteConfirmEntryId] = useState<number | null>(null);
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [entryFormDate, setEntryFormDate] = useState<string>(dateToKey(new Date(year, month - 1, 1)));
@@ -95,6 +109,22 @@ export const ODPlanPage: React.FC = () => {
     notes: '',
   });
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
+
+  // Who / where a visit is: an existing contact, a company (+ plant) when the person isn't known, or just a place
+  type VisitMode = 'contact' | 'org' | 'place';
+  const [visitMode, setVisitMode] = useState<VisitMode>('contact');
+  const [unplannedMode, setUnplannedMode] = useState(false);
+  const [visitOrg, setVisitOrg] = useState<{ id: number; name: string } | null>(null);
+  const [visitOrgQuery, setVisitOrgQuery] = useState('');
+  const [visitOrgResults, setVisitOrgResults] = useState<{ id: number; name: string }[]>([]);
+  const [visitOrgSearching, setVisitOrgSearching] = useState(false);
+  const [visitPlants, setVisitPlants] = useState<Plant[]>([]);
+  const [visitPlantId, setVisitPlantId] = useState<number | undefined>(undefined);
+  const [newCoMode, setNewCoMode] = useState<null | 'company' | 'plant'>(null);
+  const [newCo, setNewCo] = useState<{ company_name: string; plant_name: string; city: string; domain_id?: number; region_id?: number }>({ company_name: '', plant_name: '', city: '' });
+  const [coRegions, setCoRegions] = useState<{ id: number; name: string }[]>([]);
+  const [creatingCompany, setCreatingCompany] = useState(false);
+  const visitOrgTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [contactSearch, setContactSearch] = useState('');
   const [contactSearchResults, setContactSearchResults] = useState<Contact[]>([]);
@@ -129,12 +159,90 @@ export const ODPlanPage: React.FC = () => {
   const [newOrgForm, setNewOrgForm] = useState<{ name: string; code: string; description: string; website: string; industry: string; organization_size: string }>({ name: '', code: '', description: '', website: '', industry: '', organization_size: '' });
   const orgSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const resetVisitTarget = useCallback(() => {
+    setVisitMode('contact');
+    setVisitOrg(null);
+    setVisitOrgQuery('');
+    setVisitOrgResults([]);
+    setVisitPlants([]);
+    setVisitPlantId(undefined);
+    setNewCoMode(null);
+    setNewCo({ company_name: '', plant_name: '', city: '', domain_id: domains.length === 1 ? domains[0].id : undefined, region_id: undefined });
+  }, [domains]);
+
+  // company search for the "Company and plant" option (same organization visibility rules as the Organizations page)
+  const onVisitOrgQueryChange = (value: string) => {
+    setVisitOrgQuery(value);
+    if (visitOrgTimeoutRef.current) clearTimeout(visitOrgTimeoutRef.current);
+    if (value.trim().length < 2) { setVisitOrgResults([]); return; }
+    visitOrgTimeoutRef.current = setTimeout(() => {
+      setVisitOrgSearching(true);
+      marketingAPI.getOrganizations({ page: 1, page_size: 15, search: value.trim(), is_active: true })
+        .then((res) => setVisitOrgResults((res.items ?? []).map((o: { id: number; name: string }) => ({ id: o.id, name: o.name }))))
+        .catch(() => setVisitOrgResults([]))
+        .finally(() => setVisitOrgSearching(false));
+    }, 300);
+  };
+
+  const pickVisitOrg = (org: { id: number; name: string }) => {
+    setVisitOrg(org);
+    setVisitOrgQuery('');
+    setVisitOrgResults([]);
+    setVisitPlantId(undefined);
+    setNewCoMode(null);
+    marketingAPI.getOrganizationPlants(org.id).then(setVisitPlants).catch(() => setVisitPlants([]));
+  };
+
+  useEffect(() => {
+    if (newCo.domain_id) {
+      marketingAPI.getRegions({ domain_id: newCo.domain_id, is_active: true, page: 1, page_size: 100 })
+        .then((r) => setCoRegions(r.items.map((rr: { id: number; name: string }) => ({ id: rr.id, name: rr.name }))))
+        .catch(() => setCoRegions([]));
+    } else {
+      setCoRegions([]);
+    }
+  }, [newCo.domain_id]);
+
+  const handleCreateCompanyAndPlant = async () => {
+    if (newCoMode === 'company' && !newCo.company_name.trim()) { showToast('Company name is required', 'error'); return; }
+    if (!newCo.plant_name.trim()) { showToast('Plant name is required', 'error'); return; }
+    if (!newCo.domain_id) { showToast('Pick the domain this plant belongs to', 'error'); return; }
+    setCreatingCompany(true);
+    try {
+      let org = visitOrg;
+      if (newCoMode === 'company') {
+        const created = await marketingAPI.createOrganization({ name: newCo.company_name.trim(), is_active: true });
+        org = { id: created.id, name: created.name };
+      }
+      if (!org) return;
+      const plant = await marketingAPI.createOrganizationPlant(org.id, {
+        plant_name: newCo.plant_name.trim(),
+        city: newCo.city.trim() || undefined,
+        domain_id: newCo.domain_id,
+        region_id: newCo.region_id,
+      });
+      setVisitOrg(org);
+      setVisitPlants(await marketingAPI.getOrganizationPlants(org.id));
+      setVisitPlantId(plant.id);
+      setNewCoMode(null);
+      setNewCo((f) => ({ ...f, company_name: '', plant_name: '', city: '' }));
+      showToast(newCoMode === 'company' ? 'Company and plant added' : 'Plant added', 'success');
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : 'Could not add the company', 'error');
+    } finally {
+      setCreatingCompany(false);
+    }
+  };
+
   const loadReport = useCallback(async () => {
     setLoading(true);
     try {
       const data = await marketingAPI.getODPlanReport(year, month);
       setReport(data);
       setEntries(data.entries || []);
+      if (!(year === nextMonth.year && month === nextMonth.month)) {
+        setSelectedDates(new Set((data.entries || []).map((e) => e.plan_date.slice(0, 10))));
+      }
     } catch {
       setReport(null);
       setEntries([]);
@@ -146,6 +254,17 @@ export const ODPlanPage: React.FC = () => {
   useEffect(() => {
     loadReport();
   }, [loadReport]);
+
+  // /reports/od-plan?unplanned=1 (from MIS) opens the unplanned-visit form straight away
+  useEffect(() => {
+    if (!loading && isCurrentMonthView && searchParams.get('unplanned')) {
+      openAddUnplanned();
+      const next = new URLSearchParams(searchParams);
+      next.delete('unplanned');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   useEffect(() => {
     marketingAPI.getDomains({ is_active: true, page: 1, page_size: 50 }).then((r) =>
@@ -328,7 +447,17 @@ export const ODPlanPage: React.FC = () => {
     setSelectedContact(null);
     setContactSearch('');
     setEditingEntryId(null);
+    setUnplannedMode(false);
+    resetVisitTarget();
     setEntryModalOpen(true);
+  };
+
+  // Unplanned visit: something that already happened and was not in the plan (today or earlier, this month only)
+  const openAddUnplanned = () => {
+    const now = new Date();
+    const today = dateToKey(now);
+    openAddEntry(today);
+    setUnplannedMode(true);
   };
 
   const openEditEntry = (entry: ODPlanEntryItem) => {
@@ -342,9 +471,19 @@ export const ODPlanPage: React.FC = () => {
       contact_id: entry.contact_id ?? undefined,
       notes: entry.notes ?? '',
     });
-    setSelectedContact(entry.contact_id ? { id: entry.contact_id, contact_email: entry.contact_email ?? '', first_name: '', last_name: '' } as Contact : null);
-    setContactSearch(entry.contact_email ?? '');
+    setSelectedContact(entry.contact_id ? { id: entry.contact_id, contact_email: entry.contact_email ?? '', first_name: entry.contact_name ?? '', last_name: '' } as Contact : null);
+    setContactSearch('');
     setEditingEntryId(entry.id);
+    setUnplannedMode(false);
+    resetVisitTarget();
+    if (!entry.contact_id && entry.organization_id) {
+      setVisitMode('org');
+      setVisitOrg({ id: entry.organization_id, name: entry.organization_name ?? 'Company' });
+      setVisitPlantId(entry.plant_id ?? undefined);
+      marketingAPI.getOrganizationPlants(entry.organization_id).then(setVisitPlants).catch(() => setVisitPlants([]));
+    } else if (!entry.contact_id && entry.where_place) {
+      setVisitMode('place');
+    }
     setEntryModalOpen(true);
   };
 
@@ -355,18 +494,22 @@ export const ODPlanPage: React.FC = () => {
     }
     setSaving(true);
     try {
-      const payload: ODPlanEntryCreate[] = updatedEntries.map((e) => ({
+      // unplanned visits have their own endpoints and are never part of the plan being saved
+      const payload: ODPlanEntryCreate[] = updatedEntries.filter((e) => !e.is_unplanned).map((e) => ({
         plan_date: e.plan_date.slice(0, 10),
         entry_type: e.entry_type,
         where_place: e.where_place ?? undefined,
         travel_time: e.travel_time ?? undefined,
         travel_type: e.travel_type ?? undefined,
         contact_id: e.contact_id ?? undefined,
+        organization_id: e.contact_id ? undefined : e.organization_id ?? undefined,
+        plant_id: e.contact_id ? undefined : e.plant_id ?? undefined,
         notes: e.notes ?? undefined,
       }));
       const updated = await marketingAPI.saveODPlanReport(year, month, { entries: payload });
       setReport(updated);
       setEntries(updated.entries || []);
+      flashSaved();
     } catch (e: unknown) {
       showToast(e instanceof Error ? e.message : 'Failed to save plan', 'error');
       setEntries(updatedEntries);
@@ -375,18 +518,63 @@ export const ODPlanPage: React.FC = () => {
     }
   }, [year, month, showToast]);
 
-  const saveEntryToLocal = () => {
+  const saveEntryToLocal = async () => {
     if (!entryForm.plan_date.trim()) return;
+    const isVisit = unplannedMode || entryForm.entry_type === 'visit';
+    const byContact = isVisit && visitMode === 'contact';
+    const byOrg = isVisit && visitMode === 'org';
+    const place = isVisit && visitMode === 'place' ? (entryForm.where_place || '').trim() : (isVisit ? '' : (entryForm.where_place || ''));
+    const contactId = byContact ? (selectedContact?.id ?? entryForm.contact_id ?? null) : null;
+    if (isVisit && !(contactId || (byOrg && visitOrg) || place)) {
+      showToast('Say who or where: pick a contact, a company, or type a place', 'error');
+      return;
+    }
+    const orgId = byOrg ? visitOrg?.id ?? null : null;
+    const plantId = byOrg ? visitPlantId ?? null : null;
+
+    if (unplannedMode) {
+      const day = entryForm.plan_date.slice(0, 10);
+      if (day > dateToKey(new Date()) || day.slice(0, 7) !== `${year}-${String(month).padStart(2, '0')}`) {
+        showToast('An unplanned visit must be today or an earlier date in this month', 'error');
+        return;
+      }
+      setSaving(true);
+      try {
+        await marketingAPI.addUnplannedVisit(year, month, {
+          plan_date: day, entry_type: 'visit', where_place: place || undefined, contact_id: contactId ?? undefined,
+          organization_id: orgId ?? undefined, plant_id: plantId ?? undefined, notes: entryForm.notes || undefined,
+        });
+        setEntryModalOpen(false);
+        setUnplannedMode(false);
+        await loadReport();
+        setSelectedDates((prev) => new Set(prev).add(day));
+        setCollapsedDays((prev) => { const n = new Set(prev); n.delete(day); return n; });
+        flashSaved();
+        showToast('Unplanned visit added', 'success');
+      } catch (e: unknown) {
+        showToast(e instanceof Error ? e.message : 'Could not add the unplanned visit', 'error');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    const plantName = visitPlants.find((pl) => pl.id === plantId)?.plant_name ?? null;
     const newEntry: ODPlanEntryItem = {
       id: editingEntryId ?? -(Date.now()),
       plan_date: entryForm.plan_date,
       entry_type: entryForm.entry_type,
-      where_place: entryForm.where_place || null,
+      where_place: place || null,
       travel_time: entryForm.travel_time || null,
       travel_type: entryForm.travel_type || null,
-      contact_id: selectedContact?.id ?? entryForm.contact_id ?? null,
-      contact_name: selectedContact ? [selectedContact.first_name, selectedContact.last_name].filter(Boolean).join(' ').trim() || null : null,
-      contact_email: (selectedContact?.contact_email ?? null) as string | null,
+      contact_id: contactId,
+      contact_name: byContact && selectedContact ? [selectedContact.first_name, selectedContact.last_name].filter(Boolean).join(' ').trim() || null : null,
+      contact_email: (byContact ? selectedContact?.contact_email ?? null : null) as string | null,
+      organization_id: orgId,
+      organization_name: byOrg ? visitOrg?.name ?? null : null,
+      plant_id: plantId,
+      plant_name: byOrg ? plantName : null,
+      is_unplanned: false,
       notes: entryForm.notes || null,
     };
     setEntryModalOpen(false);
@@ -397,8 +585,18 @@ export const ODPlanPage: React.FC = () => {
     persistEntries(updated);
   };
 
-  const removeEntry = (id: number) => {
+  const removeEntry = async (id: number) => {
     setDeleteConfirmEntryId(null);
+    const target = entries.find((e) => e.id === id);
+    if (target?.is_unplanned) {
+      try {
+        await marketingAPI.deleteUnplannedVisit(id);
+        await loadReport();
+      } catch (e: unknown) {
+        showToast(e instanceof Error ? e.message : 'Could not remove the visit', 'error');
+      }
+      return;
+    }
     const updated = entries.filter((e) => e.id !== id);
     setEntries(updated);
     persistEntries(updated);
@@ -446,17 +644,22 @@ export const ODPlanPage: React.FC = () => {
   };
 
   const breadcrumbs = [
-    { label: 'Reports', href: '/reports' },
+    { label: 'MIS', href: '/reports' },
     { label: 'OD Plan', href: '/reports/od-plan' },
   ];
 
   return (
     <PageLayout
-      title={`Outdoor plan — ${year} / ${String(month).padStart(2, '0')}`}
-      description="Add visit, travel, or return-home plans for each date. For visits, add place, travel time/type, and contact (search by email or add new)."
+      title={`Outdoor plan — ${new Date(year, month - 1).toLocaleString('default', { month: 'long' })} ${year}`}
+      description="Add visit, travel, or return-home plans for each date. For a visit, pick who or where: a contact, a company and plant, or just a place."
       breadcrumbs={breadcrumbs}
       actions={
         <div className="flex items-center gap-2">
+          {isCurrentMonthView && (
+            <Button size="sm" leftIcon={<Plus size={14} />} onClick={openAddUnplanned}>
+              Add unplanned visit
+            </Button>
+          )}
           <Button variant="outline" size="sm" leftIcon={<ArrowLeft size={14} />} onClick={() => navigate('/reports')}>
             Back
           </Button>
@@ -476,6 +679,12 @@ export const ODPlanPage: React.FC = () => {
               <AlertCircle size={16} className="shrink-0" />
               <span>{deadline.message}</span>
             </div>
+            {!canEditPlan && (
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-lg text-sm bg-slate-50 text-slate-700 border border-slate-200">
+                <span>You're viewing {monthName(year, month)} {year}. Plans can only be made for <strong>{monthName(nextMonth.year, nextMonth.month)} {nextMonth.year}</strong>.</span>
+                <Button size="sm" onClick={() => navigate(`/reports/od-plan?year=${nextMonth.year}&month=${nextMonth.month}`)}>Plan {monthName(nextMonth.year, nextMonth.month)}</Button>
+              </div>
+            )}
             {/* Month navigation + saving indicator */}
             <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-3">
               <button
@@ -487,11 +696,12 @@ export const ODPlanPage: React.FC = () => {
               </button>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-slate-800">
-                  {new Date(year, month - 1).toLocaleString('default', { month: 'long' })} {year}
+                  {new Date(year, month - 1).toLocaleString('default', { month: 'long' })} {year} <span className="font-normal text-slate-400">({String(month).padStart(2, '0')}/{year})</span>
                 </span>
                 {saving && (
                   <div className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-slate-400" />
                 )}
+                {justSaved && !saving && <span className="text-xs font-semibold text-emerald-600">✓ Saved</span>}
               </div>
               <button
                 type="button"
@@ -504,10 +714,12 @@ export const ODPlanPage: React.FC = () => {
 
             {/* Summary stats */}
             {(() => {
-              const totalVisits = entries.filter(e => e.entry_type === 'visit').length;
+              const totalVisits = entries.filter(e => e.entry_type === 'visit' && !e.is_unplanned).length;
+              const totalUnplanned = entries.filter(e => e.is_unplanned).length;
               const totalTravels = entries.filter(e => e.entry_type === 'travel').length;
               const totalReturnHome = entries.filter(e => e.entry_type === 'return_home').length;
               const daysWithEntries = new Set(entries.map(e => e.plan_date.slice(0, 10))).size;
+              if (entries.length === 0) return null;
               return (
                 <div className="flex items-center gap-4 px-1">
                   <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">
@@ -521,6 +733,14 @@ export const ODPlanPage: React.FC = () => {
                   <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">
                     <span className="text-slate-600 font-bold">{totalReturnHome}</span> return
                   </span>
+                  {totalUnplanned > 0 && (
+                    <>
+                      <span className="text-xs text-slate-300">·</span>
+                      <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+                        <span className="text-amber-600 font-bold">{totalUnplanned}</span> unplanned
+                      </span>
+                    </>
+                  )}
                   <span className="text-xs text-slate-300">·</span>
                   <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">
                     <span className="text-slate-800 font-bold">{daysWithEntries}</span> days
@@ -529,13 +749,19 @@ export const ODPlanPage: React.FC = () => {
               );
             })()}
 
-            {/* Date picker — multi-select mode */}
+            {canEditPlan && (<>
+            {/* Step 1 — pick the days */}
+            <div className="px-1">
+              <p className="text-sm font-semibold text-slate-800">Step 1 · Pick the days you'll be out of office</p>
+              <p className="text-xs text-slate-500">Click the box and choose one or more dates.</p>
+            </div>
             <div className="flex items-center gap-3">
               <div className="flex-1">
                 <DatePicker
                   selectedDates={selectedDates}
                   onSelectedDatesChange={(dates) => setSelectedDates(dates)}
-                  placeholder="Select dates..."
+                  placeholder="Click here to pick your dates"
+                  selectedLabel={(n) => `${n} day${n > 1 ? 's' : ''} picked · click to change`}
                   onChange={() => {}}
                 />
               </div>
@@ -548,7 +774,7 @@ export const ODPlanPage: React.FC = () => {
                     : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                 }`}
               >
-                Today
+                Use today
               </button>
             </div>
 
@@ -575,6 +801,15 @@ export const ODPlanPage: React.FC = () => {
               </div>
             )}
 
+            {selectedDates.size > 0 && (
+              <div className="px-1">
+                <p className="text-sm font-semibold text-slate-800">Step 2 · For each day below, click "Add plan" and say what you'll do</p>
+                <p className="text-xs text-slate-500">Choose a visit, travel, or return home. Changes save as you go.</p>
+              </div>
+            )}
+
+            </>)}
+
             {/* Accordion for selected dates */}
             <div className="space-y-2">
               {Array.from(selectedDates).sort().map((key) => {
@@ -584,10 +819,10 @@ export const ODPlanPage: React.FC = () => {
                 const dayNum = dt.getDate();
                 const isToday = key === todaysKey;
                 const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
-                const isExpanded = expandedDays.has(key);
+                const isExpanded = !collapsedDays.has(key);
 
                 const toggleDay = () => {
-                  setExpandedDays((prev) => {
+                  setCollapsedDays((prev) => {
                     const next = new Set(prev);
                     if (next.has(key)) next.delete(key);
                     else next.add(key);
@@ -624,7 +859,7 @@ export const ODPlanPage: React.FC = () => {
                           <span className="text-xs text-slate-400">—</span>
                         )}
                         {dayEntries.map((entry) => {
-                          const label = entry.where_place || entry.contact_name || entry.entry_type;
+                          const label = entry.where_place || entry.organization_name || entry.contact_name || entry.entry_type;
                           const words = label.split(/\s+/).slice(0, 2).join(' ');
                           return (
                             <span
@@ -652,13 +887,12 @@ export const ODPlanPage: React.FC = () => {
                       <div className="border-t border-slate-100">
                         {dayEntries.length === 0 && (
                           <div className="px-4 py-6 text-center">
-                            <button
-                              type="button"
-                              onClick={() => { setEntryFormDate(key); setEditingEntryId(null); setEntryForm({ plan_date: key, entry_type: 'visit', where_place: '', travel_time: '', travel_type: '', contact_id: undefined, notes: '' }); setContactSearch(''); setSelectedContact(null); setEntryModalOpen(true); }}
-                              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-blue-600 transition-colors"
-                            >
-                              <Plus size={12} /> Add entry
-                            </button>
+                            <p className="text-sm text-slate-500 mb-3">Nothing planned for this day{canEditPlan ? ' yet' : ''}</p>
+                            {canEditPlan && (
+                              <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => openAddEntry(key)}>
+                                Add plan for {dt.toLocaleString('default', { weekday: 'short', day: 'numeric', month: 'short' })}
+                              </Button>
+                            )}
                           </div>
                         )}
                         {dayEntries.length > 0 && (
@@ -675,9 +909,18 @@ export const ODPlanPage: React.FC = () => {
                                             {typeLabel}
                                           </span>
                                           <span className="text-sm font-medium text-slate-800 truncate">
-                                            {entry.where_place || entry.contact_name || '—'}
+                                            {entry.where_place || entry.organization_name || entry.contact_name || '—'}
                                           </span>
+                                          {entry.is_unplanned && (
+                                            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0">Unplanned</span>
+                                          )}
                                         </div>
+                                        {(entry.organization_name || entry.plant_name) && (
+                                          <div className="text-xs text-slate-500 ml-1 flex items-center gap-1">
+                                            <Building2 size={11} className="shrink-0" />
+                                            {[entry.organization_name, entry.plant_name].filter(Boolean).join(' · ')}
+                                          </div>
+                                        )}
                                         {entry.contact_name && (
                                           <div className="text-xs text-slate-500 ml-1">
                                             {entry.contact_name}{entry.contact_email ? ` · ${entry.contact_email}` : ''}
@@ -693,16 +936,18 @@ export const ODPlanPage: React.FC = () => {
                                         )}
                                       </div>
                                       <div className="flex items-center gap-1 ml-3 shrink-0">
-                                        <Tooltip content="Edit entry">
-                                          <button
-                                            type="button"
-                                            onClick={() => openEditEntry(entry)}
-                                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                                          >
-                                            <Edit3 size={14} />
-                                          </button>
-                                        </Tooltip>
-                                        <Tooltip content="Remove entry">
+                                        {!entry.is_unplanned && canEditPlan && (
+                                          <Tooltip content="Edit entry">
+                                            <button
+                                              type="button"
+                                              onClick={() => openEditEntry(entry)}
+                                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                                            >
+                                              <Edit3 size={14} />
+                                            </button>
+                                          </Tooltip>
+                                        )}
+                                        {(canEditPlan || entry.is_unplanned) && <Tooltip content="Remove entry">
                                           <button
                                             type="button"
                                             onClick={() => setDeleteConfirmEntryId(entry.id)}
@@ -710,20 +955,22 @@ export const ODPlanPage: React.FC = () => {
                                           >
                                             <X size={14} />
                                           </button>
-                                        </Tooltip>
+                                        </Tooltip>}
                                       </div>
                                     </div>
                                   </div>
                                 );
                               })}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => { setEntryFormDate(key); setEditingEntryId(null); setEntryForm({ plan_date: key, entry_type: 'visit', where_place: '', travel_time: '', travel_type: '', contact_id: undefined, notes: '' }); setContactSearch(''); setSelectedContact(null); setEntryModalOpen(true); }}
-                              className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 transition-colors border-t border-slate-100"
-                            >
-                              <Plus size={12} /> Add entry
-                            </button>
+                            {canEditPlan && (
+                              <button
+                                type="button"
+                                onClick={() => openAddEntry(key)}
+                                className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-blue-700 bg-blue-50/60 hover:bg-blue-100 transition-colors border-t border-blue-100"
+                              >
+                                <Plus size={16} /> Add another visit or travel plan
+                              </button>
+                            )}
                           </>
                         )}
                       </div>
@@ -757,22 +1004,32 @@ export const ODPlanPage: React.FC = () => {
       <Modal
         isOpen={entryModalOpen}
         onClose={() => setEntryModalOpen(false)}
-        title={editingEntryId ? 'Edit plan entry' : 'Add plan entry'}
+        title={unplannedMode ? 'Add unplanned visit' : editingEntryId ? 'Edit plan' : 'Add visit or travel plan'}
       >
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Date</label>
             <DatePicker value={entryFormDate} onChange={(v) => { setEntryFormDate(v || ''); setEntryForm((f) => ({ ...f, plan_date: v || '' })); }} />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Type</label>
-            <Select
-              options={ENTRY_TYPES}
-              value={entryForm.entry_type}
-              onChange={(v) => setEntryForm((f) => ({ ...f, entry_type: (typeof v === 'string' ? v : String(v ?? 'visit')) }))}
-              searchable={false}
-            />
-          </div>
+          {unplannedMode && (
+            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              For a visit that already happened and was not in your plan. Use today or an earlier date in this month. It stays open after the plan deadline.
+            </p>
+          )}
+          {!unplannedMode && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">What will you do?</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[['visit', 'Visit', 'A customer, company or place'], ['travel', 'Travel', 'Going from one place to another'], ['return_home', 'Return home', 'Back to base']].map(([v, label, hint]) => (
+                  <button key={v} type="button" onClick={() => setEntryForm((f) => ({ ...f, entry_type: v }))}
+                    className={`text-left rounded-lg border px-3 py-2 transition-colors ${entryForm.entry_type === v ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`text-sm font-semibold ${entryForm.entry_type === v ? 'text-blue-700' : 'text-slate-700'}`}>{label}</div>
+                    <div className="text-[11px] text-slate-500 leading-snug">{hint}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Where, Travel time, Travel type — for Travel and Return home */}
           {(entryForm.entry_type === 'travel' || entryForm.entry_type === 'return_home') && (
             <>
@@ -781,43 +1038,134 @@ export const ODPlanPage: React.FC = () => {
               <Input label="Travel type" value={entryForm.travel_type || ''} onChange={(e) => setEntryForm((f) => ({ ...f, travel_type: e.target.value }))} placeholder="e.g. Car, Flight" />
             </>
           )}
-          {/* Contact (search by email) — only for Visit */}
-          {entryForm.entry_type === 'visit' && (
+          {/* Who / where — only for Visit: a contact, a company (+ plant), or just a place */}
+          {(unplannedMode || entryForm.entry_type === 'visit') && (
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Contact (search by email)</label>
-              <Input
-                placeholder="Type email to search contacts"
-                value={selectedContact ? (selectedContact.contact_email || [selectedContact.first_name, selectedContact.last_name].filter(Boolean).join(' ')) : contactSearch}
-                onChange={(e) => {
-                  setContactSearch(e.target.value);
-                  if (!e.target.value) setSelectedContact(null);
-                }}
-              />
-              {contactSearching && <p className="text-xs text-slate-500 mt-1">Searching…</p>}
-              {contactSearch.trim().length >= 2 && !selectedContact && (
-                <div className="mt-1 border border-slate-200 rounded-lg max-h-40 overflow-y-auto">
-                  {contactSearchResults.length === 0 ? (
-                    <div className="p-2 flex items-center justify-between">
-                      <span className="text-xs text-slate-500">No contact found</span>
-                      {canCreateContact && (
-                        <Button variant="outline" size="sm" leftIcon={<UserPlus size={12} />} onClick={() => { setCreateContactForm((f) => ({ ...f, contact_email: contactSearch.trim() })); setCreateContactSelectedOrg(null); setOrgSearchQuery(''); setAddContactModalOpen(true); }}>
-                          Add contact
-                        </Button>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Who or where</label>
+              <div className="flex border border-slate-200 rounded-lg overflow-hidden mb-3">
+                {([['contact', 'Existing contact'], ['org', 'Company and plant'], ['place', 'Just a place']] as [VisitMode, string][]).map(([k, label]) => (
+                  <button key={k} type="button" onClick={() => setVisitMode(k)}
+                    className={`flex-1 px-2 py-2 text-xs font-semibold border-r border-slate-200 last:border-r-0 transition-colors ${visitMode === k ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {visitMode === 'contact' && (
+                <div>
+                  <Input
+                    placeholder="Search contact by name, company or email"
+                    value={selectedContact ? ([selectedContact.first_name, selectedContact.last_name].filter(Boolean).join(' ').trim() || selectedContact.contact_person_name || selectedContact.contact_email || '') : contactSearch}
+                    onChange={(e) => {
+                      setContactSearch(e.target.value);
+                      if (!e.target.value) setSelectedContact(null);
+                    }}
+                  />
+                  {contactSearching && <p className="text-xs text-slate-500 mt-1">Searching…</p>}
+                  {contactSearch.trim().length >= 2 && !selectedContact && (
+                    <div className="mt-1 border border-slate-200 rounded-lg max-h-40 overflow-y-auto">
+                      {contactSearchResults.length === 0 ? (
+                        <div className="p-2 flex items-center justify-between">
+                          <span className="text-xs text-slate-500">No contact found. Don't know the person? Use Company and plant.</span>
+                          {canCreateContact && (
+                            <Button variant="outline" size="sm" leftIcon={<UserPlus size={12} />} onClick={() => { setCreateContactForm((f) => ({ ...f, contact_email: contactSearch.trim() })); setCreateContactSelectedOrg(null); setOrgSearchQuery(''); setAddContactModalOpen(true); }}>
+                              Add contact
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        contactSearchResults.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0"
+                            onClick={() => { setSelectedContact(c); setEntryForm((f) => ({ ...f, contact_id: c.id })); setContactSearch(''); }}
+                          >
+                            <div className="font-medium text-slate-800">{[c.first_name, c.last_name].filter(Boolean).join(' ').trim() || c.contact_person_name || '—'}</div>
+                            <div className="text-xs text-slate-500">{[c.organization?.name, c.plant?.plant_name, c.contact_email].filter(Boolean).join(' · ')}</div>
+                          </button>
+                        ))
                       )}
                     </div>
-                  ) : (
-                    contactSearchResults.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0"
-                        onClick={() => { setSelectedContact(c); setEntryForm((f) => ({ ...f, contact_id: c.id })); setContactSearch(''); }}
-                      >
-                        {[c.first_name, c.last_name].filter(Boolean).join(' ').trim() || c.contact_person_name || '—'} {c.contact_email && `(${c.contact_email})`}
-                      </button>
-                    ))
                   )}
                 </div>
+              )}
+
+              {visitMode === 'org' && (
+                <div className="space-y-3">
+                  {visitOrg ? (
+                    <div className="flex items-center justify-between border border-slate-200 rounded-lg px-3 py-2">
+                      <span className="text-sm font-medium text-slate-800 flex items-center gap-2"><Building2 size={14} className="text-slate-400" />{visitOrg.name}</span>
+                      <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => { setVisitOrg(null); setVisitPlants([]); setVisitPlantId(undefined); setNewCoMode(null); }}>Change</button>
+                    </div>
+                  ) : (
+                    <div>
+                      <Input placeholder="Search company name" value={visitOrgQuery} onChange={(e) => onVisitOrgQueryChange(e.target.value)} />
+                      {visitOrgSearching && <p className="text-xs text-slate-500 mt-1">Searching…</p>}
+                      {visitOrgQuery.trim().length >= 2 && (
+                        <div className="mt-1 border border-slate-200 rounded-lg max-h-44 overflow-y-auto">
+                          {visitOrgResults.map((o) => (
+                            <button key={o.id} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 border-b border-slate-100" onClick={() => pickVisitOrg(o)}>
+                              {o.name}
+                            </button>
+                          ))}
+                          {!visitOrgSearching && visitOrgResults.length === 0 && (
+                            <p className="px-3 py-2 text-xs text-slate-500">No company found. You can only see companies your role allows.</p>
+                          )}
+                          {canCreateOrg && canCreatePlant && (
+                            <button type="button" className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-1.5"
+                              onClick={() => { setNewCoMode('company'); setNewCo((f) => ({ ...f, company_name: visitOrgQuery.trim() })); }}>
+                              <Plus size={12} /> Not in the list? Add "{visitOrgQuery.trim()}" as a new company
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {visitOrg && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Plant</label>
+                      <Select
+                        options={visitPlants.map((pl) => ({ value: pl.id, label: [pl.plant_name, pl.city].filter(Boolean).join(' · ') }))}
+                        value={visitPlantId ?? ''}
+                        onChange={(v) => setVisitPlantId(v !== undefined && v !== '' ? Number(v) : undefined)}
+                        placeholder={visitPlants.length ? 'Select plant' : 'No plants yet'}
+                        clearable
+                      />
+                      {canCreatePlant && newCoMode !== 'plant' && (
+                        <button type="button" className="mt-1.5 text-xs text-blue-600 hover:underline" onClick={() => setNewCoMode('plant')}>+ Add a plant to this company</button>
+                      )}
+                    </div>
+                  )}
+
+                  {newCoMode && (
+                    <div className="border border-dashed border-slate-300 rounded-lg p-3 space-y-3">
+                      <p className="text-xs font-semibold text-slate-700">{newCoMode === 'company' ? 'New company and its plant' : `New plant for ${visitOrg?.name ?? 'this company'}`}</p>
+                      <p className="text-[11px] text-slate-500">Search first so you don't add a duplicate.</p>
+                      {newCoMode === 'company' && (
+                        <Input label="Company name" value={newCo.company_name} onChange={(e) => setNewCo((f) => ({ ...f, company_name: e.target.value }))} />
+                      )}
+                      <Input label="Plant name" value={newCo.plant_name} onChange={(e) => setNewCo((f) => ({ ...f, plant_name: e.target.value }))} placeholder="e.g. Taloja Unit" />
+                      <Input label="City" value={newCo.city} onChange={(e) => setNewCo((f) => ({ ...f, city: e.target.value }))} />
+                      <div className="grid grid-cols-2 gap-3">
+                        <Select label="Domain" options={domains.map((d) => ({ value: d.id, label: d.name }))} value={newCo.domain_id ?? ''}
+                          onChange={(v) => setNewCo((f) => ({ ...f, domain_id: v ? Number(v) : undefined, region_id: undefined }))} placeholder="Select domain" searchable={false} />
+                        <Select label="Region" options={coRegions.map((r) => ({ value: r.id, label: r.name }))} value={newCo.region_id ?? ''}
+                          onChange={(v) => setNewCo((f) => ({ ...f, region_id: v ? Number(v) : undefined }))} placeholder={newCo.domain_id ? 'Select region' : 'Pick a domain first'} searchable={false} />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setNewCoMode(null)}>Cancel</Button>
+                        <Button size="sm" disabled={creatingCompany} onClick={handleCreateCompanyAndPlant}>{creatingCompany ? 'Adding…' : newCoMode === 'company' ? 'Add company and plant' : 'Add plant'}</Button>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-slate-500">No contact person needed. You can add one later.</p>
+                </div>
+              )}
+
+              {visitMode === 'place' && (
+                <Input placeholder="e.g. Taloja industrial area" value={entryForm.where_place || ''} onChange={(e) => setEntryForm((f) => ({ ...f, where_place: e.target.value }))} />
               )}
             </div>
           )}
@@ -840,7 +1188,7 @@ export const ODPlanPage: React.FC = () => {
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setEntryModalOpen(false)}>Cancel</Button>
-              <Button size="sm" onClick={saveEntryToLocal}>Save entry</Button>
+              <Button size="sm" disabled={saving} onClick={saveEntryToLocal}>{unplannedMode ? 'Add unplanned visit' : 'Add to plan'}</Button>
             </div>
           </div>
         </div>

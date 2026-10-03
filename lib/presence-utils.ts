@@ -12,7 +12,7 @@ const PAGE_LABELS: [RegExp, string][] = [
   [/^\/database/, 'Database'],
   [/^\/my-team/, 'My Team'],
   [/^\/events/, 'Events'],
-  [/^\/reports/, 'Reports'],
+  [/^\/reports/, 'MIS'],
   [/^\/settings/, 'Settings'],
 ];
 

@@ -133,7 +133,8 @@ export function validateDSRInput(input: DSRInput): Record<string, string> {
       errors.end_time = 'End time must differ from start time';
     }
   } else {
-    if (!input.company_name?.trim()) errors.company_name = 'Company name is required';
+    // Guide §9.3: an outdoor entry needs a Company Name OR a Reason for Visit (at least one)
+    if (!input.company_name?.trim() && !input.reason_for_visit?.trim()) errors.company_name = 'Enter a company name or pick a reason for the visit';
     if (input.visited_date && !DATE_RE.test(input.visited_date)) errors.visited_date = 'Invalid date';
   }
   if (input.title && input.title.length > 255) errors.title = 'Title must be 255 characters or less';

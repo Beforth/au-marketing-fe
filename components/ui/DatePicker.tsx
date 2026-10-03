@@ -21,6 +21,8 @@ export interface DatePickerProps {
   /** Enable multi-select mode — calendar stays open, clicking dates toggles them */
   selectedDates?: Set<string>;
   onSelectedDatesChange?: (dates: Set<string>) => void;
+  /** Multi-date mode: text shown once dates are picked (default "N dates selected"). */
+  selectedLabel?: (count: number) => string;
   /** YYYY-MM-DD bounds — dates outside this range are greyed out and unclickable. */
   minDate?: string;
   maxDate?: string;
@@ -52,6 +54,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   showNow = false,
   timePanelPosition = 'bottom',
   selectedDates,
+  selectedLabel,
   onSelectedDatesChange,
   minDate,
   maxDate,
@@ -264,13 +267,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           onClick={handleToggle}
           disabled={disabled}
           className={cn(
-            'w-full border rounded-lg text-left transition-all',
-            'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600',
-            'bg-white border-slate-300',
+            'w-full border rounded-lg text-left transition-colors',
+            'focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500',
+            isOpen ? 'border-blue-500 ring-2 ring-blue-500/25' : 'border-slate-200 hover:border-slate-300',
+            'bg-white',
             inputSize === 'sm' && 'h-9 px-3 text-xs',
-            inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
-            inputSize === 'lg' && 'h-12 px-5 text-base font-medium',
-            disabled && 'bg-blue-50/[0.15] cursor-not-allowed opacity-50',
+            inputSize === 'md' && 'h-10 px-4 text-sm',
+            inputSize === 'lg' && 'h-12 px-5 text-base',
+            disabled && 'bg-slate-50 cursor-not-allowed opacity-50',
             'flex items-center justify-between gap-2 group'
           )}
         >
@@ -288,7 +292,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               {isMulti
                 ? selectedDates!.size === 0
                   ? placeholder
-                  : `${selectedDates!.size} date${selectedDates!.size > 1 ? 's' : ''} selected`
+                  : (selectedLabel ? selectedLabel(selectedDates!.size) : `${selectedDates!.size} date${selectedDates!.size > 1 ? 's' : ''} selected`)
                 : value ? new Date(value).toLocaleString('en-IN', showTime
                     ? { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }
                     : { day: '2-digit', month: '2-digit', year: 'numeric' }) : placeholder}
@@ -305,7 +309,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           <div
             ref={dropdownRef}
             data-marketing-datepicker-dropdown
-            className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl p-2.5 shadow-blue-100/20 animate-spring-in"
+            className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-[0_8px_24px_-6px_rgba(15,23,42,0.16)] p-2.5 animate-spring-in"
             style={{ top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width }}
           >
             <div className={cn(timeOnRight && !isYearPickerOpen && 'flex flex-row gap-3 items-stretch')}>
@@ -326,7 +330,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 {isYearPickerOpen ? (
                   <div className="grid grid-cols-4 gap-1 h-[180px] overflow-y-auto pr-1 customize-scrollbar">
                     {Array.from({ length: 41 }, (_, i) => today.getFullYear() - 20 + i).map(y => (
-                      <button key={y} type="button" onClick={() => handleYearChange(y)} className={cn("py-1.5 text-xs rounded-lg transition-all", y === year ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20" : "text-slate-600 hover:bg-blue-50 hover:text-blue-600")}>
+                      <button key={y} type="button" onClick={() => handleYearChange(y)} className={cn("py-1.5 text-xs rounded-lg transition-all", y === year ? "bg-blue-600 text-white font-semibold" : "text-slate-600 hover:bg-blue-50 hover:text-blue-600")}>
                         {y}
                       </button>
                     ))}
@@ -342,7 +346,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                         const current = isToday(day.date);
                         const disabled = isDateDisabled(day.date);
                         return (
-                          <button key={idx} type="button" disabled={disabled} onClick={() => handleSelectDate(day.date)} className={cn('aspect-square flex items-center justify-center text-xs rounded-lg transition-all relative', !day.currentMonth && 'text-slate-300', day.currentMonth && !selected && !disabled && 'text-slate-700 hover:bg-blue-50 hover:text-blue-600', selected && 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20', current && !selected && 'text-blue-600 font-bold', disabled && 'text-slate-200 cursor-not-allowed hover:bg-transparent')}>
+                          <button key={idx} type="button" disabled={disabled} onClick={() => handleSelectDate(day.date)} className={cn('aspect-square flex items-center justify-center text-xs rounded-lg transition-all relative', !day.currentMonth && 'text-slate-300', day.currentMonth && !selected && !disabled && 'text-slate-700 hover:bg-blue-50 hover:text-blue-600', selected && 'bg-blue-600 text-white font-semibold', current && !selected && 'text-blue-600 font-bold', disabled && 'text-slate-200 cursor-not-allowed hover:bg-transparent')}>
                             {day.date.getDate()}
                             {current && !selected && <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-600" />}
                           </button>

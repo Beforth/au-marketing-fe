@@ -2619,6 +2619,11 @@ class MarketingAPIService {
     return apiClient.post<ExpectedOrderReportItem>('/api/reports/expected-orders', data);
   }
 
+  /** Ids of the leads already in YOUR expected order for that month (so the picker can grey them out) */
+  async getPlannedLeadIds(year: number, month: number): Promise<number[]> {
+    return apiClient.get<number[]>(`/api/reports/expected-orders/planned-leads?year=${year}&month=${month}`);
+  }
+
   /** Expected order reports: list (optional year/month/employee_id filter; employee_id respects report scope) */
   async listExpectedOrderReports(params?: { year?: number; month?: number; employee_id?: number }): Promise<ExpectedOrderReportItem[]> {
     const sp = new URLSearchParams();
@@ -2627,6 +2632,18 @@ class MarketingAPIService {
     if (params?.employee_id != null) sp.set('employee_id', String(params.employee_id));
     const qs = sp.toString();
     return apiClient.get<ExpectedOrderReportItem[]>(`/api/reports/expected-orders${qs ? `?${qs}` : ''}`);
+  }
+
+  /** MIS: one employee's month of work (defaults to you; employee_id must be in your report scope) */
+  async getMISForEmployee(year: number, month: number, employee_id?: number): Promise<MISEmployeeResponse> {
+    const sp = new URLSearchParams({ year: String(year), month: String(month) });
+    if (employee_id != null) sp.set('employee_id', String(employee_id));
+    return apiClient.get<MISEmployeeResponse>(`/api/reports/mis?${sp.toString()}`);
+  }
+
+  /** MIS team overview: one row per person in your scope (empty for people with no team) */
+  async getMISTeam(year: number, month: number): Promise<MISTeamResponse> {
+    return apiClient.get<MISTeamResponse>(`/api/reports/mis/team?year=${year}&month=${month}`);
   }
 
   /** OD plan reports: list (optional year/month/employee_id filter; employee_id respects report scope) */
@@ -2642,6 +2659,16 @@ class MarketingAPIService {
   /** OD plan: get one for year-month */
   async getODPlanReport(year: number, month: number): Promise<ODPlanReportItem> {
     return apiClient.get<ODPlanReportItem>(`/api/reports/od-plans/${year}/${month}`);
+  }
+
+  /** OD plan: add a visit that was NOT in the plan (today or earlier in that month; works after the deadline) */
+  async addUnplannedVisit(year: number, month: number, entry: ODPlanEntryCreate): Promise<ODPlanEntryItem> {
+    return apiClient.post<ODPlanEntryItem>(`/api/reports/od-plans/${year}/${month}/unplanned`, entry);
+  }
+
+  /** OD plan: remove one of your own unplanned visits */
+  async deleteUnplannedVisit(entryId: number): Promise<void> {
+    await apiClient.delete(`/api/reports/od-plans/unplanned/${entryId}`);
   }
 
   /** OD plan: save (create or replace entries for year-month) */
@@ -3244,6 +3271,11 @@ export interface ODPlanEntryItem {
   contact_id: number | null;
   contact_name: string | null;
   contact_email: string | null;
+  organization_id: number | null;
+  organization_name: string | null;
+  plant_id: number | null;
+  plant_name: string | null;
+  is_unplanned: boolean;
   notes: string | null;
 }
 export interface ODPlanReportItem {
@@ -3255,6 +3287,32 @@ export interface ODPlanReportItem {
   updated_at: string;
   entries: ODPlanEntryItem[];
 }
+export interface MISSummary {
+  leads_created: number; activities: number; quotations_sent: number; quotations_value: number;
+  won_count: number; won_value: number; won_from_plan: number; won_outside_plan: number; lost_count: number;
+  orders_created: number; orders_value: number; contacts_added: number; customers_added: number;
+  od_days_planned: number; od_planned_visits: number; od_unplanned_visits: number; expected_order_leads: number;
+}
+export interface MISLeadItem {
+  lead_id: number; lead_series: string | null; lead_name: string | null; company: string | null;
+  value: number | null; at: string | null; planned: boolean | null;
+}
+export interface MISEmployeeResponse {
+  employee_id: number; employee_name: string; year: number; month: number; summary: MISSummary;
+  won_leads: MISLeadItem[]; lost_leads: MISLeadItem[];
+}
+export type MISPlanStatus = 'on_time' | 'late' | 'not_filed' | 'pending';
+export interface MISTeamRow {
+  employee_id: number; employee_name: string; region_name: string | null; leads_created: number; activities: number;
+  won_count: number; won_value: number; lost_count: number; orders_created: number;
+  od_plan_filled: boolean; od_planned_visits: number; od_unplanned_visits: number; expected_order_filled: boolean;
+  eo_total: number; eo_won: number; eo_lost: number; eo_open: number;
+  next_od_status: MISPlanStatus; next_eo_status: MISPlanStatus;
+  target: number; last_active: string | null;
+  prev_leads_created: number; prev_activities: number; prev_won_count: number; prev_won_value: number; prev_lost_count: number;
+}
+export interface MISTeamResponse { year: number; month: number; rows: MISTeamRow[] }
+
 export interface ODPlanEntryCreate {
   plan_date: string;
   entry_type: string;
@@ -3262,6 +3320,9 @@ export interface ODPlanEntryCreate {
   travel_time?: string | null;
   travel_type?: string | null;
   contact_id?: number | null;
+  organization_id?: number | null;
+  plant_id?: number | null;
+  is_unplanned?: boolean;
   notes?: string | null;
 }
 

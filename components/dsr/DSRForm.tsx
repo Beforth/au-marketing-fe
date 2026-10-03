@@ -5,7 +5,8 @@ import { DatePicker } from '../ui/DatePicker';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { hrmsRBACClient, DSRTask, DSRInput, DSRType } from '../../lib/hrms-rbac';
-import { validateDSRInput, hoursBetween, hoursToWords } from '../../lib/dsr-helpers';
+import { validateDSRInput, hoursBetween, hoursToWords, formatTimeRange } from '../../lib/dsr-helpers';
+import { EntryRows } from './EntryRows';
 import {
   INDOOR_DEPARTMENTS, OUTDOOR_DEPARTMENTS, VISIT_PLANS, REASONS_FOR_VISIT,
   APPOINTMENT_STATUSES, VISIT_STATUSES, taskTypeOptions, toOptions,
@@ -63,20 +64,28 @@ function initialState(existing: DSRTask | null | undefined, dsrType: DSRType): D
 export const DSRForm: React.FC<DSRFormProps> = ({ token, dsrType, existing, canAssign, myName, onSaved }) => {
   const { showToast } = useApp();
   const isEdit = !!existing;
-  const [form, setForm] = useState<DSRInput>(() => initialState(existing, dsrType));
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  // Create: a list of entries saved together (one HRMS DSR each). Edit: always exactly one.
+  const [rows, setRows] = useState<DSRInput[]>(() => [initialState(existing, dsrType)]);
+  /** Index of the open entry; -1 = all folded. */
+  const [active, setActive] = useState(0);
+  const [errors, setErrors] = useState<Record<number, Record<string, string>>>({});
   const [saving, setSaving] = useState(false);
   /** '' = me; otherwise the HRMS username the report is filed under. */
   const [assignee, setAssignee] = useState('');
-  const [callingOpen, setCallingOpen] = useState(false);
+  const [callingOpen, setCallingOpen] = useState<Set<number>>(new Set());
   const employeeOptions = useEmployeeOptions(canAssign && !isEdit);
   const canViewLeads = useAppSelector(selectHasPermission('marketing.view_lead'));
   const [filling, setFilling] = useState(false);
   /** Logs + built fields shown in the "Create DSR from lead activity" confirm box. */
   const [leadPreview, setLeadPreview] = useState<{ date: string; logs: MyLeadActivity[] } | null>(null);
 
+  const kind = rows[0]?.dsr_type ?? dsrType;
+  const sharedDate = rows[0]?.date ?? today();
+  const entryWord = kind === 'indoor' ? 'Task' : 'Visit';
+
   const reset = () => {
-    setForm(initialState(existing, dsrType));
+    setRows([initialState(existing, dsrType)]);
+    setActive(0);
     setAssignee('');
     setErrors({});
   };
@@ -86,97 +95,97 @@ export const DSRForm: React.FC<DSRFormProps> = ({ token, dsrType, existing, canA
 
   // Calling details start collapsed, but open if the record already has some.
   useEffect(() => {
-    setCallingOpen(!!(existing && (existing.contact_person || existing.contact_number || existing.mail_id || existing.call_for || existing.remarks || existing.next_follow_up)));
+    setCallingOpen(existing && (existing.contact_person || existing.contact_number || existing.mail_id || existing.call_for || existing.remarks || existing.next_follow_up) ? new Set([0]) : new Set());
   }, [existing]);
 
-  const set = <K extends keyof DSRInput>(key: K, value: DSRInput[K]) =>
-    setForm(f => ({ ...f, [key]: value }));
+  const setRow = (i: number, patch: Partial<DSRInput>) => setRows(rs => rs.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+  const setSharedDate = (v: string) => setRows(rs => rs.map(r => ({ ...r, date: v })));
+  const toggleCalling = (i: number) => setCallingOpen(prev => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; });
 
-  const kind = form.dsr_type;
-  const departments = kind === 'indoor' ? INDOOR_DEPARTMENTS : OUTDOOR_DEPARTMENTS;
-  const taskTypes = useMemo(() => taskTypeOptions(kind, form.department), [kind, form.department]);
-
-  const text = (key: keyof DSRInput, label: string, extra?: Partial<React.InputHTMLAttributes<HTMLInputElement>>) => (
+  const text = (i: number, key: keyof DSRInput, label: string, extra?: Partial<React.InputHTMLAttributes<HTMLInputElement>>) => (
     <Input
       label={label}
-      value={(form[key] as string | undefined) ?? ''}
-      onChange={e => set(key, e.target.value as never)}
-      error={errors[key]}
+      value={(rows[i][key] as string | undefined) ?? ''}
+      onChange={e => setRow(i, { [key]: e.target.value } as Partial<DSRInput>)}
+      error={errors[i]?.[key]}
       {...extra}
     />
   );
 
-  const select = (key: keyof DSRInput, label: string, values: readonly string[], placeholder?: string) => (
+  const select = (i: number, key: keyof DSRInput, label: string, values: readonly string[], placeholder?: string) => (
     <Select
       label={label}
       options={toOptions(values)}
-      value={(form[key] as string | undefined) ?? ''}
-      onChange={v => set(key, (v ? String(v) : '') as never)}
+      value={(rows[i][key] as string | undefined) ?? ''}
+      onChange={v => setRow(i, { [key]: v ? String(v) : '' } as Partial<DSRInput>)}
       placeholder={placeholder ?? `-- Select ${label.replace(' *', '')} --`}
-      error={errors[key]}
+      error={errors[i]?.[key]}
     />
   );
 
-  const textarea = (key: keyof DSRInput, label: string, placeholder?: string) => (
+  const textarea = (i: number, key: keyof DSRInput, label: string, placeholder?: string) => (
     <div className="flex flex-col gap-1">
       <label className="text-xs font-semibold text-slate-700 ml-0.5">{label}</label>
       <textarea
         rows={3}
-        value={(form[key] as string | undefined) ?? ''}
-        onChange={e => set(key, e.target.value as never)}
+        value={(rows[i][key] as string | undefined) ?? ''}
+        onChange={e => setRow(i, { [key]: e.target.value } as Partial<DSRInput>)}
         placeholder={placeholder}
         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
       />
-      {errors[key] && <p className="text-xs text-red-600">{errors[key]}</p>}
+      {errors[i]?.[key] && <p className="text-xs text-red-600">{errors[i][key]}</p>}
     </div>
   );
 
-  const departmentField = (
+  const departmentField = (i: number) => (
     <Select
       label={kind === 'indoor' ? 'Department *' : 'Department'}
-      options={toOptions(departments)}
-      value={form.department ?? ''}
+      options={toOptions(kind === 'indoor' ? INDOOR_DEPARTMENTS : OUTDOOR_DEPARTMENTS)}
+      value={rows[i].department ?? ''}
       // Task Type depends on Department, so clear it when the department changes.
-      onChange={v => setForm(f => ({ ...f, department: v ? String(v) : '', task_type: '' }))}
+      onChange={v => setRow(i, { department: v ? String(v) : '', task_type: '' })}
       placeholder="-- Select Department --"
-      error={errors.department}
+      error={errors[i]?.department}
     />
   );
 
-  const taskTypeField = taskTypes === null
-    ? text('task_type', kind === 'indoor' ? 'Task Type *' : 'Task Type', { placeholder: 'Type the task type' })
-    : (
-      <Select
-        label={kind === 'indoor' ? 'Task Type *' : 'Task Type'}
-        options={toOptions(taskTypes)}
-        value={form.task_type ?? ''}
-        onChange={v => set('task_type', v ? String(v) : '')}
-        placeholder={form.department ? '-- Select Task Type --' : 'Select a department first'}
-        disabled={!form.department}
-        error={errors.task_type}
-      />
-    );
+  const taskTypeField = (i: number) => {
+    const types = taskTypeOptions(kind, rows[i].department);
+    return types === null
+      ? text(i, 'task_type', kind === 'indoor' ? 'Task Type *' : 'Task Type', { placeholder: 'Type the task type' })
+      : (
+        <Select
+          label={kind === 'indoor' ? 'Task Type *' : 'Task Type'}
+          options={toOptions(types)}
+          value={rows[i].task_type ?? ''}
+          onChange={v => setRow(i, { task_type: v ? String(v) : '' })}
+          placeholder={rows[i].department ? '-- Select Task Type --' : 'Select a department first'}
+          disabled={!rows[i].department}
+          error={errors[i]?.task_type}
+        />
+      );
+  };
 
   /**
    * "Create DSR from lead activity": load the user's own lead logs on the form's date and show a
    * confirm box with one row per log (own Start/End Time) — Confirm creates one HRMS DSR per ticked
-   * log; "Just fill the form" (one log ticked) copies it into this form for editing instead.
+   * log; "Just fill the form" (one log ticked) copies it into the open entry for editing instead.
    * Only for your own report — the logs are yours, not the assignee's.
    */
   const openLeadActivity = async () => {
-    if (!form.date) {
+    if (!sharedDate) {
       showToast('Pick a date first', 'error');
       return;
     }
     setFilling(true);
     try {
-      const { start, end } = localDayRange(form.date);
+      const { start, end } = localDayRange(sharedDate);
       const logs = await marketingAPI.getMyLeadActivities(start, end);
       if (!logs.length) {
         showToast('No lead activity on this date', 'info');
         return;
       }
-      setLeadPreview({ date: form.date, logs });
+      setLeadPreview({ date: sharedDate, logs });
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Could not load lead activity', 'error');
     } finally {
@@ -185,66 +194,131 @@ export const DSRForm: React.FC<DSRFormProps> = ({ token, dsrType, existing, canA
   };
 
   const fillFormFrom = (filled: Partial<DSRInput>) => {
-    setForm(f => ({
-      ...f,
+    const target = active >= 0 ? active : rows.length - 1;
+    setRow(target, {
       department: filled.department,
       task_type: filled.task_type,
       title: filled.title,
       description: filled.description,
       start_time: filled.start_time ?? '',
       end_time: filled.end_time ?? '',
-      contact_person: filled.contact_person ?? f.contact_person,
-      contact_number: filled.contact_number ?? f.contact_number,
-      mail_id: filled.mail_id ?? f.mail_id,
-    }));
+      contact_person: filled.contact_person ?? rows[target].contact_person,
+      contact_number: filled.contact_number ?? rows[target].contact_number,
+      mail_id: filled.mail_id ?? rows[target].mail_id,
+    });
+    setActive(target);
     setErrors({});
-    if (filled.contact_person || filled.contact_number || filled.mail_id) setCallingOpen(true);
+    if (filled.contact_person || filled.contact_number || filled.mail_id) setCallingOpen(prev => new Set(prev).add(target));
     setLeadPreview(null);
     showToast('Form filled from your lead logs — review and submit', 'success');
   };
   const showFillButton = kind === 'indoor' && !isEdit && !assignee && canViewLeads;
 
-  // Live "Duration" preview under Start/End Time (guide §9.3) — same number that gets saved.
-  const duration = hoursBetween(form.start_time, form.end_time);
+  const CALLING_KEYS = ['contact_person', 'contact_number', 'mail_id', 'call_for', 'remarks', 'next_follow_up'];
+
+  /** Validate one entry; shows its errors, opens its Calling Details if the problem is in there. */
+  const validateRow = (i: number): boolean => {
+    const errs = validateDSRInput(rows[i]);
+    setErrors({ [i]: errs });
+    const bad = Object.keys(errs).length > 0;
+    if (bad) {
+      if (kind === 'indoor' && Object.keys(errs).some(k => CALLING_KEYS.includes(k))) setCallingOpen(prev => new Set(prev).add(i));
+      showToast(rows.length > 1 ? `${entryWord} ${i + 1}: please fix the highlighted fields` : 'Please fix the highlighted fields', 'error');
+    }
+    return !bad;
+  };
+
+  const handleDone = () => {
+    if (active < 0 || !validateRow(active)) return;
+    setErrors({});
+    setActive(-1);
+  };
+
+  const handleAdd = () => {
+    if (active >= 0 && !validateRow(active)) return;
+    const prev = rows[rows.length - 1];
+    const next: DSRInput = kind === 'indoor'
+      ? { ...blankForm('indoor'), date: sharedDate, start_time: prev?.end_time ?? '' }
+      : { ...blankForm('outdoor'), date: sharedDate };
+    setErrors({});
+    setRows(rs => [...rs, next]);
+    setActive(rows.length);
+  };
+
+  const handleOpen = (i: number) => {
+    if (active >= 0 && active !== i && !validateRow(active)) return;
+    setErrors({});
+    setActive(i);
+  };
+
+  const handleRemove = (i: number) => {
+    setRows(rs => rs.filter((_, k) => k !== i));
+    setErrors({});
+    setCallingOpen(new Set());
+    setActive(a => (a === i ? Math.max(0, i - 1) : a > i ? a - 1 : a));
+  };
+
+  /** One HRMS DSR per entry. Hours come from the times, exactly like the HRMS web form (guide §3.2). */
+  const buildBody = (row: DSRInput): DSRInput => {
+    // Empty text fields are dropped on create, but sent on edit so a cleared field actually clears.
+    const body = Object.fromEntries(
+      Object.entries(row).filter(([k, v]) => {
+        if (k === 'hours') return false; // derived from the times below, never typed
+        if (v == null) return false;
+        if (v !== '') return true;
+        return isEdit && !NON_TEXT_FIELDS.has(k);
+      })
+    ) as DSRInput;
+    const d = hoursBetween(row.start_time, row.end_time);
+    if (row.dsr_type === 'indoor' && d != null) body.hours = d;
+    return body;
+  };
 
   const handleSubmit = async () => {
-    const errs = validateDSRInput(form);
-    setErrors(errs);
-    if (Object.keys(errs).length) {
-      if (kind === 'indoor' && Object.keys(errs).some(k => ['contact_person', 'contact_number', 'mail_id', 'call_for', 'remarks', 'next_follow_up'].includes(k))) {
-        setCallingOpen(true);
+    for (let i = 0; i < rows.length; i++) {
+      const errs = validateDSRInput(rows[i]);
+      if (Object.keys(errs).length) {
+        setErrors({ [i]: errs });
+        setActive(i);
+        if (kind === 'indoor' && Object.keys(errs).some(k => CALLING_KEYS.includes(k))) setCallingOpen(prev => new Set(prev).add(i));
+        showToast(rows.length > 1 ? `${entryWord} ${i + 1}: please fix the highlighted fields` : 'Please fix the highlighted fields', 'error');
+        return;
       }
-      showToast('Please fix the highlighted fields', 'error');
-      return;
     }
     setSaving(true);
     try {
-      // Empty text fields are dropped on create, but sent on edit so a cleared field actually clears.
-      const body = Object.fromEntries(
-        Object.entries(form).filter(([k, v]) => {
-          if (k === 'hours') return false; // derived from the times below, never typed
-          if (v == null) return false;
-          if (v !== '') return true;
-          return isEdit && !NON_TEXT_FIELDS.has(k);
-        })
-      ) as DSRInput;
-      // The API saves whatever `hours` it gets (default 8.0) and ignores the times, so compute it
-      // here exactly like the HRMS web form does (guide §3.2). No times → leave it to HRMS's default.
-      if (kind === 'indoor' && duration != null) body.hours = duration;
       if (isEdit && existing) {
-        await hrmsRBACClient.updateDSR(token, existing.id, body);
+        await hrmsRBACClient.updateDSR(token, existing.id, buildBody(rows[0]));
         showToast('Report updated', 'success');
-      } else if (assignee) {
-        await hrmsRBACClient.createDSR(token, { ...body, username: assignee });
-        const who = employeeOptions.find(o => o.value === assignee)?.label ?? assignee;
-        showToast(`Report filed for ${who}`, 'success');
-      } else {
-        await hrmsRBACClient.createDSR(token, body);
-        showToast('Report submitted for approval', 'success');
+        onSaved();
+        return;
       }
-      onSaved();
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Could not save report', 'error');
+      // Save the entries one by one (the HRMS API takes one per call). Stop at the first failure and keep the
+      // unsaved entries on screen so nothing is lost or filed twice.
+      const who = employeeOptions.find(o => o.value === assignee)?.label ?? assignee;
+      let savedCount = 0;
+      let failure: { index: number; message: string } | null = null;
+      for (let i = 0; i < rows.length; i++) {
+        try {
+          const body = buildBody(rows[i]);
+          await hrmsRBACClient.createDSR(token, assignee ? { ...body, username: assignee } : body);
+          savedCount++;
+        } catch (e) {
+          failure = { index: i, message: e instanceof Error ? e.message : 'Could not save report' };
+          break;
+        }
+      }
+      if (!failure) {
+        if (rows.length === 1) showToast(assignee ? `Report filed for ${who}` : 'Report submitted for approval', 'success');
+        else showToast(`${rows.length} ${kind === 'indoor' ? 'Indoor DSR tasks' : 'Outdoor DSR visits'} ${assignee ? `filed for ${who}` : 'submitted for approval'}`, 'success');
+        onSaved();
+      } else {
+        const label = rows[failure.index].title || rows[failure.index].company_name || `${entryWord} ${failure.index + 1}`;
+        setRows(rs => rs.slice(savedCount));
+        setActive(0);
+        setErrors({});
+        showToast(`${savedCount} of ${rows.length} saved. "${label}" failed: ${failure.message}. Fix it and submit again.`, 'error');
+      }
     } finally {
       setSaving(false);
     }
@@ -262,16 +336,128 @@ export const DSRForm: React.FC<DSRFormProps> = ({ token, dsrType, existing, canA
     />
   );
 
+  const dateError = Object.values(errors).map(e => e.date).find(Boolean);
   const dateField = (
     <div>
-      <DatePicker label="Date *" value={form.date} onChange={v => set('date', v || '')} />
-      {errors.date && <p className="text-xs text-red-600 mt-1">{errors.date}</p>}
+      <DatePicker label="Date *" value={sharedDate} onChange={v => setSharedDate(v || '')} />
+      {dateError && <p className="text-xs text-red-600 mt-1">{dateError}</p>}
     </div>
   );
 
   // Field order follows guide §9.3 "Field order, exact" — laid out left-to-right in rows.
-  const row = (cols: 2 | 3 | 4) =>
+  const grid = (cols: 2 | 3 | 4) =>
     `grid grid-cols-1 sm:grid-cols-2 ${cols === 3 ? 'lg:grid-cols-3' : cols === 4 ? 'lg:grid-cols-4' : ''} gap-x-5 gap-y-5`;
+
+  /** The fields of one entry (employee and date are shared and sit above the list). */
+  const renderEntry = (i: number) => {
+    const r = rows[i];
+    if (kind === 'indoor') {
+      const duration = hoursBetween(r.start_time, r.end_time);
+      return (
+        <div className="space-y-6">
+          <div className={grid(2)}>
+            {departmentField(i)}
+            {taskTypeField(i)}
+          </div>
+          {text(i, 'title', 'Task Title *', { maxLength: 255, placeholder: 'e.g. Prepared quotation for ABC Pharma' })}
+          {textarea(i, 'description', 'Task Description / Details', 'Describe what was done, key outcomes, and any notes...')}
+          {/* Guide row is Start / End / OT Minutes; OT is left out because the API can't carry it (guide §9.3 note B).
+              Hours is not typed — it's computed from the two times (note C). */}
+          <div>
+            <div className={grid(2)}>
+              {text(i, 'start_time', 'Start Time', { type: 'time' })}
+              {text(i, 'end_time', 'End Time', { type: 'time' })}
+            </div>
+            <p className="mt-2 ml-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+              <Clock size={13} className="text-slate-400" />
+              {duration != null ? (
+                <>Duration: <span className="font-semibold text-slate-800">{hoursToWords(duration)}</span>
+                  {r.end_time && r.start_time && r.end_time < r.start_time && <span className="text-slate-400">(overnight)</span>}
+                </>
+              ) : (
+                isEdit && existing?.hours != null && existing.hours !== ''
+                  ? <>Recorded: <span className="font-semibold text-slate-800">{hoursToWords(existing.hours)}</span> — enter start and end time to recalculate.</>
+                  : <>Enter start and end time to calculate hours{!isEdit && ' — HRMS records 8 hours if left blank'}.</>
+              )}
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-slate-200">
+            <button
+              type="button"
+              onClick={() => toggleCalling(i)}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 rounded-lg"
+              aria-expanded={callingOpen.has(i)}
+            >
+              <span className="flex items-center gap-2"><Phone size={15} className="text-blue-600" /> Calling Details <span className="font-normal text-slate-400">(Optional)</span></span>
+              <ChevronDown size={16} className={`text-slate-400 transition-transform ${callingOpen.has(i) ? 'rotate-180' : ''}`} />
+            </button>
+            {callingOpen.has(i) && (
+              <div className={`px-4 pb-5 pt-2 border-t border-slate-100 ${grid(3)}`}>
+                {text(i, 'contact_person', 'Contact Person')}
+                {text(i, 'contact_number', 'Contact Number', { type: 'tel' })}
+                {text(i, 'mail_id', 'Mail ID', { type: 'email' })}
+                {text(i, 'call_for', 'Call For')}
+                {text(i, 'remarks', 'Remarks')}
+                <DatePicker label="Next Follow-up Date" value={r.next_follow_up ?? ''} onChange={v => setRow(i, { next_follow_up: v || '' })} />
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-6">
+        <p className="text-xs text-slate-500">Fill in a company name or a reason for the visit (at least one).</p>
+        <div className={grid(2)}>
+          {select(i, 'visit_plan', 'Visit Plan', VISIT_PLANS)}
+          {text(i, 'region', 'Region')}
+        </div>
+        <div className={grid(3)}>
+          {departmentField(i)}
+          {taskTypeField(i)}
+          {text(i, 'company_name', 'Company Name')}
+        </div>
+        <div className={grid(3)}>
+          {text(i, 'contact_person', 'Contact Person')}
+          {text(i, 'contact_number', 'Contact Number', { type: 'tel' })}
+          {text(i, 'mail_id', 'Mail ID', { type: 'email' })}
+        </div>
+        <div className={grid(4)}>
+          {select(i, 'reason_for_visit', 'Reason for Visit', REASONS_FOR_VISIT)}
+          {select(i, 'appointment_status', 'Appointment Status', APPOINTMENT_STATUSES)}
+          {select(i, 'visit_status', 'Visit Status', VISIT_STATUSES)}
+          <DatePicker label="Visited Date" value={r.visited_date ?? ''} onChange={v => setRow(i, { visited_date: v || '' })} />
+        </div>
+        {textarea(i, 'meeting_output', 'Meeting Output', 'What was discussed / decided...')}
+        <div className={grid(2)}>
+          {text(i, 'next_action_needed', 'Next Action Needed')}
+          {text(i, 'mail_status', 'Mail Status')}
+        </div>
+        <div className={grid(2)}>
+          {text(i, 'remarks', 'Remarks')}
+          <DatePicker label="Next Follow-up Date" value={r.next_follow_up ?? ''} onChange={v => setRow(i, { next_follow_up: v || '' })} />
+        </div>
+      </div>
+    );
+  };
+
+  const entrySummary = (r: DSRInput) => {
+    if (kind === 'indoor') {
+      const d = hoursBetween(r.start_time, r.end_time);
+      const time = formatTimeRange(r.start_time, r.end_time);
+      return {
+        title: r.title || 'Untitled task',
+        detail: `${r.department || '—'} › ${r.task_type || '—'}${time ? ` · ${time}${d != null ? ` (${hoursToWords(d)})` : ''}` : ''}`,
+      };
+    }
+    return {
+      title: r.company_name || 'Visit',
+      detail: [r.reason_for_visit, r.visit_status, r.department && `${r.department}${r.task_type ? ` › ${r.task_type}` : ''}`].filter(Boolean).join(' · ') || undefined,
+    };
+  };
+
+  const totalHours = kind === 'indoor' ? rows.reduce((a, r) => a + (hoursBetween(r.start_time, r.end_time) ?? 0), 0) : 0;
 
   // [&_label]:block — DatePicker renders its label inline, which drops it a few px below the other labels in a row.
   return (
@@ -279,8 +465,8 @@ export const DSRForm: React.FC<DSRFormProps> = ({ token, dsrType, existing, canA
       {showFillButton && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50/60 px-4 py-3">
           <p className="text-sm text-slate-700">
-            Worked on leads this day? Create this report from your lead logs for <span className="font-semibold">{form.date
-              ? new Date(`${form.date}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+            Worked on leads this day? Create this report from your lead logs for <span className="font-semibold">{sharedDate
+              ? new Date(`${sharedDate}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
               : 'the selected date'}</span>.
           </p>
           <Button variant="outline" size="sm" onClick={openLeadActivity} disabled={filling} className="flex items-center gap-1.5 bg-white">
@@ -300,99 +486,33 @@ export const DSRForm: React.FC<DSRFormProps> = ({ token, dsrType, existing, canA
         />
       )}
 
-      {kind === 'indoor' ? (
-        <>
-          <div className={row(employeePicker ? 4 : 3)}>
-            {employeePicker}
-            {dateField}
-            {departmentField}
-            {taskTypeField}
-          </div>
-          {text('title', 'Task Title *', { maxLength: 255, placeholder: 'e.g. Prepared quotation for ABC Pharma' })}
-          {textarea('description', 'Task Description / Details', 'Describe what was done, key outcomes, and any notes...')}
-          {/* Guide row is Start / End / OT Minutes; OT is left out because the API can't carry it (guide §9.3 note B).
-              Hours is not typed — it's computed from the two times (note C). */}
-          <div>
-            <div className={row(2)}>
-              {text('start_time', 'Start Time', { type: 'time' })}
-              {text('end_time', 'End Time', { type: 'time' })}
-            </div>
-            <p className="mt-2 ml-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-              <Clock size={13} className="text-slate-400" />
-              {duration != null ? (
-                <>Duration: <span className="font-semibold text-slate-800">{hoursToWords(duration)}</span>
-                  {form.end_time && form.start_time && form.end_time < form.start_time && <span className="text-slate-400">(overnight)</span>}
-                </>
-              ) : (
-                isEdit && existing?.hours != null && existing.hours !== ''
-                  ? <>Recorded: <span className="font-semibold text-slate-800">{hoursToWords(existing.hours)}</span> — enter start and end time to recalculate.</>
-                  : <>Enter start and end time to calculate hours{!isEdit && ' — HRMS records 8 hours if left blank'}.</>
-              )}
-            </p>
-          </div>
+      {/* Employee and date are entered once and apply to every entry below */}
+      <div className={grid(3)}>
+        {employeePicker}
+        {dateField}
+      </div>
 
-          <div className="rounded-lg border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setCallingOpen(o => !o)}
-              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 rounded-lg"
-              aria-expanded={callingOpen}
-            >
-              <span className="flex items-center gap-2"><Phone size={15} className="text-blue-600" /> Calling Details <span className="font-normal text-slate-400">(Optional)</span></span>
-              <ChevronDown size={16} className={`text-slate-400 transition-transform ${callingOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {callingOpen && (
-              <div className={`px-4 pb-5 pt-2 border-t border-slate-100 ${row(3)}`}>
-                {text('contact_person', 'Contact Person')}
-                {text('contact_number', 'Contact Number', { type: 'tel' })}
-                {text('mail_id', 'Mail ID', { type: 'email' })}
-                {text('call_for', 'Call For')}
-                {text('remarks', 'Remarks')}
-                <DatePicker label="Next Follow-up Date" value={form.next_follow_up ?? ''} onChange={v => set('next_follow_up', v || '')} />
-              </div>
-            )}
-          </div>
-        </>
+      {isEdit ? (
+        renderEntry(0)
       ) : (
-        <>
-          <div className={row(employeePicker ? 4 : 3)}>
-            {employeePicker}
-            {dateField}
-            {select('visit_plan', 'Visit Plan', VISIT_PLANS)}
-            {text('region', 'Region')}
-          </div>
-          <div className={row(3)}>
-            {departmentField}
-            {taskTypeField}
-            {text('company_name', 'Company Name *')}
-          </div>
-          <div className={row(3)}>
-            {text('contact_person', 'Contact Person')}
-            {text('contact_number', 'Contact Number', { type: 'tel' })}
-            {text('mail_id', 'Mail ID', { type: 'email' })}
-          </div>
-          <div className={row(4)}>
-            {select('reason_for_visit', 'Reason for Visit', REASONS_FOR_VISIT)}
-            {select('appointment_status', 'Appointment Status', APPOINTMENT_STATUSES)}
-            {select('visit_status', 'Visit Status', VISIT_STATUSES)}
-            <DatePicker label="Visited Date" value={form.visited_date ?? ''} onChange={v => set('visited_date', v || '')} />
-          </div>
-          {textarea('meeting_output', 'Meeting Output', 'What was discussed / decided...')}
-          <div className={row(2)}>
-            {text('next_action_needed', 'Next Action Needed')}
-            {text('mail_status', 'Mail Status')}
-          </div>
-          <div className={row(2)}>
-            {text('remarks', 'Remarks')}
-            <DatePicker label="Next Follow-up Date" value={form.next_follow_up ?? ''} onChange={v => set('next_follow_up', v || '')} />
-          </div>
-        </>
+        <EntryRows
+          rows={rows}
+          active={active}
+          summary={entrySummary}
+          renderOpen={(_, i) => renderEntry(i)}
+          onOpen={handleOpen}
+          onRemove={handleRemove}
+          onDone={handleDone}
+          onAdd={handleAdd}
+          addLabel={kind === 'indoor' ? 'Add another task' : 'Add another visit'}
+          footer={kind === 'indoor' && rows.length > 1 && totalHours > 0 ? <>Total: <span className="font-semibold text-slate-800">{hoursToWords(Math.round(totalHours * 10) / 10)}</span></> : undefined}
+        />
       )}
 
       <div className="flex items-center justify-between pt-5 border-t border-slate-100">
         <Button variant="outline" onClick={reset} disabled={saving}>Reset Form</Button>
         <Button onClick={handleSubmit} disabled={saving}>
-          {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Submit'}
+          {saving ? 'Saving…' : isEdit ? 'Save Changes' : rows.length > 1 ? `Submit ${rows.length} ${kind === 'indoor' ? 'tasks' : 'visits'}` : 'Submit'}
         </Button>
       </div>
     </div>

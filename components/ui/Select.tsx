@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Search, X } from 'lucide-react';
+import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export interface SelectOption {
@@ -196,25 +196,25 @@ export const Select: React.FC<SelectProps> = ({
               aria-controls={isOpen ? 'select-listbox' : undefined}
               aria-activedescendant={isOpen && activeIndex >= 0 ? `select-option-${activeIndex}` : undefined}
               className={cn(
-                'w-full border rounded-lg text-left transition-all',
-                'focus:outline-none focus:ring-2 focus:ring-blue-500',
-                'bg-white border-slate-300 shadow-sm',
+                'w-full border rounded-lg text-left transition-colors',
+                'focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500',
+                'bg-white border-slate-200 hover:border-slate-300',
                 inputSize === 'sm' && 'h-9 px-3 text-xs',
-                inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
-                inputSize === 'lg' && 'h-12 px-5 text-base font-medium',
+                inputSize === 'md' && 'h-10 px-4 text-sm',
+                inputSize === 'lg' && 'h-12 px-5 text-base',
                 disabled && 'bg-slate-50 cursor-not-allowed opacity-50',
                 error && 'border-rose-300 bg-rose-50 placeholder:text-rose-400',
-                'pr-10',
+                'pr-9',
                 triggerClassName
               )}
             />
-            <div className="absolute right-3 flex items-center gap-1">
+            <div className="absolute right-2.5 flex items-center gap-1">
               {value && !disabled && clearable && (
-                <div onClick={handleClear} className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 cursor-pointer">
-                  <X size={14} />
+                <div onClick={handleClear} className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 cursor-pointer opacity-0 group-hover/combobox:opacity-100 focus-within:opacity-100 transition-opacity">
+                  <X size={13} />
                 </div>
               )}
-              <ChevronDown size={16} className={cn('text-slate-400 transition-transform cursor-pointer', isOpen && 'rotate-180')} />
+              <ChevronDown size={14} className={cn('text-slate-400 transition-transform cursor-pointer', isOpen && 'rotate-180')} />
             </div>
           </div>
         ) : (
@@ -236,28 +236,29 @@ export const Select: React.FC<SelectProps> = ({
             aria-expanded={isOpen}
             aria-label={label || placeholder}
             className={cn(
-              'w-full border rounded-lg text-left transition-all',
-              'focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm',
-              'bg-white border-slate-300 hover:border-slate-400 hover:bg-slate-50/30 font-medium',
+              'group/trigger w-full border rounded-lg text-left transition-colors',
+              'focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500',
+              isOpen ? 'border-blue-500 ring-2 ring-blue-500/25' : 'border-slate-200 hover:border-slate-300',
+              'bg-white text-slate-800',
               inputSize === 'sm' && 'h-9 px-3 text-xs',
-              inputSize === 'md' && 'h-10 px-4 text-sm font-medium',
-              inputSize === 'lg' && 'h-12 px-5 text-base font-medium',
+              inputSize === 'md' && 'h-10 px-4 text-sm',
+              inputSize === 'lg' && 'h-12 px-5 text-base',
               disabled && 'bg-slate-50 cursor-not-allowed opacity-50',
               error && 'border-rose-300 bg-rose-50',
               'flex items-center justify-between gap-2',
               triggerClassName
             )}
           >
-            <span className={cn('flex-1 truncate', !selectedOption && 'text-slate-400 font-normal')}>
+            <span className={cn('flex-1 truncate', !selectedOption && 'text-slate-400')}>
               {selectedOption ? selectedOption.label : placeholder}
             </span>
             <div className="flex items-center gap-1">
               {value && !disabled && clearable && (
-                <div onClick={handleClear} className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
-                  <X size={14} />
+                <div onClick={handleClear} className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-all cursor-pointer opacity-0 group-hover/trigger:opacity-100">
+                  <X size={13} />
                 </div>
               )}
-              <ChevronDown size={16} className={cn('text-slate-400 transition-transform', isOpen && 'rotate-180')} />
+              <ChevronDown size={14} className={cn('text-slate-400 transition-transform', isOpen && 'rotate-180')} />
             </div>
           </button>
         )}
@@ -269,7 +270,7 @@ export const Select: React.FC<SelectProps> = ({
             role="listbox"
             id="select-listbox"
             aria-label={label || placeholder}
-            className="fixed z-[99999] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
+            className="fixed z-[99999] bg-white border border-slate-200 rounded-lg shadow-[0_6px_20px_-4px_rgba(15,23,42,0.14)] overflow-hidden flex flex-col animate-select-pop"
             style={{
               top: dropdownRect.openUp ? 'auto' : dropdownRect.bottom + 4,
               bottom: dropdownRect.openUp ? window.innerHeight - dropdownRect.top + 4 : 'auto',
@@ -280,7 +281,7 @@ export const Select: React.FC<SelectProps> = ({
             }}
           >
             {searchable && !isCombobox && (
-              <div className="p-2 border-b border-slate-100 bg-slate-50/50">
+              <div className="p-1.5 border-b border-slate-100">
                 <div className="relative">
                   <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
@@ -292,7 +293,7 @@ export const Select: React.FC<SelectProps> = ({
                       setActiveIndex(0);
                     }}
                     placeholder="Search..."
-                    className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full pl-8 pr-3 h-9 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 bg-white placeholder:text-slate-400"
                     onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => {
                       if (e.key === 'ArrowDown') {
@@ -313,7 +314,7 @@ export const Select: React.FC<SelectProps> = ({
               </div>
             )}
             <div
-              className="overflow-y-auto customize-scrollbar py-1 min-h-0"
+              className="overflow-y-auto customize-scrollbar py-1 min-h-0 space-y-px"
               onKeyDown={(e) => {
                 if (e.key === 'ArrowDown') {
                   e.preventDefault();
@@ -330,8 +331,8 @@ export const Select: React.FC<SelectProps> = ({
               }}
             >
               {filteredOptions.length === 0 ? (
-                <div className="px-3 py-8 text-[10px] text-slate-300 text-center uppercase tracking-[0.2em] font-bold">
-                  No results
+                <div className="px-3 py-6 text-xs text-slate-400 text-center">
+                  No results found
                 </div>
               ) : (
                 filteredOptions.map((option, index) => (
@@ -346,14 +347,14 @@ export const Select: React.FC<SelectProps> = ({
                     onMouseEnter={() => setActiveIndex(index)}
                     disabled={option.disabled}
                     className={cn(
-                      'w-[calc(100%-8px)] mx-1 px-3 py-2 text-sm text-left transition-colors rounded-lg mb-0.5 flex items-center justify-between',
-                      value == option.value ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-600',
+                      'w-[calc(100%-8px)] mx-1 px-3 h-9 text-sm text-left transition-colors rounded-md flex items-center justify-between gap-2',
+                      value == option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-700',
                       option.disabled && 'opacity-40 cursor-not-allowed',
-                      activeIndex === index && !option.disabled && 'bg-slate-100'
+                      activeIndex === index && !option.disabled && value != option.value && 'bg-slate-100'
                     )}
                   >
                     <span className="truncate">{option.label}</span>
-                    {value == option.value && <div className="w-1.5 h-1.5 rounded-full bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]" />}
+                    {value == option.value && <Check size={14} className="text-blue-600 shrink-0" />}
                   </button>
                 ))
               )}

@@ -25,21 +25,21 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6, 1.2.8, 1.4.2
 - [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7
 - [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
-- [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.2.0, 1.2.1, 1.2.5, 1.2.9, 1.4.2, 1.4.3
+- [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.2.0, 1.2.1, 1.2.5, 1.2.9, 1.4.2, 1.4.3, 1.4.5
 - [Who's Online / Presence](#whos-online--presence) — rev 1.2.0, 1.2.1
 - [Regions, Domains & Employee Sync](#regions-domains--employee-sync) — rev 1.2.0, 1.2.4, 1.2.5
 - [Quotations Page (list & filters)](#quotations-page-list--filters) — rev 1.2.1, 1.2.2
 - [DSR (Daily Status Reports)](#dsr-daily-status-reports) — rev 1.2.7
 - [Audit Log](#audit-log) — rev 1.2.7, 1.4.2
 - [Global Search](#global-search) — rev 1.4.2
-- [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5, 1.2.10, 1.4.3
-- [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6, 1.4.8, 1.4.9, 1.4.2
+- [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5, 1.2.10, 1.4.3, 1.4.5
+- [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6, 1.4.8, 1.4.9, 1.4.2, 1.4.5
 - [Design System Documentation](#design-system-documentation) — rev 1.2.6
 - [External Visiting Card Integration](#external-visiting-card-integration) — rev 1.3.0, 1.4.10
 - [Events & Exhibitions](#events--exhibitions) — rev 1.3.0
 - [API Reference Documentation](#api-reference-documentation) — rev 1.3.0
 - [Intranet SSO](#intranet-sso) — rev 1.3.1
-- [HRMS Daily Service Reports & Expenses](#hrms-daily-service-reports--expenses) — rev 1.4.2
+- [HRMS Daily Service Reports & Expenses](#hrms-daily-service-reports--expenses) — rev 1.4.2, 1.4.5
 - [Service Module](#service-module) — rev 1.4.0, 1.4.1, 1.4.2, 1.4.3, 1.4.4, 1.4.5, 1.4.6, 1.4.7, 1.4.11, 1.4.12, 1.4.13, 1.4.14, 1.4.15
 
 ---
@@ -439,6 +439,47 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Dashboard, Reports & Performance Leaderboard
 
+### Rev 39 — 2026-10-03 (v1.4.5) — [Revision]
+- **Expected order: no duplicates, richer picker.** A lead already in next month's plan is greyed out ("In next month's plan") and cannot be added again; creating again adds to the same plan (one plan per person per month — the backend rejects duplicates and makes a second report impossible). The picker is now clickable cards showing name, company, lead number, plant / region / lead type, status tag, potential and quoted value, expected closing date (overdue / soon), last activity, follow-up, a stage filter, a "closing within 30 days" toggle, and a sticky bar with the selected count and total potential.
+- **MIS filling is for next month only.** Expected orders and OD plans can only be created / changed for next month (India time): the backend refuses any other month; the OD plan page shows other months read-only with a "Plan <next month>" button; MIS shows "View" instead of "Edit" for them. Unplanned visits (current month) are unaffected.
+- Backend: `planning_month()` in `app/mis_utils.py` (tested), new `GET /reports/expected-orders/planned-leads`. No migration.
+- Files: `pages/ExpectedOrderNewPage.tsx`, `pages/ODPlanPage.tsx`, `pages/ReportsPage.tsx`, `lib/marketing-api.ts`, `au-marketing-api/app/routers/reports.py`, `au-marketing-api/app/mis_utils.py`, `au-marketing-api/tests/test_mis_utils.py`
+
+### Rev 38 — 2026-10-03 (v1.4.5) — [Revision]
+- **OD plan page made self-explanatory (same layout):** "Step 1 · Pick the days you'll be out of office" above the date box (placeholder "Click here to pick your dates", after picking "N days picked · click to change", "Today" → "Use today"); "Step 2 · For each day below, click Add plan…" under the chips; picked days open expanded and an empty day says "Nothing planned for this day yet" with an "Add plan for Sat 3 Oct" button; the visit / travel / return-home choice is three buttons with a one-line hint each ("What will you do?") and the save button reads "Add to plan"; a green "✓ Saved" shows after each save; the visits / travels / days counts only appear once something is planned. `DatePicker` got an optional `selectedLabel` for the multi-date summary.
+- Files: `pages/ODPlanPage.tsx`, `components/ui/DatePicker.tsx`
+
+### Rev 37 — 2026-10-03 (v1.4.5) — [Revision]
+- **OD plan / Expected order wording polish:** the month now reads "November 2026 (11/2026)" (Expected order page heading and OD plan month bar and title) instead of "For 2026 / 11 (next month)"; the quiet "Add entry" link became clear buttons ("Add visit or travel plan", "Add another visit or travel plan"); contact search says "Search contact by name, company or email", results show the name first with company, plant and email underneath, and a picked contact shows by name (it used to show the email). No backend change (contact search already matched names).
+- Files: `pages/ODPlanPage.tsx`, `pages/ExpectedOrderNewPage.tsx`
+
+### Rev 36 — 2026-10-03 (v1.4.5) — [Revision]
+- **OD plan: say who / where three ways, plus unplanned visits.** A visit can now be an existing contact, a **company and plant** (no person needed — pick an existing company and plant, or add a new company/plant right there with a domain and region, using the same create-organization / create-plant permissions and organization visibility rules as the Organizations pages), or just a place. A new **Add unplanned visit** button (current month, from the OD plan page or the MIS side panel) records a visit that was not in the plan — today or an earlier date in the month, works after the plan deadline, never touches the planned entries, shows an "Unplanned" tag and can be removed.
+- **MIS shows the detail:** the OD plan section now has a visit table (date, type, where / who with company and plant and contact, notes, Planned / Unplanned tag), unplanned days are highlighted on the calendar, the description counts planned vs unplanned visits, and the team table shows "N planned · N unplanned" under OD (also in the Excel export). An unplanned visit alone does not count as the plan being "filed".
+- **Backend:** `od_plan_entries` gets `organization_id`, `plant_id`, `is_unplanned`, `created_at` (needs `alembic revision --autogenerate` + `upgrade head` and a rebuild). Saving the plan now only replaces the planned entries (unplanned ones are kept); new endpoints `POST /reports/od-plans/{y}/{m}/unplanned` and `DELETE /reports/od-plans/unplanned/{id}`; company / plant ids are checked against the user's organization visibility. The demo seed script now includes company-only visits and unplanned visits.
+- Files: `pages/ODPlanPage.tsx`, `pages/ReportsPage.tsx`, `lib/marketing-api.ts`, `au-marketing-api/app/models.py`, `au-marketing-api/app/routers/reports.py`, `au-marketing-api/scripts/clear_and_seed_india.py`
+
+### Rev 35 — 2026-10-03 (v1.4.5) — [Revision]
+- **MIS is now a month-end review.** Opens on last month from the 1st–10th (current month after that), with a "complete / in progress" label. **Work done was removed** (page, side panel and API).
+- **Plan filing deadline moved to the last day of the month** (was last day minus 2), still 8:30 PM — affects the OD plan and Expected order pages (`lib/deadline-utils.ts`, frontend-only rule). The MIS "on time / late / not filed" check uses the same rule (8:30 PM India time).
+- **Team table:** two plan columns — the viewed month's own plan (OD / expected order filed, how many planned leads were won / lost / carried forward) and next month's plan (on time / late / not filed / not due yet). New alerts: Target missed (finished month), Next OD plan / expected order late or not filed. "Quiet" and "Last active" only for the current month. Sticky header, 50 rows at a time with "Show more", CSV export includes the new columns.
+- **Side panel:** tabs (Summary / Plans / Won-Lost), slide-in/out and fade animations (existing `animate-slide-*` classes + new `animate-mis-fade` in `index.html`). Summary shows "where the wins came from" (from the expected order vs outside the plan); won leads are tagged Planned / Not planned; the Plans tab lists leads carried forward to next month.
+- Backend: `/reports/mis` returns won_from_plan / won_outside_plan and no timeline; `/reports/mis/team` returns eo_total/won/lost/open and next_od_status / next_eo_status; pure deadline helpers in `au-marketing-api/app/mis_utils.py` with tests in `tests/test_mis_utils.py`.
+- Files: `pages/ReportsPage.tsx`, `lib/marketing-api.ts`, `lib/deadline-utils.ts`, `index.html`, `au-marketing-api/app/routers/reports.py`, `au-marketing-api/app/mis_utils.py`
+
+### Rev 34 — 2026-10-03 (v1.4.5) — [Revision]
+- **MIS page rebuilt around one employee's month.** Small OD plan / Expected order buttons at the top, month switcher and (for heads/admins) an Employee picker. Below: summary numbers (leads created, activities, quotations, won, lost, orders), the OD plan as a colour-coded month calendar, Expected order for the month plus the previous month's plan (won / lost / expected / carried forward with a progress bar), Won and Lost lists, and a day-by-day "Work done" timeline (leads, activities, quotations, won/lost, orders, contacts and customers added).
+- **Team overview table** (domain heads, region heads, supervisors, admins): one row per person with leads created, activities, won (count + value), lost, orders and whether the OD plan / expected order is filled, plus a team total. Clicking a row opens that person's MIS.
+- **New endpoints** `GET /api/reports/mis` (one employee + month) and `GET /api/reports/mis/team`. Same who-can-see-whom check as the other report endpoints; records are matched by both the HRMS employee id and the Django user id (the two-ID-spaces trap). Quotations are counted once with revisions folded in (`quote_values`). Won = leads the person owns closed in the month; Lost = their leads moved to a lost status in the month. No database changes.
+- **Flattened the look (no cards):** the MIS page is now plain sections separated by thin lines — summary figures in one row with dividers, list rows divided by lines instead of boxes, tables without outer borders. Same data, same endpoints.
+- **Domain-head view (team overview upgrade):** the team table is now the main screen — team totals with ▲/▼ change vs last month, each person's won value against their monthly target (progress bar), leads / activities / lost with change arrows, last active, OD plan and expected-order status, and last month's expected-order follow-through ("6/10 won"). Search, click-to-sort headers, grouped by region when there is more than one, a "Needs attention" filter (no OD plan, no expected order, no activity for 5+ days this month, behind target) and a Download Excel (CSV) button. Clicking a person opens their full MIS in a side panel with Prev / Next to flip through the team. People without a team still see their own MIS full-page. `/reports/mis/team` now also returns last month's numbers, target, last activity and follow-through. Files: `pages/ReportsPage.tsx`, `lib/csv-export.ts`, `lib/marketing-api.ts`, `au-marketing-api/app/routers/reports.py`
+- The old "Create report" card and the month tiles / expected-order popup were removed from the page (the data now shows inline).
+- Files: `pages/ReportsPage.tsx`, `lib/marketing-api.ts`, `au-marketing-api/app/routers/reports.py`
+
+### Rev 33 — 2026-10-03 (v1.4.5) — [Revision]
+- **Sales "Reports" page renamed "MIS"** in the sidebar, global search, page title, breadcrumbs (MIS page, Leads by Region, OD Plan, Expected Order) and the presence label. URL stays `/reports`; the Service module's "Reports" is untouched.
+- Files: `constants.tsx`, `components/ui/Navbar.tsx`, `lib/presence-utils.ts`, `pages/ReportsPage.tsx`, `pages/LeadsByRegionPage.tsx`, `pages/ODPlanPage.tsx`, `pages/ExpectedOrderNewPage.tsx`
+
 ### Rev 32 — 2026-09-29 (v1.4.3) — [Revision]
 - **UI polish pass** (frontend only):
   - **No duplicate number:** the "Won This Month" number card (same figure as the target ring's "Achieved") is replaced by **Quotes Sent This Month** — ₹ value + count from `/api/leads-by-region/` totals for this month (same scope and "counted once at the latest price, in the month first sent" rule); links to the report for this month. Shows "could not load" if that call fails.
@@ -707,6 +748,18 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Global UI, Formatting & Bug Fixes
 
+### Rev 9 — 2026-10-03 (v1.4.5) — [Revision]
+- **Sidebar bottom block made compact and part of the same panel:** the "ADMIN" label row is gone (one light divider instead), Administration stays collapsed by default and is slightly tighter, Settings and Support sit side by side (Support & Tickets shows as "Support"), and the profile card lost its box — smaller avatar, name, then role · time on one line (full time and date in the tooltip). The menu scrollbar is now a thin one that only shows while hovering the menu (`.sidebar-scroll` in `index.html`), so the grey strip beside the menu is gone and the menu gets more room on short screens.
+- Files: `components/ui/Sidebar.tsx`, `index.html`
+
+### Rev 8 — 2026-10-03 (v1.4.5) — [Revision]
+- **Refined look for the shared UI components — same sizes (correction of Rev 7):** the dropdown's heights were put back to 36 / 40 / 48 px (Rev 7 had shrunk them; only the finish was wanted). `Input` and `DatePicker` now share the dropdown's finish (light border, no heavy shadow, soft blue focus ring, normal-weight text; the date picker's popup and selected day lose the blue glow). `Card`: corner radius 20 → 14 px, thinner border, lighter shadow, gentler hover lift (minimum height kept). `Button`: heights unchanged, flatter (no shadow), a subtle press effect, semibold text, and the tiny wide-spaced capitals on `xxs` / `xs` became normal sentence-case text (11 / 12 px). `Modal`: 16 → 12 px corners, lighter shadow and backdrop, semibold title, rounded footer.
+- Files: `components/ui/Select.tsx`, `components/ui/Input.tsx`, `components/ui/DatePicker.tsx`, `components/ui/Card.tsx`, `components/ui/Button.tsx`, `components/ui/Modal.tsx`, `design.md`
+
+### Rev 7 — 2026-10-03 (v1.4.5) — [Revision]
+- **Dropdown (`Select`) made slimmer and more modern, everywhere at once:** closed box is 32 / 36 / 44 px (was 36 / 40 / 48) with a light border, no shadow, normal-weight text, a smaller chevron and a blue focus ring; the clear (x) shows on hover only. The open list has a lighter shadow, tighter corners, compact 32 px options, a tick (not a glowing dot and bold text) on the selected one, a cleaner search field without the grey strip, a quieter "No results found", and a short open animation (`animate-select-pop` in `index.html`; the old `animate-in` classes never worked here). Props and keyboard behaviour are unchanged. Input and DatePicker keep their old heights.
+- Files: `components/ui/Select.tsx`, `index.html`, `design.md`
+
 ### Rev 6 — 2026-09-29 (v1.4.3) — [Revision]
 - **Sidebar profile card restyled to match the HRMS sidebar** (revised same day after the flat version): rounded bordered card with a round avatar, name, a role badge pill, and a live time • date line.
 - **Administration** no longer shows a permanent blue box just because it is expanded; like Service, it only highlights while you are on one of its pages (Numbering Series / Roles). **Profile card made compact** — smaller avatar, name and time on one line, role badge under it (date moved to the hover tooltip).
@@ -739,6 +792,11 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Tooling & Scripts
+
+### Rev 6 — 2026-10-03 (v1.4.5) — [Revision]
+- **Demo seed script brought up to date** (`clear_and_seed_india.py`): (1) a demo team — admin as Domestic domain head, 2 region heads, 3 employees, with region assignments (records stored under the user id, region tables under the employee id, like the real app); leads, activities, quotations (one revised) and orders are spread across them with dates relative to today; (2) MIS data — wins / losses / open leads in last month and this month, monthly targets, expected-order reports and OD plans with on-time / late / not-filed mixes, to-do tasks; (3) Service in its current shape — one work order per contract with an approval chain (approved / waiting / sent back), dispatch records, uploaded files, customer part-name aliases, complaints linked to contracts and departments; (4) the clear step now also wipes the 7 newer tables it was missing (work order approvals / dispatches / files, part aliases, reminder log, issue types, visiting-card contacts). Not run against any database.
+- **Fuller demo data + configurable head** (same script): team of 15 (head + 4 region heads + 10 employees), 14 companies / 26 contacts / 12 customers, ~90 leads (27 hand-written + 63 generated, deterministic) spread over the last three months, 4–8 activities per lead with many revised quotations, orders on every won lead, 5 months of targets, 10–14-day OD plans, 6 to-do tasks each, 10 service contracts and 10 complaints. The domain head is set from `SEED_HEAD_EMPLOYEE_ID` / `SEED_HEAD_USER_ID` / `SEED_HEAD_USERNAME` (defaults 1 / 1 / admin) so the logged-in user sees the whole team. Also fixed the clear step failing on the customers ↔ plants (and plants → contacts) links.
+- Files: `au-marketing-api/scripts/clear_and_seed_india.py`
 
 ### Rev 5 — 2026-09-28 (v1.4.2) — [Revision]
 - Added a "check names before adding code inside an existing function, and test the endpoint you change" rule to CLAUDE.md and AGENTS.md, after the Leads list crash caused by a reused `total` variable (see Quotations & Quote Numbers Rev 10).
@@ -845,6 +903,12 @@ New module covering everything after the sale — maintenance contracts, service
 ## HRMS Daily Service Reports & Expenses
 
 > Separate from the Marketing "DSR (Daily Status Reports)" page above — this is the HRMS Indoor/Outdoor Daily Service Report + Daily Expense Report module, integrated per `docs/DSR_MODULE_INTEGRATION.md`.
+
+### Rev 11 — 2026-10-04 (v1.4.5) — [Revision]
+- **Indoor, Outdoor and Expense forms take several entries in one submission, matching the updated HRMS guide (2026-10-03).** Employee and date are entered once (Expense: each day has its own date); below them each task / visit / day is a row. Finished rows fold into a summary line (number, title, `Department › Task Type · start – end (duration)` or company / reason, or date · destination · total) with a pencil and a trash; the open row ends with a green **Done** that validates it; **Add another task / visit / day** appends a row (a new task's Start Time pre-fills with the previous End Time, a new expense day is the next date). Indoor shows "Total: X hours" (summed; tasks may run in parallel, so overlapping times are allowed, as in the updated guide); Expense shows "Total of all days". Editing a saved report is still one record. "Create DSR from lead activity" fills the open task.
+- **Saving:** the HRMS API still takes one record per call, so a submit calls it once per row, in order, and stops at the first failure — rows already saved are removed from the screen, the rest stay with a message ("2 of 3 saved. '…' failed: … Fix it and submit again."), so nothing is lost or filed twice. Unlike the HRMS web form this is **not all-or-nothing**, and the approver gets one notification per row (not one per submission). No backend change.
+- **Outdoor rule aligned with the guide:** a visit now needs a Company Name **or** a Reason for Visit (at least one) instead of requiring the company name; the star on Company Name is gone and a one-line hint says so. Entry pencil / trash buttons are 40 px with 20 px icons, as in the HRMS form.
+- Files: `components/dsr/EntryRows.tsx` (new), `components/dsr/DSRForm.tsx`, `components/dsr/ExpenseForm.tsx`, `lib/dsr-helpers.ts`
 
 ### Rev 10 — 2026-09-28 (v1.4.2) — [Revision]
 - **Guide updated for reuse:** added **§10 "React reference implementation — S&M Hub"** to `docs/DSR_MODULE_INTEGRATION.md` (+ a pointer near the top) so another React module can build the identical DSR UI: routes/navigation, files and their jobs, the shared permission function and hours rule (verbatim), display conventions (dd/mm/yyyy, employee code/"Staff", badges, Format label, tab styles, counts), create/history/pending/To-Do page behaviour, the API gaps we work around, the optional "DSR from activity" pattern with `Lead log #id` duplicate protection, and the tests to copy.

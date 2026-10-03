@@ -20,7 +20,7 @@ export const Sidebar: React.FC = () => {
   const [adminOpen, setAdminOpen] = useState(false);
   const [serviceOpen, setServiceOpen] = useState(false);
   const [workOpen, setWorkOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState('v1.4.4');
+  const [appVersion, setAppVersion] = useState('v1.4.5');
   const [versionLoaded, setVersionLoaded] = useState(false);
   const userDisplayName = useAppSelector(selectUserDisplayName);
   const employee = useAppSelector(selectEmployee);
@@ -191,7 +191,7 @@ export const Sidebar: React.FC = () => {
         </div>
 
         {/* flex-1 + min-h-0 + overflow: the menu scrolls when it's taller than the screen; logo and bottom section stay put */}
-        <nav className="space-y-0.5 flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
+        <nav className="space-y-0.5 flex-1 min-h-0 overflow-y-auto sidebar-scroll -mx-1 px-1">
           <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-2">Main Menu</p>
           {filteredSidebarLinks.map((item) => (
             <SidebarItem key={item.title} item={item} />
@@ -306,19 +306,15 @@ export const Sidebar: React.FC = () => {
           )}
         </nav>
 
-        <div className="mt-auto pt-4 space-y-0 shrink-0">
+        <div className="mt-auto pt-2 space-y-0 shrink-0 border-t border-slate-100">
           {/* ── Admin Section ── */}
           {hasAdmin && (
             <div className="mb-1">
-              <div className="border-t border-slate-100 pt-3 pb-1">
-                <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Admin</p>
-              </div>
-
               {/* Admin toggle button */}
               <button
                 type="button"
                 onClick={() => setAdminOpen(o => !o)}
-                className={`w-full group flex items-center justify-between rounded-lg text-[13px] transition-all duration-200 font-medium px-3 py-2 ${
+                className={`w-full group flex items-center justify-between rounded-lg text-[13px] transition-all duration-200 font-medium px-3 py-1.5 ${
                   (adminOpen && onAdminRoute)
                     ? 'bg-blue-50 text-blue-700'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -390,29 +386,41 @@ export const Sidebar: React.FC = () => {
             </div>
           )}
 
-          {/* Secondary links (Settings / Support) */}
-          <div className={`space-y-0.5 ${hasAdmin ? 'mt-1' : 'mt-3 border-t border-slate-100 pt-3'}`}>
+          {/* Secondary links (Settings / Support) side by side */}
+          <div className="grid grid-cols-2 gap-1 mt-0.5">
             {filteredSecondaryLinks.map((item) => (
-              <SidebarItem key={item.title} item={item} />
+              <NavLink
+                key={item.title}
+                to={item.href}
+                title={item.title}
+                className={({ isActive }) =>
+                  `group flex items-center gap-2 rounded-lg text-[12.5px] transition-colors font-medium px-2.5 py-1.5 ${
+                    isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <item.icon size={16} strokeWidth={isActive ? 2.2 : 1.8} className={isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'} />
+                    <span className="truncate">{item.title.split(' ')[0]}</span>
+                  </>
+                )}
+              </NavLink>
             ))}
           </div>
 
-          <div
-            className="mt-2 flex items-center gap-2.5 px-3 py-2 rounded-xl border border-slate-200/70 bg-slate-50/60"
-            title={userDisplayName}
-          >
+          <div className="mt-1 flex items-center gap-2.5 px-2 py-1.5 rounded-lg" title={`${userDisplayName} · ${clockLabel}`}>
             <Avatar
               src={resolveHrmsMediaUrl(employee?.profile_picture || user?.profile_picture)}
               name={userDisplayName}
-              className="w-10 h-10 rounded-full bg-blue-100 border border-blue-200/50 text-blue-600 text-xs shrink-0"
+              className="w-8 h-8 rounded-full bg-blue-100 border border-blue-200/50 text-blue-600 text-[11px] shrink-0"
             />
             <div className="flex-1 min-w-0">
-              <p className="text-[14px] font-semibold text-slate-900 truncate leading-tight">{userDisplayName}</p>
-              <span className="mt-px inline-flex max-w-full items-center rounded border border-blue-200 bg-blue-50 px-1.5 text-[11px] leading-[16px] font-semibold text-blue-700">
-                <span className="truncate">{getUserRole()}</span>
-              </span>
-              <p className="mt-0.5 flex items-center gap-1 text-[11px] leading-tight text-slate-400 font-medium">
-                <Clock size={11} /> {clockLabel}
+              <p className="text-[13px] font-semibold text-slate-900 truncate leading-tight">{userDisplayName}</p>
+              <p className="flex items-center gap-1.5 text-[11px] leading-tight text-slate-500 font-medium min-w-0">
+                <span className="truncate text-blue-700">{getUserRole()}</span>
+                <span className="text-slate-300">·</span>
+                <span className="shrink-0 text-slate-400">{clockLabel.split(' • ')[0]}</span>
               </p>
             </div>
           </div>

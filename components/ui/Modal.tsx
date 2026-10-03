@@ -36,7 +36,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
           >
             <motion.div
-              className="absolute inset-0 bg-slate-900/55"
+              className="absolute inset-0 bg-slate-900/45"
               onClick={onClose}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -44,15 +44,15 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
               transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
             />
             <motion.div
-              className={`relative w-full bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-visible ${contentClassName ?? 'max-w-lg'}`}
+              className={`relative w-full bg-white rounded-xl shadow-[0_16px_48px_-12px_rgba(15,23,42,0.28)] border border-slate-200 overflow-visible ${contentClassName ?? 'max-w-lg'}`}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 12 }}
               transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
             >
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between rounded-t-2xl bg-white">
-              <h3 className="font-bold text-slate-900">{title}</h3>
-              <button type="button" onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between rounded-t-xl bg-white">
+              <h3 className="font-semibold text-slate-900">{title}</h3>
+              <button type="button" onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400">
                 <X size={18} />
               </button>
             </div>
@@ -60,7 +60,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
               {children}
             </div>
             {footer && (
-              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 rounded-b-xl">
                 {footer}
               </div>
             )}

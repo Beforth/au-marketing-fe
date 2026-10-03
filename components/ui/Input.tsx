@@ -28,15 +28,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
   ...props
 }, ref) => {
   const variants = {
-    slate: 'bg-blue-50/[0.15] border-slate-200 focus:bg-white',
-    white: 'bg-white border-slate-200 shadow-sm focus:shadow-md',
+    slate: 'bg-white border-slate-200 hover:border-slate-300 focus:bg-white',
+    white: 'bg-white border-slate-200 hover:border-slate-300',
     ghost: 'bg-transparent border-transparent hover:bg-slate-50 focus:bg-white focus:border-slate-200',
   };
 
   const sizes = {
     sm: 'h-9 px-3 text-xs',
-    md: 'h-10 px-4 text-sm font-medium',
-    lg: 'h-12 px-5 text-base font-medium',
+    md: 'h-10 px-4 text-sm',
+    lg: 'h-12 px-5 text-base',
   };
 
   return (
@@ -57,7 +57,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
           ref={ref}
           value={value}
           className={cn(
-            'w-full border rounded-lg outline-none transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600',
+            'w-full border rounded-lg outline-none transition-colors placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500',
             variants[variant],
             sizes[inputSize],
             icon && 'pl-10',

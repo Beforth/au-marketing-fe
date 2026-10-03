@@ -114,7 +114,7 @@ export const Navbar: React.FC = () => {
       { id: 'nav-5', category: 'Pages', title: 'Orders', icon: Package, href: '/orders', permission: 'marketing.view_lead' },
       { id: 'nav-6', category: 'Pages', title: 'Database', icon: Database, href: '/database', permission: 'marketing.view_database' },
       { id: 'nav-schema', category: 'Pages', title: 'Schema / ER diagram', icon: Database, href: '/schema', permission: 'marketing.view_lead' },
-      { id: 'nav-9', category: 'Pages', title: 'Reports', icon: PieChart, href: '/reports', permission: 'marketing.view_report' },
+      { id: 'nav-9', category: 'Pages', title: 'MIS', icon: PieChart, href: '/reports', permission: 'marketing.view_report' },
       { id: 'nav-10', category: 'Pages', title: 'Employees', icon: Users, href: '/employees', permission: 'marketing.view_domain' },
     ];
 
