@@ -5,6 +5,15 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-10-14] — Simpler file options when logging an activity (v1.4.6)
+
+### 🖥️ Frontend
+
+#### Leads — Log Activity
+- The file dropdown when logging an activity on a lead no longer offers **New Quotation**. It now shows only **Revise Quotation** and **Attachment**. New quotations are added from the **Inquiry 0** entry or the quote-number box.
+
+---
+
 ## [2026-10-04] — MIS month-end review, OD plan and expected order upgrades, multi-entry DSR & a cleaner look (v1.4.5)
 
 ### 🖥️ Frontend

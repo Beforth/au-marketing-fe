@@ -354,6 +354,10 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Quotations & Quote Numbers
 
+### Rev 11 — 2026-10-14 (v1.4.6) — [Revision]
+- **"New Quotation" removed from the Log Activity file dropdown on the lead page (client request).** The dropdown now offers only Revise Quotation and Attachment. New quotations can still be added from the Inquiry 0 entry ("Attach quotation file" / "Add another quotation") and the quote-number widget. The Leads-page status-change popup still has its own "New Quotation" option (not changed). The now-unreachable new-quotation branches in the Log Activity form were left in place.
+- Files: `pages/LeadFormPage.tsx`
+
 ### Rev 10 — 2026-09-28 (v1.4.2) — [Issue]
 - **Leads list failed with "1 validation error for PaginatedResponse — total … None".** Introduced by Rev 7 (latest-revision quote value): the per-lead quote total was stored in a variable named `total`, the same name the list endpoint uses for the lead count, so the count was overwritten by the last lead's quote value — `None` whenever that lead had no quotation. Renamed to `quote_total`/`quote_count` (also in single-lead and post-Won paths). See ISSUES.md.
 - Files: `au-marketing-api/app/routers/leads.py`
