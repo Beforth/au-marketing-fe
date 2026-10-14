@@ -415,6 +415,13 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Orders (Kanban & Inquiry Log)
 
+### Rev 5 — 2026-10-14 (v1.4.6) — [Revision]
+- **Orders board now has the Leads filters.** Only mine, Hide Empty (kanban), an employee filter and a date range (This Month / This Quarter / Custom, heads and admins only) — same look and rules as the Leads board. `GET /api/orders/` now accepts `date_from`, `date_to`, `created_by_me`, several `assigned_to` ids and `no_limit` (the date filter was already sent by the page but ignored by the server).
+- **Newest first.** Orders come back newest-updated first, and each kanban column is sorted latest at the top, oldest at the bottom. The kanban now loads every order (it used to load an arbitrary first 100).
+- **Changing an order's value needs a reason.** In the Edit order popup a "Reason for changing the value" box appears as soon as the value is edited; Save stays disabled until it has 100+ characters, then everything saves at once. The server enforces the same 100-character rule (`value_change_reason`). The reason is written to the audit log and as an "Order value changed" entry in the order's inquiry log.
+- **The lead's closed value follows the order's value, up or down** (by the same amount, never below ₹0, then never below the total of the lead's orders), so the target follows. The audit log records the lead's old and new value.
+- Files: `au-marketing-api/app/routers/orders.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/tests/test_order_value_sync.py`, `lib/marketing-api.ts`, `pages/OrdersPage.tsx`, `pages/OrderFormPage.tsx`
+
 ### Rev 4 — 2026-10-14 (v1.4.6) — [Issue]
 - **Re-adding a deleted order showed value 0.** Deleting an order lowers its lead's closed value (so the target drops), which left a Won lead at ₹0, and "New Order (from lead)" copied that 0. Now the New Order form has an **Order value** box (pre-filled from the lead), and creating or editing an order raises the lead's closed value to at least the total of its orders' values (never lowers it), so the target counts it again. Re-saving an already-affected order repairs its lead. The change is noted in the audit log.
 - Files: `au-marketing-api/app/routers/orders.py`, `pages/OrderFormPage.tsx`

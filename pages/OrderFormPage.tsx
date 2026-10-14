@@ -44,6 +44,15 @@ export const OrderFormPage: React.FC = () => {
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Order>>({});
   const [showEditModal, setShowEditModal] = useState(false);
+  const [valueChangeReason, setValueChangeReason] = useState('');
+  const VALUE_REASON_MIN_CHARS = 100;
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setValueChangeReason('');
+    if (order) setEditForm({ status_id: order.status_id ?? undefined, order_value: order.order_value ?? undefined, expected_delivery_at: order.expected_delivery_at ?? undefined, notes: order.notes ?? undefined });
+  };
+  const orderValueChanged = Number(editForm.order_value ?? 0) !== Number(order?.order_value ?? 0);
+  const valueReasonMissing = orderValueChanged && valueChangeReason.trim().length < VALUE_REASON_MIN_CHARS;
   const [activityForm, setActivityForm] = useState({
     activity_type: 'note',
     title: '',
@@ -193,9 +202,12 @@ export const OrderFormPage: React.FC = () => {
         order_value: editForm.order_value,
         expected_delivery_at: editForm.expected_delivery_at,
         notes: editForm.notes,
+        ...(orderValueChanged ? { value_change_reason: valueChangeReason.trim() } : {}),
       });
       setOrder(updated);
       setShowEditModal(false);
+      setValueChangeReason('');
+      if (orderValueChanged) loadOrder();
       showToast('Order updated', 'success');
     } catch (err: any) {
       showToast(err?.message || 'Failed to update order', 'error');
@@ -806,7 +818,7 @@ export const OrderFormPage: React.FC = () => {
         />
       )}
 
-      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Edit order">
+      <Modal isOpen={showEditModal} onClose={closeEditModal} title="Edit order">
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
@@ -827,6 +839,22 @@ export const OrderFormPage: React.FC = () => {
             value={editForm.order_value != null ? String(editForm.order_value) : ''}
             onChange={(raw) => setEditForm((f) => ({ ...f, order_value: raw === '' ? undefined : Number(raw) }))}
           />
+          {orderValueChanged && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Reason for changing the value <span className="text-rose-500">*</span></label>
+              <textarea
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                rows={3}
+                value={valueChangeReason}
+                onChange={(e) => setValueChangeReason(e.target.value)}
+                placeholder="Why is the order value being changed? (at least 100 characters)"
+              />
+              <p className={`mt-1 text-xs ${valueReasonMissing ? 'text-rose-600' : 'text-emerald-600'}`}>
+                {valueChangeReason.trim().length} / {VALUE_REASON_MIN_CHARS} characters
+              </p>
+              <p className="mt-1 text-xs text-slate-500">The lead's closed value changes by the same amount, so the target follows.</p>
+            </div>
+          )}
           <DatePicker
             label="Expected delivery (date)"
             value={editForm.expected_delivery_at ? new Date(editForm.expected_delivery_at).toISOString().slice(0, 10) : ''}
@@ -842,8 +870,8 @@ export const OrderFormPage: React.FC = () => {
             />
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleSaveEdit} isLoading={saving}>Save</Button>
-            <Button variant="outline" size="sm" onClick={() => setShowEditModal(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleSaveEdit} isLoading={saving} disabled={valueReasonMissing}>Save</Button>
+            <Button variant="outline" size="sm" onClick={closeEditModal}>Cancel</Button>
           </div>
         </div>
       </Modal>

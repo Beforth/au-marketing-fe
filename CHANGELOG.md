@@ -5,7 +5,7 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-10-14] — Simpler file options when logging an activity & order value fix (v1.4.6)
+## [2026-10-14] — Orders board filters, order value changes with a reason & simpler log options (v1.4.6)
 
 ### 🖥️ Frontend
 
@@ -13,6 +13,10 @@ Format: `[Date] — Category: Description`
 - The file dropdown when logging an activity on a lead no longer offers **New Quotation**. It now shows only **Revise Quotation** and **Attachment**. New quotations are added from the **Inquiry 0** entry or the quote-number box.
 
 #### Orders
+- The **Orders board has the same filters as Leads**: Only mine, Hide Empty, filter by employee, and a date range (This Month, This Quarter or a custom range for heads and admins).
+- **Newest orders first** in every column, older ones further down. The board now shows all orders, not just the first 100.
+- **Changing an order's value asks for a reason** (at least 100 characters) right in the Edit order window, and everything is saved together. The reason is kept in the audit log and in the order's inquiry log.
+- **The lead's value follows the order's value**, up or down, so targets stay correct. The audit log shows the lead's old and new value.
 - **Re-adding a deleted order no longer shows a value of 0.** The **New Order** form now has an **Order value** box, filled from the lead and editable. Saving an order with a value also brings the lead's closed value back up to match, so the target counts it again. To repair a lead affected earlier, open its order, choose Edit, confirm the value and save.
 
 ---

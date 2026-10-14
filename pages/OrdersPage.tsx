@@ -14,13 +14,26 @@ import { Modal } from '../components/ui/Modal';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { SegmentToggle } from '../components/ui/SegmentToggle';
 import { Tooltip } from '../UI/Tooltip';
-import { Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, FileText, Upload, Eye, Trophy, XCircle, Phone, Mail, Calendar } from 'lucide-react';
+import { Select } from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
+import { FilterPopover } from '../components/ui/FilterPopover';
+import { getStoredMarketingScope } from '../lib/marketing-scope';
+import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
+import { User, Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, FileText, Upload, Eye, Trophy, XCircle, Phone, Mail, Calendar } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
-import { marketingAPI, type Order, type OrderStatusOption, type OrderStatusGroup, type Lead, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
+import { marketingAPI, type ReportScopeResponse, type Order, type OrderStatusOption, type OrderStatusGroup, type Lead, leadDisplayName, leadDisplayCompany, leadDisplayEmail } from '../lib/marketing-api';
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
+
+/** Get initials from employee name (e.g. "John Doe" -> "JD"). */
+function getInitials(name: string): string {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 type ViewMode = 'kanban' | 'table';
 type OrdersTab = 'won' | 'lost';
@@ -204,6 +217,41 @@ export const OrdersPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<number | ''>('');
   const [searchTerm, setSearchTerm] = useState('');
+  // Filters — same set (and behaviour) as the Leads board: Only mine, Hide Empty, employee, date range.
+  const [createdByMeOnly, setCreatedByMeOnly] = useState(false);
+  const [hideEmptyColumns, setHideEmptyColumns] = useState(false);
+  const [selectedAssignedToIds, setSelectedAssignedToIds] = useState<number[]>([]);
+  const [showEmployeeFilterPopover, setShowEmployeeFilterPopover] = useState(false);
+  const employeeFilterRef = React.useRef<HTMLDivElement>(null);
+  const [isScopeLoading, setIsScopeLoading] = useState(true);
+  const [reportScope, setReportScope] = useState<ReportScopeResponse | null>(() => {
+    const cached = getStoredMarketingScope();
+    if (!cached) return null;
+    return {
+      can_select_employee: cached.role !== 'self' && cached.role !== 'employee' && cached.role !== 'supervisor',
+      employees: [],
+      role: cached.role === 'supervisor' ? 'self' : cached.role === 'employee' ? 'self' : (cached.role as any),
+      is_domain_coordinator: cached.is_domain_coordinator,
+    };
+  });
+  const [dateFromInput, setDateFromInput] = useState('');
+  const [dateToInput, setDateToInput] = useState('');
+  const [appliedDateFrom, setAppliedDateFrom] = useState('');
+  const [appliedDateTo, setAppliedDateTo] = useState('');
+  const [dateRangePreset, setDateRangePreset] = useState<string>('all');
+  const isHeadOrAdmin = reportScope?.role !== 'self' && reportScope?.role !== undefined;
+  const handlePresetChange = (preset: string) => {
+    setDateRangePreset(preset);
+    if (preset === 'custom') return;
+    const now = new Date();
+    const range = preset === 'this_month' ? [startOfMonth(now), endOfMonth(now)] : preset === 'this_quarter' ? [startOfQuarter(now), endOfQuarter(now)] : null;
+    const from = range ? format(range[0], 'yyyy-MM-dd') : '';
+    const to = range ? format(range[1], 'yyyy-MM-dd') : '';
+    setAppliedDateFrom(from);
+    setAppliedDateTo(to);
+    setDateFromInput(from);
+    setDateToInput(to);
+  };
   const [showOrderStatusModal, setShowOrderStatusModal] = useState(false);
   const [orderStatusGroups, setOrderStatusGroups] = useState<OrderStatusGroup[]>([]);
   const [orderStatusesFull, setOrderStatusesFull] = useState<OrderStatusOption[]>([]);
@@ -249,7 +297,12 @@ export const OrdersPage: React.FC = () => {
       const res = await marketingAPI.getOrders({
         page: isKanban ? 1 : page,
         page_size: isKanban ? 100 : pageSize,
+        no_limit: isKanban || undefined,
         status_id: isKanban ? undefined : (statusFilter === '' ? undefined : statusFilter),
+        date_from: isHeadOrAdmin && appliedDateFrom ? appliedDateFrom : undefined,
+        date_to: isHeadOrAdmin && appliedDateTo ? appliedDateTo : undefined,
+        assigned_to: selectedAssignedToIds.length > 0 ? selectedAssignedToIds : undefined,
+        created_by_me: createdByMeOnly || undefined,
       });
       setOrders(res.items);
       setTotal(res.total);
@@ -262,7 +315,7 @@ export const OrdersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [viewMode, page, pageSize, statusFilter, showToast]);
+  }, [viewMode, page, pageSize, statusFilter, isHeadOrAdmin, appliedDateFrom, appliedDateTo, selectedAssignedToIds, createdByMeOnly, showToast]);
 
   const loadLostLeads = useCallback(async () => {
     setLostLeadsLoading(true);
@@ -300,6 +353,14 @@ export const OrdersPage: React.FC = () => {
 
   useEffect(() => {
     marketingAPI.getOrderStatusGroups().then(setOrderStatusGroups).catch(() => setOrderStatusGroups([]));
+  }, []);
+
+  useEffect(() => {
+    setIsScopeLoading(true);
+    marketingAPI.getReportsScope()
+      .then(setReportScope)
+      .catch(() => setReportScope(null))
+      .finally(() => setIsScopeLoading(false));
   }, []);
 
   const openOrderStatusModal = () => {
@@ -620,6 +681,14 @@ export const OrdersPage: React.FC = () => {
       if (!map[key]) map[key] = [];
       map[key].push(o);
     });
+    // Latest first, older at the bottom (same as the Leads board).
+    Object.keys(map).forEach((code) => {
+      map[code].sort((a, b) => {
+        const timeA = new Date(a.updated_at || a.last_activity_date || a.created_at || 0).getTime() || a.id;
+        const timeB = new Date(b.updated_at || b.last_activity_date || b.created_at || 0).getTime() || b.id;
+        return timeB - timeA;
+      });
+    });
     return map;
   }, [displayOrders, statuses]);
 
@@ -761,6 +830,106 @@ export const OrdersPage: React.FC = () => {
                 onClear={() => setSearchTerm('')}
                 containerClassName="max-w-md"
               />
+              {((isScopeLoading && reportScope?.can_select_employee) || (reportScope && reportScope.employees.length > 0)) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setCreatedByMeOnly((v) => !v)}
+                    className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all border ${
+                      createdByMeOnly
+                        ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
+                        : 'bg-slate-50 text-slate-500 border-slate-200 hover:text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <User size={12} />
+                    Only mine
+                  </button>
+                  {viewMode === 'kanban' && (
+                    <button
+                      type="button"
+                      onClick={() => setHideEmptyColumns((v) => !v)}
+                      className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all border ${
+                        hideEmptyColumns
+                          ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
+                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      <LayoutGrid size={12} />
+                      Hide Empty
+                    </button>
+                  )}
+                  <div ref={employeeFilterRef} className="flex items-center gap-1.5 ml-1">
+                    {isScopeLoading ? (
+                      <div className="flex items-center gap-1 animate-pulse">
+                        <div className="w-7 h-7 rounded-full bg-slate-200" />
+                        <div className="w-7 h-7 rounded-full bg-slate-200 -ml-1.5" />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center -space-x-1.5">
+                          {selectedAssignedToIds.slice(0, 4).map((eid) => {
+                            const emp = reportScope?.employees.find((e) => e.id === eid);
+                            return (
+                              <Tooltip key={eid} content={emp?.name ?? `Employee ${eid}`}>
+                                <div className="w-7 h-7 rounded-full border-2 border-white bg-blue-50 text-blue-700 flex items-center justify-center text-[9px] font-bold shadow-sm ring-1 ring-slate-100">
+                                  {emp ? getInitials(emp.name) : '?'}
+                                </div>
+                              </Tooltip>
+                            );
+                          })}
+                        </div>
+                        <Tooltip content="Filter by employee">
+                          <button
+                            type="button"
+                            onClick={() => setShowEmployeeFilterPopover((v) => !v)}
+                            className="w-7 h-7 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-600 flex items-center justify-center transition-all bg-white hover:shadow-sm"
+                          >
+                            <Plus size={12} strokeWidth={2.5} />
+                          </button>
+                        </Tooltip>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+              {isHeadOrAdmin && (
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {isScopeLoading ? (
+                    <div className="w-[140px] h-8 bg-slate-100 rounded-lg animate-pulse" />
+                  ) : (
+                    <Select
+                      value={dateRangePreset}
+                      onChange={(v) => handlePresetChange(String(v || 'all'))}
+                      options={[
+                        { value: 'all', label: 'All Time' },
+                        { value: 'this_month', label: 'This Month' },
+                        { value: 'this_quarter', label: 'This Quarter' },
+                        { value: 'custom', label: 'Custom Range...' },
+                      ]}
+                      placeholder="Select range"
+                      containerClassName="w-[140px]"
+                      triggerClassName="h-8 text-[11px]"
+                      searchable={false}
+                      clearable={false}
+                    />
+                  )}
+                  {(appliedDateFrom || appliedDateTo) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDateFromInput('');
+                        setDateToInput('');
+                        setAppliedDateFrom('');
+                        setAppliedDateTo('');
+                        setDateRangePreset('all');
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-wider text-rose-500 hover:text-rose-700 underline px-1"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              )}
               {viewMode === 'table' && (
                 <select
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -787,6 +956,51 @@ export const OrdersPage: React.FC = () => {
             </>
           )}
         </div>
+
+        {ordersTab === 'won' && isHeadOrAdmin && dateRangePreset === 'custom' && (
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 ml-1">Custom range:</span>
+            <DatePicker value={dateFromInput} onChange={(v) => setDateFromInput(v || '')} className="w-[160px]" placeholder="From" inputSize="sm" />
+            <span className="text-slate-300 text-[10px] font-bold">to</span>
+            <DatePicker value={dateToInput} onChange={(v) => setDateToInput(v || '')} className="w-[160px]" placeholder="To" inputSize="sm" />
+            <Button
+              size="sm"
+              variant="primary"
+              className="h-9 px-4 text-xs font-semibold"
+              onClick={() => {
+                setAppliedDateFrom(dateFromInput);
+                setAppliedDateTo(dateToInput);
+              }}
+            >
+              Apply
+            </Button>
+          </div>
+        )}
+
+        <FilterPopover
+          isOpen={showEmployeeFilterPopover}
+          onClose={() => setShowEmployeeFilterPopover(false)}
+          triggerRef={employeeFilterRef}
+          onClear={() => setSelectedAssignedToIds([])}
+        >
+          <div className="p-2 min-w-[200px] max-h-[280px] overflow-y-auto">
+            <p className="text-xs font-medium text-slate-600 mb-2">Filter by assigned employee</p>
+            {reportScope && reportScope.employees.map((emp) => (
+              <label key={emp.id} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-slate-50 rounded px-1">
+                <input
+                  type="checkbox"
+                  checked={selectedAssignedToIds.includes(emp.id)}
+                  onChange={() => setSelectedAssignedToIds((prev) => (prev.includes(emp.id) ? prev.filter((id) => id !== emp.id) : [...prev, emp.id]))}
+                  className="rounded border-slate-300 text-blue-600"
+                />
+                <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-medium shrink-0">
+                  {getInitials(emp.name)}
+                </span>
+                <span className="text-sm text-slate-800 truncate">{emp.name}</span>
+              </label>
+            ))}
+          </div>
+        </FilterPopover>
 
         {ordersTab === 'lost' ? (
           <Card noPadding contentClassName="py-0" className="overflow-hidden">
@@ -951,6 +1165,8 @@ export const OrdersPage: React.FC = () => {
                   const collapseKey = groupId === 'none' ? 'nogroup' : `group-${groupId}`;
                   const isCollapsed = collapsedGroups.has(collapseKey);
                   const groupOrderCount = statusesInGroup.reduce((sum, s) => sum + (ordersByStatus[s.code]?.length ?? 0), 0);
+                  const visibleStatuses = hideEmptyColumns ? statusesInGroup.filter((s) => (ordersByStatus[s.code]?.length ?? 0) > 0) : statusesInGroup;
+                  if (hideEmptyColumns && visibleStatuses.length === 0) return null;
                   return (
                   <div
                     key={groupId === 'none' ? 'nogroup' : groupId}
@@ -978,7 +1194,7 @@ export const OrdersPage: React.FC = () => {
                     </button>
                     {!isCollapsed && (
                     <div className="flex gap-4 overflow-x-auto pb-2" onDragOver={handleBoardDragOver}>
-                      {statusesInGroup.map((status) => {
+                      {visibleStatuses.map((status) => {
                         const columnOrders = ordersByStatus[status.code] || [];
                         const useStatusHex = status.hex_color && /^#[0-9A-Fa-f]{6}$/.test(status.hex_color);
                         const statusColor = !useStatusHex ? (STATUS_COLORS[status.code] || DEFAULT_STATUS_COLOR) : null;

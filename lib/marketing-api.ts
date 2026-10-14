@@ -630,6 +630,8 @@ export interface UpdateOrderRequest {
   notes?: string | null;
   assigned_to_employee_id?: number | null;
   status_change_reason?: string;
+  /** Required (min 100 chars) when order_value changes. */
+  value_change_reason?: string;
 }
 
 /** Paginated list response (page 1-based, page_size min 10). */
@@ -1455,19 +1457,25 @@ class MarketingAPIService {
     page?: number;
     page_size?: number;
     status_id?: number;
-    assigned_to?: number;
+    assigned_to?: number | number[];
     lead_id?: number;
     date_from?: string;
     date_to?: string;
+    created_by_me?: boolean;
+    no_limit?: boolean;
   }): Promise<PaginatedResponse<Order>> {
     const queryParams = new URLSearchParams();
     queryParams.append('page', String(params?.page ?? 1));
     queryParams.append('page_size', String(params?.page_size ?? DEFAULT_PAGE_SIZE));
     if (params?.status_id != null) queryParams.append('status_id', params.status_id.toString());
-    if (params?.assigned_to != null) queryParams.append('assigned_to', params.assigned_to.toString());
+    if (params?.assigned_to != null) {
+      (Array.isArray(params.assigned_to) ? params.assigned_to : [params.assigned_to]).forEach((id) => queryParams.append('assigned_to', String(id)));
+    }
     if (params?.lead_id != null) queryParams.append('lead_id', params.lead_id.toString());
     if (params?.date_from) queryParams.append('date_from', params.date_from);
     if (params?.date_to) queryParams.append('date_to', params.date_to);
+    if (params?.created_by_me) queryParams.append('created_by_me', 'true');
+    if (params?.no_limit) queryParams.append('no_limit', 'true');
     return apiClient.get<PaginatedResponse<Order>>(`/api/orders/?${queryParams.toString()}`);
   }
 
