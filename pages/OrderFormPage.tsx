@@ -38,6 +38,7 @@ export const OrderFormPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [wonLeads, setWonLeads] = useState<Lead[]>([]);
   const [createLeadId, setCreateLeadId] = useState<number | ''>('');
+  const [createOrderValue, setCreateOrderValue] = useState('');
   const [createSeriesCode, setCreateSeriesCode] = useState('');
   const [createSeriesList, setCreateSeriesList] = useState<Series[]>([]);
   const [createSubmitting, setCreateSubmitting] = useState(false);
@@ -171,7 +172,7 @@ export const OrderFormPage: React.FC = () => {
         lead_id: createLeadId as number,
         domain_id: lead.domain_id,
         region_id: lead.region_id ?? undefined,
-        order_value: lead.closed_value ?? undefined,
+        order_value: createOrderValue !== '' ? Number(createOrderValue) : undefined,
         series_code: createSeriesCode.trim() || undefined,
       });
       showToast('Order created', 'success');
@@ -322,7 +323,12 @@ export const OrderFormPage: React.FC = () => {
               <select
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 value={createLeadId}
-                onChange={(e) => setCreateLeadId(e.target.value === '' ? '' : Number(e.target.value))}
+                onChange={(e) => {
+                  const nextLeadId = e.target.value === '' ? '' : Number(e.target.value);
+                  setCreateLeadId(nextLeadId);
+                  const pickedLead = wonLeads.find((l) => l.id === nextLeadId);
+                  setCreateOrderValue(pickedLead?.closed_value ? String(pickedLead.closed_value) : '');
+                }}
                 required
               >
                 <option value="">Select a lead...</option>
@@ -342,6 +348,13 @@ export const OrderFormPage: React.FC = () => {
                 ) : null;
               })()}
             </div>
+            <CurrencyInput
+              allowDecimal
+              label="Order value"
+              value={createOrderValue}
+              onChange={(raw) => setCreateOrderValue(raw)}
+            />
+            <p className="text-xs text-slate-500 -mt-2">Filled from the lead's closed value. If the lead's value shows 0 (for example after an order was deleted), enter the order value here. It is also saved back on the lead so the target counts it again.</p>
             <Select
               label="Number series for order number"
               options={[

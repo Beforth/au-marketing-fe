@@ -5,12 +5,15 @@ Format: `[Date] — Category: Description`
 
 ---
 
-## [2026-10-14] — Simpler file options when logging an activity (v1.4.6)
+## [2026-10-14] — Simpler file options when logging an activity & order value fix (v1.4.6)
 
 ### 🖥️ Frontend
 
 #### Leads — Log Activity
 - The file dropdown when logging an activity on a lead no longer offers **New Quotation**. It now shows only **Revise Quotation** and **Attachment**. New quotations are added from the **Inquiry 0** entry or the quote-number box.
+
+#### Orders
+- **Re-adding a deleted order no longer shows a value of 0.** The **New Order** form now has an **Order value** box, filled from the lead and editable. Saving an order with a value also brings the lead's closed value back up to match, so the target counts it again. To repair a lead affected earlier, open its order, choose Edit, confirm the value and save.
 
 ---
 

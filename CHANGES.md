@@ -415,6 +415,10 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Orders (Kanban & Inquiry Log)
 
+### Rev 4 — 2026-10-14 (v1.4.6) — [Issue]
+- **Re-adding a deleted order showed value 0.** Deleting an order lowers its lead's closed value (so the target drops), which left a Won lead at ₹0, and "New Order (from lead)" copied that 0. Now the New Order form has an **Order value** box (pre-filled from the lead), and creating or editing an order raises the lead's closed value to at least the total of its orders' values (never lowers it), so the target counts it again. Re-saving an already-affected order repairs its lead. The change is noted in the audit log.
+- Files: `au-marketing-api/app/routers/orders.py`, `pages/OrderFormPage.tsx`
+
 ### Rev 3 — 2026-08-14 (v1.2.7)
 - **Order visibility flipped from territory-shared to creator-chain-only**, matching the Leads change in the same revision (see Leads Kanban Rev 7). An order is now visible only to whoever created it (i.e. whoever converted the lead into an order) plus everyone above that creator in the chain (Domain Head → Domain Coordinator → Region Head → Region Coordinator/Supervisor → Employee) — no longer to everyone sharing its domain/region. The assignee can still always see it.
 - **Note**: the order's "creator" is whoever clicked "convert to order," not necessarily the original lead's creator — if a manager converts an employee's won lead on their behalf, the employee only keeps visibility into the resulting order if they're also its assignee.
