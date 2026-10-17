@@ -23,6 +23,7 @@ vi.mock('../../lib/marketing-api', async (orig) => ({
   ...(await orig<typeof import('../../lib/marketing-api')>()),
   marketingAPI: {
     getPerformerOfMonth: vi.fn().mockResolvedValue({ performers: [] }),
+    getStarPerformer: vi.fn().mockResolvedValue({ year: 2026, month: 10, performer: null }),
     createLeadActivity: (...a: unknown[]) => createLeadActivity(...a),
     scheduleLeadFollowUp: (...a: unknown[]) => scheduleLeadFollowUp(...a),
     getHeadDashboardSummary: vi.fn().mockResolvedValue({ region_breakdown: [] }),

@@ -23,7 +23,7 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 - [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7, 1.2.10, 1.4.1, 1.4.2
 - [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6, 1.2.8, 1.4.2
-- [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7
+- [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7, 1.4.6, 1.4.7
 - [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
 - [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.2.0, 1.2.1, 1.2.5, 1.2.9, 1.4.2, 1.4.3, 1.4.5
 - [Who's Online / Presence](#whos-online--presence) — rev 1.2.0, 1.2.1
@@ -40,9 +40,39 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [API Reference Documentation](#api-reference-documentation) — rev 1.3.0
 - [Intranet SSO](#intranet-sso) — rev 1.3.1
 - [HRMS Daily Service Reports & Expenses](#hrms-daily-service-reports--expenses) — rev 1.4.2, 1.4.5
+- [Numbering Series](#numbering-series) — rev 1.4.7
+- [Dashboard Star Performer](#dashboard-star-performer) — rev 1.4.7
 - [Service Module](#service-module) — rev 1.4.0, 1.4.1, 1.4.2, 1.4.3, 1.4.4, 1.4.5, 1.4.6, 1.4.7, 1.4.11, 1.4.12, 1.4.13, 1.4.14, 1.4.15
 
 ---
+
+## Dashboard Star Performer
+
+### Rev 4 — 2026-10-17 (v1.4.7) — [Issue]
+- **Monthly Target ring no longer breaks on a tiny target.** A target of ₹167 against ₹6.91 Cr achieved showed "41461658%", overflowing the ring and wrapping the Projected amount. The ring now caps at "999%+", the centre text shrinks for long values, the Avg / day and Projected amounts no longer wrap, and when the target is over 5× below what was achieved a small note says the target looks too low and points to the Domains target amounts.
+- Files: `components/dashboard/TargetRingCard.tsx`
+
+### Rev 3 — 2026-10-17 (v1.4.7) — [Issue]
+- **Chart tooltips no longer blanket the bars.** All ApexCharts tooltips on the dashboards are now compact (global styles in `index.html`). Leads by Region additionally gets a small tooltip pinned in new headroom above the tallest bar (it used to sit on the region's own bars) and the region's ₹ chip lights up on hover.
+- **Star Performer card redesigned** — gold card (no shine/sparkles) with a header row (label + month), larger photo with crown, bigger name, region pill, a faint trophy watermark and a "Top closer of the month" footer so the tile is full rather than empty. The old light-sweep animation and its CSS were removed.
+- Files: `components/dashboard/LeadsByRegionCard.tsx`, `components/dashboard/StarPerformerCard.tsx`, `index.html`
+
+### Rev 2 — 2026-10-17 (v1.4.7) — [Revision]
+- **Star Performer is now its own 3-col tile beside the greeting** (not inside the blue hero); the greeting is 9 cols and the four KPI cards sit in their own row beneath. The star tile hides itself if the request fails.
+- Files: `components/dashboard/StandardKpis.tsx`, `components/dashboard/StarPerformerCard.tsx`, `components/dashboard/DashboardFrame.tsx`, `pages/dashboards/*Dashboard.tsx`, `src/test/role-dashboards-ui.test.tsx`
+
+### Rev 1 — 2026-10-17 (v1.4.7) — [Revision]
+- **"Star Performer of the Month" card beside the greeting** on every role dashboard: one company-wide winner — the employee with the highest total closed value of leads won this month (by Won date, so backdated Won dates count in their month, same rule as MIS). Domain heads (anyone set as a Domain's head) are not eligible. Gold card with HRMS profile picture (initials if none), name and region; no value or counts are shown or returned by the API. Empty state when nobody has won yet.
+- **MIS "leads created" now follows the enquiry date.** A lead is counted in the month of its earliest real enquiry/quotation log when that is earlier than the day it was saved, so a lead entered late with a backdated enquiry date counts in the backdated month (personal MIS and team overview). Past months recalculate automatically; leads with no such log keep their saved date.
+- Files: `au-marketing-api/app/routers/dashboard.py`, `au-marketing-api/app/routers/reports.py`, `components/dashboard/StarPerformerCard.tsx`, `components/dashboard/DashboardHero.tsx`, `lib/marketing-api.ts`, `index.html`
+
+---
+
+## Numbering Series
+
+### Rev 1 — 2026-10-16 (v1.4.7) — [Revision]
+- "Used for" now also offers **Work Order** and **Job Number**. The Pattern builder has a new **Financial Year** button (`{FY}`, Apr–Mar, e.g. `2026-27`, worked out from the date at generation time), and "Reset counter" has a new **Every financial year (Apr–Mar)** option. No migration (both columns are plain text).
+- Files: `pages/NumberingSeriesPage.tsx`, `lib/marketing-api.ts`, `au-marketing-api/app/routers/series.py`, `au-marketing-api/app/schemas.py`, `au-marketing-api/app/models.py`
 
 ## Service Module
 
@@ -414,6 +444,13 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Orders (Kanban & Inquiry Log)
+
+### Rev 6 — 2026-10-16 (v1.4.7) — [Revision]
+- **Quotation number on the order card** (latest, plus "+N more"; hover for all). The orders list now attaches each lead's quotation numbers to its order.
+- **Title and description are optional when moving an order on the board.** If left blank the log says e.g. "This order was moved from "Drawing Approved" to "Advance"." Moving to Lost still needs a 100+ character description (checked in the dialog before anything is saved).
+- **Every status change is logged** with from/to status, who and when, including changes made from the Edit order screen with no reason. The board dialog sets `skip_status_log` so it doesn't also get the backend's automatic entry (previously a board move could log twice).
+- Status dialog shows an arrow between "From status" and "To status".
+- Files: `pages/OrdersPage.tsx`, `lib/marketing-api.ts`, `au-marketing-api/app/routers/orders.py`, `au-marketing-api/app/schemas.py`
 
 ### Rev 5 — 2026-10-14 (v1.4.6) — [Revision]
 - **Orders board now has the Leads filters.** Only mine, Hide Empty (kanban), an employee filter and a date range (This Month / This Quarter / Custom, heads and admins only) — same look and rules as the Leads board. `GET /api/orders/` now accepts `date_from`, `date_to`, `created_by_me`, several `assigned_to` ids and `no_limit` (the date filter was already sent by the page but ignored by the server).

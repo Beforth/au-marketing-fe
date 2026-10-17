@@ -5,6 +5,34 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-10-17] — Star Performer of the Month, financial-year numbering & smoother order moves (v1.4.7)
+
+### 🖥️ Frontend
+
+#### Dashboard
+- New **Star Performer of the Month** card beside the greeting on every dashboard: the person with the highest value of leads won this month, with their photo, name and region. Domain heads are not included, no amounts are shown, and it starts fresh on the 1st of each month. If nobody has won yet, it says so.
+- The greeting banner is wider, and the four number cards (Leads, Hot Leads, Open Pipeline, Quotes Sent) now sit in their own row so their labels and amounts are easy to read.
+- The **Monthly Target** card no longer breaks when a target is set far too low: the percentage stops at **999%+**, the amounts no longer wrap, and a short note points out that the target looks too low.
+- The hover boxes on all dashboard charts are smaller and tidier. On **Leads by Region**, the hover box now sits above the bars instead of covering them, and the region's ₹ amounts light up underneath while you hover.
+
+#### Orders
+- Each order card on the board now shows its **quotation number** (the latest one, plus "+N more" when there are several).
+- When you move an order to another column, **title and description are optional**. If you leave them empty, the log records "This order was moved from … to …" for you. Moving an order to **Lost** still needs a written reason.
+- The move window shows an **arrow** between the old and the new status.
+- Every status change is saved in the order's log once, with the old status, the new status, who made the change, and the date and time.
+
+#### Numbering Series
+- **Work Order** and **Job Number** are now available in the "Used for" list.
+- New **Financial Year** button for patterns. It adds the financial year (April to March, for example 2026-27) and changes by itself each April.
+- New **Every financial year** option for restarting the counter, so numbers begin again at 1 each April.
+
+### ⚙️ Backend
+
+#### MIS
+- **Leads created** now follows the enquiry date. A lead entered late with an earlier enquiry date is counted in the month it came in, in both a person's MIS and the team overview. Past months update automatically.
+
+---
+
 ## [2026-10-14] — Orders board filters, order value changes with a reason & simpler log options (v1.4.6)
 
 ### 🖥️ Frontend

@@ -20,6 +20,9 @@ export const TargetRingCard: React.FC<TargetRingCardProps> = ({ target: t, achie
   const achieved = a ?? 0;
   const rawPct = target > 0 ? Math.round((achieved / target) * 100) : 0;
   const over = target > 0 && achieved >= target;
+  // A tiny target (e.g. ₹167 typed instead of crores) gives silly percentages: cap what the ring shows and flag it.
+  const pctText = rawPct > 999 ? '999%+' : `${rawPct}%`;
+  const targetLooksWrong = target > 0 && rawPct > 500;
 
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -61,16 +64,21 @@ export const TargetRingCard: React.FC<TargetRingCardProps> = ({ target: t, achie
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-bold text-slate-900 tabular-nums leading-none">{target > 0 ? `${rawPct}%` : '—'}</span>
+            <span className={`${pctText.length > 4 ? 'text-lg' : 'text-2xl'} font-bold text-slate-900 tabular-nums leading-none`}>{target > 0 ? pctText : '—'}</span>
             <span className="text-[10px] text-slate-400 mt-1">of target</span>
           </div>
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Achieved</p>
           <p className="text-xl font-bold text-slate-900 tabular-nums">{formatINRShort(achieved)}</p>
           <p className="text-xs text-slate-500 tabular-nums">of {target > 0 ? formatINRShort(target) : 'no target set'}</p>
         </div>
       </div>
+      {targetLooksWrong && (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] leading-snug text-amber-800">
+          The target ({formatINRShort(target)}) looks far too low next to what was achieved — check the target amounts under Domains.
+        </p>
+      )}
       <div className="mt-auto grid grid-cols-3 gap-2 pt-3 border-t border-slate-100">
         <div>
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Won</p>
@@ -78,11 +86,11 @@ export const TargetRingCard: React.FC<TargetRingCardProps> = ({ target: t, achie
         </div>
         <div>
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Avg / day</p>
-          <p className="text-sm font-bold text-slate-800 tabular-nums">{formatINRShort(avgPerDay)}</p>
+          <p className="whitespace-nowrap text-sm font-bold text-slate-800 tabular-nums">{formatINRShort(avgPerDay)}</p>
         </div>
         <div title="Projected = current pace × days in the month">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Projected</p>
-          <p className="text-sm font-bold text-blue-600 tabular-nums flex items-center gap-1"><TrendingUp size={12} />{formatINRShort(projection)}</p>
+          <p className="whitespace-nowrap text-[13px] font-bold text-blue-600 tabular-nums flex items-center gap-1"><TrendingUp size={12} className="shrink-0" />{formatINRShort(projection)}</p>
         </div>
       </div>
     </CardShell>

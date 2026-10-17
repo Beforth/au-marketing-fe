@@ -39,7 +39,7 @@ export const RegionHeadDashboard: React.FC<RegionHeadDashboardProps> = ({ data, 
   return (
     <BentoGrid>
       {/* Row 1: hero (6) · [leads · hot leads] (3) · [open pipeline · won this month] (3) */}
-      <Tile span="wide" height="auto" index={0}>
+      <Tile span="hero" height="auto" index={0}>
         <DashboardHero
           dashboardName="Region Dashboard"
           subtitle={heroSubtitle(

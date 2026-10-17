@@ -19,7 +19,7 @@ import { DatePicker } from '../components/ui/DatePicker';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { getStoredMarketingScope } from '../lib/marketing-scope';
 import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
-import { User, Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, FileText, Upload, Eye, Trophy, XCircle, Phone, Mail, Calendar } from 'lucide-react';
+import { User, Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, ArrowRight, FileText, Upload, Eye, Trophy, XCircle, Phone, Mail, Calendar } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
@@ -130,6 +130,15 @@ const OrderKanbanCard: React.FC<OrderKanbanCardProps> = ({
           </div>
           {leadDisplayCompany(o.lead) && (
             <div className="text-xs text-slate-500 truncate mt-0.5">{leadDisplayCompany(o.lead)}</div>
+          )}
+          {o.lead.quotation_numbers && o.lead.quotation_numbers.length > 0 && (
+            <div
+              className="text-xs text-slate-600 mt-1 truncate"
+              title={`Quotation${o.lead.quotation_numbers.length > 1 ? 's' : ''}: ${o.lead.quotation_numbers.join(', ')}`}
+            >
+              Quote: <span className="font-medium">{o.lead.quotation_numbers[0]}</span>
+              {o.lead.quotation_numbers.length > 1 && <span className="text-slate-400"> +{o.lead.quotation_numbers.length - 1} more</span>}
+            </div>
           )}
         </>
       )}
@@ -279,6 +288,7 @@ export const OrdersPage: React.FC = () => {
   const autoScrollTargetRef = React.useRef<{ el: HTMLDivElement; velocity: number } | null>(null);
   const autoScrollRafRef = React.useRef<number | null>(null);
   const pendingToStatus = statusChangePending ? statuses.find((s) => s.id === statusChangePending.newStatusId) : null;
+  const pendingIsLost = /lost/i.test(`${pendingToStatus?.code || ''} ${pendingToStatus?.label || ''}`);
   const pendingStatusRequiresAttachment = Boolean(pendingToStatus?.attachment_required_on_kanban_change);
 
   const toggleGroupCollapsed = useCallback((key: string) => {
@@ -577,12 +587,13 @@ export const OrdersPage: React.FC = () => {
     const enteredTitle = statusChangeForm.title.trim();
     const enteredDescription = statusChangeForm.description.trim();
     const toUpload = statusChangeAttachments.filter((a) => a.file);
-    if (!enteredTitle) {
-      showToast('Title is required', 'error');
-      return;
-    }
-    if (!enteredDescription) {
-      showToast('Description is required', 'error');
+    const toLabel = newStatusId != null ? statuses.find((s) => s.id === newStatusId)?.label ?? 'No status' : 'No status';
+    const fromLabel = currentStatusId != null ? statuses.find((s) => s.id === currentStatusId)?.label ?? 'No status' : 'No status';
+    // Title/description are optional: if left blank, the log explains the move in plain words.
+    const logTitle = enteredTitle || `Status changed: ${fromLabel} → ${toLabel}`;
+    const logDescription = enteredDescription || `This order was moved from "${fromLabel}" to "${toLabel}".`;
+    if (/lost/i.test(toLabel) && enteredDescription.length < 100) {
+      showToast('Please write at least 100 characters in the description when moving an order to Lost', 'error');
       return;
     }
     const targetStatus = newStatusId != null ? statuses.find((s) => s.id === newStatusId) : null;
@@ -596,8 +607,8 @@ export const OrdersPage: React.FC = () => {
     try {
       const created = await marketingAPI.createOrderActivity(orderId, {
         activity_type: 'order_status_change',
-        title: enteredTitle,
-        description: enteredDescription,
+        title: logTitle,
+        description: logDescription,
         from_status_id: currentStatusId ?? undefined,
         to_status_id: newStatusId ?? undefined,
         activity_date: new Date().toISOString(),
@@ -605,7 +616,8 @@ export const OrdersPage: React.FC = () => {
       await marketingAPI.uploadOrderActivityAttachments(orderId, created.id, toUpload.map((a) => a.file!));
       await marketingAPI.updateOrder(orderId, {
         status_id: newStatusId ?? null,
-        status_change_reason: reason.trim() || enteredDescription,
+        status_change_reason: reason.trim() || logDescription,
+        skip_status_log: true, // this dialog already saved its own log entry above
       });
       showToast('Order status updated and log saved', 'success');
       const newOption = newStatusId != null ? statuses.find((s) => s.id === newStatusId) : null;
@@ -1472,8 +1484,7 @@ export const OrdersPage: React.FC = () => {
               onClick={handleConfirmStatusChange}
               disabled={
                 statusChangeSubmitting ||
-                !statusChangeForm.title.trim() ||
-                !statusChangeForm.description.trim() ||
+                (pendingIsLost && statusChangeForm.description.trim().length < 100) ||
                 (pendingStatusRequiresAttachment && !statusChangeAttachments.some((a) => a.file))
               }
             >
@@ -1484,13 +1495,14 @@ export const OrdersPage: React.FC = () => {
       >
         {statusChangePending && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-sm">
               <div>
                 <span className="text-slate-500 block text-xs font-medium mb-0.5">From status</span>
                 <span className="font-medium text-slate-800">
                   {statuses.find((s) => s.id === statusChangePending.currentStatusId)?.label ?? 'No status'}
                 </span>
               </div>
+              <ArrowRight size={20} className="text-slate-400 mt-4" aria-hidden="true" />
               <div>
                 <span className="text-slate-500 block text-xs font-medium mb-0.5">To status</span>
                 <span className="font-medium text-slate-800">
@@ -1499,18 +1511,22 @@ export const OrdersPage: React.FC = () => {
               </div>
             </div>
 
+            <p className="text-xs text-slate-500 -mt-1">
+              This move is saved automatically in the order's log with today's date and time. Add a title, description or files only if you want to explain it further.
+            </p>
+
             <Input
-              label="Title *"
-              placeholder="e.g. Status changed after customer confirmation"
+              label="Title (optional)"
+              placeholder="e.g. Customer approved the drawing"
               value={statusChangeForm.title}
               onChange={(e) => setStatusChangeForm((f) => ({ ...f, title: e.target.value }))}
             />
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Description *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Description {pendingIsLost ? '* (at least 100 characters)' : '(optional)'}</label>
               <textarea
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Add details for this status change..."
+                placeholder={pendingIsLost ? 'Explain why this order was lost (at least 100 characters)...' : 'Add any details about this status change...'}
                 value={statusChangeForm.description}
                 onChange={(e) => setStatusChangeForm((f) => ({ ...f, description: e.target.value }))}
               />

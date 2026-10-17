@@ -630,6 +630,8 @@ export interface UpdateOrderRequest {
   notes?: string | null;
   assigned_to_employee_id?: number | null;
   status_change_reason?: string;
+  /** Set when the caller already saved its own status-change log entry (skips the automatic one). */
+  skip_status_log?: boolean;
   /** Required (min 100 chars) when order_value changes. */
   value_change_reason?: string;
 }
@@ -2750,6 +2752,11 @@ class MarketingAPIService {
     return apiClient.get<PerformerOfMonthResponse>('/api/dashboard/performer-of-month');
   }
 
+  /** Star performer of the month: one company-wide winner by won value (domain heads excluded). */
+  async getStarPerformer(): Promise<StarPerformerResponse> {
+    return apiClient.get<StarPerformerResponse>('/api/dashboard/star-performer');
+  }
+
   // Saved dashboards (user-created; assignable; widgets with SQL or preset)
   async getSavedDashboards(): Promise<SavedDashboardResponse[]> {
     return apiClient.get<SavedDashboardResponse[]>('/api/saved-dashboards');
@@ -3503,6 +3510,20 @@ export interface HeadDashboardSummaryResponse {
   month: number;
 }
 
+export interface StarPerformer {
+  employee_id: number;
+  employee_name: string;
+  domain_name: string | null;
+  region_name: string | null;
+  profile_picture: string | null;
+}
+
+export interface StarPerformerResponse {
+  year: number;
+  month: number;
+  performer: StarPerformer | null;
+}
+
 export interface PerformerOfMonthItem {
   employee_id: number;
   employee_name: string;
@@ -3690,7 +3711,7 @@ export interface NotificationPreferences {
 }
 
 // Numbering Series types
-export type SeriesResetPeriod = 'none' | 'day' | 'week' | 'month' | 'year';
+export type SeriesResetPeriod = 'none' | 'day' | 'week' | 'month' | 'year' | 'financial_year';
 
 export interface Series {
   id: number;

@@ -22,6 +22,7 @@ import {
   marketingAPI,
   Series,
   SeriesCreateInput,
+  SeriesResetPeriod,
   DEFAULT_PAGE_SIZE,
   PAGE_SIZE_OPTIONS,
 } from '../lib/marketing-api';
@@ -38,6 +39,7 @@ import {
 const PLACEHOLDERS = [
   { label: 'Year (4)', value: '{YYYY}' },
   { label: 'Year (2)', value: '{YY}' },
+  { label: 'Financial Year', value: '{FY}' },
   { label: 'Month', value: '{MM}' },
   { label: 'Day', value: '{DD}' },
   { label: 'Hour', value: '{HH}' },
@@ -55,6 +57,7 @@ const RESET_PERIOD_OPTIONS = [
   { value: 'week', label: 'Every week' },
   { value: 'month', label: 'Every month' },
   { value: 'year', label: 'Every year' },
+  { value: 'financial_year', label: 'Every financial year (Apr–Mar)' },
 ];
 
 /** Client-side preview: replace placeholders with sample values (does not call API). */
@@ -65,6 +68,10 @@ function previewPattern(pattern: string, sampleNextValue: number = 1): string {
     const k = key.trim();
     if (k === 'YYYY') return String(now.getFullYear());
     if (k === 'YY') return String(now.getFullYear()).slice(-2);
+    if (k === 'FY') {
+      const start = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+      return `${start}-${pad((start + 1) % 100, 2)}`;
+    }
     if (k === 'MM') return pad(now.getMonth() + 1, 2);
     if (k === 'DD') return pad(now.getDate(), 2);
     if (k === 'HH') return pad(now.getHours(), 2);
@@ -115,7 +122,7 @@ export const NumberingSeriesPage: React.FC = () => {
   const [formPattern, setFormPattern] = useState('');
   const [formEntityType, setFormEntityType] = useState<string>('');
   const [formNextValue, setFormNextValue] = useState(1);
-  const [formResetPeriod, setFormResetPeriod] = useState<'none' | 'day' | 'week' | 'month' | 'year'>('none');
+  const [formResetPeriod, setFormResetPeriod] = useState<SeriesResetPeriod>('none');
   const [formActive, setFormActive] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [formSaving, setFormSaving] = useState(false);
@@ -166,7 +173,7 @@ export const NumberingSeriesPage: React.FC = () => {
       setFormPattern(s.pattern);
       setFormEntityType(s.entity_type ?? '');
       setFormNextValue(s.next_value);
-      setFormResetPeriod((s.reset_period as 'none' | 'day' | 'week' | 'month' | 'year') ?? 'none');
+      setFormResetPeriod((s.reset_period as SeriesResetPeriod) ?? 'none');
       setFormActive(s.is_active);
     } catch (e: any) {
       showToast(e.message || 'Failed to load series', 'error');
@@ -352,6 +359,8 @@ export const NumberingSeriesPage: React.FC = () => {
                   { value: 'customer', label: 'Customer' },
                   { value: 'lead', label: 'Lead' },
                   { value: 'enquiry', label: 'Enquiry' },
+                  { value: 'work_order', label: 'Work Order' },
+                  { value: 'job_number', label: 'Job Number' },
                 ]}
                 placeholder="Generic"
               />
@@ -382,7 +391,7 @@ export const NumberingSeriesPage: React.FC = () => {
                 placeholder="e.g. LEAD-{YYYY}{MM}-{0:4}"
               />
               <p className="text-xs text-slate-500 mt-1">
-                Placeholders: YYYY, YY, MM, DD, HH, mm, ss, 0:N (counter), S:code (sub-series).
+                Placeholders: YYYY, YY, FY (financial year, e.g. 2026-27), MM, DD, HH, mm, ss, 0:N (counter), S:code (sub-series).
                 With context: customer.id, customer.company_name, customer.domain_code, customer.region_code; contact.*; lead.id, lead.company, lead.domain_code, lead.region_code.
               </p>
             </div>
@@ -391,12 +400,12 @@ export const NumberingSeriesPage: React.FC = () => {
               <label className="block text-sm font-medium text-slate-700 mb-2">Reset counter</label>
               <Select
                 value={formResetPeriod}
-                onChange={(val) => setFormResetPeriod((val as 'none' | 'day' | 'week' | 'month' | 'year') ?? 'none')}
+                onChange={(val) => setFormResetPeriod((val as SeriesResetPeriod) ?? 'none')}
                 options={RESET_PERIOD_OPTIONS}
                 placeholder="Never"
               />
               <p className="text-xs text-slate-500 mt-1">
-                When to reset the next value to 1: never, or at the start of each day/week/month/year.
+                When to reset the next value to 1: never, or at the start of each day/week/month/year/financial year (1 April).
               </p>
             </div>
 

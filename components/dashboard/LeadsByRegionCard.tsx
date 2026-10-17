@@ -14,6 +14,8 @@ import { formatINRShort } from '../../lib/region-report';
 // Leads = brand blue, Quotes sent = orange, Won = aqua (validated palette slots 1–3).
 const SERIES_COLORS = [CATEGORICAL[0], CATEGORICAL[1], CATEGORICAL[2]];
 
+const escapeHtml = (v: string) => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+
 /**
  * Dashboard "Leads by Region": grouped bars of COUNTS per region — leads, quotations sent (each
  * counted once, in the period first sent) and won leads (by Won date). The ₹ quote value and ₹ won
@@ -28,6 +30,7 @@ export const LeadsByRegionCard: React.FC<{ size?: CardSize }> = ({ size = 'mediu
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [hovered, setHovered] = useState<number | null>(null); // region index under the cursor — lights up its ₹ chip
 
   useEffect(() => {
     let cancelled = false;
@@ -62,6 +65,8 @@ export const LeadsByRegionCard: React.FC<{ size?: CardSize }> = ({ size = 'mediu
         // Clicking any bar of a region opens that region's leads.
         dataPointSelection: (_e, _ctx, cfg) => cfg && open(regions[cfg.dataPointIndex]?.region_id),
         xAxisLabelClick: (_e, _ctx, cfg) => cfg && open(regions[cfg.labelIndex]?.region_id),
+        mouseMove: (_e, _ctx, cfg) => { if (cfg && cfg.dataPointIndex >= 0) setHovered(cfg.dataPointIndex); },
+        mouseLeave: () => setHovered(null),
       },
     },
     colors: SERIES_COLORS,
@@ -75,24 +80,26 @@ export const LeadsByRegionCard: React.FC<{ size?: CardSize }> = ({ size = 'mediu
       axisTicks: { show: false },
       labels: { style: { fontSize: '12px', colors: '#64748b' }, trim: true },
     },
-    yaxis: { labels: { style: { fontSize: '11px', colors: '#64748b' }, formatter: (v: number) => String(Math.round(v)) }, forceNiceScale: true },
+    // Headroom above the tallest bar: the pinned tooltip sits in this empty space instead of on top of the bars.
+    yaxis: { max: Math.max(4, Math.ceil(Math.max(1, ...series.flatMap((s) => s.data)) * 1.5)), labels: { style: { fontSize: '11px', colors: '#64748b' }, formatter: (v: number) => String(Math.round(v)) }, forceNiceScale: true },
     legend: { position: 'top', horizontalAlign: 'right', fontSize: '12px', labels: { colors: '#475569' }, markers: { size: 6 } },
+    // Compact tooltip pinned top-left (in the headroom above the bars) so it never covers a bar.
     tooltip: {
       shared: true,
       intersect: false,
-      y: {
-        formatter: (v: number, o?: { seriesIndex: number; dataPointIndex: number }) => {
-          const r = o ? regions[o.dataPointIndex] : undefined;
-          if (!r || !o) return String(v);
-          if (o.seriesIndex === 1) return `${v} · ${formatINRShort(r.quotation_value)}`;
-          if (o.seriesIndex === 2) return `${v} · ${formatINRShort(r.won_value)}`;
-          return String(v);
-        },
+      fixed: { enabled: true, position: 'topLeft', offsetX: 8, offsetY: 4 },
+      custom: ({ dataPointIndex }: { dataPointIndex: number }) => {
+        const r = regions[dataPointIndex];
+        if (!r) return '';
+        const row = (color: string, label: string, text: string) =>
+          `<div style="display:flex;align-items:center;gap:6px;white-space:nowrap"><i style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></i><span style="color:#64748b">${label}</span><b style="margin-left:auto;padding-left:10px;color:#0f172a">${text}</b></div>`;
+        return `<div style="padding:6px 10px;font-size:11px;line-height:1.5;min-width:150px">`
+          + `<div style="font-weight:600;color:#334155;margin-bottom:2px">${escapeHtml(r.region_name)}${r.domain_name ? ` · ${escapeHtml(r.domain_name)}` : ''}</div>`
+          + row(SERIES_COLORS[0], 'Leads', String(r.lead_count))
+          + row(SERIES_COLORS[1], 'Quotes', `${r.quotation_count} · ${formatINRShort(r.quotation_value)}`)
+          + row(SERIES_COLORS[2], 'Won', `${r.won_count} · ${formatINRShort(r.won_value)}`)
+          + `</div>`;
       },
-      x: { formatter: (_v: number, o?: { dataPointIndex: number }) => {
-        const r = o ? regions[o.dataPointIndex] : undefined;
-        return r ? `${r.region_name}${r.domain_name ? ` · ${r.domain_name}` : ''}` : '';
-      } },
     },
     states: { active: { filter: { type: 'none' } } },
   };
@@ -140,12 +147,15 @@ export const LeadsByRegionCard: React.FC<{ size?: CardSize }> = ({ size = 'mediu
             </div>
             {/* ₹ values per region (not drawn as bars — different scale from the counts) */}
             <div className="shrink-0 flex gap-2 overflow-x-auto px-3 pb-2">
-              {regions.map((r) => (
+              {regions.map((r, i) => (
                 <button
                   key={r.region_id ?? 'none'}
                   type="button"
                   onClick={() => open(r.region_id)}
-                  className="shrink-0 min-w-[9rem] flex-1 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5 text-left hover:border-blue-200 hover:bg-blue-50/40 transition-colors"
+                  className={cn(
+                    'shrink-0 min-w-[9rem] flex-1 rounded-lg border px-2.5 py-1.5 text-left hover:border-blue-200 hover:bg-blue-50/40 transition-colors',
+                    hovered === i ? 'border-blue-300 bg-blue-50 ring-1 ring-blue-200' : 'border-slate-100 bg-slate-50/60'
+                  )}
                   title={`Open ${r.region_name}'s leads`}
                 >
                   <p className="text-[11px] font-semibold text-slate-700 truncate">{r.region_name}</p>

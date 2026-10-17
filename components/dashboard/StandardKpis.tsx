@@ -4,7 +4,8 @@ import { marketingAPI, RoleDashboardSummary, RegionTotals } from '../../lib/mark
 import { periodRange } from '../../lib/period-ranges';
 import { formatINRShort } from '../../lib/region-report';
 import { DashboardStatCard } from './DashboardStatCard';
-import { KpiStack } from './DashboardFrame';
+import { Rise } from './Rise';
+import { StarPerformerTile } from './StarPerformerCard';
 import { monthOverMonthDelta } from './trendUtils';
 
 /**
@@ -30,7 +31,12 @@ export const StandardKpis: React.FC<{ data: RoleDashboardSummary; leadsLabel: st
 
   return (
     <>
-      <KpiStack index={firstIndex}>
+      {/* Star performer: its own 3-col tile beside the 9-col hero. If it can't load the hero simply keeps its width. */}
+      <Rise index={firstIndex} className="min-w-0 md:col-span-2 lg:col-span-3 min-h-64 empty:hidden">
+        <StarPerformerTile />
+      </Rise>
+      {/* The four KPIs: one row of four full-size cards (3 cols each) so labels and ₹ values are never cramped. */}
+      <Rise index={firstIndex + 1} className="min-w-0 md:col-span-2 lg:col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 [&>*]:min-h-[8.5rem]">
         <DashboardStatCard
           label={leadsLabel}
           value={data.total_leads}
@@ -49,8 +55,6 @@ export const StandardKpis: React.FC<{ data: RoleDashboardSummary; leadsLabel: st
           accent="rose"
           linkTo="/leads"
         />
-      </KpiStack>
-      <KpiStack index={firstIndex + 1}>
         <DashboardStatCard
           label="Open Pipeline"
           value={formatINRShort(data.revenue_pipeline?.pipeline)}
@@ -67,7 +71,7 @@ export const StandardKpis: React.FC<{ data: RoleDashboardSummary; leadsLabel: st
           accent="violet"
           linkTo="/reports/leads-by-region?period=month"
         />
-      </KpiStack>
+      </Rise>
     </>
   );
 };

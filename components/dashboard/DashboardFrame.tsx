@@ -19,13 +19,14 @@ export const BentoGrid: React.FC<{ children: React.ReactNode }> = ({ children })
 );
 
 /** Width in the 12-col grid. At md: wide/half/full take both columns, small takes one. */
-export type TileSpan = 'wide' | 'small' | 'full';
+export type TileSpan = 'wide' | 'hero' | 'small' | 'full';
 /** Height tier: big 384 (most-used list), medium 320 (actionable), small 256 (glanceable), auto. */
 export type TileHeight = 'big' | 'medium' | 'small' | 'auto';
 
 // Literal class strings so Tailwind (CDN) always generates them.
 const SPAN: Record<TileSpan, string> = {
   wide: 'md:col-span-2 lg:col-span-6',
+  hero: 'md:col-span-2 lg:col-span-9', // greeting banner: 9 cols, with the 3-col star performer tile beside it
   small: 'md:col-span-1 lg:col-span-3',
   full: 'md:col-span-2 lg:col-span-12',
 };

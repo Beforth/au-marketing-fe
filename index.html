@@ -201,6 +201,14 @@
             background-size: 400% 100%;
             animation: dashShimmer 1.4s ease-in-out infinite;
         }
+        /* ApexCharts tooltips (every dashboard chart): compact, so they don't blanket the bars they describe. */
+        .apexcharts-tooltip { border-radius: 10px !important; border: 1px solid #e2e8f0 !important; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12) !important; overflow: hidden; }
+        .apexcharts-tooltip-title { margin: 0 !important; padding: 5px 10px !important; font-size: 11px !important; font-weight: 600 !important; background: #f8fafc !important; border-bottom: 1px solid #e2e8f0 !important; }
+        .apexcharts-tooltip-series-group { padding: 1px 10px !important; }
+        .apexcharts-tooltip-series-group:first-of-type { padding-top: 5px !important; }
+        .apexcharts-tooltip-series-group:last-of-type { padding-bottom: 5px !important; }
+        .apexcharts-tooltip-text, .apexcharts-tooltip-text-y-label, .apexcharts-tooltip-text-y-value { font-size: 11px !important; line-height: 1.5 !important; }
+        .apexcharts-tooltip-marker { width: 8px !important; height: 8px !important; margin-right: 6px !important; }
         @media (prefers-reduced-motion: reduce) {
             .dash-rise, .dash-caret, .dash-shimmer { animation: none; }
         }
