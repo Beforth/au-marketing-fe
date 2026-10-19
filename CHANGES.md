@@ -48,6 +48,11 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Dashboard Star Performer
 
+### Rev 6 — 2026-10-19 (v1.4.7) — [Issue]
+- **Star Performer showed "Employee #598".** The name came only from the winner's active region assignment; someone without one fell back to a bare id (and had no region or photo). The name is now looked up in order: region assignment → local employee cache → HRMS (which also gives the photo; it pages through the HRMS employee list when no name is known) → the username on their leads. The region/domain falls back to the region of one of their leads. "Employee #id" only appears if no name exists anywhere.
+- A failed HRMS lookup is no longer remembered (it used to be cached for 6 hours); it is logged instead ("Star performer: no HRMS profile found for employee …").
+- Files: `au-marketing-api/app/routers/dashboard.py`, `au-marketing-api/tests/test_star_performer.py`
+
 ### Rev 5 — 2026-10-19 (v1.4.7) — [Revision]
 - **"Leads around the world" map widget** on the Domain Head and Super Admin dashboards (full-width tile under Leads by Region). Uses the befui world map (ported to `components/dashboard/WorldMap.tsx`, lazy-loaded so only these dashboards download its country shapes). Domestic leads all count as **India**; for an **Export** domain each region is a country, matched by region name (with common spellings such as UAE/USA/UK); regions that aren't a country go in a "Not on the map" line, leads with no region are counted in the subtitle. Domain filter pills + a Leads / Won value / Open pipeline switch; hover a country for leads · open · won. New `GET /api/dashboard/world-map` (creator-chain scoped; 403 for anyone except a super admin or a domain head who heads an Export domain — the card hides itself on 403).
 - The card grows to fit the map (no inner scrolling); the map is capped at a readable width.
