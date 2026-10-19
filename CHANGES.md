@@ -39,7 +39,7 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Events & Exhibitions](#events--exhibitions) — rev 1.3.0
 - [API Reference Documentation](#api-reference-documentation) — rev 1.3.0
 - [Intranet SSO](#intranet-sso) — rev 1.3.1
-- [HRMS Daily Service Reports & Expenses](#hrms-daily-service-reports--expenses) — rev 1.4.2, 1.4.5
+- [HRMS Daily Service Reports & Expenses](#hrms-daily-service-reports--expenses) — rev 1.4.2, 1.4.5, 1.4.7
 - [Numbering Series](#numbering-series) — rev 1.4.7
 - [Dashboard Star Performer](#dashboard-star-performer) — rev 1.4.7
 - [Service Module](#service-module) — rev 1.4.0, 1.4.1, 1.4.2, 1.4.3, 1.4.4, 1.4.5, 1.4.6, 1.4.7, 1.4.11, 1.4.12, 1.4.13, 1.4.14, 1.4.15
@@ -47,6 +47,11 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 ---
 
 ## Dashboard Star Performer
+
+### Rev 5 — 2026-10-19 (v1.4.7) — [Revision]
+- **"Leads around the world" map widget** on the Domain Head and Super Admin dashboards (full-width tile under Leads by Region). Uses the befui world map (ported to `components/dashboard/WorldMap.tsx`, lazy-loaded so only these dashboards download its country shapes). Domestic leads all count as **India**; for an **Export** domain each region is a country, matched by region name (with common spellings such as UAE/USA/UK); regions that aren't a country go in a "Not on the map" line, leads with no region are counted in the subtitle. Domain filter pills + a Leads / Won value / Open pipeline switch; hover a country for leads · open · won. New `GET /api/dashboard/world-map` (creator-chain scoped; 403 for anyone except a super admin or a domain head who heads an Export domain — the card hides itself on 403).
+- The card grows to fit the map (no inner scrolling); the map is capped at a readable width.
+- Files: `au-marketing-api/app/routers/dashboard.py`, `au-marketing-api/tests/test_world_map.py`, `components/dashboard/WorldMap.tsx`, `WorldMapPanel.tsx`, `WorldMapCard.tsx`, `pages/dashboards/DomainHeadDashboard.tsx`, `SuperAdminDashboard.tsx`, `lib/marketing-api.ts`, `src/test/world-map.test.tsx`, `src/test/role-dashboards-ui.test.tsx`
 
 ### Rev 4 — 2026-10-17 (v1.4.7) — [Issue]
 - **Monthly Target ring no longer breaks on a tiny target.** A target of ₹167 against ₹6.91 Cr achieved showed "41461658%", overflowing the ring and wrapping the Projected amount. The ring now caps at "999%+", the centre text shrinks for long values, the Avg / day and Projected amounts no longer wrap, and when the target is over 5× below what was achieved a small note says the target looks too low and points to the Domains target amounts.
@@ -860,7 +865,7 @@ New module covering everything after the sale — maintenance contracts, service
 - Upcoming visits are seeded with their reminder countdown already marked sent, and the approved work order with its material nudge already sent, so re-seeding doesn't spray reminder notifications.
 - Files: `au-marketing-api/scripts/clear_and_seed_india.py`, `SERVICE_MODULE_GUIDE.md`
 
-### Rev 3 — 2026-09-10 (v1.4.8) — [Revision]
+### Rev 3 — 2026-09-10 (v1.4.7) — [Revision]
 - `scripts/clear_and_seed_india.py` now seeds lead / order / quotation amounts in **crore-scale rupees** (top deal ~₹9 Cr, smallest lost lead ₹80 L). Relative proportions and won/closed ratios are broadly preserved. Before this, the seeded demo never crossed the ₹1 Cr threshold where the dashboards switch to "₹X.XX Cr" formatting, so it read like a tiny business despite being named after Tata / Reliance / L&T. The quotation-attachment fallback value was bumped to match (₹1 L → ₹1 Cr). Orders and quotation attachments derive their values from the leads, so they scaled automatically. This script seeds no monthly targets, so nothing else needed rescaling.
 - **Ceiling:** `Lead.potential_value` / `closed_value` are `Numeric(10, 2)` — they physically cannot hold ₹10 Cr or more. Every seeded figure is kept below ₹9 Cr; a comment in the leads table says so. (A first pass multiplied by 100 and overflowed on the ₹12 Cr / ₹11 Cr deals — hence the cap.)
 - Files: `au-marketing-api/scripts/clear_and_seed_india.py`
@@ -955,6 +960,10 @@ New module covering everything after the sale — maintenance contracts, service
 ## HRMS Daily Service Reports & Expenses
 
 > Separate from the Marketing "DSR (Daily Status Reports)" page above — this is the HRMS Indoor/Outdoor Daily Service Report + Daily Expense Report module, integrated per `docs/DSR_MODULE_INTEGRATION.md`.
+
+### Rev 12 — 2026-10-19 (v1.4.7) — [Revision]
+- **Indoor DSR: new "Store and Purchase" department** (after PLC) with its 19 task types (Purchase Requisition … Vendor Follow up, Local Visits, Outdoor - Vendor Visit, Meeting with Vendor in Office, etc.), copied from the updated `docs/DSR_MODULE_INTEGRATION.md` §9.3 so the saved values match HRMS.
+- Files: `lib/dsr-options.ts`, `src/test/dsr-options.test.ts`
 
 ### Rev 11 — 2026-10-04 (v1.4.5) — [Revision]
 - **Indoor, Outdoor and Expense forms take several entries in one submission, matching the updated HRMS guide (2026-10-03).** Employee and date are entered once (Expense: each day has its own date); below them each task / visit / day is a row. Finished rows fold into a summary line (number, title, `Department › Task Type · start – end (duration)` or company / reason, or date · destination · total) with a pencil and a trash; the open row ends with a green **Done** that validates it; **Add another task / visit / day** appends a row (a new task's Start Time pre-fills with the previous End Time, a new expense day is the next date). Indoor shows "Total: X hours" (summed; tasks may run in parallel, so overlapping times are allowed, as in the updated guide); Expense shows "Total of all days". Editing a saved report is still one record. "Create DSR from lead activity" fills the open task.

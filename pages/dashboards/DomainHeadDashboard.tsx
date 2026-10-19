@@ -14,6 +14,7 @@ import { HighValueLeadsList } from '../../components/dashboard/HighValueLeadsLis
 import { RegionBreakdownChart } from '../../components/dashboard/RegionBreakdownChart';
 import { RevenuePipelineChart } from '../../components/dashboard/RevenuePipelineChart';
 import { LeadsByRegionCard } from '../../components/dashboard/LeadsByRegionCard';
+import { WorldMapCard } from '../../components/dashboard/WorldMapCard';
 import { marketingAPI, RoleDashboardSummary, PerformerOfMonthItem, HeadDashboardSummaryResponse } from '../../lib/marketing-api';
 
 interface DomainHeadDashboardProps {
@@ -82,6 +83,11 @@ export const DomainHeadDashboard: React.FC<DomainHeadDashboardProps> = ({ data, 
       {/* Row 3: the list worked from daily — full width, 384px */}
       <Tile span="full" height="big" index={6}>
         <LeadsByRegionCard size="big" />
+      </Tile>
+
+      {/* Leads around the world — hides itself for a domain head with no Export domain (API answers 403) */}
+      <Tile span="full" height="auto" index={6} className="empty:hidden">
+        <WorldMapCard />
       </Tile>
 
       {/* Row 4+: secondary pairs — 320px */}

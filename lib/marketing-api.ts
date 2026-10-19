@@ -2752,6 +2752,11 @@ class MarketingAPIService {
     return apiClient.get<PerformerOfMonthResponse>('/api/dashboard/performer-of-month');
   }
 
+  /** Lead totals per region + domain for the world map (super admin / Export domain head only; 403 for everyone else). */
+  async getWorldMap(): Promise<WorldMapResponse> {
+    return apiClient.get<WorldMapResponse>('/api/dashboard/world-map');
+  }
+
   /** Star performer of the month: one company-wide winner by won value (domain heads excluded). */
   async getStarPerformer(): Promise<StarPerformerResponse> {
     return apiClient.get<StarPerformerResponse>('/api/dashboard/star-performer');
@@ -3509,6 +3514,12 @@ export interface HeadDashboardSummaryResponse {
   year: number;
   month: number;
 }
+
+export interface WorldMapRow {
+  domain_id: number; domain_name: string; is_export: boolean; region_id: number; region_name: string;
+  lead_count: number; open_count: number; won_count: number; won_value: number; pipeline_value: number;
+}
+export interface WorldMapResponse { rows: WorldMapRow[]; no_region_count: number }
 
 export interface StarPerformer {
   employee_id: number;

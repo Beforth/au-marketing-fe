@@ -6,7 +6,7 @@ import {
 
 describe('DSR dropdown options (guide §9.3)', () => {
   it('has the exact department lists', () => {
-    expect(INDOOR_DEPARTMENTS).toEqual(['Marketing', 'Service', 'QC', 'QA', 'Design', 'Production', 'General', 'HR & Admin', 'IT', 'PLC', 'Other']);
+    expect(INDOOR_DEPARTMENTS).toEqual(['Marketing', 'Service', 'QC', 'QA', 'Design', 'Production', 'General', 'HR & Admin', 'IT', 'PLC', 'Store and Purchase', 'Other']);
     expect(OUTDOOR_DEPARTMENTS).toEqual(['Marketing', 'Service', 'Other']);
   });
 
@@ -14,6 +14,8 @@ describe('DSR dropdown options (guide §9.3)', () => {
     expect(taskTypeOptions('indoor', 'Marketing')).toEqual(['Quotation', 'FAT', 'Calling', 'Documentation', 'Meeting', 'Other']);
     expect(taskTypeOptions('indoor', 'PLC')).toEqual(['Program Testing', 'Support', 'Complaint', 'Other']);
     expect(taskTypeOptions('outdoor', 'Marketing')?.[0]).toBe('Planned Visit');
+    expect(taskTypeOptions('indoor', 'Store and Purchase')).toHaveLength(19);
+    expect(taskTypeOptions('indoor', 'Store and Purchase')?.[0]).toBe('Purchase Requisition');
     expect(taskTypeOptions('outdoor', 'Service')).toContain('AMC / CAMC');
   });
 

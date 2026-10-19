@@ -6,7 +6,7 @@
 import type { DSRType } from './hrms-rbac';
 
 export const INDOOR_DEPARTMENTS = [
-  'Marketing', 'Service', 'QC', 'QA', 'Design', 'Production', 'General', 'HR & Admin', 'IT', 'PLC', 'Other',
+  'Marketing', 'Service', 'QC', 'QA', 'Design', 'Production', 'General', 'HR & Admin', 'IT', 'PLC', 'Store and Purchase', 'Other',
 ] as const;
 
 const INDOOR_TASK_TYPES: Record<string, string[]> = {
@@ -24,6 +24,12 @@ const INDOOR_TASK_TYPES: Record<string, string[]> = {
   'HR & Admin': ['Interview', 'Onboarding', 'Other'],
   IT: ['Complaints', 'Installation', 'Support', 'Software OQ', 'Other'],
   PLC: ['Program Testing', 'Support', 'Complaint', 'Other'],
+  'Store and Purchase': [
+    'Purchase Requisition', 'Enquiry', 'Quotation', 'PO Generation', 'GRN', 'Material Issue to Team',
+    'General Entry (Consumption)', 'Couriers', 'Dispatch', 'Stock Verification', 'Transportation',
+    'Telephonic Communication', 'Vendor Follow up', 'Local Visits', 'Outdoor - Vendor Visit',
+    'Outdoor - Other Work', 'Meeting with Vendor in Office', 'Meeting', 'Other',
+  ],
 };
 
 export const OUTDOOR_DEPARTMENTS = ['Marketing', 'Service', 'Other'] as const;

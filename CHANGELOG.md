@@ -13,7 +13,11 @@ Format: `[Date] — Category: Description`
 - New **Star Performer of the Month** card beside the greeting on every dashboard: the person with the highest value of leads won this month, with their photo, name and region. Domain heads are not included, no amounts are shown, and it starts fresh on the 1st of each month. If nobody has won yet, it says so.
 - The greeting banner is wider, and the four number cards (Leads, Hot Leads, Open Pipeline, Quotes Sent) now sit in their own row so their labels and amounts are easy to read.
 - The **Monthly Target** card no longer breaks when a target is set far too low: the percentage stops at **999%+**, the amounts no longer wrap, and a short note points out that the target looks too low.
+- New **Leads around the world** map on the Domain Head and Super Admin dashboards. It shades each country by how many leads it has, with a country list, domain buttons and a switch between **Leads, Won value and Open pipeline**. Domestic leads count as India, and for Export domains each region is shown as a country. Super admins and Export domain heads only.
 - The hover boxes on all dashboard charts are smaller and tidier. On **Leads by Region**, the hover box now sits above the bars instead of covering them, and the region's ₹ amounts light up underneath while you hover.
+
+#### Daily Service Reports
+- The Indoor report now has a new **Store and Purchase** department with its own task types (Purchase Requisition, Enquiry, Quotation, PO Generation, GRN, Dispatch, Stock Verification, Vendor Follow up and more).
 
 #### Orders
 - Each order card on the board now shows its **quotation number** (the latest one, plus "+N more" when there are several).
