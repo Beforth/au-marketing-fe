@@ -43,9 +43,10 @@ const data: RoleDashboardSummary = {
   monthly_target: 1000000, achieved_this_month: 400000, employee_count: 1, avg_open_lead_age_days: 12,
   revenue_pipeline: { achieved: 1, committed: 2, pipeline: 3, pipeline_quoted: 2 }, hot_leads_count: 4,
   follow_ups_due: [
-    { id: 1, company: 'Overdue Co', series: 'L-1', next_follow_up_at: '2026-09-20T10:00:00Z', due_label: 'Overdue' },
-    { id: 2, company: 'Today Co', series: 'L-2', next_follow_up_at: '2026-09-28T15:00:00Z', due_label: 'Today' },
+    { id: 1, company: 'Overdue Co', series: 'L-1', next_follow_up_at: '2026-09-20T10:00:00Z', due_label: 'Overdue', source: 'auto' },
+    { id: 2, company: 'Today Co', series: 'L-2', next_follow_up_at: '2026-09-28T15:00:00Z', due_label: 'Today', source: 'manual' },
   ],
+  follow_ups_total: 2,
   lead_source_breakdown: [], high_value_leads: [],
 };
 
@@ -73,9 +74,11 @@ describe('role dashboards render with the new layout', () => {
     renderIt(<EmployeeDashboard data={data} />);
     expect(screen.getByText(/My Dashboard ·/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /New Lead/ })).toHaveAttribute('href', '/leads/new');
-    expect(screen.getByText('2 follow-ups due · 4 hot leads · 30 open leads')).toBeInTheDocument();
-    expect(screen.getByText('My Leads')).toBeInTheDocument();
+    expect(screen.getByText('2 follow-ups needed · 4 hot leads · 30 open leads')).toBeInTheDocument();
+    expect(screen.queryByText('My Leads')).not.toBeInTheDocument(); // the four number cards were removed
     expect(screen.getByText('Overdue Co')).toBeInTheDocument();
+    expect(screen.getByText('Auto')).toBeInTheDocument();   // L-1 came from the "every N days" rule
+    expect(screen.getByText('Manual')).toBeInTheDocument(); // L-2 has a date set on the lead
     expect(screen.getAllByText('1 overdue').length).toBeGreaterThan(0);
     expect(await screen.findByText('Call ABC about quote')).toBeInTheDocument();
   });
@@ -115,21 +118,19 @@ describe('role dashboards render with the new layout', () => {
     getTodos.mockResolvedValue([]);
     const { EmployeeDashboard } = await import('../../pages/dashboards/EmployeeDashboard');
     renderIt(<EmployeeDashboard data={{ ...data, follow_ups_due: [], recent_leads: [] }} />);
-    expect(screen.getByText("Nothing due — you're all caught up")).toBeInTheDocument();
+    expect(screen.getByText("No follow-ups needed — you're all caught up")).toBeInTheDocument();
     expect(screen.getByText('No leads yet')).toBeInTheDocument();
     expect(await screen.findByText('No pending tasks')).toBeInTheDocument();
   });
 
-  it('shows the new KPI set, target ring and won/lost card', async () => {
+  it('shows Monthly Target under the hero, with no KPI cards and no Won vs Lost', async () => {
     const { EmployeeDashboard } = await import('../../pages/dashboards/EmployeeDashboard');
     renderIt(<EmployeeDashboard data={data} />);
-    expect(screen.getByText('Open Pipeline')).toBeInTheDocument();
-    expect(screen.getByText(/quoted$/)).toBeInTheDocument();
-    expect(screen.getByText('Quotes Sent This Month')).toBeInTheDocument();
-    expect(screen.queryByText('Won This Month')).not.toBeInTheDocument(); // it's the ring's "Achieved" figure now
     expect(screen.getByText('Monthly Target')).toBeInTheDocument();
     expect(screen.getByText('40%')).toBeInTheDocument(); // 4L of 10L
-    expect(screen.getByText('Won vs Lost')).toBeInTheDocument();
+    for (const gone of ['Open Pipeline', 'Quotes Sent This Month', 'Hot Leads', 'Won vs Lost']) {
+      expect(screen.queryByText(gone)).not.toBeInTheDocument();
+    }
     expect(screen.getByText('My Leads by Stage')).toBeInTheDocument();
     await screen.findByText('Call ABC about quote');
   });

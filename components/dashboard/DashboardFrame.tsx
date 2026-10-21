@@ -20,8 +20,8 @@ export const BentoGrid: React.FC<{ children: React.ReactNode }> = ({ children })
 
 /** Width in the 12-col grid. At md: wide/half/full take both columns, small takes one. */
 export type TileSpan = 'wide' | 'hero' | 'small' | 'full';
-/** Height tier: big 384 (most-used list), medium 320 (actionable), small 256 (glanceable), auto. */
-export type TileHeight = 'big' | 'medium' | 'small' | 'auto';
+/** Height tier: tall 448 (half-width charts), big 384 (most-used list), medium 320 (actionable), small 256 (glanceable), auto. */
+export type TileHeight = 'tall' | 'big' | 'medium' | 'small' | 'auto';
 
 // Literal class strings so Tailwind (CDN) always generates them.
 const SPAN: Record<TileSpan, string> = {
@@ -31,6 +31,7 @@ const SPAN: Record<TileSpan, string> = {
   full: 'md:col-span-2 lg:col-span-12',
 };
 const HEIGHT: Record<TileHeight, string> = {
+  tall: 'h-[28rem]', // 448 — half-width chart cards that need room
   big: 'h-96',
   medium: 'h-80',
   small: 'h-64',

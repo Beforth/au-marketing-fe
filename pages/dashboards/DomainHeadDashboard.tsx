@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardHero } from '../../components/dashboard/DashboardHero';
 import { BentoGrid, Tile, HalfPair, quickActions, heroSubtitle } from '../../components/dashboard/DashboardFrame';
-import { StandardKpis } from '../../components/dashboard/StandardKpis';
+import { StarPerformerSlot } from '../../components/dashboard/StarPerformerSlot';
 import { TargetRingCard } from '../../components/dashboard/TargetRingCard';
-import { OutcomeCard } from '../../components/dashboard/OutcomeCard';
 import { PipelineStagesCard } from '../../components/dashboard/PipelineStagesCard';
 import { MonthlyTrendChart } from '../../components/dashboard/MonthlyTrendChart';
 import { RecentLeadsList } from '../../components/dashboard/RecentLeadsList';
@@ -41,7 +40,7 @@ export const DomainHeadDashboard: React.FC<DomainHeadDashboardProps> = ({ data, 
 
   return (
     <BentoGrid>
-      {/* Row 1: hero (6) · [leads · hot leads] (3) · [open pipeline · won this month] (3) */}
+      {/* Row 1: hero (9) · star performer (3) */}
       <Tile span="hero" height="auto" index={0}>
         <DashboardHero
           dashboardName="Domain Dashboard"
@@ -56,23 +55,21 @@ export const DomainHeadDashboard: React.FC<DomainHeadDashboardProps> = ({ data, 
           actions={quickActions(true)}
         />
       </Tile>
-      <StandardKpis data={data} leadsLabel="Domain Leads" />
+      <StarPerformerSlot />
 
       {/* Row 2: won-value trend (6) · target ring (3) · won vs lost (3) — 320px */}
-      <Tile span="wide" index={3}>
-        <MonthlyTrendChart data={data.monthly_trend} title="Domain Won Value — Last 6 Months" />
-      </Tile>
-      <Tile span="small" index={4}>
+      <Tile span="full" height="auto" index={3}>
         <TargetRingCard
           target={data.monthly_target}
           achieved={data.achieved_this_month}
           scopeLabel={data.scope_label}
           employeeCount={data.employee_count}
           wonCount={data.won_count_month}
+          wonByDay={data.won_by_day}
         />
       </Tile>
-      <Tile span="small" index={5}>
-        <OutcomeCard won={data.won_count_month} lost={data.lost_count_month} open={data.open_leads} conversionPct={data.conversion_ratio_pct} />
+      <Tile span="full" height="big" index={4}>
+        <MonthlyTrendChart data={data.monthly_trend} title="Domain Won Value — Last 6 Months" />
       </Tile>
 
       {/* Row 3: the list worked from daily — full width, 384px */}
@@ -88,7 +85,7 @@ export const DomainHeadDashboard: React.FC<DomainHeadDashboardProps> = ({ data, 
       {/* Row 4+: secondary pairs — 320px */}
       {/* Row 4: leads — recent / high value tabs (full width) */}
       <Tile span="full" index={7}><RecentLeadsList leads={data.recent_leads} highValueLeads={data.high_value_leads} size="medium" /></Tile>
-      <HalfPair index={10} left={<MyTodoCard size="medium" />} right={<FollowUpsDueList followUps={data.follow_ups_due} title="Domain Follow-ups Due" size="medium" onChanged={onRefresh} />} />
+      <HalfPair index={10} left={<MyTodoCard size="medium" />} right={<FollowUpsDueList followUps={data.follow_ups_due} total={data.follow_ups_total} title="Domain Follow-ups Needed" size="medium" onChanged={onRefresh} />} />
       <HalfPair index={12} left={<PipelineStagesCard data={data.by_status} title="Domain Leads by Stage" />} right={<RevenuePipelineChart pipeline={data.revenue_pipeline} />} />
       <HalfPair index={14} left={<RegionBreakdownChart regions={headSummary?.region_breakdown || []} />} />
     </BentoGrid>

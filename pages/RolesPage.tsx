@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Shield, Users, Star, AlertCircle, RefreshCw, Lock } from 'lucide-react';
+import { Shield, KeyRound, Star, AlertCircle, RefreshCw, Lock } from 'lucide-react';
 import { hrmsRBACClient, MarketingRole } from '../lib/hrms-rbac';
 import { Tooltip } from '../UI/Tooltip';
 import { useAppSelector } from '../store/hooks';
@@ -17,21 +17,27 @@ const ROLE_TYPE_COLORS: Record<string, { bg: string; text: string; border: strin
   employee:  { bg: 'bg-slate-50',   text: 'text-slate-600',   border: 'border-slate-200' },
 };
 
+const TYPE_FILL: Record<string, string> = {
+  admin: 'bg-rose-500', manager: 'bg-amber-500', sales: 'bg-blue-500', crm: 'bg-blue-500', marketing: 'bg-emerald-500', employee: 'bg-slate-400',
+};
+const getTypeFill = (role_type: string) => TYPE_FILL[Object.keys(TYPE_FILL).find((k) => role_type?.toLowerCase().includes(k)) ?? 'employee'];
+
 function getRoleTypeColor(role_type: string) {
   const key = Object.keys(ROLE_TYPE_COLORS).find(k => role_type?.toLowerCase().includes(k));
   return key ? ROLE_TYPE_COLORS[key] : ROLE_TYPE_COLORS.employee;
 }
 
-function getLevelLabel(level: number): string {
-  switch (level) {
-    case 1: return 'L1 — Entry';
-    case 2: return 'L2 — Standard';
-    case 3: return 'L3 — Manager';
-    case 4: return 'L4 — Senior';
-    case 5: return 'L5 — Admin';
-    default: return `L${level}`;
-  }
-}
+const LEVEL_TITLE: Record<number, string> = { 1: 'Entry', 2: 'Standard', 3: 'Manager', 4: 'Senior', 5: 'Admin' };
+const levelTitle = (level: number) => LEVEL_TITLE[level] ?? `Level ${level}`;
+
+/** Five small steps, filled up to the role's level, so the hierarchy reads at a glance. */
+const LevelBar: React.FC<{ level: number; fill: string }> = ({ level, fill }) => (
+  <span className="inline-flex items-center gap-0.5" role="img" aria-label={`Level ${level} of 5`}>
+    {[1, 2, 3, 4, 5].map((n) => (
+      <span key={n} className={`h-1.5 w-3.5 rounded-full ${n <= level ? fill : 'bg-slate-200'}`} />
+    ))}
+  </span>
+);
 
 export const RolesPage: React.FC = () => {
   const canView = useAppSelector(selectHasPermission('marketing.admin'));
@@ -70,6 +76,14 @@ export const RolesPage: React.FC = () => {
       </PageLayout>
     );
   }
+
+  // Highest level first; roles inside a level sorted by name.
+  const levelGroups = Object.entries(
+    roles.reduce<Record<number, MarketingRole[]>>((acc, r) => { (acc[r.level] ||= []).push(r); return acc; }, {}),
+  )
+    .map(([lvl, list]) => [Number(lvl), [...list].sort((x, y) => x.name.localeCompare(y.name))] as [number, MarketingRole[]])
+    .sort((a, b) => b[0] - a[0]);
+  const maxPerms = Math.max(1, ...roles.map((r) => r.permission_count ?? 0));
 
   const actions = (
     <Button
@@ -126,57 +140,84 @@ export const RolesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Roles Grid */}
+      {/* Roles, grouped by level (highest first) */}
       {!loading && !error && roles.length > 0 && (
         <>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-            {roles.length} role{roles.length !== 1 ? 's' : ''} found
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {roles.map(role => {
-              const color = getRoleTypeColor(role.role_type ?? '');
-              return (
-                <div
-                  key={role.id}
-                  className="bg-white rounded-xl border border-slate-200/60 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
-                >
-                  {/* Role Header */}
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className={`w-9 h-9 rounded-lg border flex items-center justify-center flex-shrink-0 ${color.bg} ${color.border}`}>
-                      <Shield size={16} className={color.text} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-semibold text-slate-900 truncate tracking-tight">{role.name}</p>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{getLevelLabel(role.level)}</p>
-                    </div>
-                    {role.is_system_role && (
-                      <Tooltip content="System role">
-                        <span className="flex-shrink-0">
-                          <Star size={13} className="text-amber-400 fill-amber-300" />
-                        </span>
-                      </Tooltip>
-                    )}
-                  </div>
-
-                  {/* Description */}
-                  {role.description && (
-                    <p className="text-[12px] text-slate-500 mb-3 line-clamp-2">{role.description}</p>
-                  )}
-
-                  {/* Footer */}
-                  <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-widest border ${color.bg} ${color.text} ${color.border}`}>
-                      {role.role_type ?? 'role'}
-                    </span>
-                    <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium">
-                      <Users size={12} className="text-slate-400" />
-                      {role.permission_count ?? 0} permissions
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { label: 'Roles', value: roles.length, tone: 'text-slate-900' },
+              { label: 'System roles', value: roles.filter((r) => r.is_system_role).length, tone: 'text-amber-600' },
+              { label: 'Custom roles', value: roles.filter((r) => !r.is_system_role).length, tone: 'text-blue-600' },
+              { label: 'Highest level', value: `L${Math.max(...roles.map((r) => r.level || 0))}`, tone: 'text-rose-600' },
+            ].map((t) => (
+              <div key={t.label} className="rounded-xl border border-slate-200/70 bg-white px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{t.label}</p>
+                <p className={`text-2xl font-bold tabular-nums leading-tight ${t.tone}`}>{t.value}</p>
+              </div>
+            ))}
           </div>
+
+          {levelGroups.map(([level, group]) => (
+            <section key={level} className="mb-7" aria-label={`Level ${level} roles`}>
+              <div className="mb-3 flex items-center gap-3">
+                <h2 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">L{level} · {levelTitle(level)}</h2>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">{group.length}</span>
+                <span className="h-px flex-1 bg-slate-200/70" />
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {group.map((role) => {
+                  const color = getRoleTypeColor(role.role_type ?? '');
+                  const fill = getTypeFill(role.role_type ?? '');
+                  const perms = role.permission_count ?? 0;
+                  return (
+                    <div key={role.id} className="group flex flex-col rounded-xl border border-slate-200/70 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                      <div className="mb-3 flex items-start gap-3">
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${color.bg} ${color.border}`}>
+                          <Shield size={18} className={color.text} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold tracking-tight text-slate-900" title={role.name}>{role.name}</p>
+                          <div className="mt-1 flex items-center gap-2">
+                            <LevelBar level={role.level} fill={fill} />
+                            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">L{role.level}</span>
+                          </div>
+                        </div>
+                        {role.is_system_role && (
+                          <Tooltip content="System role">
+                            <span className="shrink-0">
+                              <Star size={14} className="fill-amber-300 text-amber-400" />
+                            </span>
+                          </Tooltip>
+                        )}
+                      </div>
+
+                      <p className="mb-4 line-clamp-2 min-h-[2.5rem] text-[12px] leading-5 text-slate-500">
+                        {role.description || <span className="text-slate-300">No description</span>}
+                      </p>
+
+                      <div className="mt-auto">
+                        <div className="mb-1.5 flex items-center justify-between text-[11px]">
+                          <span className="flex items-center gap-1 font-medium text-slate-500">
+                            <KeyRound size={12} className="text-slate-400" /> Permissions
+                          </span>
+                          <span className="font-semibold tabular-nums text-slate-800">{perms}</span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                          <div className={`h-full rounded-full ${fill}`} style={{ width: `${Math.max(perms > 0 ? 6 : 0, (perms / maxPerms) * 100)}%` }} />
+                        </div>
+                        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
+                          <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${color.bg} ${color.text} ${color.border}`}>
+                            {role.role_type ?? 'role'}
+                          </span>
+                          <span className="text-[10px] text-slate-400">{role.is_system_role ? 'System' : 'Custom'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </>
       )}
     </PageLayout>

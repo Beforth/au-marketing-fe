@@ -20,6 +20,7 @@
 
 ## Feature index
 
+- [Dashboard Follow-ups](#dashboard-follow-ups)
 - [Dashboard Star Performer](#dashboard-star-performer)
 - [List Pages — Back-Navigation Memory](#list-pages--back-navigation-memory)
 - [Quote Numbers / Enquiry Log](#quote-numbers--enquiry-log)
@@ -40,6 +41,16 @@
 **Root cause:** Opening a lead is a page change, so the list page is thrown away and built again on Back. Nothing stored the scroll position, and the filters lived only in the page's memory. Also, the list loads after the page appears, so even the browser's own scroll memory had nothing to scroll to.
 **Fix:** `hooks/useListMemory.ts` adds `useRestorableState` (filters/search/page come back on Back) and `useScrollMemory` (page scroll plus the kanban's sideways and per-column scroll are restored once data has loaded). Only Back/Forward restores; a fresh visit starts clean. Used on Leads, Orders, Contacts, Organizations, Customers and Events list.
 **Status:** fixed, not yet committed. Typecheck passes; not yet verified in a live browser session. Restore is in-memory, so a full page refresh still resets.
+
+---
+
+## Dashboard Follow-ups
+
+### 2026-10-21 — Follow-ups Due card empty; automatic follow-ups not shown
+**What was reported:** The dashboard's "Follow-ups Due" card is empty. The system has automatic follow-ups (the status group's "every N days" rule) — they should show there too, along with manual ones.
+**Root cause:** The card only read the manual follow-up date on each lead. The automatic rule is worked out separately (Leads board and My To-Do), so with no manual dates set the card had nothing to show. Also, the reminder scheduler clears a one-time manual date once it fires, so overdue manual dates disappear on their own.
+**Fix:** The dashboard summary now merges both: a manual date (wins when set) or the auto due date (last activity or status change + N days), for open leads that are overdue, due today or due in the next 7 days; rows are tagged Auto/Manual; the card is renamed "Follow-ups Needed". The auto date code is shared in `app/follow_up.py`.
+**Status:** fixed, not yet deployed. Backend redeploy needed, no database change. The Hot Leads count still reads manual dates only.
 
 ---
 

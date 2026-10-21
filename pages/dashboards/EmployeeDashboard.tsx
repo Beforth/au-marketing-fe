@@ -1,9 +1,8 @@
 import React from 'react';
 import { DashboardHero } from '../../components/dashboard/DashboardHero';
 import { BentoGrid, Tile, HalfPair, quickActions, heroSubtitle } from '../../components/dashboard/DashboardFrame';
-import { StandardKpis } from '../../components/dashboard/StandardKpis';
+import { StarPerformerSlot } from '../../components/dashboard/StarPerformerSlot';
 import { TargetRingCard } from '../../components/dashboard/TargetRingCard';
-import { OutcomeCard } from '../../components/dashboard/OutcomeCard';
 import { PipelineStagesCard } from '../../components/dashboard/PipelineStagesCard';
 import { MonthlyTrendChart } from '../../components/dashboard/MonthlyTrendChart';
 import { RecentLeadsList } from '../../components/dashboard/RecentLeadsList';
@@ -23,13 +22,13 @@ interface EmployeeDashboardProps {
 export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ data, onRefresh }) => {
   return (
     <BentoGrid>
-      {/* Row 1: hero (6) · [leads · hot leads] (3) · [open pipeline · won this month] (3) */}
+      {/* Row 1: hero (9) · star performer (3) */}
       <Tile span="hero" height="auto" index={0}>
         <DashboardHero
           dashboardName="My Dashboard"
           subtitle={heroSubtitle(
             [
-              [data.follow_ups_due?.length || 0, 'follow-up due', 'follow-ups due'],
+              [data.follow_ups_total ?? data.follow_ups_due?.length ?? 0, 'follow-up needed', 'follow-ups needed'],
               [data.hot_leads_count, 'hot lead', 'hot leads'],
               [data.open_leads, 'open lead', 'open leads'],
             ],
@@ -38,28 +37,26 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ data, onRe
           actions={quickActions(false)}
         />
       </Tile>
-      <StandardKpis data={data} leadsLabel="My Leads" />
+      <StarPerformerSlot />
 
       {/* Row 2: won-value trend (6) · target ring (3) · won vs lost (3) — 320px */}
-      <Tile span="wide" index={3}>
-        <MonthlyTrendChart data={data.monthly_trend} title="My Won Value vs Target — Last 6 Months" />
-      </Tile>
-      <Tile span="small" index={4}>
+      <Tile span="full" height="auto" index={3}>
         <TargetRingCard
           target={data.monthly_target}
           achieved={data.achieved_this_month}
           scopeLabel={data.scope_label}
           employeeCount={data.employee_count}
           wonCount={data.won_count_month}
+          wonByDay={data.won_by_day}
         />
       </Tile>
-      <Tile span="small" index={5}>
-        <OutcomeCard won={data.won_count_month} lost={data.lost_count_month} open={data.open_leads} conversionPct={data.conversion_ratio_pct} />
+      <Tile span="full" height="big" index={4}>
+        <MonthlyTrendChart data={data.monthly_trend} title="My Won Value vs Target — Last 6 Months" />
       </Tile>
 
       {/* Row 3: the list worked from daily — full width, 384px */}
       <Tile span="full" height="big" index={6}>
-        <FollowUpsDueList followUps={data.follow_ups_due} title="My Follow-ups — Act Now" size="big" onChanged={onRefresh} />
+        <FollowUpsDueList followUps={data.follow_ups_due} total={data.follow_ups_total} title="My Follow-ups Needed" size="big" onChanged={onRefresh} />
       </Tile>
 
       {/* Row 4: To-Do (6) · recent leads (6) — 320px */}

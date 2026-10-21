@@ -11,11 +11,11 @@ import { marketingAPI, LeadsByRegionResponse } from '../../lib/marketing-api';
 import { PERIOD_OPTIONS, PeriodKey, periodLabel, periodRange } from '../../lib/period-ranges';
 import { formatINRShort } from '../../lib/region-report';
 
-// Leads = brand blue, Quotes sent = orange, Won = aqua (validated palette slots 1–3).
+// Leads = brand blue, Quotes sent = orange, Won = aqua (validated palette slots 1–3); Lost = rose.
 // Taller than the standard card sizes: summary tiles + chart + per-region strip need the room.
 const HEIGHT: Record<CardSize, string> = { big: 'h-[32.5rem]', medium: 'h-[28rem]', small: 'h-80' };
 
-const SERIES_COLORS = [CATEGORICAL[0], CATEGORICAL[1], CATEGORICAL[2]];
+const SERIES_COLORS = [CATEGORICAL[0], CATEGORICAL[1], CATEGORICAL[2], '#f43f5e'];
 
 const escapeHtml = (v: string) => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
@@ -58,6 +58,7 @@ export const LeadsByRegionCard: React.FC<{ size?: CardSize }> = ({ size = 'mediu
     { name: 'Leads', data: regions.map((r) => r.lead_count) },
     { name: 'Quotes sent', data: regions.map((r) => r.quotation_count) },
     { name: 'Won', data: regions.map((r) => r.won_count) },
+    { name: 'Lost', data: regions.map((r) => r.lost_count ?? 0) },
   ];
   const options: ApexOptions = {
     chart: {
@@ -101,6 +102,7 @@ export const LeadsByRegionCard: React.FC<{ size?: CardSize }> = ({ size = 'mediu
           + row(SERIES_COLORS[0], 'Leads', r.lead_value === undefined ? String(r.lead_count) : `${r.lead_count} · ${formatINRShort(r.lead_value)}`)
           + row(SERIES_COLORS[1], 'Quotes', `${r.quotation_count} · ${formatINRShort(r.quotation_value)}`)
           + row(SERIES_COLORS[2], 'Won', `${r.won_count} · ${formatINRShort(r.won_value)}`)
+          + row(SERIES_COLORS[3], 'Lost', `${r.lost_count ?? 0} · ${formatINRShort(r.lost_value ?? 0)}`)
           + `</div>`;
       },
     },
@@ -113,7 +115,7 @@ export const LeadsByRegionCard: React.FC<{ size?: CardSize }> = ({ size = 'mediu
         <div className="min-w-0">
           <h3 className="text-base font-semibold text-slate-900 truncate">Leads by Region</h3>
           <p className="text-[11px] text-slate-400 truncate">
-            {periodLabel(period)} · bars: counts · ₹ quotes at latest price, counted when first sent · won by Won date
+            {periodLabel(period)} · bars: counts · ₹ quotes at latest price, counted when first sent · won by Won date · lost by the date marked lost
           </p>
         </div>
         <select
@@ -146,12 +148,13 @@ export const LeadsByRegionCard: React.FC<{ size?: CardSize }> = ({ size = 'mediu
         ) : (
           <>
             {/* Totals for the selected period (follows the Period filter above) */}
-            <div className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-2 px-3 pt-3" data-testid="leads-by-region-totals">
+            <div className="shrink-0 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 px-3 pt-3" data-testid="leads-by-region-totals">
               {[
                 { label: 'Total leads', main: String(data!.totals.lead_count), sub: 'in this period', color: 'text-slate-900' },
                 { label: 'Lead value', main: formatINRShort(data!.totals.lead_value ?? 0), sub: 'potential value of those leads', color: 'text-blue-700' },
                 { label: 'Quoted', main: formatINRShort(data!.totals.quotation_value), sub: `${data!.totals.quotation_count} quotation${data!.totals.quotation_count === 1 ? '' : 's'} sent`, color: 'text-orange-600' },
                 { label: 'Won', main: formatINRShort(data!.totals.won_value), sub: `${data!.totals.won_count} won`, color: 'text-emerald-700' },
+                { label: 'Lost', main: formatINRShort(data!.totals.lost_value ?? 0), sub: `${data!.totals.lost_count ?? 0} lost`, color: 'text-rose-600' },
               ].map((t) => (
                 <div key={t.label} className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2 min-w-0">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 truncate">{t.label}</p>
@@ -178,7 +181,7 @@ export const LeadsByRegionCard: React.FC<{ size?: CardSize }> = ({ size = 'mediu
                 >
                   <p className="text-[11px] font-semibold text-slate-700 truncate">{r.region_name}</p>
                   <p className="text-[11px] tabular-nums text-slate-500">
-                    {r.lead_value !== undefined && <>Leads <b className="text-blue-700">{formatINRShort(r.lead_value)}</b> · </>}Quote <b className="text-orange-600">{formatINRShort(r.quotation_value)}</b> · Won <b className="text-emerald-700">{formatINRShort(r.won_value)}</b>
+                    {r.lead_value !== undefined && <>Leads <b className="text-blue-700">{formatINRShort(r.lead_value)}</b> · </>}Quote <b className="text-orange-600">{formatINRShort(r.quotation_value)}</b> · Won <b className="text-emerald-700">{formatINRShort(r.won_value)}</b>{r.lost_count !== undefined && <> · Lost <b className="text-rose-600">{r.lost_count}</b></>}
                   </p>
                 </button>
               ))}

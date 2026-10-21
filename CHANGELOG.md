@@ -5,6 +5,25 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-10-21] — Follow-ups Needed, Monthly Target pace chart, Lost in Leads by Region, clearer Roles page & smarter Who's Online (v1.4.9)
+
+### 🖥️ Frontend
+
+#### Dashboard
+- The **Follow-ups Needed** card (was Follow-ups Due) now shows follow-ups that are due automatically by each status's "every N days" rule as well as the dates set on a lead. It lists what is overdue, due today or due in the next 7 days, with an Auto / Manual tag on each.
+- **Monthly Target** now sits full width right under the greeting, with a day-by-day pace chart: what has been won so far, where you should be by today, and where you are heading by month end, with an "ahead of pace" or "behind pace" note. The Monthly Trend chart follows it.
+- The four number cards (Leads, Hot Leads, Open Pipeline, Quotes Sent) and the **Won vs Lost** card are removed to keep the top of the dashboard simple. The greeting still shows your follow-ups, hot leads and open leads.
+- The **Leads by Region** widget now also shows **Lost**: a Lost tile with the value lost and the count, a red Lost bar for each region, and the lost count on each region's summary.
+
+#### Roles
+- The **Marketing Roles** page now groups roles by level (highest first) with a summary at the top, a level bar and a permissions bar on each role card, and a clear System / Custom tag.
+
+#### Who's Online
+- The **Live Activity** page now updates the moment someone moves instead of asking the server every few seconds, and every screen now shows a clear name (for example "Service · Work Orders") instead of a web address.
+- **Who's Online** now shows whether each person is **active**, **idle** or **away** with a green, amber or grey dot, so a browser tab left open no longer looks like someone working. A summary shows how many are in each state.
+
+---
+
 ## [2026-10-21] — Lists remember where you were when you go Back (v1.4.8)
 
 ### 🖥️ Frontend

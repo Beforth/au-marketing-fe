@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>S&M Hub — Rules &amp; How It Works</title>
+<link rel="stylesheet" href="style.css">
+<style>@page { @top-right { content: "S&M HUB · RULES & HOW IT WORKS"; } }</style></head><body>
+
+<section class="cover">
+  <div class="eyebrow">S&amp;M HUB · RULES HANDBOOK</div>
+  <div class="brand">BEFORTH</div>
+  <div class="for">Prepared for Aureole — Sales &amp; Marketing</div>
+  <h1>Rules &amp; How It Works<br>Access, Visibility &amp; Automatic Behaviour</h1>
+  <p class="lede">A plain-language guide to the rules S&amp;M Hub follows on its own: who can do what, who can see which records, and the things the system does automatically — with the reason behind each rule.</p>
+  <div class="meta"><div><b>Prepared by</b>BeForth</div><div><b>Prepared for</b>Aureole — Sales &amp; Marketing</div><div><b>Date</b>October 2026</div><div><b>Version</b>1.0 (app v1.4.7)</div></div>
+</section>
+
+<h1 style="break-before:auto;border:0;margin-top:0">Document Information</h1>
+<table class="info"><tbody>
+<tr><td>Document title</td><td>Rules &amp; How It Works — Access, Visibility &amp; Automatic Behaviour</td></tr>
+<tr><td>Prepared by</td><td>BeForth</td></tr>
+<tr><td>Prepared for</td><td>Aureole — Sales &amp; Marketing</td></tr>
+<tr><td>Date</td><td>October 2026</td></tr>
+<tr><td>Applies to</td><td>S&amp;M Hub v1.4.7</td></tr></tbody></table>
+<div class="note"><b class="t">How to read this document</b>Part 1 gives the big picture. Parts 2 and 3 explain access and visibility. Part 4 lists everything the system does by itself. Part 5 covers admin settings and Part 6 is a quick reference. Each rule says <b>what</b> it does and <b>why</b>.</div>
+<h2 style="margin-top:10mm">Table of contents</h2>
+<ul class="toc">
+<li><span class="n">1</span>The Big Picture</li>
+<li><span class="n">2</span>Roles, Permissions &amp; Visibility</li><li class="sub">Three separate layers · how a “yes” is decided · the five roles</li>
+<li><span class="n">3</span>Who Sees What</li><li class="sub">The reporting chain · Leads · Orders · Database · Events · Dashboard · Service</li>
+<li><span class="n">4</span>What Happens Automatically</li><li class="sub">Won flow · order moves · targets · MIS · star performer · numbering · reminders</li>
+<li><span class="n">5</span>Things an Admin Can Change</li>
+<li><span class="n">6</span>Quick Reference &amp; “Why can’t I see it?” checklist</li></ul>
+
+<h1><span class="n">1</span>The Big Picture</h1>
+<p>S&amp;M Hub is built from three independent systems that talk to each other. Knowing which one is responsible for what explains most “why did it do that?” questions.</p>
+<table><thead><tr><th>System</th><th>What it is responsible for</th></tr></thead><tbody>
+<tr><td><b>HRMS</b></td><td>Your login (the same username and password as other company systems), your role and permissions. S&amp;M Hub has no password of its own.</td></tr>
+<tr><td><b>Marketing server</b></td><td>All the business data: leads, quotations, orders, contacts, events, service. It checks your permission with HRMS again on every request, so hiding a button is never the only protection.</td></tr>
+<tr><td><b>Notifications</b></td><td>Pop-up (push) alerts for reminders and follow-ups. Optional — you can say no in the browser.</td></tr></tbody></table>
+<div class="flow"><div class="b">You log in with company ID</div><span class="a">→</span><div class="b">HRMS confirms who you are and your role</div><span class="a">→</span><div class="b">Every action is re-checked by the server</div><span class="a">→</span><div class="b dark">You see only what your role allows</div></div>
+<div class="cap">From login to what you see</div>
+<div class="note"><b class="t">Three questions, three settings</b><b>Can I do this?</b> is answered by permissions. <b>Which records can I see?</b> is answered by role scoping. <b>What happens by itself?</b> is answered by the automatic rules in Part 4.</div>
+
+<h1><span class="n">2</span>Roles, Permissions &amp; Visibility</h1>
+<h2><span class="n">2.1</span>Three separate layers</h2>
+<p>These are often mixed up. They are different systems that answer different questions.</p>
+<table><thead><tr><th>Layer</th><th>Question it answers</th><th>Example</th><th>Where it is set</th></tr></thead><tbody>
+<tr><td><b>Permissions</b></td><td>May this person <i>perform an action</i>?</td><td>Create a lead, edit an order, delete an event</td><td>HRMS roles and permissions (e.g. <code>marketing.create_lead</code>)</td></tr>
+<tr><td><b>Role scoping</b></td><td>Which <i>rows</i> does a list show?</td><td>An Employee sees only their own leads; a Region Head sees the team’s</td><td>Built into the server, follows the reporting chain</td></tr>
+<tr><td><b>Visibility Settings</b></td><td>Should <i>past-quarter numbers</i> be displayed?</td><td>Showing last quarter’s figures on the Domains page</td><td>Settings → Visibility (admin allow-list per quarter)</td></tr></tbody></table>
+<div class="note"><b class="t">Why they are kept apart</b>Visibility Settings only hide or show history on screen. It is never used to allow or block someone from creating or editing something. Mixing the two once caused a wrong block on back-dated Won dates, which had to be reversed.</div>
+
+<h2><span class="n">2.2</span>How a “yes” is decided</h2>
+<ol class="steps"><li>You log in at HRMS and receive a sign-in token plus your permissions and role.</li><li>Each page and button checks your permission. If you lack it, the button is hidden or the page shows “Access Denied”.</li><li>When you actually perform an action, the server asks HRMS again to confirm the permission. Results are remembered for a short time (a minute or a few), so a freshly granted permission may take a moment to apply.</li><li>For lists, the server then filters the rows to your scope (Part 3).</li></ol>
+<div class="note"><b class="t">Seeing everything is not the same as doing everything</b>Anyone holding <code>marketing.admin</code> (for example a CEO) is shown all data like a Super Admin. This is <b>visibility only</b>. They still need the individual permission for each action, such as creating or deleting a lead.</div>
+
+<h2><span class="n">2.3</span>The roles</h2>
+<table><thead><tr><th>Role</th><th>In simple terms</th></tr></thead><tbody>
+<tr><td><b>Super Admin</b></td><td>Sees everything and can structure domains, regions and targets.</td></tr>
+<tr><td><b>Domain Head</b></td><td>Responsible for a whole market (for example Domestic or Export). Sees the whole domain.</td></tr>
+<tr><td><b>Domain Coordinator</b></td><td>Helps a Domain Head. Domain-wide view, but view-only on structure.</td></tr>
+<tr><td><b>Region Head</b></td><td>Responsible for one or more regions and the team in them.</td></tr>
+<tr><td><b>Region Coordinator / Supervisor</b></td><td>Mid-level: sees their own and employees’ work, limited actions. Treated as one tier.</td></tr>
+<tr><td><b>Employee</b></td><td>A salesperson. Works on their own records.</td></tr></tbody></table>
+
+<h1 class="pb"><span class="n">3</span>Who Sees What</h1>
+<h2><span class="n">3.1</span>The reporting chain</h2>
+<p>Leads, Orders, Contacts and Customers all use the same idea: <b>a record belongs to the person who created it, and it is visible upward to everyone above them — never sideways to peers and never downward.</b> The domain or region written on the record no longer decides who sees it.</p>
+<div class="chain"><div class="b top">Domain Head</div><div class="a">▲</div><div class="b">Domain Coordinator</div><div class="a">▲</div><div class="b">Region Head</div><div class="a">▲</div><div class="b">Region Coordinator / Supervisor</div><div class="a">▲</div><div class="b">Employee</div></div>
+<div class="cap">Records travel up this chain from whoever created them</div>
+<table><thead><tr><th>Record created by</th><th>Who can see it</th></tr></thead><tbody>
+<tr><td>Domain Head</td><td>Only themselves</td></tr>
+<tr><td>Domain Coordinator</td><td>Themselves + Domain Head</td></tr>
+<tr><td>Region Head</td><td>Themselves + Domain Coordinator + Domain Head</td></tr>
+<tr><td>Region Coordinator / Supervisor</td><td>Themselves + Region Head + Domain Coordinator + Domain Head</td></tr>
+<tr><td>Employee</td><td>Themselves + Region Coordinator/Supervisor + Region Head + Domain Coordinator + Domain Head</td></tr></tbody></table>
+<div class="eg"><b class="t">Example</b>Asha (Employee) creates a lead. Her Region Head and Domain Head see it. Her colleague Ravi, also an Employee, does not — even if they are in the same region. Super Admin sees it, and so does whoever the lead is assigned to.</div>
+<p><b>Why:</b> this was a deliberate change from an older model, where every lead and order was visible to everyone in its domain or region. Visibility now follows who created the record and the reporting line above them.</p>
+
+<h2><span class="n">3.2</span>Rules that apply on top</h2>
+<ul>
+<li><b>The assignee can always see it.</b> If a lead is assigned to you, you see it regardless of the chain.</li>
+<li><b>Orders:</b> the “creator” is whoever converted the lead into an order, not necessarily the lead’s creator. If a manager converts an employee’s lead, the order follows the manager’s chain; the employee keeps sight of it only if they are the assignee.</li>
+<li><b>Customers:</b> the Account Manager plays the role of the assignee and can always see that customer.</li>
+<li><b>Creating an order</b> requires that you can see the underlying lead.</li>
+<li><b>Contact → Customer:</b> promoting needs the create-customer permission; a promoted contact can no longer be deleted. The new customer gets its own creator, it does not inherit the contact’s.</li></ul>
+
+<h2><span class="n">3.3</span>Created on someone’s behalf (narrower)</h2>
+<p>A Domain or Region Coordinator can create a lead <i>for</i> someone in their domain. That lead is deliberately <b>not</b> shared up the normal chain. It is visible only to: (1) the coordinator who filed it, (2) the person it was filed for, and (3) the Head of the lead’s own domain (plus the assignee and Super Admin).</p>
+<p><b>Effect:</b> a coordinator’s filing skips the Region Head and Domain Coordinator and goes straight to the Domain Head.</p>
+
+<h2><span class="n">3.4</span>Who can pick “Assigned to”</h2>
+<table><thead><tr><th>Role</th><th>Can assign</th><th>To whom</th></tr></thead><tbody>
+<tr><td>Super Admin</td><td>Yes</td><td>Anyone</td></tr><tr><td>Domain Head / Coordinator</td><td>Yes</td><td>People in their domain</td></tr>
+<tr><td>Region Head</td><td>Yes</td><td>People in their region</td></tr><tr><td>Region Coordinator, Supervisor, Employee</td><td>No (field hidden)</td><td>—</td></tr></tbody></table>
+<p>The server enforces this too: assigning outside your territory is rejected.</p>
+
+<h2><span class="n">3.5</span>Database: Organizations, Customers, Contacts</h2>
+<ul><li><b>Customers and Contacts</b> follow the reporting chain above.</li>
+<li><b>Organizations and Plants</b> still follow territory: you see an organization if it is linked to a contact or customer in your domain or region. So you can sometimes see an organization without being able to open the specific contact that links it.</li></ul>
+
+<h2><span class="n">3.6</span>Events &amp; exhibitions</h2>
+<table><thead><tr><th>Role</th><th>Sees events</th></tr></thead><tbody>
+<tr><td>Super Admin</td><td>All</td></tr><tr><td>Domain Head / Coordinator</td><td>Events in their domain(s)</td></tr>
+<tr><td>Region Head / Supervisor / Coordinator</td><td>Events in the domain(s) their regions belong to</td></tr>
+<tr><td>Employee</td><td>Only events they are on (selected, travel or hotel list) or created</td></tr></tbody></table>
+<p>The booth card-scanning picker is wider on purpose: it lists the caller’s domain events for everyone, so staff working a booth can use it without being formally added. Allocating a visitor to an employee gives that employee the contact; removing the allocation takes it back.</p>
+
+<h2><span class="n">3.7</span>Dashboard</h2>
+<p>Two layers apply to each widget: whether the role may see the widget at all, and the numbers inside it (always filtered to your scope). Head Summary, Leads by Region, Quotations Submitted and the world map are for Domain Heads and Super Admins only; Audit Logs is for admins. The “Performer of the Month” leaderboard is limited to your own team so there is no company-wide ranking leak.</p>
+
+<h2><span class="n">3.8</span>Service module</h2>
+<p>Service (contracts, visits, work orders, store, complaints, reports) is controlled by <b>permissions only</b>, not by who created a record. It is a shared, cross-team area, so view access is broad and the actions are split by permission.</p>
+
+<h1 class="pb"><span class="n">4</span>What Happens Automatically</h1>
+<p>These rules run without anyone clicking anything. Each one lists what happens and why.</p>
+
+<h2><span class="n">4.1</span>Leads and orders</h2>
+<table><thead><tr><th>Rule</th><th>What the system does</th><th>Why</th></tr></thead><tbody>
+<tr><td><b>Marking a lead Won</b></td><td>Asks for the closed value and PO, and optionally a back-dated Won date. Works the same from the board’s Won button, a drag into Won, or Edit Lead → Mark as Won.</td><td>Sales is often entered a few days late. A back-dated Won date puts the win in the right month.</td></tr>
+<tr><td><b>Won date is the single definition of a win</b></td><td>Dashboard, MIS and Star Performer all count a win by its Won date.</td><td>So the same sale never appears in different months in different reports.</td></tr>
+<tr><td><b>Order value changes the lead</b></td><td>The lead’s closed value follows the order’s value, up or down, by the same amount (never below zero, and never below the total of its orders).</td><td>So targets and reports follow the real order value.</td></tr>
+<tr><td><b>Changing an order’s value needs a reason</b></td><td>A reason of at least 100 characters is required; it is saved in the audit log and the order’s history.</td><td>Value changes affect targets, so they must be explainable.</td></tr>
+<tr><td><b>Every order status move is logged</b></td><td>One log entry per move: from-status, to-status, who, when. Title and description are optional; moving to Lost needs a description of at least 100 characters.</td><td>A clear history, with no gaps and no duplicate entries.</td></tr>
+<tr><td><b>Quotation counting</b></td><td>A quotation counts once, at its latest revised price, in the period it was first sent.</td><td>Revisions should not double count.</td></tr></tbody></table>
+
+<h2><span class="n">4.2</span>Targets, MIS &amp; star performer</h2>
+<table><thead><tr><th>Rule</th><th>What the system does</th><th>Why</th></tr></thead><tbody>
+<tr><td><b>Targets roll up</b></td><td>Employee targets add up to the region, then to the domain. A region or domain can also carry its own yearly goal; entering 0 clears it.</td><td>One set of numbers at every level.</td></tr>
+<tr><td><b>Quarter markers</b></td><td>The Domains page shows each quarter as Missed or Active against its target for the financial year.</td><td>Quick view of where the year stands.</td></tr>
+<tr><td><b>MIS “leads created”</b></td><td>A lead counts in the month of its earliest real enquiry or quotation date when that is earlier than the day it was saved. Past months recalculate on their own.</td><td>A late entry should still count in the month the enquiry really happened.</td></tr>
+<tr><td><b>Star Performer of the Month</b></td><td>One company-wide winner: the highest total closed value of leads won this month by Won date. Domain Heads are not eligible. The card shows name, region and photo, never the amount.</td><td>Recognition without exposing individual figures.</td></tr>
+<tr><td><b>Target ring cap</b></td><td>If achieved is far above a tiny target, the ring caps at “999%+” and a note says the target looks too low.</td><td>Avoids unreadable numbers from a mistyped target.</td></tr></tbody></table>
+
+<h2><span class="n">4.3</span>Numbering</h2>
+<p>Numbering Series builds reference numbers for contacts, customers, leads, enquiries, work orders and job numbers. The pattern builder offers a <b>Financial Year</b> placeholder, <code>{FY}</code>, which becomes the April–March year (for example <code>2026-27</code>) at the moment the number is generated. “Reset counter” can restart numbering <b>every financial year</b>.</p>
+<div class="eg"><b class="t">Example</b>A pattern of <code>WO/{FY}/{0:4}</code> gives WO/2026-27/0001 for the first work order after 1 April, and restarts at 0001 the next April when the financial-year reset is chosen.</div>
+
+<h2><span class="n">4.4</span>Reminders and notifications</h2>
+<p>A background job runs about every 30 minutes and sends in-app and push notifications. Each step is sent once, and re-arms if a date moves.</p>
+<table><thead><tr><th>What</th><th>When</th></tr></thead><tbody>
+<tr><td>Service contracts ending</td><td>60, 30, 15 and 7 days before; also when ended but still Active</td></tr>
+<tr><td>Service visits</td><td>15, 7, 3 and 1 day(s) before (the customer’s preferred date takes priority)</td></tr>
+<tr><td>Upload the work-order file</td><td>30, 15 and 7 days before a visit, until a file is attached</td></tr>
+<tr><td>Parts for a visit</td><td>30, 15 and 7 days before, until fully sent</td></tr></tbody></table>
+
+<h2><span class="n">4.5</span>Settings reload by themselves</h2>
+<p>When an admin changes marketing settings, the server tells every open screen. Pages refresh their settings-dependent parts without anyone needing to log out.</p>
+
+<h2><span class="n">4.6</span>Other things the system does for you</h2>
+<table><thead><tr><th>Where</th><th>What the system does</th></tr></thead><tbody>
+<tr><td><b>My To-Do</b></td><td>When you mark a task done, HRMS logs it as your DSR.</td></tr>
+<tr><td><b>OD plan and Expected order</b></td><td>Each shows a submission deadline (for example “Submit before 31/10/2026 at 8:30 PM”). The expected-order picker shows only hot leads and greys out a lead you already added, so it cannot be added twice.</td></tr>
+<tr><td><b>Order numbers</b></td><td>The number is assigned from the chosen numbering series when the order is saved and cannot be changed afterwards.</td></tr>
+<tr><td><b>New order value</b></td><td>Filled from the lead’s closed value. If that shows 0, you enter it, and it is saved back on the lead so the target counts it again.</td></tr>
+<tr><td><b>Work orders</b></td><td>Move Prepared → Checked → Approved. The list shows who the order is waiting for and at which level (for example “level 2 of 2”).</td></tr>
+<tr><td><b>Visiting cards</b></td><td>Cards from the external scanner or added by hand are kept as visiting-card contacts until someone converts them into a full Contact.</td></tr>
+<tr><td><b>Live Activity</b></td><td>Shows who is online and on which screen. It refreshes every 5 seconds and is held in memory only, never stored.</td></tr>
+<tr><td><b>Audit logs</b></td><td>Important changes are recorded with who, what and when (for example order value changes and expected-order reports).</td></tr></tbody></table>
+
+<h1 ><span class="n">5</span>Things an Admin Can Change</h1>
+<table><thead><tr><th>Area</th><th>What you control</th><th>Where</th></tr></thead><tbody>
+<tr><td>Roles &amp; permissions</td><td>Who can perform which actions</td><td>HRMS</td></tr>
+<tr><td>Domains &amp; regions</td><td>The hierarchy, heads, coordinators, employee targets and yearly goals</td><td>Domains</td></tr>
+<tr><td>Pipeline stages</td><td>Lead and order stages, order and colour, stage groups; whether a stage needs an attachment</td><td>Leads / Orders → Manage statuses</td></tr>
+<tr><td>Numbering</td><td>Number patterns, financial-year placeholder, reset rules</td><td>Numbering Series</td></tr>
+<tr><td>Past-quarter visibility</td><td>Which past quarters’ numbers are displayed</td><td>Settings → Visibility</td></tr>
+<tr><td>Audit</td><td>Review who changed what</td><td>Settings → Audit Logs</td></tr></tbody></table>
+<div class="note"><b class="t">Changing who sees what</b>The reporting-chain rules are built into the system, not a setting. Changing them is a development change, not an admin switch.</div>
+
+<h1><span class="n">6</span>Quick Reference &amp; Checklist</h1>
+<h2><span class="n">6.1</span>“Why can’t I see this?”</h2>
+<ol class="steps"><li>Who created it? If a colleague at your level or below you created it, you will not see it unless you are above them in the chain or are the assignee.</li><li>Is it <b>Won or Lost</b>? Turn on the Won &amp; Lost toggle on the Leads board.</li><li>Is a filter on? Check <b>Only mine</b>, the date range and the search box.</li><li>Is a column hidden? <b>Hide Empty</b> hides stages with nothing in them.</li><li>Is it a past quarter on Domains? That is a Visibility Setting; ask an admin.</li><li>Missing a button, not a record? That is a permission; ask your admin to check your HRMS role.</li></ol>
+<h2><span class="n">6.2</span>Things worth remembering</h2>
+<ul><li>A win counts in the month of its <b>Won date</b>, everywhere.</li><li>A lead’s value follows its order’s value, and changing it needs a 100-character reason.</li><li>Moving an order to Lost needs a 100-character description.</li></ul>
+</body></html>

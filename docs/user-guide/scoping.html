@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>S&M Hub — Who Sees What</title>
+<link rel="stylesheet" href="style.css">
+<style>
+@page { @top-right { content: "S&M HUB · WHO SEES WHAT"; } }
+.yes { color: #047857; font-weight: 700; } .no { color: #9ca3af; } .part { color: #b45309; font-weight: 600; }
+td.c, th.c { text-align: center; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin: 3mm 0 4mm; }
+.card { border: 1px solid var(--line); border-radius: 1.5mm; padding: 3.5mm 4mm; break-inside: avoid; }
+.card h3 { margin: 0 0 1.5mm; font-size: 11pt; color: #1d4ed8; }
+.card p { margin: 0; font-size: 9pt; }
+.pill { display: inline-block; font: 600 7.5pt Inter; letter-spacing: .04em; padding: .4mm 2mm; border-radius: 3mm; background: #e8effd; color: #1d4ed8; }
+.chain .b { width: 62mm; padding: 1.2mm; font-size: 8pt; } .chain { gap: 0; margin: 2mm 0; } .chain .a { font-size: 7pt; }
+h2 { margin-top: 6mm; }
+</style></head><body>
+
+<section class="cover">
+  <div class="eyebrow">S&amp;M HUB · ACCESS GUIDE</div>
+  <div class="brand">BEFORTH</div>
+  <div class="for">Prepared for Aureole — Sales &amp; Marketing</div>
+  <h1>Who Sees What<br>Role Scoping Explained</h1>
+  <p class="lede">A short, plain-language guide to how S&amp;M Hub decides which records and dashboard numbers each person can see, and why. No technical knowledge needed.</p>
+  <div class="meta"><div><b>Prepared by</b>BeForth</div><div><b>Prepared for</b>Aureole — Sales &amp; Marketing</div><div><b>Date</b>October 2026</div><div><b>Applies to</b>S&amp;M Hub v1.4.9</div></div>
+</section>
+
+<h1 style="break-before:auto;border:0;margin-top:0">The idea in one minute</h1>
+<p>Everyone in S&amp;M Hub signs in with their company ID. The system then answers two <b>separate</b> questions about every person:</p>
+<div class="two">
+  <div class="card"><h3>1. What can I do?</h3><p>Create, edit or delete a lead, order or event. This is decided by your <b>permissions</b>, set in HRMS by your administrator. If you lack one, the button simply isn’t there.</p></div>
+  <div class="card"><h3>2. What can I see?</h3><p>Which leads, orders, contacts and dashboard numbers appear in your lists. This is decided by your <b>role and your place in the reporting line</b>. This guide is about this question.</p></div>
+</div>
+<div class="note"><b class="t">The one rule to remember</b>A record belongs to the person who <b>created</b> it, and it is visible <b>upward</b> to everyone above them in the reporting line. It is never visible sideways to colleagues at the same level, and never downward.</div>
+
+<h2>The roles, in simple terms</h2>
+<table><thead><tr><th>Role</th><th>In simple terms</th></tr></thead><tbody>
+<tr><td><b>Super Admin</b></td><td>Sees everything across the company. Sets up domains, regions and targets.</td></tr>
+<tr><td><b>Domain Head</b></td><td>Responsible for a whole market (for example Domestic or Export) and sees all of it.</td></tr>
+<tr><td><b>Domain Coordinator</b></td><td>Supports a Domain Head. Sees the whole domain, but cannot change its structure.</td></tr>
+<tr><td><b>Region Head</b></td><td>Responsible for one or more regions and the team working in them.</td></tr>
+<tr><td><b>Region Coordinator / Supervisor</b></td><td>Mid-level. Sees their own work and their employees’ work, with limited actions.</td></tr>
+<tr><td><b>Employee</b></td><td>A salesperson. Works on their own records.</td></tr></tbody></table>
+<div class="note"><b class="t">Good to know</b>Someone who holds the <b>marketing.admin</b> permission (a CEO, for example) can <b>see</b> everything like a Super Admin. That is visibility only. They still need the matching permission for each action, such as deleting a lead.</div>
+
+<h1 class="pb">The reporting line</h1>
+<p>Leads, Orders, Contacts and Customers all follow the same reporting line. Each person sees what they created, plus what everyone <b>below</b> them created.</p>
+<div class="chain"><div class="b top">Domain Head</div><span class="a">▲</span><div class="b">Domain Coordinator</div><span class="a">▲</span><div class="b">Region Head</div><span class="a">▲</span><div class="b">Region Coordinator / Supervisor</div><span class="a">▲</span><div class="b">Employee</div></div>
+<div class="cap">Records travel up this line from whoever created them</div>
+
+<table><thead><tr><th>If the record was created by…</th><th>…these people can see it</th></tr></thead><tbody>
+<tr><td>Domain Head</td><td>Themselves</td></tr>
+<tr><td>Domain Coordinator</td><td>Themselves, Domain Head</td></tr>
+<tr><td>Region Head</td><td>Themselves, Domain Coordinator, Domain Head</td></tr>
+<tr><td>Region Coordinator / Supervisor</td><td>Themselves, Region Head, Domain Coordinator, Domain Head</td></tr>
+<tr><td>Employee</td><td>Themselves, Region Coordinator / Supervisor, Region Head, Domain Coordinator, Domain Head</td></tr></tbody></table>
+<p><span class="pill">Super Admin</span> always sees everything.</p>
+<div class="eg"><b class="t">Example</b>Asha (an Employee) creates a lead. Her Region Head and Domain Head can see it. Her colleague Ravi, also an Employee, cannot, even if they work in the same region.</div>
+
+<div style="break-inside:avoid"><h2>Three things that adjust the rule</h2>
+<table><thead><tr><th>Situation</th><th>What happens</th></tr></thead><tbody>
+<tr><td><b>The lead is assigned to you</b></td><td>You can always see it, whoever created it.</td></tr>
+<tr><td><b>A coordinator files a lead on someone’s behalf</b></td><td>That lead is not shared up the normal line. Only the coordinator who filed it, the person it was filed for, the Head of that domain and (if different) the assignee can see it. Super Admin also sees it.</td></tr>
+<tr><td><b>An order is created</b></td><td>The “creator” is whoever turned the lead into an order. The person who owns the lead keeps sight of the order as the assignee.</td></tr></tbody></table>
+<p><b>Who can choose “Assigned to”:</b> Super Admin (anyone), Domain Head and Coordinator (people in their domain), Region Head (people in their region). Region Coordinators, Supervisors and Employees do not get this field.</p></div>
+
+<h1>What each area follows</h1>
+<table><thead><tr><th>Area</th><th>How visibility works</th></tr></thead><tbody>
+<tr><td><b>Leads and Orders</b></td><td>The reporting line (previous page).</td></tr>
+<tr><td><b>Contacts and Customers</b></td><td>The reporting line. For a Customer, the Account Manager can always see it, like an assignee.</td></tr>
+<tr><td><b>Organizations and Plants</b></td><td>By territory: you see an organization when it is linked to a contact or customer in your domain or region.</td></tr>
+<tr><td><b>Events and exhibitions</b></td><td>See the table below.</td></tr>
+<tr><td><b>Service</b> (contracts, visits, work orders, store, complaints)</td><td>Controlled by <b>permissions only</b>, not by who created a record. It is a shared area, so view access is broad and actions depend on permission.</td></tr></tbody></table>
+
+<h2>Events and exhibitions</h2>
+<table><thead><tr><th>Role</th><th>Events they see</th></tr></thead><tbody>
+<tr><td>Super Admin</td><td>All events</td></tr>
+<tr><td>Domain Head / Coordinator</td><td>Events in their domain(s)</td></tr>
+<tr><td>Region Head / Coordinator / Supervisor</td><td>Events in the domain(s) their regions belong to</td></tr>
+<tr><td>Employee</td><td>Only events they are on (selected, travel or hotel list) or created</td></tr></tbody></table>
+
+<h2>Domains and targets page</h2>
+<table><thead><tr><th>Role</th><th class="c">Own area</th><th class="c">Other domains / regions</th><th class="c">Change structure</th></tr></thead><tbody>
+<tr><td>Super Admin</td><td class="c yes">Yes</td><td class="c yes">Yes</td><td class="c yes">Yes</td></tr>
+<tr><td>Domain Head</td><td class="c yes">Yes</td><td class="c part">Admin can allow</td><td class="c no">View only</td></tr>
+<tr><td>Region Head</td><td class="c yes">Yes</td><td class="c part">Admin can allow</td><td class="c no">View only</td></tr>
+<tr><td>Employee</td><td class="c yes">Own region and target</td><td class="c no">No</td><td class="c no">View only</td></tr></tbody></table>
+<p>An administrator can widen or narrow some of these views with the Visibility settings, for example to let team members see each other’s targets.</p>
+
+<div class="note"><b class="t">Who can change these rules?</b>Permissions and roles are managed by your administrator in HRMS. The reporting-line rules themselves are built into the system, so changing them is a development change, not a switch an administrator can flip.</div>
+
+<h1 class="pb">The dashboard</h1>
+<p>Every number on a dashboard is filtered to <b>your own scope</b> by the server before it reaches your screen. The same rule applies: you only ever see figures built from records you are allowed to see.</p>
+<table><thead><tr><th>Dashboard item</th><th>Whose numbers it shows</th></tr></thead><tbody>
+<tr><td><b>Monthly Target</b> and the monthly trend</td><td>Employee: your own target. Region Head: your team. Domain Head: your domain. Super Admin: the whole company. The card says which one (“My”, “Region”, “Domain”, “All”).</td></tr>
+<tr><td><b>Follow-ups Needed</b></td><td>The same scope as above. It lists leads that are overdue, due today or due in the next 7 days, from dates people set on a lead and from the automatic “follow up every N days” rule of the lead’s stage.</td></tr>
+<tr><td><b>Leads by Region, Lead Breakdown and lead lists</b></td><td>Only leads inside your scope.</td></tr>
+<tr><td><b>Star Performer of the Month</b></td><td>The same for everyone: one company-wide winner by value won this month. Domain Heads are not eligible, and the amount is never shown. A lead filed on someone’s behalf counts for the person it was filed for.</td></tr>
+<tr><td><b>Leads around the world</b> (map)</td><td>Domain Heads and Super Admins only.</td></tr>
+<tr><td><b>Audit logs</b></td><td>Administrators only.</td></tr></tbody></table>
+<div class="note"><b class="t">Why one winner for everyone?</b>Star Performer is a recognition card, not a ranking table. Showing only one name, with no amounts, celebrates good work without exposing anyone’s individual figures.</div>
+
+<h2>“Why can’t I see this?”</h2>
+<ol class="steps">
+<li><b>Who created it?</b> If a colleague at your level or below created it, you can’t see it unless you are above them in the line or it is assigned to you.</li>
+<li><b>Is it Won or Lost?</b> Turn on the Won &amp; Lost toggle on the Leads board.</li>
+<li><b>Is a filter on?</b> Check “Only mine”, the date range and the search box.</li>
+<li><b>Is a stage column hidden?</b> “Hide Empty” hides stages with nothing in them.</li>
+<li><b>Missing a button, not a record?</b> That is a permission. Ask your administrator to check your HRMS role.</li>
+<li><b>Past-quarter numbers missing on Domains?</b> That is a Visibility setting. Ask an administrator.</li></ol>
+
+
+</body></html>

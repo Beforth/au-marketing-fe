@@ -26,14 +26,14 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6, 1.2.8, 1.4.2
 - [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7, 1.4.6, 1.4.7
 - [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
-- [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.4.8, 1.2.0, 1.2.1, 1.2.5, 1.2.9, 1.4.2, 1.4.3, 1.4.5
-- [Who's Online / Presence](#whos-online--presence) — rev 1.2.0, 1.2.1
+- [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.4.9, 1.4.8, 1.2.0, 1.2.1, 1.2.5, 1.2.9, 1.4.2, 1.4.3, 1.4.5
+- [Who's Online / Presence](#whos-online--presence) — rev 1.4.9, 1.2.0, 1.2.1
 - [Regions, Domains & Employee Sync](#regions-domains--employee-sync) — rev 1.2.0, 1.2.4, 1.2.5
 - [Quotations Page (list & filters)](#quotations-page-list--filters) — rev 1.2.1, 1.2.2
 - [DSR (Daily Status Reports)](#dsr-daily-status-reports) — rev 1.2.7
 - [Audit Log](#audit-log) — rev 1.2.7, 1.4.2
 - [Global Search](#global-search) — rev 1.4.2
-- [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.2.2, 1.2.3, 1.2.5, 1.2.10, 1.4.3, 1.4.5
+- [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.4.9, 1.2.2, 1.2.3, 1.2.5, 1.2.10, 1.4.3, 1.4.5
 - [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6, 1.4.8, 1.4.9, 1.4.2, 1.4.5
 - [Design System Documentation](#design-system-documentation) — rev 1.2.6
 - [External Visiting Card Integration](#external-visiting-card-integration) — rev 1.3.0, 1.4.10
@@ -59,6 +59,11 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 ---
 
 ## User Guide & Rules Handbook (PDFs)
+
+### Rev 2 — 2026-10-21 (v1.4.9) — [Revision]
+- New short client-facing PDF **"Who Sees What — Role Scoping Explained"** (`docs/user-guide/scoping.html` → `scoping.pdf`, 6 pages, same BeForth styling as the other handbook PDFs): the idea in one minute (permissions vs scoping), the roles in simple terms, the reporting line and who sees a record created by whom, the three adjustments (assignee, filed on someone's behalf, order creator / who can assign), what each area follows (leads, orders, contacts, customers, organizations, events, Domains page, Service), how the dashboard numbers are scoped (incl. Follow-ups Needed, Star Performer), and a "Why can't I see this?" checklist. Source of truth is `ROLE_SCOPING_RULES.md`; the longer `rules.pdf` (app v1.4.7) is untouched.
+- To rebuild: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --no-pdf-header-footer --virtual-time-budget=20000 --print-to-pdf=scoping.pdf file://$PWD/scoping.html` from `docs/user-guide/`.
+- Files: `docs/user-guide/scoping.html`, `docs/user-guide/scoping.pdf`
 
 ### Rev 1 — 2026-10-19 (v1.4.7) — [Revision]
 - Two BeForth-styled PDFs in `docs/user-guide/`: **User Guide** (48 screenshots across the core pages, daily work, events, service, admin and settings, each with numbered red highlight boxes and a matching legend) and **Rules & How It Works** (roles vs permissions vs Visibility Settings, the reporting-chain scoping tables, and every automatic rule with what / why). Built from HTML and printed with headless Chrome; screenshots are demo data (`india-seed`).
@@ -527,6 +532,37 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Dashboard, Reports & Performance Leaderboard
 
+### Rev 52 — 2026-10-21 (v1.4.9) — [Revision]
+- **Lost** added to the dashboard "Leads by Region" widget (Dashboard, Reports & Performance Leaderboard section; Reports → Leads by Region receives the same fields but does not show them yet): a fifth summary tile (lost value + "N lost", rose), a fourth red "Lost" bar per region, a Lost row in the hover tooltip and "Lost N" on each region chip. Lost value = the lead's potential value (what slipped away). A lead counts as lost in a period when it is in a Lost status and its lost date falls in it; lost date = latest "Marked as Lost" log entry, else the lead's last update. Like Won leads, a lead created earlier but lost in the period is now **listed** for that period, so Total leads can rise slightly.
+- Backend: `lost_count` / `lost_value` on the totals and per region (`region_report.py`: `LeadFacts.is_lost` / `lost_at`, `LeadFigures.lost`; `leads_by_region.py`: narrowing query and lost-date lookup). `_in_range` now treats naive timestamps as UTC (SQLite). Tests in `tests/test_region_report.py` and `tests/test_follow_up.py` (whole endpoint on SQLite). Checked the widget in a throwaway preview page with sample data.
+- Files: `au-marketing-api/app/region_report.py`, `au-marketing-api/app/routers/leads_by_region.py`, `au-marketing-api/tests/test_region_report.py`, `au-marketing-api/tests/test_follow_up.py`, `lib/marketing-api.ts`, `components/dashboard/LeadsByRegionCard.tsx`, `src/test/leads-by-region-ui.test.tsx`
+
+### Rev 51 — 2026-10-21 (v1.4.9) — [Revision]
+- Dashboard top section simplified at the user's request. **Removed**: the four number cards (Leads, Hot Leads, Open Pipeline incl. its "quoted" line, Quotes Sent This Month) and the **Won vs Lost** (This month) card with its Outcome bar. **Kept**: the Star Performer tile beside the hero (its slot is now `components/dashboard/StarPerformerSlot.tsx`, replacing `StandardKpis.tsx`). **Monthly Target** is now a full-width card right under the hero — achieved / % on the left, the befui Pace chart on the right (stacked on small screens) — followed by the Monthly Trend chart at full width. Employee / Region Head: Follow-ups Needed is full width again; Domain Head / Super Admin: the Leads (Recent / High value) card is full width again. The hero line still says "N follow-ups needed · N hot leads · N open leads".
+- Deleted as unused: `OutcomeCard.tsx`, `OutcomeBar.tsx`, `DashboardStatCard.tsx`, `KpiSparkline.tsx`, `trendUtils.ts`. The backend still sends `conversion_ratio_pct`, `hot_leads_count`, `revenue_pipeline.pipeline_quoted` etc., so any of this can come back. The separate "Won vs Lost by Region" chart lower on the Domain Head / Super Admin pages is a different card and stays. Rev 50's layout (half-width Target, Won vs Lost beside Follow-ups) is superseded by this rev.
+- Without the daily `won_by_day` data (backend not rebuilt yet) Monthly Target now shows a richer **pace bar** built from the totals alone: achieved bar, ghost bar to the month-end projection, amber tick for where you should be today, target tick, a Behind/Ahead-of-pace chip and Avg/day so far, Needed/day to still hit the target, and Projected. It is replaced by the real Pace chart once the backend sends the daily data.
+- Checked by rendering the Employee and Super Admin dashboards with sample data at 1440px in a throwaway preview page (deleted afterwards).
+- Files: `components/dashboard/StarPerformerSlot.tsx` (renamed from `StandardKpis.tsx`), `components/dashboard/TargetRingCard.tsx`, `pages/dashboards/*Dashboard.tsx`, `src/test/role-dashboards-ui.test.tsx`, `src/test/target-card.test.tsx` (renamed from `befui-target-outcome.test.tsx`)
+
+### Rev 50 — 2026-10-21 (v1.4.9) — [Revision]
+- Dashboard layout rearranged around the new Monthly Target pace chart. Row 2 is now **Monthly Target (half width, 448px "tall") + Monthly Trend (half width, same height)**; **Won vs Lost** moved down into a quarter-width tile beside the card that follows: Follow-ups Needed on Employee / Region Head (now 3/4 width), the Leads (Recent / High value) card on Domain Head / Super Admin (now 3/4 width, big size, placed after the world map). New `tall` tile height (448px) in `DashboardFrame.tsx`; the pace chart canvas is 560x180 capped at 36rem. If the backend does not send `won_by_day` yet (older server) Monthly Target shows a plain progress bar with the projection instead of staying blank.
+- Checked by rendering the Employee and Super Admin dashboards with sample data at 1440px wide in a throwaway preview page (deleted afterwards).
+- Files: `components/dashboard/DashboardFrame.tsx`, `components/ui/PaceChart.tsx`, `components/dashboard/TargetRingCard.tsx`, `pages/dashboards/*Dashboard.tsx`, `src/test/befui-target-outcome.test.tsx`
+
+### Rev 49 — 2026-10-21 (v1.4.9) — [Revision]
+- befui charts for the two top-row cards, using two **new befui components built for this dashboard** (Outcome bar, Pace chart; befui repo commit 8a2ccaf). **Won vs Lost**: one bar split Won / Lost with the conversion % as the headline and a pale "Open now" piece (`components/ui/OutcomeBar.tsx`); the old donut and counts strip are gone (the bar carries the counts). **Monthly Target**: a burn-up Pace chart (`components/ui/PaceChart.tsx`) — running total of won value by day, faint straight line for where you should be, dashed projection to month end, target line and a "Behind pace by ₹X / Ahead of pace" chip — under the achieved / target / % header; Won count and average per day moved into one small line, and the old Projected tile was dropped (the pace chart states it). No chart when no target is set or the daily data is missing. The pace chart's canvas is 360x150 and capped at 26rem wide so its labels stay readable in a 3-column card.
+- Backend: dashboard summary gets `won_by_day` — cumulative won value per day of the current month, same leads and dates as `achieved_this_month` (last point equals it); empty for a custom range spanning several months. Test in `au-marketing-api/tests/test_follow_up.py`.
+- The row of Monthly trend + Monthly Target + Won vs Lost is now `height="big"` (384px) on all four dashboards so the pace chart fits.
+- Earlier tries in this rev were dropped after looking at them in a preview page at card width: Bullet chart (dull), Waffle (spilled out of the card), Half donut (the user did not like it). Their files are deleted. Charts were checked in a throwaway preview page before finishing.
+- Copied from befui and re-coloured to this app's Tailwind classes (no befui theme variables here); `hooks/useChartIn.ts` (scroll-in animation) restored. `TargetRingCard` keeps its name though it no longer draws a ring.
+- Files: `components/ui/OutcomeBar.tsx`, `components/ui/PaceChart.tsx`, `hooks/useChartIn.ts` (new), `components/dashboard/TargetRingCard.tsx`, `components/dashboard/OutcomeCard.tsx`, `pages/dashboards/*Dashboard.tsx`, `lib/marketing-api.ts`, `au-marketing-api/app/routers/dashboard.py`, `au-marketing-api/tests/test_follow_up.py`, `src/test/befui-target-outcome.test.tsx`
+
+### Rev 48 — 2026-10-21 (v1.4.9) — [Issue]
+- Dashboard "Follow-ups Due" was empty unless someone had typed a follow-up date on a lead, because it only read `next_follow_up_at`; the status-group "follow up every N days" rule (already used by the Leads board and My To-Do) was ignored. It is now **Follow-ups Needed**: manual dates + auto-rule due dates, shown when overdue, due today or within the next 7 days, most overdue first (first 8, header says how many more). Each row is tagged Auto / Manual. A manual date wins over the auto rule when both exist, so Reschedule really moves a lead (the rule would otherwise keep calling it overdue). Won/lost leads and leads in a status group with no interval never show unless they have a manual date. Hero line counts the full total.
+- The auto due-date code moved out of the Leads list endpoint into `app/follow_up.py` (`auto_follow_up_due_by_lead`), now shared by the Leads board and the dashboard; `pick_follow_ups` / `follow_up_due_label` hold the merge and label rules. Hot Leads count unchanged.
+- Note: the reminder scheduler clears a one-time manual date once it fires (`scheduler.py`), so past manual dates drop off by themselves; the auto rule keeps such leads visible until a call/status change restarts the count.
+- Files: `au-marketing-api/app/follow_up.py`, `au-marketing-api/app/routers/dashboard.py`, `au-marketing-api/app/routers/leads.py`, `au-marketing-api/tests/test_follow_up.py`, `lib/marketing-api.ts`, `components/dashboard/FollowUpsDueList.tsx`, `pages/dashboards/*Dashboard.tsx`, `src/test/role-dashboards-ui.test.tsx`
+
 ### Rev 47 — 2026-10-21 (v1.4.8) — [Revision]
 - **Reverted the befui chart swaps (Rev 45–46)** at the user's request: Lead Sources is the ApexCharts bar chart again, Leads by Stage the hand-drawn bars, Won vs Lost the original ring. `components/ui/BarList.tsx`, `FunnelChart.tsx`, `HalfDonutChart.tsx` and `hooks/useChartIn.ts` were deleted. The Lead Breakdown card (Rev 44) stays — it still shares `StageBars` / `SourceBars`. Revs 45–46 are kept below only as history; befui remains a possible source for charts later (copy-paste, adapt classes).
 - Files: `components/dashboard/PipelineStagesCard.tsx`, `components/dashboard/LeadSourceChart.tsx`, `components/dashboard/OutcomeCard.tsx`, `src/test/lead-breakdown-card.test.tsx`, `src/test/befui-charts.test.tsx` (deleted)
@@ -791,6 +827,19 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Who's Online / Presence
 
+### Rev 4 — 2026-10-21 (v1.4.9) — [Revision]
+- **Active / Idle / Away status.** Each heartbeat now also says how long ago the person last used the screen (mouse, keys, scroll, touch, or coming back to the tab; moving to another screen counts). The server turns that into a status: **active** (used it in the last 3 min), **idle** (3–15 min), **away** (tab open but unattended for over 15 min). Dots: green / amber / grey; away cards are dimmed; text says "Active now", "Idle 7m", "Away 1h". Lists are sorted active → idle → away, and both the side panel and the Live Activity page show "N active · N idle · N away". Coming back after 3+ idle minutes pings at once so the dot turns green immediately. An older server that sends no status is treated as active.
+- **Two tabs / devices of one person no longer flip.** `mark_presence` keeps the page and record label of whichever tab was used most recently (and the latest activity time), instead of letting the last ping win.
+- Backend: `app/presence.py` (`last_active_at`, `status_for`, thresholds `ACTIVE_IDLE_SECONDS=180`, `AWAY_AFTER_SECONDS=900`), `POST /api/presence/ping` takes `idle_seconds` (0–86400, default 0 so old clients still work); the live feed carries `idle_seconds` and `status`. Frontend: `hooks/usePresence.ts`, `lib/presence-utils.ts` (`presenceStatus`, `presenceCounts`), `lib/marketing-api.ts`, `components/ui/PresencePanel.tsx`, `pages/LiveActivityPage.tsx`. Tests: `tests/test_presence.py`, `src/test/presence-status.test.tsx`. Checked both views in a throwaway preview page.
+- Still not done: the "X is also editing this lead" warning, role/region on cards with search, a recently-active list.
+- Files: see above
+
+### Rev 3 — 2026-10-21 (v1.4.9) — [Revision]
+- **Live Activity page no longer asks the server every 5 seconds.** The live-connection logic that lived inside the side panel moved into a shared hook (`hooks/usePresenceFeed.ts`) used by both the Who's Online panel and the Live Activity page: the server pushes the list over the WebSocket whenever it changes; only if the socket cannot connect does it check over REST every 15 seconds while retrying the socket in the background (same behaviour the panel already had). The panel still stays disconnected while closed.
+- **Readable page names for every screen.** `presencePageLabel` now covers every route in `App.tsx` (Contacts, Customers, Organizations, My To-Do, DSR, Daily Service Reports, Events pages, report pages, all Service screens, Roles, Support, …) instead of falling back to the raw address; an unknown screen shows "On the app" and the query string is never shown. A test walks the routes in `App.tsx` so a new route without a name fails the suite.
+- Not done (discussed): Active / Idle / Away status, "X is also editing this lead" warning, role/region on cards and search, a recently-active list. The record-name visibility is left as is because viewing Who's Online already needs the HRMS `presence.view_users` permission.
+- Files: `hooks/usePresenceFeed.ts` (new), `components/ui/PresencePanel.tsx`, `pages/LiveActivityPage.tsx`, `lib/presence-utils.ts`, `src/test/presence.test.tsx`
+
 ### Rev 2 — 2026-08-04 (v1.2.1)
 - **Reconnecting WebSocket**: presence panel socket auto-reconnects with exponential backoff (1s→2s→4s→15s cap + jitter); 15s REST polling fallback keeps the panel live while reconnecting.
 - **Record labels**: panel + Live Activity now show which record someone's viewing ("Editing Lead — Acme Corp") via new `lib/presence-label-store.ts`; backend `POST /api/presence/ping` accepts an optional `label`.
@@ -870,6 +919,11 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Global UI, Formatting & Bug Fixes
+
+### Rev 10 — 2026-10-21 (v1.4.9) — [Revision]
+- **Marketing Roles page** (`/roles`, HRMS roles, read-only) shows roles better: a summary strip (roles, system, custom, highest level); roles grouped under "L5 · Admin" … "L1 · Entry" headings, highest first and A–Z inside a level; each card shows the level as a 5-step bar, a permissions bar relative to the role with the most permissions, the type and System/Custom tag, and "No description" when empty; key icon for permissions (it was a users icon). Display only — no search, filter, table or permission list (HRMS does not send per-role permissions here).
+- Checked in a throwaway preview page with sample roles (deleted afterwards).
+- Files: `pages/RolesPage.tsx`, `src/test/roles-page.test.tsx`
 
 ### Rev 9 — 2026-10-03 (v1.4.5) — [Revision]
 - **Sidebar bottom block made compact and part of the same panel:** the "ADMIN" label row is gone (one light divider instead), Administration stays collapsed by default and is slightly tighter, Settings and Support sit side by side (Support & Tickets shows as "Support"), and the profile card lost its box — smaller avatar, name, then role · time on one line (full time and date in the tooltip). The menu scrollbar is now a thin one that only shows while hovering the menu (`.sidebar-scroll` in `index.html`), so the grey strip beside the menu is gone and the menu gets more room on short screens.

@@ -2997,8 +2997,8 @@ class MarketingAPIService {
   }
 
   // User presence (in-memory, nothing persisted)
-  async pingPresence(page: string, label?: string): Promise<void> {
-    return apiClient.post('/api/presence/ping', { page, label });
+  async pingPresence(page: string, label?: string, idleSeconds = 0): Promise<void> {
+    return apiClient.post('/api/presence/ping', { page, label, idle_seconds: idleSeconds });
   }
 
   async getActiveUsers(): Promise<PresenceActiveResponse> {
@@ -3212,6 +3212,8 @@ export interface RegionLeadRow {
 export interface RegionTotals {
   lead_count: number;
   lead_value?: number; // potential value of the leads counted
+  lost_count?: number; // leads marked lost in the period
+  lost_value?: number; // potential value of those lost leads
   quotation_count: number;
   quotation_value: number;
   won_count: number;
@@ -3414,6 +3416,8 @@ export interface DashboardFollowUp {
   company?: string | null;
   next_follow_up_at: string;
   due_label: string;
+  /** 'auto' = due by the status group's "every N days" rule; 'manual' = a date set on the lead. */
+  source?: 'manual' | 'auto';
 }
 
 export interface DashboardLeadSource {
@@ -3454,6 +3458,8 @@ export interface RoleDashboardSummary {
   revenue_pipeline: DashboardRevenuePipeline;
   hot_leads_count: number;
   follow_ups_due: DashboardFollowUp[];
+  follow_ups_total?: number; // all that need follow-up (the list holds the first 8)
+  won_by_day?: { day: number; value: number }[]; // running total of won value per day this month (pace chart)
   lead_source_breakdown: DashboardLeadSource[];
   high_value_leads: DashboardHighValueLead[];
 }
@@ -3564,6 +3570,10 @@ export interface PresenceUser {
   label?: string | null;
   last_seen_at: number;
   seconds_ago: number;
+  /** How long ago they last used the screen. Missing on an older server (treated as active). */
+  idle_seconds?: number;
+  /** active = used it in the last 3 min, idle = 3 to 15 min, away = tab open but unattended for longer. */
+  status?: 'active' | 'idle' | 'away';
   profile_picture?: string | null;
 }
 

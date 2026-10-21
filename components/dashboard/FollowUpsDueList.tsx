@@ -16,6 +16,8 @@ interface FollowUpsDueListProps {
   size?: CardSize;
   /** Called after a call is logged or a follow-up rescheduled, so the dashboard can reload. */
   onChanged?: () => void;
+  /** All that need follow-up, when more than the list shows. */
+  total?: number;
 }
 
 const when = (iso: string) => {
@@ -38,9 +40,10 @@ const tomorrowTen = () => {
  * edit leads get row actions: Log call (adds a "call" entry to the lead's enquiry log) and
  * Reschedule (sets a new one-time follow-up) — the same API calls the lead page uses.
  */
-export const FollowUpsDueList: React.FC<FollowUpsDueListProps> = ({ followUps: followUpsProp, title = 'Follow-ups Due — Act Now', size = 'big', onChanged }) => {
+export const FollowUpsDueList: React.FC<FollowUpsDueListProps> = ({ followUps: followUpsProp, title = 'Follow-ups Needed', size = 'big', onChanged, total }) => {
   const followUps = followUpsProp || [];
   const overdue = followUps.filter((f) => f.due_label === 'Overdue').length;
+  const more = total != null && total > followUps.length ? total - followUps.length : 0;
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_lead'));
   const navigate = useNavigate();
   const { showToast } = useApp();
@@ -94,16 +97,16 @@ export const FollowUpsDueList: React.FC<FollowUpsDueListProps> = ({ followUps: f
     <>
       <ListCard
         title={title}
-        subtitle="Soonest first, in your scope"
+        subtitle={'Overdue, today and the next 7 days · manual dates and the auto "every N days" rule'}
         size={size}
         viewAllHref="/leads"
         viewAllLabel="Leads board"
         headerExtra={overdue > 0 ? <StatusBadge status="danger" label={`${overdue} overdue`} pulse /> : undefined}
         isEmpty={followUps.length === 0}
         emptyIcon={<CalendarCheck size={20} />}
-        emptyMessage="Nothing due — you're all caught up"
+        emptyMessage="No follow-ups needed — you're all caught up"
         emptyAction={{ label: 'Open Leads board', to: '/leads' }}
-        endNote="That's everything due"
+        endNote={more > 0 ? `${more} more not shown — open the Leads board` : "That's everything due"}
       >
         {followUps.map((f) => {
           const name = nameOf(f);
@@ -116,7 +119,14 @@ export const FollowUpsDueList: React.FC<FollowUpsDueListProps> = ({ followUps: f
               avatarTone={tone === 'danger' ? 'rose' : tone === 'pending' ? 'amber' : 'slate'}
               title={name}
               subtitle={[f.series, when(f.next_follow_up_at)].filter(Boolean).join(' · ')}
-              trailing={<StatusBadge status={tone} label={f.due_label} pulse={tone === 'danger'} />}
+              trailing={(
+                <>
+                  <span className={`text-[10px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 ${f.source === 'auto' ? 'bg-violet-50 text-violet-700' : 'bg-slate-100 text-slate-500'}`} title={f.source === 'auto' ? 'Due by the status group "every N days" rule' : 'Date set on the lead'}>
+                    {f.source === 'auto' ? 'Auto' : 'Manual'}
+                  </span>
+                  <StatusBadge status={tone} label={f.due_label} pulse={tone === 'danger'} />
+                </>
+              )}
               actions={canEdit ? (
                 <>
                   <RowAction label="Log call" tone="emerald" onClick={() => { setNote(''); setCalling(f); }}><Phone size={14} /></RowAction>
