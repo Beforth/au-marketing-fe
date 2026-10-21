@@ -3211,6 +3211,7 @@ export interface RegionLeadRow {
 }
 export interface RegionTotals {
   lead_count: number;
+  lead_value?: number; // potential value of the leads counted
   quotation_count: number;
   quotation_value: number;
   won_count: number;
@@ -3404,6 +3405,7 @@ export interface DashboardRevenuePipeline {
   achieved: number;
   committed: number;
   pipeline: number;
+  pipeline_quoted?: number; // quotation value on the same open leads
 }
 
 export interface DashboardFollowUp {

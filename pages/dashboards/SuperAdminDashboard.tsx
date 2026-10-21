@@ -4,18 +4,15 @@ import { BentoGrid, Tile, HalfPair, quickActions, heroSubtitle } from '../../com
 import { StandardKpis } from '../../components/dashboard/StandardKpis';
 import { TargetRingCard } from '../../components/dashboard/TargetRingCard';
 import { OutcomeCard } from '../../components/dashboard/OutcomeCard';
-import { PipelineStagesCard } from '../../components/dashboard/PipelineStagesCard';
+import { LeadBreakdownCard } from '../../components/dashboard/LeadBreakdownCard';
 import { MonthlyTrendChart } from '../../components/dashboard/MonthlyTrendChart';
 import { RecentLeadsList } from '../../components/dashboard/RecentLeadsList';
 import { FollowUpsDueList } from '../../components/dashboard/FollowUpsDueList';
-import { PerformerOfMonthCard } from '../../components/dashboard/PerformerOfMonthCard';
 import { MyTodoCard } from '../../components/dashboard/MyTodoCard';
-import { HighValueLeadsList } from '../../components/dashboard/HighValueLeadsList';
 import { RegionBreakdownChart } from '../../components/dashboard/RegionBreakdownChart';
-import { LeadSourceChart } from '../../components/dashboard/LeadSourceChart';
 import { LeadsByRegionCard } from '../../components/dashboard/LeadsByRegionCard';
 import { WorldMapCard } from '../../components/dashboard/WorldMapCard';
-import { marketingAPI, RoleDashboardSummary, PerformerOfMonthItem, HeadDashboardSummaryResponse } from '../../lib/marketing-api';
+import { marketingAPI, RoleDashboardSummary, HeadDashboardSummaryResponse } from '../../lib/marketing-api';
 
 interface SuperAdminDashboardProps {
   data: RoleDashboardSummary;
@@ -28,17 +25,14 @@ interface SuperAdminDashboardProps {
  * follow-ups → stages · sources · leaderboard → region won/lost.
  */
 export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ data, onRefresh }) => {
-  const [performers, setPerformers] = useState<PerformerOfMonthItem[]>([]);
   const [headSummary, setHeadSummary] = useState<HeadDashboardSummaryResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      marketingAPI.getPerformerOfMonth().catch(() => null),
       marketingAPI.getHeadDashboardSummary().catch(() => null),
-    ]).then(([perf, head]) => {
+    ]).then(([head]) => {
       if (cancelled) return;
-      if (perf) setPerformers(perf.performers || []);
       if (head) setHeadSummary(head);
     });
     return () => { cancelled = true; };
@@ -80,7 +74,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ data, 
       </Tile>
 
       {/* Row 3: the list worked from daily — full width, 384px */}
-      <Tile span="full" height="big" index={6}>
+      <Tile span="full" height="auto" index={6}>
         <LeadsByRegionCard size="big" />
       </Tile>
 
@@ -90,13 +84,11 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ data, 
       </Tile>
 
       {/* Row 4+: secondary pairs — 320px */}
-      {/* Row 4: high-value leads (6) · recent leads (3) · performer of the month (3) */}
-      <Tile span="wide" index={7}><HighValueLeadsList leads={data.high_value_leads} size="medium" /></Tile>
-      <Tile span="small" index={8}><RecentLeadsList leads={data.recent_leads} title="Recent Leads" size="medium" /></Tile>
-      <Tile span="small" index={9}><PerformerOfMonthCard performers={performers} /></Tile>
+      {/* Row 4: leads — recent / high value tabs (full width) */}
+      <Tile span="full" index={7}><RecentLeadsList leads={data.recent_leads} highValueLeads={data.high_value_leads} size="medium" /></Tile>
       <HalfPair index={10} left={<MyTodoCard size="medium" />} right={<FollowUpsDueList followUps={data.follow_ups_due} title="Follow-ups Due" size="medium" onChanged={onRefresh} />} />
 
-      <HalfPair index={12} left={<PipelineStagesCard data={data.by_status} title="Leads by Stage" />} right={<LeadSourceChart data={data.lead_source_breakdown} />} />
+      <Tile span="full" height="big" index={12}><LeadBreakdownCard stages={data.by_status} sources={data.lead_source_breakdown} title="Lead Breakdown" /></Tile>
       <HalfPair index={14} left={<RegionBreakdownChart regions={headSummary?.region_breakdown || []} />} />
     </BentoGrid>
   );

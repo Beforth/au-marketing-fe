@@ -2,6 +2,7 @@
  * Customers list – tabular view, fetches from marketing API.
  */
 import React, { useState, useEffect } from 'react';
+import { useRestorableState, useScrollMemory } from '../hooks/useListMemory';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -31,11 +32,12 @@ export const CustomersPage: React.FC = () => {
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useRestorableState('customers:page', 1);
+  const [pageSize, setPageSize] = useRestorableState('customers:pageSize', DEFAULT_PAGE_SIZE);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  useScrollMemory('customers', !isLoading);
+  const [searchTerm, setSearchTerm] = useRestorableState('customers:searchTerm', '');
 
   useEffect(() => {
     if (!canView) {

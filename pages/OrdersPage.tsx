@@ -2,6 +2,7 @@
  * Orders list – orders created from won leads. Kanban (default) and Table view, same as Leads.
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRestorableState, useScrollMemory } from '../hooks/useListMemory';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -221,15 +222,16 @@ export const OrdersPage: React.FC = () => {
   const [statuses, setStatuses] = useState<OrderStatusOption[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useRestorableState('orders:page', 1);
+  const [pageSize, setPageSize] = useRestorableState('orders:pageSize', DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<number | ''>('');
-  const [searchTerm, setSearchTerm] = useState('');
+  useScrollMemory('orders', !loading);
+  const [statusFilter, setStatusFilter] = useRestorableState<number | ''>('orders:statusFilter', '');
+  const [searchTerm, setSearchTerm] = useRestorableState('orders:searchTerm', '');
   // Filters — same set (and behaviour) as the Leads board: Only mine, Hide Empty, employee, date range.
-  const [createdByMeOnly, setCreatedByMeOnly] = useState(false);
-  const [hideEmptyColumns, setHideEmptyColumns] = useState(false);
-  const [selectedAssignedToIds, setSelectedAssignedToIds] = useState<number[]>([]);
+  const [createdByMeOnly, setCreatedByMeOnly] = useRestorableState('orders:createdByMeOnly', false);
+  const [hideEmptyColumns, setHideEmptyColumns] = useRestorableState('orders:hideEmptyColumns', false);
+  const [selectedAssignedToIds, setSelectedAssignedToIds] = useRestorableState<number[]>('orders:selectedAssignedToIds', []);
   const [showEmployeeFilterPopover, setShowEmployeeFilterPopover] = useState(false);
   const employeeFilterRef = React.useRef<HTMLDivElement>(null);
   const [isScopeLoading, setIsScopeLoading] = useState(true);
@@ -243,11 +245,11 @@ export const OrdersPage: React.FC = () => {
       is_domain_coordinator: cached.is_domain_coordinator,
     };
   });
-  const [dateFromInput, setDateFromInput] = useState('');
-  const [dateToInput, setDateToInput] = useState('');
-  const [appliedDateFrom, setAppliedDateFrom] = useState('');
-  const [appliedDateTo, setAppliedDateTo] = useState('');
-  const [dateRangePreset, setDateRangePreset] = useState<string>('all');
+  const [dateFromInput, setDateFromInput] = useRestorableState('orders:dateFromInput', '');
+  const [dateToInput, setDateToInput] = useRestorableState('orders:dateToInput', '');
+  const [appliedDateFrom, setAppliedDateFrom] = useRestorableState('orders:appliedDateFrom', '');
+  const [appliedDateTo, setAppliedDateTo] = useRestorableState('orders:appliedDateTo', '');
+  const [dateRangePreset, setDateRangePreset] = useRestorableState<string>('orders:dateRangePreset', 'all');
   const isHeadOrAdmin = reportScope?.role !== 'self' && reportScope?.role !== undefined;
   const handlePresetChange = (preset: string) => {
     setDateRangePreset(preset);

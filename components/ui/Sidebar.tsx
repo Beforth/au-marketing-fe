@@ -20,7 +20,7 @@ export const Sidebar: React.FC = () => {
   const [adminOpen, setAdminOpen] = useState(false);
   const [serviceOpen, setServiceOpen] = useState(false);
   const [workOpen, setWorkOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState('v1.4.7');
+  const [appVersion, setAppVersion] = useState('v1.4.8');
   const [versionLoaded, setVersionLoaded] = useState(false);
   const userDisplayName = useAppSelector(selectUserDisplayName);
   const employee = useAppSelector(selectEmployee);

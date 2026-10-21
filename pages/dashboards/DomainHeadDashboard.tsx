@@ -8,14 +8,12 @@ import { PipelineStagesCard } from '../../components/dashboard/PipelineStagesCar
 import { MonthlyTrendChart } from '../../components/dashboard/MonthlyTrendChart';
 import { RecentLeadsList } from '../../components/dashboard/RecentLeadsList';
 import { FollowUpsDueList } from '../../components/dashboard/FollowUpsDueList';
-import { PerformerOfMonthCard } from '../../components/dashboard/PerformerOfMonthCard';
 import { MyTodoCard } from '../../components/dashboard/MyTodoCard';
-import { HighValueLeadsList } from '../../components/dashboard/HighValueLeadsList';
 import { RegionBreakdownChart } from '../../components/dashboard/RegionBreakdownChart';
 import { RevenuePipelineChart } from '../../components/dashboard/RevenuePipelineChart';
 import { LeadsByRegionCard } from '../../components/dashboard/LeadsByRegionCard';
 import { WorldMapCard } from '../../components/dashboard/WorldMapCard';
-import { marketingAPI, RoleDashboardSummary, PerformerOfMonthItem, HeadDashboardSummaryResponse } from '../../lib/marketing-api';
+import { marketingAPI, RoleDashboardSummary, HeadDashboardSummaryResponse } from '../../lib/marketing-api';
 
 interface DomainHeadDashboardProps {
   data: RoleDashboardSummary;
@@ -28,17 +26,14 @@ interface DomainHeadDashboardProps {
  * follow-ups → stages + leaderboard → pipeline + region won/lost.
  */
 export const DomainHeadDashboard: React.FC<DomainHeadDashboardProps> = ({ data, onRefresh }) => {
-  const [performers, setPerformers] = useState<PerformerOfMonthItem[]>([]);
   const [headSummary, setHeadSummary] = useState<HeadDashboardSummaryResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      marketingAPI.getPerformerOfMonth().catch(() => null),
       marketingAPI.getHeadDashboardSummary().catch(() => null),
-    ]).then(([perf, head]) => {
+    ]).then(([head]) => {
       if (cancelled) return;
-      if (perf) setPerformers(perf.performers || []);
       if (head) setHeadSummary(head);
     });
     return () => { cancelled = true; };
@@ -81,7 +76,7 @@ export const DomainHeadDashboard: React.FC<DomainHeadDashboardProps> = ({ data, 
       </Tile>
 
       {/* Row 3: the list worked from daily — full width, 384px */}
-      <Tile span="full" height="big" index={6}>
+      <Tile span="full" height="auto" index={6}>
         <LeadsByRegionCard size="big" />
       </Tile>
 
@@ -91,10 +86,8 @@ export const DomainHeadDashboard: React.FC<DomainHeadDashboardProps> = ({ data, 
       </Tile>
 
       {/* Row 4+: secondary pairs — 320px */}
-      {/* Row 4: high-value leads (6) · recent leads (3) · performer of the month (3) */}
-      <Tile span="wide" index={7}><HighValueLeadsList leads={data.high_value_leads} size="medium" /></Tile>
-      <Tile span="small" index={8}><RecentLeadsList leads={data.recent_leads} title="Domain's Recent Leads" size="medium" /></Tile>
-      <Tile span="small" index={9}><PerformerOfMonthCard performers={performers} /></Tile>
+      {/* Row 4: leads — recent / high value tabs (full width) */}
+      <Tile span="full" index={7}><RecentLeadsList leads={data.recent_leads} highValueLeads={data.high_value_leads} size="medium" /></Tile>
       <HalfPair index={10} left={<MyTodoCard size="medium" />} right={<FollowUpsDueList followUps={data.follow_ups_due} title="Domain Follow-ups Due" size="medium" onChanged={onRefresh} />} />
       <HalfPair index={12} left={<PipelineStagesCard data={data.by_status} title="Domain Leads by Stage" />} right={<RevenuePipelineChart pipeline={data.revenue_pipeline} />} />
       <HalfPair index={14} left={<RegionBreakdownChart regions={headSummary?.region_breakdown || []} />} />

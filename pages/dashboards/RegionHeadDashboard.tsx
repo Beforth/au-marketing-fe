@@ -1,18 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { DashboardHero } from '../../components/dashboard/DashboardHero';
 import { BentoGrid, Tile, HalfPair, quickActions, heroSubtitle } from '../../components/dashboard/DashboardFrame';
 import { StandardKpis } from '../../components/dashboard/StandardKpis';
 import { TargetRingCard } from '../../components/dashboard/TargetRingCard';
 import { OutcomeCard } from '../../components/dashboard/OutcomeCard';
-import { PipelineStagesCard } from '../../components/dashboard/PipelineStagesCard';
+import { LeadBreakdownCard } from '../../components/dashboard/LeadBreakdownCard';
 import { MonthlyTrendChart } from '../../components/dashboard/MonthlyTrendChart';
 import { RecentLeadsList } from '../../components/dashboard/RecentLeadsList';
 import { FollowUpsDueList } from '../../components/dashboard/FollowUpsDueList';
-import { PerformerOfMonthCard } from '../../components/dashboard/PerformerOfMonthCard';
 import { MyTodoCard } from '../../components/dashboard/MyTodoCard';
-import { LeadSourceChart } from '../../components/dashboard/LeadSourceChart';
 import { LeadsByRegionCard } from '../../components/dashboard/LeadsByRegionCard';
-import { marketingAPI, RoleDashboardSummary, PerformerOfMonthItem } from '../../lib/marketing-api';
+import { RoleDashboardSummary } from '../../lib/marketing-api';
 
 interface RegionHeadDashboardProps {
   data: RoleDashboardSummary;
@@ -25,17 +23,6 @@ interface RegionHeadDashboardProps {
  * → stages · sources · leaderboard.
  */
 export const RegionHeadDashboard: React.FC<RegionHeadDashboardProps> = ({ data, onRefresh }) => {
-  const [performers, setPerformers] = useState<PerformerOfMonthItem[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    marketingAPI
-      .getPerformerOfMonth()
-      .then((res) => { if (!cancelled) setPerformers(res.performers || []); })
-      .catch(() => { /* non-fatal: leaderboard just stays empty */ });
-    return () => { cancelled = true; };
-  }, []);
-
   return (
     <BentoGrid>
       {/* Row 1: hero (6) · [leads · hot leads] (3) · [open pipeline · won this month] (3) */}
@@ -79,10 +66,9 @@ export const RegionHeadDashboard: React.FC<RegionHeadDashboardProps> = ({ data, 
 
       {/* Row 4+: secondary pairs — 320px */}
       <Tile span="wide" index={7}><MyTodoCard size="medium" /></Tile>
-      <Tile span="small" index={8}><RecentLeadsList leads={data.recent_leads} title="Team's Recent Leads" size="medium" /></Tile>
-      <Tile span="small" index={9}><PerformerOfMonthCard performers={performers} /></Tile>
-      <HalfPair index={10} left={<LeadsByRegionCard size="medium" />} />
-      <HalfPair index={11} left={<PipelineStagesCard data={data.by_status} title="Team Leads by Stage" />} right={<LeadSourceChart data={data.lead_source_breakdown} />} />
+      <Tile span="wide" index={8}><RecentLeadsList leads={data.recent_leads} title="Team's Recent Leads" size="medium" /></Tile>
+      <HalfPair index={10} height="auto" left={<LeadsByRegionCard size="medium" />} />
+      <Tile span="full" height="big" index={11}><LeadBreakdownCard stages={data.by_status} sources={data.lead_source_breakdown} title="Team Leads — Stage & Source" /></Tile>
     </BentoGrid>
   );
 };

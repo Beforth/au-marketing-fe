@@ -22,7 +22,6 @@ vi.mock('../../lib/hrms-rbac', async (orig) => ({
 vi.mock('../../lib/marketing-api', async (orig) => ({
   ...(await orig<typeof import('../../lib/marketing-api')>()),
   marketingAPI: {
-    getPerformerOfMonth: vi.fn().mockResolvedValue({ performers: [] }),
     getWorldMap: vi.fn().mockResolvedValue({ rows: [], no_region_count: 0 }),
     getStarPerformer: vi.fn().mockResolvedValue({ year: 2026, month: 10, performer: null }),
     createLeadActivity: (...a: unknown[]) => createLeadActivity(...a),
@@ -42,7 +41,7 @@ const data: RoleDashboardSummary = {
   monthly_trend: [{ month: '2026-09', label: 'Sep', lead_count: 5, won_value: 100, order_revenue: 50 }],
   total_orders: 9, total_revenue_month: 0, contacts_count: 0, customers_count: 12,
   monthly_target: 1000000, achieved_this_month: 400000, employee_count: 1, avg_open_lead_age_days: 12,
-  revenue_pipeline: { achieved: 1, committed: 2, pipeline: 3 }, hot_leads_count: 4,
+  revenue_pipeline: { achieved: 1, committed: 2, pipeline: 3, pipeline_quoted: 2 }, hot_leads_count: 4,
   follow_ups_due: [
     { id: 1, company: 'Overdue Co', series: 'L-1', next_follow_up_at: '2026-09-20T10:00:00Z', due_label: 'Overdue' },
     { id: 2, company: 'Today Co', series: 'L-2', next_follow_up_at: '2026-09-28T15:00:00Z', due_label: 'Today' },
@@ -97,6 +96,21 @@ describe('role dashboards render with the new layout', () => {
     }
   });
 
+  it('leads card: Recent tab by default, High value tab shows big leads; no tabs without highValueLeads', async () => {
+    const { RecentLeadsList } = await import('../../components/dashboard/RecentLeadsList');
+    const recent = [{ id: 1, company: 'Fresh Co', created_at: '2026-10-01T00:00:00Z' }];
+    const high = [{ id: 2, company: 'Big Co', value: 20000000, value_source: 'quote' as const, status: 'Quoted' }];
+    const { unmount } = renderIt(<RecentLeadsList leads={recent} highValueLeads={high} />);
+    expect(screen.getByText('Fresh Co')).toBeInTheDocument();
+    expect(screen.queryByText('Big Co')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'High value' }));
+    expect(screen.getByText('Big Co')).toBeInTheDocument();
+    expect(screen.queryByText('Fresh Co')).not.toBeInTheDocument();
+    unmount();
+    renderIt(<RecentLeadsList leads={recent} />);
+    expect(screen.queryByRole('button', { name: 'High value' })).not.toBeInTheDocument();
+  });
+
   it('empty lists show an empty state, not a blank box', async () => {
     getTodos.mockResolvedValue([]);
     const { EmployeeDashboard } = await import('../../pages/dashboards/EmployeeDashboard');
@@ -110,6 +124,7 @@ describe('role dashboards render with the new layout', () => {
     const { EmployeeDashboard } = await import('../../pages/dashboards/EmployeeDashboard');
     renderIt(<EmployeeDashboard data={data} />);
     expect(screen.getByText('Open Pipeline')).toBeInTheDocument();
+    expect(screen.getByText(/quoted$/)).toBeInTheDocument();
     expect(screen.getByText('Quotes Sent This Month')).toBeInTheDocument();
     expect(screen.queryByText('Won This Month')).not.toBeInTheDocument(); // it's the ring's "Achieved" figure now
     expect(screen.getByText('Monthly Target')).toBeInTheDocument();

@@ -21,11 +21,12 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Feature index
 
+- [List Pages — Back-Navigation Memory](#list-pages--back-navigation-memory) — rev 1.4.8
 - [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7, 1.2.10, 1.4.1, 1.4.2
 - [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6, 1.2.8, 1.4.2
 - [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7, 1.4.6, 1.4.7
 - [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
-- [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.2.0, 1.2.1, 1.2.5, 1.2.9, 1.4.2, 1.4.3, 1.4.5
+- [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.4.8, 1.2.0, 1.2.1, 1.2.5, 1.2.9, 1.4.2, 1.4.3, 1.4.5
 - [Who's Online / Presence](#whos-online--presence) — rev 1.2.0, 1.2.1
 - [Regions, Domains & Employee Sync](#regions-domains--employee-sync) — rev 1.2.0, 1.2.4, 1.2.5
 - [Quotations Page (list & filters)](#quotations-page-list--filters) — rev 1.2.1, 1.2.2
@@ -42,11 +43,36 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [HRMS Daily Service Reports & Expenses](#hrms-daily-service-reports--expenses) — rev 1.4.2, 1.4.5, 1.4.7
 - [Numbering Series](#numbering-series) — rev 1.4.7
 - [Dashboard Star Performer](#dashboard-star-performer) — rev 1.4.7
+- [User Guide & Rules Handbook (PDFs)](#user-guide--rules-handbook-pdfs) — rev 1.4.7
 - [Service Module](#service-module) — rev 1.4.0, 1.4.1, 1.4.2, 1.4.3, 1.4.4, 1.4.5, 1.4.6, 1.4.7, 1.4.11, 1.4.12, 1.4.13, 1.4.14, 1.4.15
 
 ---
 
+## List Pages — Back-Navigation Memory
+
+### Rev 1 — 2026-10-21 (v1.4.8) — [Issue]
+- Client reported: open a lead/order from a long list, press Back, and the page is at the top again with search/filters cleared. Cause: the list page is unmounted on navigation and rebuilt on Back, with all scroll and filter state in plain `useState`.
+- Fix: new shared hook file with `useRestorableState` (drop-in `useState` that keeps its last value only when arriving via Back/Forward) and `useScrollMemory` (saves page scroll + every inner scroller, e.g. kanban sideways and per-column, and restores after the first data load). Sidebar clicks and new links still start clean. In-memory only, a hard refresh resets.
+- Applied to Leads, Orders, Contacts, Organizations, Customers, Events list (search, page, page size, status/date/employee filters, event type).
+- Files: `hooks/useListMemory.ts`, `pages/LeadsPage.tsx`, `pages/OrdersPage.tsx`, `pages/ContactsPage.tsx`, `pages/OrganizationsPage.tsx`, `pages/CustomersPage.tsx`, `pages/EventsListPage.tsx`
+
+---
+
+## User Guide & Rules Handbook (PDFs)
+
+### Rev 1 — 2026-10-19 (v1.4.7) — [Revision]
+- Two BeForth-styled PDFs in `docs/user-guide/`: **User Guide** (48 screenshots across the core pages, daily work, events, service, admin and settings, each with numbered red highlight boxes and a matching legend) and **Rules & How It Works** (roles vs permissions vs Visibility Settings, the reporting-chain scoping tables, and every automatic rule with what / why). Built from HTML and printed with headless Chrome; screenshots are demo data (`india-seed`).
+- To rebuild: edit `guide.html` / `rules.html`, then `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --no-pdf-header-footer --virtual-time-budget=20000 --print-to-pdf=<name>.pdf file://$PWD/<name>.html` from `docs/user-guide/`. The red boxes were drawn on the live page (positioned from each element) just before capture, so new screenshots need the same treatment.
+- Not covered: Login, Schema, Financials, Inventory, Report Templates, region create/edit forms, and the per-lead Lost pop-up. `docs/USER_GUIDE.md` still has its old `[SCREENSHOT]` placeholders.
+- Files: `docs/user-guide/guide.html`, `rules.html`, `style.css`, `img/*.jpg`, `guide.pdf`, `rules.pdf`
+
+---
+
 ## Dashboard Star Performer
+
+### Rev 7 — 2026-10-21 (v1.4.8) — [Issue]
+- Star Performer credited a lead's *owner*, so when a coordinator added a lead "on behalf of" someone (owner defaults to the coordinator) the coordinator got the win. Now a lead with `on_behalf_of_by_employee_id` set is credited to `created_by_employee_id` (the person it was filed for); all other leads still go to the owner. Only the Star Performer tile changed — targets, leaderboards and reports still use the owner.
+- Files: `au-marketing-api/app/routers/dashboard.py`, `au-marketing-api/tests/test_star_performer.py`
 
 ### Rev 6 — 2026-10-19 (v1.4.7) — [Issue]
 - **Star Performer showed "Employee #598".** The name came only from the winner's active region assignment; someone without one fell back to a bare id (and had no region or photo). The name is now looked up in order: region assignment → local employee cache → HRMS (which also gives the photo; it pages through the HRMS employee list when no name is known) → the username on their leads. The region/domain falls back to the region of one of their leads. "Employee #id" only appears if no name exists anywhere.
@@ -500,6 +526,37 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Dashboard, Reports & Performance Leaderboard
+
+### Rev 46 — 2026-10-21 (v1.4.8) — [Revision]
+- Two more befui swaps. **Leads by Stage** now draws its stages with a Funnel chart (`components/ui/FunnelChart.tsx`): centred bars in each status's own colour with the share of all leads on the right; Won/Lost sit below a divider as before, Open/Won/Lost summary tiles unchanged. Deliberately adapted from befui: bars are sized against the largest stage (not the first) and no step-to-step rate is shown, because these are "leads currently in this stage" counts that do not always shrink; a true cumulative funnel ("reached this stage or beyond") would not match the kanban column counts. **Won vs Lost** now uses befui's Half donut (`components/ui/HalfDonutChart.tsx` + `hooks/useChartIn.ts`) with the conversion % under the arch (hover a segment to read it); counts strip underneath unchanged.
+- Both files copied from befui and re-coloured to this app's Tailwind classes (no befui theme variables here). The hand-drawn SVG donut in `OutcomeCard` and the hand-drawn bars in `StageBars` were removed.
+- Files: `components/ui/FunnelChart.tsx`, `components/ui/HalfDonutChart.tsx`, `hooks/useChartIn.ts` (new), `components/dashboard/PipelineStagesCard.tsx`, `components/dashboard/OutcomeCard.tsx`, `src/test/befui-charts.test.tsx`
+
+### Rev 45 — 2026-10-21 (v1.4.8) — [Revision]
+- First use of **befui** (own component library, https://befui.vercel.app/, source github.com/RandomKid24/befui): its Bar list is copied into `components/ui/BarList.tsx` (befui components are copy-paste, not an npm package) with its theme colours (`primary`, `muted-foreground`) swapped for this app's Tailwind classes, because the app loads Tailwind from the CDN with no theme variables or `@/` alias. Lead Sources now renders as a ranked bar list (count + share, top 8) instead of an ApexCharts bar chart, in both the standalone card and the Lead Breakdown card.
+- Trial swap only — other befui charts (pie, half donut, funnel, radial bar, leaderboard, world map …) are candidates; copy the same way and adapt classes. Its shared `charts.tsx` helper is not copied yet (not needed for Bar list).
+- Files: `components/ui/BarList.tsx` (new), `components/dashboard/LeadSourceChart.tsx`, `src/test/lead-breakdown-card.test.tsx`
+
+### Rev 44 — 2026-10-21 (v1.4.8) — [Revision]
+- Dashboard: "Leads by Stage" and "Lead Sources" are now one full-width **Lead Breakdown** card on the Region Head and Super Admin dashboards — stage bars on the left, source chart on the right (stacked on small screens). New `LeadBreakdownCard.tsx` reuses `StageBars` (from `PipelineStagesCard.tsx`) and `SourceBars` (from `LeadSourceChart.tsx`); the standalone cards still exist and are unchanged for the Domain Head and Employee dashboards (which never showed sources).
+- Files: `components/dashboard/LeadBreakdownCard.tsx` (new), `components/dashboard/PipelineStagesCard.tsx`, `components/dashboard/LeadSourceChart.tsx`, `pages/dashboards/{SuperAdmin,RegionHead}Dashboard.tsx`, `src/test/lead-breakdown-card.test.tsx`
+
+### Rev 43 — 2026-10-21 (v1.4.8) — [Revision]
+- Dashboard: "Performer of the Month" card removed from all four role dashboards (and the data fetch that fed it). Layout rebalanced: Employee / Region Head "Recent Leads" is now a 6-col tile beside To-Do; Domain Head / Super Admin "Leads" (Recent / High value) card is full width. `PerformerOfMonthCard.tsx` deleted. The Star Performer tile and the legacy builder page's "performer-of-month" widget (`DashboardPage.tsx`) and the backend `/performer-of-month` endpoint are untouched.
+- Files: `pages/dashboards/{Employee,RegionHead,DomainHead,SuperAdmin}Dashboard.tsx`, `components/dashboard/PerformerOfMonthCard.tsx` (deleted), `src/test/role-dashboards-ui.test.tsx`
+
+### Rev 42 — 2026-10-21 (v1.4.8) — [Revision]
+- Dashboard: "High Value Leads" and "Recent Leads" combined into one **Leads** card with Recent / High value tabs (Domain Head and Super Admin). Employee and Region Head keep the plain Recent Leads card (the backend sends no high-value list for them). The freed slot goes to Performer of the Month, now a 6-col tile. `HighValueLeadsList.tsx` deleted (its rows moved into `RecentLeadsList.tsx`, which takes an optional `highValueLeads` prop). Tab choice is not remembered across reloads.
+- Files: `components/dashboard/RecentLeadsList.tsx`, `components/dashboard/HighValueLeadsList.tsx` (deleted), `pages/dashboards/SuperAdminDashboard.tsx`, `pages/dashboards/DomainHeadDashboard.tsx`, `src/test/role-dashboards-ui.test.tsx`
+
+### Rev 41 — 2026-10-21 (v1.4.8) — [Revision]
+- Dashboard "Leads by Region" widget: new summary tiles on top (Total leads, Lead value = potential value of those leads, Quoted, Won) that follow the Period filter; per-region chips and the hover tooltip also show the lead value. The old thin totals line was removed (the tiles replace it). Widget is taller (520px big / 448px medium) and its dashboard tiles now size to content (`height="auto"`) instead of a fixed 384/320px.
+- Backend: `lead_value` (sum of `Lead.potential_value` for the leads listed in the period) added to the region totals and per-region figures; Reports → Leads by Region page gets the field too but does not show it yet.
+- Files: `au-marketing-api/app/region_report.py`, `au-marketing-api/app/routers/leads_by_region.py`, `au-marketing-api/tests/test_region_report.py`, `lib/marketing-api.ts`, `components/dashboard/LeadsByRegionCard.tsx`, `pages/dashboards/{SuperAdmin,DomainHead,RegionHead}Dashboard.tsx`, `src/test/leads-by-region-ui.test.tsx`
+
+### Rev 40 — 2026-10-21 (v1.4.8) — [Revision]
+- Open Pipeline card now shows the quotation value of the open leads ("₹X quoted") under the potential-value headline. Backend sums each open lead's quotations at their latest revision (existing `totals_by_lead`), scoped like the pipeline figure; leads with no quote add nothing. Older backend without the field keeps the old subtitle.
+- Files: `au-marketing-api/app/routers/dashboard.py`, `lib/marketing-api.ts`, `components/dashboard/StandardKpis.tsx`, `src/test/role-dashboards-ui.test.tsx`
 
 ### Rev 39 — 2026-10-03 (v1.4.5) — [Revision]
 - **Expected order: no duplicates, richer picker.** A lead already in next month's plan is greyed out ("In next month's plan") and cannot be added again; creating again adds to the same plan (one plan per person per month — the backend rejects duplicates and makes a second report impossible). The picker is now clickable cards showing name, company, lead number, plant / region / lead type, status tag, potential and quoted value, expected closing date (overdue / soon), last activity, follow-up, a stage filter, a "closing within 30 days" toggle, and a sticky bar with the selected count and total potential.

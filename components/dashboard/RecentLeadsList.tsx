@@ -1,31 +1,64 @@
-import React from 'react';
-import { Inbox } from 'lucide-react';
-import type { DashboardRecentLead } from '../../lib/marketing-api';
+import React, { useState } from 'react';
+import { Inbox, Gem } from 'lucide-react';
+import { cn } from '../../lib/utils';
+import type { DashboardRecentLead, DashboardHighValueLead } from '../../lib/marketing-api';
 import { formatINRShort } from '../../lib/region-report';
 import { ListCard, ListRow, CardSize } from './ListCard';
 import { StatusBadge } from './StatusBadge';
 
 interface RecentLeadsListProps {
   leads: DashboardRecentLead[] | null | undefined;
+  /** When given (domain head / super admin), the card gets a "High value" tab next to "Recent". */
+  highValueLeads?: DashboardHighValueLead[] | null;
   title?: string;
   size?: CardSize;
 }
 
-/** Most recently created leads in scope. Status pill keeps the status's own colour. */
-export const RecentLeadsList: React.FC<RecentLeadsListProps> = ({ leads: leadsProp, title = 'Recent Leads', size = 'medium' }) => {
+/** Most recently created leads in scope (status pill keeps the status's own colour), plus an optional tab of leads over ₹50L. */
+export const RecentLeadsList: React.FC<RecentLeadsListProps> = ({ leads: leadsProp, highValueLeads, title = 'Recent Leads', size = 'medium' }) => {
+  const [tab, setTab] = useState<'recent' | 'high'>('recent');
+  const hasTabs = highValueLeads !== undefined;
+  const showHigh = hasTabs && tab === 'high';
   const leads = leadsProp || [];
+  const highLeads = highValueLeads || [];
+  const tabButton = (key: 'recent' | 'high', label: string) => (
+    <button
+      key={key}
+      type="button"
+      onClick={() => setTab(key)}
+      aria-pressed={tab === key}
+      className={cn('px-2.5 py-1 rounded-md text-xs font-semibold transition-colors', tab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}
+    >
+      {label}
+    </button>
+  );
   return (
     <ListCard
-      title={title}
-      subtitle="Most recently created, in your scope"
+      title={hasTabs ? 'Leads' : title}
+      subtitle={showHigh ? 'Potential value or a quotation over ₹50L, in your scope' : 'Most recently created, in your scope'}
+      headerExtra={hasTabs ? <div className="inline-flex rounded-lg bg-slate-100 p-0.5">{tabButton('recent', 'Recent')}{tabButton('high', 'High value')}</div> : undefined}
       size={size}
       viewAllHref="/leads"
-      isEmpty={leads.length === 0}
-      emptyIcon={<Inbox size={20} />}
-      emptyMessage="No leads yet"
+      isEmpty={showHigh ? highLeads.length === 0 : leads.length === 0}
+      emptyIcon={showHigh ? <Gem size={20} /> : <Inbox size={20} />}
+      emptyMessage={showHigh ? 'None right now' : 'No leads yet'}
       emptyAction={{ label: '+ Add a lead', to: '/leads/new' }}
     >
-      {leads.map((lead) => {
+      {showHigh && highLeads.map((lead) => {
+        const name = lead.company || lead.series || `Lead #${lead.id}`;
+        return (
+          <ListRow
+            key={lead.id}
+            to={`/leads/${lead.id}/edit`}
+            name={name}
+            avatarTone="emerald"
+            title={name}
+            subtitle={[lead.value_source === 'quote' ? 'From quotation' : 'Potential value', lead.status].filter(Boolean).join(' · ')}
+            trailing={<span className="text-sm font-bold text-emerald-700 tabular-nums">{formatINRShort(lead.value)}</span>}
+          />
+        );
+      })}
+      {!showHigh && leads.map((lead) => {
         const name = lead.company || lead.series || `Lead #${lead.id}`;
         const created = new Date(lead.created_at);
         return (

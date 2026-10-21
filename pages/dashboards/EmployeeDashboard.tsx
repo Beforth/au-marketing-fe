@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { DashboardHero } from '../../components/dashboard/DashboardHero';
 import { BentoGrid, Tile, HalfPair, quickActions, heroSubtitle } from '../../components/dashboard/DashboardFrame';
 import { StandardKpis } from '../../components/dashboard/StandardKpis';
@@ -8,9 +8,8 @@ import { PipelineStagesCard } from '../../components/dashboard/PipelineStagesCar
 import { MonthlyTrendChart } from '../../components/dashboard/MonthlyTrendChart';
 import { RecentLeadsList } from '../../components/dashboard/RecentLeadsList';
 import { FollowUpsDueList } from '../../components/dashboard/FollowUpsDueList';
-import { PerformerOfMonthCard } from '../../components/dashboard/PerformerOfMonthCard';
 import { MyTodoCard } from '../../components/dashboard/MyTodoCard';
-import { marketingAPI, RoleDashboardSummary, PerformerOfMonthItem } from '../../lib/marketing-api';
+import { RoleDashboardSummary } from '../../lib/marketing-api';
 
 interface EmployeeDashboardProps {
   data: RoleDashboardSummary;
@@ -22,17 +21,6 @@ interface EmployeeDashboardProps {
  * Employee: works FROM follow-ups (full width) → To-Do + recent leads → stages + leaderboard.
  */
 export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ data, onRefresh }) => {
-  const [performers, setPerformers] = useState<PerformerOfMonthItem[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    marketingAPI
-      .getPerformerOfMonth()
-      .then((res) => { if (!cancelled) setPerformers(res.performers || []); })
-      .catch(() => { /* non-fatal: leaderboard just stays empty */ });
-    return () => { cancelled = true; };
-  }, []);
-
   return (
     <BentoGrid>
       {/* Row 1: hero (6) · [leads · hot leads] (3) · [open pipeline · won this month] (3) */}
@@ -74,10 +62,9 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ data, onRe
         <FollowUpsDueList followUps={data.follow_ups_due} title="My Follow-ups — Act Now" size="big" onChanged={onRefresh} />
       </Tile>
 
-      {/* Row 4: To-Do (6) · recent leads (3) · performer of the month (3) — 320px */}
+      {/* Row 4: To-Do (6) · recent leads (6) — 320px */}
       <Tile span="wide" index={7}><MyTodoCard size="medium" /></Tile>
-      <Tile span="small" index={8}><RecentLeadsList leads={data.recent_leads} title="My Recent Leads" size="medium" /></Tile>
-      <Tile span="small" index={9}><PerformerOfMonthCard performers={performers} /></Tile>
+      <Tile span="wide" index={8}><RecentLeadsList leads={data.recent_leads} title="My Recent Leads" size="medium" /></Tile>
 
       <HalfPair index={10} left={<PipelineStagesCard data={data.by_status} title="My Leads by Stage" />} />
     </BentoGrid>

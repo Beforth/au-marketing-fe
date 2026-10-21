@@ -2,6 +2,7 @@
  * Organizations list – same listing UI as Customers/Contacts (Card, DataTable, search, Pagination).
  */
 import React, { useState, useEffect } from 'react';
+import { useRestorableState, useScrollMemory } from '../hooks/useListMemory';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -31,11 +32,12 @@ export const OrganizationsPage: React.FC = () => {
 
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useRestorableState('organizations:page', 1);
+  const [pageSize, setPageSize] = useRestorableState('organizations:pageSize', DEFAULT_PAGE_SIZE);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  useScrollMemory('organizations', !isLoading);
+  const [searchTerm, setSearchTerm] = useRestorableState('organizations:searchTerm', '');
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const loadData = async () => {

@@ -58,7 +58,7 @@ export const StandardKpis: React.FC<{ data: RoleDashboardSummary; leadsLabel: st
         <DashboardStatCard
           label="Open Pipeline"
           value={formatINRShort(data.revenue_pipeline?.pipeline)}
-          subtitle="potential value of open leads"
+          subtitle={data.revenue_pipeline?.pipeline_quoted === undefined ? 'potential value of open leads' : `${formatINRShort(data.revenue_pipeline.pipeline_quoted)} quoted`}
           icon={<Wallet size={20} />}
           accent="amber"
           linkTo="/leads"

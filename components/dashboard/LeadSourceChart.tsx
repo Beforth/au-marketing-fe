@@ -1,52 +1,32 @@
 import React from 'react';
-import ReactApexChart from 'react-apexcharts';
-import type { ApexOptions } from 'apexcharts';
 import { CardShell } from './ListCard';
-import { CATEGORICAL } from './chartTokens';
+import { BarList } from '../ui/BarList';
 import type { DashboardLeadSource } from '../../lib/marketing-api';
 
 interface LeadSourceChartProps {
   data: DashboardLeadSource[] | null | undefined;
 }
 
-export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ data }) => {
-  const chartData = (data || []).filter((d) => d.count > 0).sort((a, b) => b.count - a.count).slice(0, 8);
-
-  const options: ApexOptions = {
-    chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
-    colors: CATEGORICAL,
-    plotOptions: { bar: { horizontal: true, barHeight: '55%', borderRadius: 4, borderRadiusApplication: 'end', distributed: true } },
-    dataLabels: {
-      enabled: true,
-      textAnchor: 'start',
-      offsetX: 6,
-      style: { fontSize: '12px', fontWeight: 600, colors: ['#52514e'] },
-      background: { enabled: false },
-      formatter: (val: number) => String(val),
-    },
-    legend: { show: false },
-    grid: { borderColor: '#e2e8f0', strokeDashArray: 0, yaxis: { lines: { show: false } } },
-    xaxis: {
-      categories: chartData.map((d) => d.source),
-      axisBorder: { color: '#e2e8f0' },
-      axisTicks: { show: false },
-      labels: { style: { fontSize: '12px', colors: '#64748b' } },
-    },
-    yaxis: { labels: { style: { fontSize: '11px', colors: '#64748b' } } },
-    tooltip: { enabled: true },
-  };
-
-  const series = [{ name: 'Leads', data: chartData.map((d) => d.count) }];
-
+/** Top lead sources as a ranked bar list, without the card frame (shared with LeadBreakdownCard). */
+export const SourceBars: React.FC<LeadSourceChartProps> = ({ data }) => {
+  const rows = (data || []).filter((d) => d.count > 0).sort((a, b) => b.count - a.count).slice(0, 8);
+  const total = rows.reduce((n, d) => n + d.count, 0);
   return (
-    <CardShell title="Lead Sources" subtitle="Where leads in your scope are coming from" bodyClassName="p-4">
-      {chartData.length === 0 ? (
+    <div className="h-full overflow-y-auto p-3">
+      {rows.length === 0 ? (
         <div className="h-full flex items-center justify-center text-sm text-slate-400">No source data yet</div>
       ) : (
-        <div className="h-full">
-          <ReactApexChart options={options} series={series} type="bar" height="100%" />
-        </div>
+        <BarList
+          items={rows.map((d) => ({ label: d.source, value: d.count }))}
+          format={(n) => `${n} · ${Math.round((n / total) * 100)}%`}
+        />
       )}
-    </CardShell>
+    </div>
   );
 };
+
+export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ data }) => (
+  <CardShell title="Lead Sources" subtitle="Where leads in your scope are coming from">
+    <SourceBars data={data} />
+  </CardShell>
+);

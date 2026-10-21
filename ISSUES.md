@@ -20,6 +20,8 @@
 
 ## Feature index
 
+- [Dashboard Star Performer](#dashboard-star-performer)
+- [List Pages — Back-Navigation Memory](#list-pages--back-navigation-memory)
 - [Quote Numbers / Enquiry Log](#quote-numbers--enquiry-log)
 - [Events & Exhibitions](#events--exhibitions)
 - [Leads](#leads)
@@ -28,6 +30,26 @@
 - [External Visiting Card Integration](#external-visiting-card-integration)
 - [HRMS Daily Service Reports](#hrms-daily-service-reports)
 - [Layout & Navigation](#layout--navigation)
+
+---
+
+## List Pages — Back-Navigation Memory
+
+### 2026-10-21 — List pages forget scroll position and filters on Back
+**What was reported:** On the Leads kanban (and other lists), opening a lead and pressing Back put the user at the top of the board again, with their search and filters cleared. The client complained.
+**Root cause:** Opening a lead is a page change, so the list page is thrown away and built again on Back. Nothing stored the scroll position, and the filters lived only in the page's memory. Also, the list loads after the page appears, so even the browser's own scroll memory had nothing to scroll to.
+**Fix:** `hooks/useListMemory.ts` adds `useRestorableState` (filters/search/page come back on Back) and `useScrollMemory` (page scroll plus the kanban's sideways and per-column scroll are restored once data has loaded). Only Back/Forward restores; a fresh visit starts clean. Used on Leads, Orders, Contacts, Organizations, Customers and Events list.
+**Status:** fixed, not yet committed. Typecheck passes; not yet verified in a live browser session. Restore is in-memory, so a full page refresh still resets.
+
+---
+
+## Dashboard Star Performer
+
+### 2026-10-21 — Star Performer credited the coordinator, not the person a lead was filed for
+**What was reported:** Coordinators add leads on behalf of other employees. The Star Performer should count those wins for the employee the lead was filed for, not for the coordinator who typed it in.
+**Root cause:** The tile added up won value by the lead's owner (assigned-to). When a coordinator files a lead "on behalf of" someone and does not pick an owner, the owner defaults to the coordinator, so the coordinator collected the credit. The person it was filed for is stored separately and was ignored.
+**Fix:** In `get_star_performer` (`au-marketing-api/app/routers/dashboard.py`) credit goes to `created_by_employee_id` when the lead has `on_behalf_of_by_employee_id` set, otherwise to the owner as before. Test added in `tests/test_star_performer.py`.
+**Status:** fixed, not yet committed. Only the Star Performer tile changed; targets, leaderboards and reports still credit the owner. Needs a backend redeploy, no database change.
 
 ---
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ReactApexChart from 'react-apexcharts';
 import type { ApexOptions } from 'apexcharts';
 import { ArrowRight, MapPin, RotateCw } from 'lucide-react';
-import { CARD_HEIGHT, CardSize } from './ListCard';
+import { CardSize } from './ListCard';
 import { ChartSkeleton } from './Skeleton';
 import { CATEGORICAL } from './chartTokens';
 import { cn } from '../../lib/utils';
@@ -12,6 +12,9 @@ import { PERIOD_OPTIONS, PeriodKey, periodLabel, periodRange } from '../../lib/p
 import { formatINRShort } from '../../lib/region-report';
 
 // Leads = brand blue, Quotes sent = orange, Won = aqua (validated palette slots 1–3).
+// Taller than the standard card sizes: summary tiles + chart + per-region strip need the room.
+const HEIGHT: Record<CardSize, string> = { big: 'h-[32.5rem]', medium: 'h-[28rem]', small: 'h-80' };
+
 const SERIES_COLORS = [CATEGORICAL[0], CATEGORICAL[1], CATEGORICAL[2]];
 
 const escapeHtml = (v: string) => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
@@ -95,7 +98,7 @@ export const LeadsByRegionCard: React.FC<{ size?: CardSize }> = ({ size = 'mediu
           `<div style="display:flex;align-items:center;gap:6px;white-space:nowrap"><i style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></i><span style="color:#64748b">${label}</span><b style="margin-left:auto;padding-left:10px;color:#0f172a">${text}</b></div>`;
         return `<div style="padding:6px 10px;font-size:11px;line-height:1.5;min-width:150px">`
           + `<div style="font-weight:600;color:#334155;margin-bottom:2px">${escapeHtml(r.region_name)}${r.domain_name ? ` · ${escapeHtml(r.domain_name)}` : ''}</div>`
-          + row(SERIES_COLORS[0], 'Leads', String(r.lead_count))
+          + row(SERIES_COLORS[0], 'Leads', r.lead_value === undefined ? String(r.lead_count) : `${r.lead_count} · ${formatINRShort(r.lead_value)}`)
           + row(SERIES_COLORS[1], 'Quotes', `${r.quotation_count} · ${formatINRShort(r.quotation_value)}`)
           + row(SERIES_COLORS[2], 'Won', `${r.won_count} · ${formatINRShort(r.won_value)}`)
           + `</div>`;
@@ -105,7 +108,7 @@ export const LeadsByRegionCard: React.FC<{ size?: CardSize }> = ({ size = 'mediu
   };
 
   return (
-    <div className={cn('flex flex-col rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md hover:border-blue-200 hover:-translate-y-0.5', CARD_HEIGHT[size])}>
+    <div className={cn('flex flex-col rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md hover:border-blue-200 hover:-translate-y-0.5', HEIGHT[size])}>
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 shrink-0">
         <div className="min-w-0">
           <h3 className="text-base font-semibold text-slate-900 truncate">Leads by Region</h3>
@@ -142,6 +145,21 @@ export const LeadsByRegionCard: React.FC<{ size?: CardSize }> = ({ size = 'mediu
           </div>
         ) : (
           <>
+            {/* Totals for the selected period (follows the Period filter above) */}
+            <div className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-2 px-3 pt-3" data-testid="leads-by-region-totals">
+              {[
+                { label: 'Total leads', main: String(data!.totals.lead_count), sub: 'in this period', color: 'text-slate-900' },
+                { label: 'Lead value', main: formatINRShort(data!.totals.lead_value ?? 0), sub: 'potential value of those leads', color: 'text-blue-700' },
+                { label: 'Quoted', main: formatINRShort(data!.totals.quotation_value), sub: `${data!.totals.quotation_count} quotation${data!.totals.quotation_count === 1 ? '' : 's'} sent`, color: 'text-orange-600' },
+                { label: 'Won', main: formatINRShort(data!.totals.won_value), sub: `${data!.totals.won_count} won`, color: 'text-emerald-700' },
+              ].map((t) => (
+                <div key={t.label} className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2 min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 truncate">{t.label}</p>
+                  <p className={cn('text-lg font-bold tabular-nums leading-tight truncate', t.color)}>{t.main}</p>
+                  <p className="text-[11px] text-slate-400 truncate">{t.sub}</p>
+                </div>
+              ))}
+            </div>
             <div className="flex-1 min-h-0 px-3 pt-2 cursor-pointer" data-testid="leads-by-region-chart">
               <ReactApexChart options={options} series={series} type="bar" height="100%" />
             </div>
@@ -153,24 +171,19 @@ export const LeadsByRegionCard: React.FC<{ size?: CardSize }> = ({ size = 'mediu
                   type="button"
                   onClick={() => open(r.region_id)}
                   className={cn(
-                    'shrink-0 min-w-[9rem] flex-1 rounded-lg border px-2.5 py-1.5 text-left hover:border-blue-200 hover:bg-blue-50/40 transition-colors',
+                    'shrink-0 min-w-[12.5rem] flex-1 rounded-lg border px-2.5 py-1.5 text-left hover:border-blue-200 hover:bg-blue-50/40 transition-colors',
                     hovered === i ? 'border-blue-300 bg-blue-50 ring-1 ring-blue-200' : 'border-slate-100 bg-slate-50/60'
                   )}
                   title={`Open ${r.region_name}'s leads`}
                 >
                   <p className="text-[11px] font-semibold text-slate-700 truncate">{r.region_name}</p>
                   <p className="text-[11px] tabular-nums text-slate-500">
-                    Quote <b className="text-orange-600">{formatINRShort(r.quotation_value)}</b> · Won <b className="text-emerald-700">{formatINRShort(r.won_value)}</b>
+                    {r.lead_value !== undefined && <>Leads <b className="text-blue-700">{formatINRShort(r.lead_value)}</b> · </>}Quote <b className="text-orange-600">{formatINRShort(r.quotation_value)}</b> · Won <b className="text-emerald-700">{formatINRShort(r.won_value)}</b>
                   </p>
                 </button>
               ))}
             </div>
-            <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-t border-slate-100 bg-slate-50/50 text-xs text-slate-600">
-              <span className="tabular-nums">
-                Total: <b className="text-slate-900">{data!.totals.lead_count}</b> leads ·{' '}
-                <b className="text-slate-900">{data!.totals.quotation_count}</b> quotes (<b className="text-orange-600">{formatINRShort(data!.totals.quotation_value)}</b>) ·{' '}
-                <b className="text-slate-900">{data!.totals.won_count}</b> won (<b className="text-emerald-700">{formatINRShort(data!.totals.won_value)}</b>)
-              </span>
+            <div className="shrink-0 flex items-center justify-end gap-2 px-4 py-2 border-t border-slate-100 bg-slate-50/50 text-xs text-slate-600">
               <button
                 type="button"
                 onClick={() => open()}

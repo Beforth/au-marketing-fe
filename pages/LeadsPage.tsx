@@ -3,6 +3,7 @@
  * Kanban (default) and Table view, dynamic statuses from API
  */
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useRestorableState, useScrollMemory } from '../hooks/useListMemory';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -94,14 +95,15 @@ export const LeadsPage: React.FC = () => {
   const columnRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useRestorableState('leads:page', 1);
+  const [pageSize, setPageSize] = useRestorableState('leads:pageSize', DEFAULT_PAGE_SIZE);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [hideEmptyColumns, setHideEmptyColumns] = useState(false);
+  useScrollMemory('leads', !isLoading);
+  const [searchTerm, setSearchTerm] = useRestorableState('leads:searchTerm', '');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useRestorableState('leads:debouncedSearchTerm', '');
+  const [selectedStatus, setSelectedStatus] = useRestorableState<string>('leads:selectedStatus', 'all');
+  const [hideEmptyColumns, setHideEmptyColumns] = useRestorableState('leads:hideEmptyColumns', false);
   const [tempSelectedStatus, setTempSelectedStatus] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [deleteLeadId, setDeleteLeadId] = useState<number | null>(null);

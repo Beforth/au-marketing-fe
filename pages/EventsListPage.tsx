@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRestorableState, useScrollMemory } from '../hooks/useListMemory';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, CalendarCheck, Search } from 'lucide-react';
 import { Tooltip } from '../UI/Tooltip';
@@ -28,15 +29,16 @@ export const EventsListPage: React.FC = () => {
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_events'));
   const canDelete = useAppSelector(selectHasPermission('marketing.delete_events'));
 
-  const [eventType, setEventType] = useState<EventType>('exhibition');
+  const [eventType, setEventType] = useRestorableState<EventType>('events:eventType', 'exhibition');
   const [data, setData] = useState<ExhibitionEvent[]>([]);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useRestorableState('events:page', 1);
+  const [pageSize, setPageSize] = useRestorableState('events:pageSize', DEFAULT_PAGE_SIZE);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  useScrollMemory('events', !isLoading && data.length > 0);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [endId, setEndId] = useState<number | null>(null);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useRestorableState('events:search', '');
 
   const loadData = useCallback(async () => {
     if (!canView) return;

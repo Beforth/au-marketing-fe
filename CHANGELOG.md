@@ -5,6 +5,27 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-10-21] — Lists remember where you were when you go Back (v1.4.8)
+
+### 🖥️ Frontend
+
+#### Going Back to a List
+- Open a lead, order, contact or event from a long list, press Back, and you now land at the same spot instead of the top of the page.
+- Your search, filters and page number are kept too, so you no longer have to set them up again.
+- On the Leads and Orders boards, the sideways position and each column's scroll position are also restored.
+- Works on Leads, Orders, Contacts, Organizations, Customers and the Events list. Opening a page fresh from the menu still starts clean.
+
+#### Dashboard
+- The **Open Pipeline** card now also shows how much has been quoted on your open leads (for example "₹120 Cr quoted") beneath the pipeline value.
+- The **Leads by Region** widget is taller and now opens with four summary numbers for the selected period: total leads, the value of those leads, quoted value and won value. The lead value also appears for each region.
+- On the Domain Head and Super Admin dashboards, **Recent Leads** and **High Value Leads** are now one **Leads** card with two tabs, so the dashboard is less crowded and nothing is lost.
+- The **Performer of the Month** card is removed from the dashboards; the neighbouring cards now fill the space.
+- The **Star Performer** now credits wins to the employee a lead was added *on behalf of*, instead of the coordinator who entered it.
+- On the Region Head and Super Admin dashboards, **Leads by Stage** and **Lead Sources** are combined into one **Lead Breakdown** card, with stages on the left and sources on the right. Lead sources are now shown as a ranked list with each source's count and share.
+- **Leads by Stage** is now drawn as a funnel, and **Won vs Lost** as a half-circle chart with the conversion rate under it.
+
+---
+
 ## [2026-10-17] — Star Performer of the Month, financial-year numbering & smoother order moves (v1.4.7)
 
 ### 🖥️ Frontend

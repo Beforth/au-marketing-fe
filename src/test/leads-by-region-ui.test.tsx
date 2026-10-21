@@ -7,11 +7,11 @@ import type { LeadsByRegionResponse } from '../../lib/marketing-api';
 const sample: LeadsByRegionResponse = {
   date_from: '2026-07-01',
   date_to: '2026-09-30',
-  totals: { lead_count: 3, quotation_count: 2, quotation_value: 250000, won_count: 1, won_value: 90000 },
+  totals: { lead_count: 3, lead_value: 400000, quotation_count: 2, quotation_value: 250000, won_count: 1, won_value: 90000 },
   regions: [
     {
       region_id: 1, region_name: 'West', domain_id: 5, domain_name: 'Pharma',
-      lead_count: 2, quotation_count: 2, quotation_value: 250000, won_count: 1, won_value: 90000,
+      lead_count: 2, lead_value: 300000, quotation_count: 2, quotation_value: 250000, won_count: 1, won_value: 90000,
       leads: [
         { lead_id: 11, name: 'Ravi (L-11)', company: 'ABC Pharma', status_label: 'Won', owner_name: 'Amit',
           quotation_count: 1, quotation_value: 150000, won: true, won_value: 90000, won_at: '2026-08-02T00:00:00Z' },
@@ -75,6 +75,7 @@ describe('LeadsByRegionCard (dashboard widget)', () => {
     // ₹ values aren't bars, but they're shown per region and in the totals
     expect(screen.getAllByText('₹2.5 L').length).toBe(2); // West quote value + total quote value
     expect(screen.getAllByText('₹90 K').length).toBe(2); // West won value + total won value
+    expect(screen.getByTestId('leads-by-region-totals')).toHaveTextContent('₹4.0 L'); // total lead value tile
     const args = getLeadsByRegion.mock.calls[0][0];
     expect(args.include_leads).toBe(false);
     expect(args.date_from).toMatch(/^\d{4}-\d{2}-01$/);

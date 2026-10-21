@@ -3,6 +3,7 @@
  * Cold leads/data for cold DM/email
  */
 import React, { useState, useEffect } from 'react';
+import { useRestorableState, useScrollMemory } from '../hooks/useListMemory';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -31,12 +32,13 @@ export const ContactsPage: React.FC = () => {
   
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useRestorableState('contacts:page', 1);
+  const [pageSize, setPageSize] = useRestorableState('contacts:pageSize', DEFAULT_PAGE_SIZE);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  useScrollMemory('contacts', !isLoading);
+  const [searchTerm, setSearchTerm] = useRestorableState('contacts:searchTerm', '');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useRestorableState('contacts:debouncedSearchTerm', '');
   const [deleteContactId, setDeleteContactId] = useState<number | null>(null);
 
   // Debounce search term
