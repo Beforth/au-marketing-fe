@@ -4,11 +4,7 @@ import { BentoGrid, Tile, HalfPair, quickActions, heroSubtitle } from '../../com
 import { StarPerformerSlot } from '../../components/dashboard/StarPerformerSlot';
 import { TargetRingCard } from '../../components/dashboard/TargetRingCard';
 import { PipelineStagesCard } from '../../components/dashboard/PipelineStagesCard';
-import { MonthlyTrendChart } from '../../components/dashboard/MonthlyTrendChart';
-import { RecentLeadsList } from '../../components/dashboard/RecentLeadsList';
-import { FollowUpsDueList } from '../../components/dashboard/FollowUpsDueList';
 import { MyTodoCard } from '../../components/dashboard/MyTodoCard';
-import { RegionBreakdownChart } from '../../components/dashboard/RegionBreakdownChart';
 import { RevenuePipelineChart } from '../../components/dashboard/RevenuePipelineChart';
 import { LeadsByRegionCard } from '../../components/dashboard/LeadsByRegionCard';
 import { WorldMapCard } from '../../components/dashboard/WorldMapCard';
@@ -57,7 +53,7 @@ export const DomainHeadDashboard: React.FC<DomainHeadDashboardProps> = ({ data, 
       </Tile>
       <StarPerformerSlot />
 
-      {/* Row 2: won-value trend (6) · target ring (3) · won vs lost (3) — 320px */}
+      {/* Row 2: Monthly Target with Month / Quarter / Year filters */}
       <Tile span="full" height="auto" index={3}>
         <TargetRingCard
           target={data.monthly_target}
@@ -66,10 +62,8 @@ export const DomainHeadDashboard: React.FC<DomainHeadDashboardProps> = ({ data, 
           employeeCount={data.employee_count}
           wonCount={data.won_count_month}
           wonByDay={data.won_by_day}
+          trend={data.monthly_trend}
         />
-      </Tile>
-      <Tile span="full" height="big" index={4}>
-        <MonthlyTrendChart data={data.monthly_trend} title="Domain Won Value — Last 6 Months" />
       </Tile>
 
       {/* Row 3: the list worked from daily — full width, 384px */}
@@ -83,11 +77,8 @@ export const DomainHeadDashboard: React.FC<DomainHeadDashboardProps> = ({ data, 
       </Tile>
 
       {/* Row 4+: secondary pairs — 320px */}
-      {/* Row 4: leads — recent / high value tabs (full width) */}
-      <Tile span="full" index={7}><RecentLeadsList leads={data.recent_leads} highValueLeads={data.high_value_leads} size="medium" /></Tile>
-      <HalfPair index={10} left={<MyTodoCard size="medium" />} right={<FollowUpsDueList followUps={data.follow_ups_due} total={data.follow_ups_total} title="Domain Follow-ups Needed" size="medium" onChanged={onRefresh} />} />
+      <HalfPair index={10} left={<MyTodoCard size="medium" />} />
       <HalfPair index={12} left={<PipelineStagesCard data={data.by_status} title="Domain Leads by Stage" />} right={<RevenuePipelineChart pipeline={data.revenue_pipeline} />} />
-      <HalfPair index={14} left={<RegionBreakdownChart regions={headSummary?.region_breakdown || []} />} />
     </BentoGrid>
   );
 };

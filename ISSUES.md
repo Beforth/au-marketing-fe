@@ -118,6 +118,12 @@
 
 ## Leads
 
+### 2026-10-21 — "This Quarter" didn't match the Domains quarters
+**What was reported:** the quarter on the Leads page should follow the Domains page quarter.
+**Root cause:** targets and the Domains page use the financial year (Q1 = Apr–Jun … Q4 = Jan–Mar), but the "This Quarter" filters on Leads, Orders and My Team used plain calendar quarters (Jan–Mar = Q1), so in October the pages disagreed about what "this quarter" was. The dashboard's Quotations-by-quarter chart had the same calendar grouping.
+**Fix:** all of them now use the shared financial-year helper `periodRange('quarter')` (`lib/period-ranges.ts`); the backend `get_quotation_stats` groups by financial-year quarter. My Team's "This year" (calendar Jan–Dec) now uses the financial year too (`periodRange('year')`) and is labelled "This Financial Year".
+**Status:** fixed, not yet committed (frontend and the nested backend repo each need their own commit).
+
 ### 2026-10-14 — Order re-added from a Won lead showed value 0
 
 **What was reported:** A user deleted an order by mistake and added it again with "New Order (from lead)". The lead was still Won, but the new order showed ₹0, and the lead's closed value also showed 0. Editing the order's value did not fix the lead.

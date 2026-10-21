@@ -75,6 +75,14 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Dashboard Star Performer
 
+### Rev 9 — 2026-10-21 (v1.4.9) — [Revision]
+- Star Performer card restyled: cream-white card with a warm amber glow instead of solid gold, gradient-ring avatar with a pulsing glow and the crown, a slow light sweep across the card, a sparkle icon in the footer. Username-style names ("shubham.badgujar") are shown in two tones; normal names stay one colour. Region/domain still not shown. Animations are CSS in `index.html` (`star-sweep`, `star-glow`) and switch off for reduced-motion users.
+- Files: `components/dashboard/StarPerformerCard.tsx`, `index.html`
+
+### Rev 8 — 2026-10-21 (v1.4.9) — [Revision]
+- The Star Performer card no longer shows the region/domain chip under the name; it shows just the photo and name. (The API still returns region/domain, unused.)
+- Files: `components/dashboard/StarPerformerCard.tsx`
+
 ### Rev 7 — 2026-10-21 (v1.4.8) — [Issue]
 - Star Performer credited a lead's *owner*, so when a coordinator added a lead "on behalf of" someone (owner defaults to the coordinator) the coordinator got the win. Now a lead with `on_behalf_of_by_employee_id` set is credited to `created_by_employee_id` (the person it was filed for); all other leads still go to the owner. Only the Star Performer tile changed — targets, leaderboards and reports still use the owner.
 - Files: `au-marketing-api/app/routers/dashboard.py`, `au-marketing-api/tests/test_star_performer.py`
@@ -532,6 +540,21 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Dashboard, Reports & Performance Leaderboard
 
+### Rev 55 — 2026-10-21 (v1.4.9) — [Revision]
+- Monthly Target card now has **Month | Quarter | Year** filters (Quarter shows Q1–Q4 of the current financial year; future quarters are disabled, past ones can be picked). Quarter / Year add up that period's months (won value and target); a finished quarter shows "Closed" and "Target met" / "Missed by". Quarters are financial-year (Q1 = Apr–Jun … Q4 = Jan–Mar), same as Domains targets.
+- Removed the "Won Value — Last 6 Months" chart from all four dashboards (the filtered Monthly Target card replaces it).
+- Backend: `monthly_trend` in the role dashboard summary now covers the whole financial year (Apr–Mar, 12 points; months after the current one carry their target and zero figures) instead of the last 6 months. New test in `tests/test_follow_up.py` (cannot run in the local container: SQLite has no JSONB, same as the other whole-endpoint tests there).
+- Files: `components/dashboard/TargetRingCard.tsx`, `pages/dashboards/*Dashboard.tsx` (4), `src/test/target-card.test.tsx`, `au-marketing-api/app/routers/dashboard.py`, `au-marketing-api/tests/test_follow_up.py`
+
+### Rev 54 — 2026-10-21 (v1.4.9) — [Revision]
+- Removed three dashboard widgets from all role dashboards at the client's request: **Follow-ups Needed** (all four dashboards), **Recent Leads** ("Most recently created, in your scope", incl. its High value tab; all four) and **Won vs Lost by Region** (Super Admin and Domain Head). Component files and API data are kept, just unused, so they can be restored. Role-dashboard tests updated (follow-up row actions now tested on the component directly).
+- Files: `pages/dashboards/SuperAdminDashboard.tsx`, `DomainHeadDashboard.tsx`, `RegionHeadDashboard.tsx`, `EmployeeDashboard.tsx`, `src/test/role-dashboards-ui.test.tsx`
+- Lead Breakdown card "By stage" is now a vertical column chart (one column per stage in its own colour, count above, name below, scrolls sideways if narrow) instead of thin horizontal bars; Open/Won/Lost tiles kept. Other stage cards (Employee / Domain Head "Leads by Stage") unchanged. Files: `components/dashboard/PipelineStagesCard.tsx` (new `columns` prop on `StageBars`), `components/dashboard/LeadBreakdownCard.tsx`
+
+### Rev 53 — 2026-10-21 (v1.4.9) — [Revision]
+- Dashboard Monthly Target card: the line chart (target line, grey "should be" diagonal, dashed projection) was hard to read, so it now always shows the simple progress bar (`PaceBar`) with a plain sentence ("Won X so far. By today you should have Y."), the ahead/behind chip, and the Avg / Needed / Projected figures. `PaceChart` is no longer used by the card (file left in place). `wonByDay` prop is kept but ignored.
+- Files: `components/dashboard/TargetRingCard.tsx`, `src/test/target-card.test.tsx`
+
 ### Rev 52 — 2026-10-21 (v1.4.9) — [Revision]
 - **Lost** added to the dashboard "Leads by Region" widget (Dashboard, Reports & Performance Leaderboard section; Reports → Leads by Region receives the same fields but does not show them yet): a fifth summary tile (lost value + "N lost", rose), a fourth red "Lost" bar per region, a Lost row in the hover tooltip and "Lost N" on each region chip. Lost value = the lead's potential value (what slipped away). A lead counts as lost in a period when it is in a Lost status and its lost date falls in it; lost date = latest "Marked as Lost" log entry, else the lead's last update. Like Won leads, a lead created earlier but lost in the period is now **listed** for that period, so Total leads can rise slightly.
 - Backend: `lost_count` / `lost_value` on the totals and per region (`region_report.py`: `LeadFacts.is_lost` / `lost_at`, `LeadFigures.lost`; `leads_by_region.py`: narrowing query and lost-date lookup). `_in_range` now treats naive timestamps as UTC (SQLite). Tests in `tests/test_region_report.py` and `tests/test_follow_up.py` (whole endpoint on SQLite). Checked the widget in a throwaway preview page with sample data.
@@ -919,6 +942,10 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Global UI, Formatting & Bug Fixes
+
+### Rev 11 — 2026-10-21 (v1.4.9) — [Issue]
+- "This Quarter" used calendar quarters (Jan–Mar) on the Leads, Orders and My Team pages, and the dashboard's Quotations-by-quarter chart used calendar quarters too, while targets / Domains use financial-year quarters (Q1 = Apr–Jun). All now use the financial-year quarter via the shared `lib/period-ranges.ts`; the quotations chart labels read "Q3 FY26-27". My Team's "This year" (was Jan–Dec) is now the financial year Apr–Mar and reads "This Financial Year"; the "Yearly Target" label stays.
+- Files: `pages/LeadsPage.tsx`, `pages/OrdersPage.tsx`, `pages/MyTeamPage.tsx`, `au-marketing-api/app/routers/dashboard.py` (`get_quotation_stats`)
 
 ### Rev 10 — 2026-10-21 (v1.4.9) — [Revision]
 - **Marketing Roles page** (`/roles`, HRMS roles, read-only) shows roles better: a summary strip (roles, system, custom, highest level); roles grouped under "L5 · Admin" … "L1 · Entry" headings, highest first and A–Z inside a level; each card shows the level as a 5-step bar, a permissions bar relative to the role with the most permissions, the type and System/Custom tag, and "No description" when empty; key icon for permissions (it was a users icon). Display only — no search, filter, table or permission list (HRMS does not send per-role permissions here).

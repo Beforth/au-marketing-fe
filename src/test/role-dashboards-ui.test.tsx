@@ -76,10 +76,7 @@ describe('role dashboards render with the new layout', () => {
     expect(screen.getByRole('link', { name: /New Lead/ })).toHaveAttribute('href', '/leads/new');
     expect(screen.getByText('2 follow-ups needed · 4 hot leads · 30 open leads')).toBeInTheDocument();
     expect(screen.queryByText('My Leads')).not.toBeInTheDocument(); // the four number cards were removed
-    expect(screen.getByText('Overdue Co')).toBeInTheDocument();
-    expect(screen.getByText('Auto')).toBeInTheDocument();   // L-1 came from the "every N days" rule
-    expect(screen.getByText('Manual')).toBeInTheDocument(); // L-2 has a date set on the lead
-    expect(screen.getAllByText('1 overdue').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Overdue Co')).not.toBeInTheDocument(); // the Follow-ups card was removed from the dashboards
     expect(await screen.findByText('Call ABC about quote')).toBeInTheDocument();
   });
 
@@ -114,12 +111,10 @@ describe('role dashboards render with the new layout', () => {
     expect(screen.queryByRole('button', { name: 'High value' })).not.toBeInTheDocument();
   });
 
-  it('empty lists show an empty state, not a blank box', async () => {
+  it('empty to-do list shows an empty state, not a blank box', async () => {
     getTodos.mockResolvedValue([]);
     const { EmployeeDashboard } = await import('../../pages/dashboards/EmployeeDashboard');
     renderIt(<EmployeeDashboard data={{ ...data, follow_ups_due: [], recent_leads: [] }} />);
-    expect(screen.getByText("No follow-ups needed — you're all caught up")).toBeInTheDocument();
-    expect(screen.getByText('No leads yet')).toBeInTheDocument();
     expect(await screen.findByText('No pending tasks')).toBeInTheDocument();
   });
 
@@ -137,12 +132,12 @@ describe('role dashboards render with the new layout', () => {
 
   it('follow-up row actions need edit_lead; Log call and Reschedule call the lead APIs and reload', async () => {
     const onRefresh = vi.fn();
-    const { EmployeeDashboard } = await import('../../pages/dashboards/EmployeeDashboard');
-    const { unmount } = renderIt(<EmployeeDashboard data={data} onRefresh={onRefresh} />);
+    const { FollowUpsDueList } = await import('../../components/dashboard/FollowUpsDueList');
+    const { unmount } = renderIt(<FollowUpsDueList followUps={data.follow_ups_due} total={data.follow_ups_total} onChanged={onRefresh} />);
     expect(screen.queryAllByRole('button', { name: 'Log call' })).toHaveLength(0);
     unmount();
 
-    renderIt(<EmployeeDashboard data={data} onRefresh={onRefresh} />, ['marketing.edit_lead']);
+    renderIt(<FollowUpsDueList followUps={data.follow_ups_due} total={data.follow_ups_total} onChanged={onRefresh} />, ['marketing.edit_lead']);
     fireEvent.click(screen.getAllByRole('button', { name: 'Log call' })[0]);
     fireEvent.change(screen.getByPlaceholderText(/Asked for revised price/), { target: { value: 'Wants discount' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Log call' }).at(-1)!);

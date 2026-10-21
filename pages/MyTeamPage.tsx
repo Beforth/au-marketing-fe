@@ -11,6 +11,7 @@ import { selectHasPermission, selectToken, selectEmployee } from '../store/slice
 import { getCached, setCache, getCacheKey, clearCache } from '../lib/api-cache';
 import { hrmsRBACClient, DSRTask } from '../lib/hrms-rbac';
 import { getStoredMarketingScope } from '../lib/marketing-scope';
+import { periodRange } from '../lib/period-ranges';
 import { UserCheck, Target, Trophy, XCircle, Calendar, MapPin, FileText, TrendingUp, Users, MessageSquare, Building2, Phone, BarChart3, PieChart, Activity, ClipboardList, CheckCircle2, Clock, RefreshCw } from 'lucide-react';
 
 type DatePreset = 'today' | 'this_week' | 'this_month' | 'this_quarter' | 'this_year' | 'custom';
@@ -53,15 +54,14 @@ function getDateRange(preset: DatePreset): { dateFrom: string; dateTo: string } 
       return { dateFrom: first, dateTo: last };
     }
     case 'this_quarter': {
-      const qStartMonth = Math.floor(m / 3) * 3;
-      const qStart = `${y}-${String(qStartMonth + 1).padStart(2, '0')}-01`;
-      const qEndMonth = qStartMonth + 2;
-      const qLastDay = new Date(y, qEndMonth + 1, 0).getDate();
-      const qEnd = `${y}-${String(qEndMonth + 1).padStart(2, '0')}-${String(qLastDay).padStart(2, '0')}`;
-      return { dateFrom: qStart, dateTo: qEnd };
+      // Financial-year quarter (Q1 = Apr–Jun), same as the Domains targets
+      const q = periodRange('quarter', now);
+      return { dateFrom: q.date_from!, dateTo: q.date_to! };
     }
     case 'this_year': {
-      return { dateFrom: `${y}-01-01`, dateTo: `${y}-12-31` };
+      // Financial year (Apr–Mar), same as the Domains targets
+      const fy = periodRange('year', now);
+      return { dateFrom: fy.date_from!, dateTo: fy.date_to! };
     }
     default:
       return { dateFrom: '', dateTo: '' };
@@ -627,7 +627,7 @@ export const MyTeamPage: React.FC = () => {
     { value: 'this_week', label: 'This Week' },
     { value: 'this_month', label: 'This Month' },
     { value: 'this_quarter', label: 'This Quarter' },
-    { value: 'this_year', label: 'This Year' },
+    { value: 'this_year', label: 'This Financial Year' },
     { value: 'custom', label: 'Custom' },
   ];
 

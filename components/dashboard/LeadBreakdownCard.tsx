@@ -16,7 +16,7 @@ export const LeadBreakdownCard: React.FC<{
       <div className="h-full grid grid-cols-1 lg:grid-cols-2 lg:divide-x divide-slate-100">
         <section className="min-h-0 lg:overflow-y-auto" aria-label="Leads by stage">
           <p className="px-4 pt-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">By stage</p>
-          <StageBars data={stages} />
+          <StageBars data={stages} columns />
         </section>
         <section className="min-h-[18rem] lg:min-h-0 flex flex-col" aria-label="Lead sources">
           <p className="px-4 pt-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">By source</p>

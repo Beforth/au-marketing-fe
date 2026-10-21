@@ -10,10 +10,15 @@ Format: `[Date] — Category: Description`
 ### 🖥️ Frontend
 
 #### Dashboard
-- The **Follow-ups Needed** card (was Follow-ups Due) now shows follow-ups that are due automatically by each status's "every N days" rule as well as the dates set on a lead. It lists what is overdue, due today or due in the next 7 days, with an Auto / Manual tag on each.
-- **Monthly Target** now sits full width right under the greeting, with a day-by-day pace chart: what has been won so far, where you should be by today, and where you are heading by month end, with an "ahead of pace" or "behind pace" note. The Monthly Trend chart follows it.
+- The **Follow-ups Needed** and **Recent Leads** cards are removed from the dashboards, along with the **Won vs Lost by Region** card and the **Won Value — Last 6 Months** chart, so each dashboard is simpler.
+- **Monthly Target** now sits full width right under the greeting with a simple progress bar: what has been won so far, where you should be by today, and an "ahead of pace" or "behind pace" note. New **Month / Quarter / Year** buttons show the target for this month, for any quarter so far this financial year (Q1 = April to June), or for the whole year, and a finished quarter shows whether the target was met.
 - The four number cards (Leads, Hot Leads, Open Pipeline, Quotes Sent) and the **Won vs Lost** card are removed to keep the top of the dashboard simple. The greeting still shows your follow-ups, hot leads and open leads.
 - The **Leads by Region** widget now also shows **Lost**: a Lost tile with the value lost and the count, a red Lost bar for each region, and the lost count on each region's summary.
+- The **By stage** view in the Lead Breakdown card is now a column chart, one column per stage, so it is easier to compare stages at a glance.
+- The **Star Performer** card has a new look with a soft glow and shine, and no longer shows the region.
+
+#### Quarters
+- "This Quarter" on the Leads, Orders and My Team pages, and the quotations-by-quarter chart, now follow the financial year (Q1 = April to June) exactly like the Domains targets. My Team's year filter is now **This Financial Year** (April to March).
 
 #### Roles
 - The **Marketing Roles** page now groups roles by level (highest first) with a summary at the top, a level bar and a permissions bar on each role card, and a clear System / Custom tag.

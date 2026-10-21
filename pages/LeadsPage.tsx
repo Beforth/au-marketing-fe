@@ -22,7 +22,8 @@ import { useApp } from '../App';
 import { Tooltip } from '../UI/Tooltip';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, subDays } from 'date-fns';
+import { periodRange } from '../lib/period-ranges';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { PageLayout } from '../components/layout/PageLayout';
 
 import { ConfirmModal } from '../components/ui/ConfirmModal';
@@ -229,10 +230,11 @@ export const LeadsPage: React.FC = () => {
         fromDate = startOfMonth(now);
         toDate = endOfMonth(now);
         break;
-      case 'this_quarter':
-        fromDate = startOfQuarter(now);
-        toDate = endOfQuarter(now);
-        break;
+      case 'this_quarter': {
+        // Financial-year quarter (Q1 = Apr–Jun), same as the Domains targets
+        const q = periodRange('quarter', now);
+        return { from: q.date_from!, to: q.date_to! };
+      }
       case 'last_30_days':
         fromDate = subDays(now, 30);
         toDate = now;

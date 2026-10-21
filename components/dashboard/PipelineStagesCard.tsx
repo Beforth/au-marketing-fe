@@ -11,7 +11,7 @@ import { CardShell, EmptyState } from './ListCard';
 const totalLeads = (data: DashboardStatusCount[] | null | undefined) => (data || []).reduce((n, d) => (d.count > 0 ? n + d.count : n), 0);
 
 /** The bars + Open/Won/Lost summary, without the card frame (shared with LeadBreakdownCard). */
-export const StageBars: React.FC<{ data: DashboardStatusCount[] | null | undefined }> = ({ data }) => {
+export const StageBars: React.FC<{ data: DashboardStatusCount[] | null | undefined; columns?: boolean }> = ({ data, columns }) => {
   const rows = (data || []).filter((d) => d.count > 0);
   const open = rows.filter((d) => !d.is_final && !d.is_lost);
   const closed = rows.filter((d) => d.is_final || d.is_lost);
@@ -32,6 +32,20 @@ export const StageBars: React.FC<{ data: DashboardStatusCount[] | null | undefin
         <div className="mt-1 h-2 rounded-full bg-slate-100 overflow-hidden">
           <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(d.count / max) * 100}%`, backgroundColor: color }} />
         </div>
+      </div>
+    );
+  };
+
+  // Vertical bar chart: one column per stage (open first, then won/lost), height = share of the biggest stage.
+  const column = (d: DashboardStatusCount) => {
+    const color = d.color || (d.is_lost ? '#e11d48' : d.is_final ? '#10b981' : '#2563eb');
+    return (
+      <div key={`${d.status_id ?? d.status}`} className="flex w-16 shrink-0 flex-1 flex-col items-center" title={`${d.status}: ${d.count} (${total > 0 ? Math.round((d.count / total) * 100) : 0}%)`}>
+        <span className="mb-1 text-sm font-semibold text-slate-900 tabular-nums">{d.count}</span>
+        <div className="flex h-40 w-full items-end justify-center">
+          <div className="w-8 rounded-t-md transition-all duration-500" style={{ height: `${Math.max((d.count / max) * 100, 2)}%`, backgroundColor: color }} />
+        </div>
+        <span className="mt-2 text-center text-[11px] leading-tight text-slate-600 line-clamp-2">{d.status}</span>
       </div>
     );
   };
@@ -57,8 +71,14 @@ export const StageBars: React.FC<{ data: DashboardStatusCount[] | null | undefin
               </div>
             ))}
           </div>
-          {open.map(bar)}
-          {closed.length > 0 && <div className="pt-2 border-t border-slate-100 space-y-3">{closed.map(bar)}</div>}
+          {columns ? (
+            <div className="flex items-start gap-2 overflow-x-auto pt-2">{[...open, ...closed].map(column)}</div>
+          ) : (
+            <>
+              {open.map(bar)}
+              {closed.length > 0 && <div className="pt-2 border-t border-slate-100 space-y-3">{closed.map(bar)}</div>}
+            </>
+          )}
         </div>
       )
   );

@@ -19,7 +19,8 @@ import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { FilterPopover } from '../components/ui/FilterPopover';
 import { getStoredMarketingScope } from '../lib/marketing-scope';
-import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { periodRange } from '../lib/period-ranges';
 import { User, Search, Plus, MoreHorizontal, Settings2, LayoutGrid, List, Trash2, ChevronRight, ChevronLeft, ArrowRight, FileText, Upload, Eye, Trophy, XCircle, Phone, Mail, Calendar } from 'lucide-react';
 import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
@@ -255,7 +256,7 @@ export const OrdersPage: React.FC = () => {
     setDateRangePreset(preset);
     if (preset === 'custom') return;
     const now = new Date();
-    const range = preset === 'this_month' ? [startOfMonth(now), endOfMonth(now)] : preset === 'this_quarter' ? [startOfQuarter(now), endOfQuarter(now)] : null;
+    const range = preset === 'this_month' ? [startOfMonth(now), endOfMonth(now)] : preset === 'this_quarter' ? (() => { const q = periodRange('quarter', now); return [new Date(`${q.date_from}T00:00:00`), new Date(`${q.date_to}T00:00:00`)]; })() : null; // financial-year quarter (Q1 = Apr–Jun), same as Domains
     const from = range ? format(range[0], 'yyyy-MM-dd') : '';
     const to = range ? format(range[1], 'yyyy-MM-dd') : '';
     setAppliedDateFrom(from);
