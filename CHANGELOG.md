@@ -21,8 +21,7 @@ Format: `[Date] — Category: Description`
 - On the Domain Head and Super Admin dashboards, **Recent Leads** and **High Value Leads** are now one **Leads** card with two tabs, so the dashboard is less crowded and nothing is lost.
 - The **Performer of the Month** card is removed from the dashboards; the neighbouring cards now fill the space.
 - The **Star Performer** now credits wins to the employee a lead was added *on behalf of*, instead of the coordinator who entered it.
-- On the Region Head and Super Admin dashboards, **Leads by Stage** and **Lead Sources** are combined into one **Lead Breakdown** card, with stages on the left and sources on the right. Lead sources are now shown as a ranked list with each source's count and share.
-- **Leads by Stage** is now drawn as a funnel, and **Won vs Lost** as a half-circle chart with the conversion rate under it.
+- On the Region Head and Super Admin dashboards, **Leads by Stage** and **Lead Sources** are combined into one **Lead Breakdown** card, with stages on the left and sources on the right.
 
 ---
 

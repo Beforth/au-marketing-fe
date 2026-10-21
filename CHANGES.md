@@ -527,6 +527,10 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Dashboard, Reports & Performance Leaderboard
 
+### Rev 47 — 2026-10-21 (v1.4.8) — [Revision]
+- **Reverted the befui chart swaps (Rev 45–46)** at the user's request: Lead Sources is the ApexCharts bar chart again, Leads by Stage the hand-drawn bars, Won vs Lost the original ring. `components/ui/BarList.tsx`, `FunnelChart.tsx`, `HalfDonutChart.tsx` and `hooks/useChartIn.ts` were deleted. The Lead Breakdown card (Rev 44) stays — it still shares `StageBars` / `SourceBars`. Revs 45–46 are kept below only as history; befui remains a possible source for charts later (copy-paste, adapt classes).
+- Files: `components/dashboard/PipelineStagesCard.tsx`, `components/dashboard/LeadSourceChart.tsx`, `components/dashboard/OutcomeCard.tsx`, `src/test/lead-breakdown-card.test.tsx`, `src/test/befui-charts.test.tsx` (deleted)
+
 ### Rev 46 — 2026-10-21 (v1.4.8) — [Revision]
 - Two more befui swaps. **Leads by Stage** now draws its stages with a Funnel chart (`components/ui/FunnelChart.tsx`): centred bars in each status's own colour with the share of all leads on the right; Won/Lost sit below a divider as before, Open/Won/Lost summary tiles unchanged. Deliberately adapted from befui: bars are sized against the largest stage (not the first) and no step-to-step rate is shown, because these are "leads currently in this stage" counts that do not always shrink; a true cumulative funnel ("reached this stage or beyond") would not match the kanban column counts. **Won vs Lost** now uses befui's Half donut (`components/ui/HalfDonutChart.tsx` + `hooks/useChartIn.ts`) with the conversion % under the arch (hover a segment to read it); counts strip underneath unchanged.
 - Both files copied from befui and re-coloured to this app's Tailwind classes (no befui theme variables here). The hand-drawn SVG donut in `OutcomeCard` and the hand-drawn bars in `StageBars` were removed.

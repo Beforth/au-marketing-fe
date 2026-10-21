@@ -2,6 +2,10 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
+vi.mock('react-apexcharts', () => ({
+  default: ({ options }: { options: any }) => <div data-testid="chart">{(options.xaxis?.categories || []).join(',')}</div>,
+}));
+
 describe('LeadBreakdownCard', () => {
   it('shows the stage bars and the source chart in one card', async () => {
     const { LeadBreakdownCard } = await import('../../components/dashboard/LeadBreakdownCard');
@@ -14,7 +18,6 @@ describe('LeadBreakdownCard', () => {
     expect(screen.getByText('Enquiry')).toBeInTheDocument();
     expect(screen.getByText('Lead Breakdown')).toBeInTheDocument();
     expect(screen.getByText('4 leads in your scope · by stage and by source')).toBeInTheDocument();
-    expect(screen.getByText('Website')).toBeInTheDocument();
-    expect(screen.getByText('2 · 67%')).toBeInTheDocument();
+    expect(screen.getByTestId('chart')).toHaveTextContent('Website,Referral');
   });
 });
