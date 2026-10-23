@@ -64,10 +64,10 @@
 
 ### 2026-10-23 — Domain head still showing as Star Performer
 **What was reported:** The domain head was still appearing as the Star Performer even though domain heads should not be eligible.
-**Root cause:** The exclusion list was built from the Domain's Head field (an HRMS employee ID). Won leads can be saved under the person's user ID instead (always the case for leads filed on someone's behalf), so the IDs never matched and the head stayed eligible.
-**Fix:** Each head now has two IDs (employee ID, user ID, from the local employee table); a lead's number is compared only with the list of the same kind (normal lead = employee ID, filed-on-behalf = user ID), so unrelated people with a clashing number are not blocked. Covered by tests.
-**Edge cases:** Only people set as Head on a Domain are excluded; a domain head not set on the Domains page is still eligible.
-**Status:** fixed, not yet committed. Needs a backend redeploy, no database change.
+**Root cause:** The exclusion compared only the HRMS employee ID saved on the Domain, but a lead can hold the person's other number (the Django user ID): a lead with no chosen owner defaults the owner to the creator's user ID, and a lead filed on someone's behalf holds the user ID. The numbers never matched, so the head stayed eligible.
+**Fix:** Both numbers of every domain head (looked up in the local employee table, whichever one the Domain saved) are blocked. Covered by tests.
+**Edge cases:** Only people set as Head on a Domain are excluded. In the rare case another person's employee number equals a head's user number, that person is skipped too. If a head has no user number in the employee table, only their employee number is blocked.
+**Status:** fixed. Needs a backend redeploy, no database change.
 
 ### 2026-10-21 — Star Performer credited the coordinator, not the person a lead was filed for
 **What was reported:** Coordinators add leads on behalf of other employees. The Star Performer should count those wins for the employee the lead was filed for, not for the coordinator who typed it in.

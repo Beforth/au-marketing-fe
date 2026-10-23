@@ -20,7 +20,7 @@ Format: `[Date] — Category: Description`
 
 #### Dashboard
 - New **Won by Person** data for the Super Admin dashboard, available to super admins only. A lead filed on someone's behalf counts for that person.
-- A **domain head** can no longer be picked as the **Star Performer**, even when their sales were saved under their login number. A different employee whose number happens to match a head's other number is no longer skipped by mistake.
+- A **domain head** can no longer be picked as the **Star Performer**, whichever of their two numbers (employee number or login number) their sales were saved under.
 
 ---
 

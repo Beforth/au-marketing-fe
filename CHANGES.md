@@ -80,7 +80,7 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 ## Dashboard Star Performer
 
 ### Rev 10 — 2026-10-23 (v1.5.0) — [Issue]
-- A domain head could still win Star Performer: leads filed on someone's behalf hold the person's Django user ID, but the exclusion only compared the HRMS employee ID saved on the Domain. The exclusion now keeps two lists per head (employee ID, user ID) and compares each lead's number only with the list of the same kind, so a different person whose employee ID happens to equal a head's user ID is not blocked.
+- A domain head could still win Star Performer. A person has two numbers (HRMS employee id, Django user id) and leads hold either: a filed-on-behalf lead holds the user id, and a lead with no explicit owner defaults `assigned_to_employee_id` to the creator's user id (`leads.py` create). The exclusion now blocks both numbers of every Domain head, found through `MarketingEmployee` whichever of the two the Domain saved. Known limit: a different person whose employee id equals a head's user id is also skipped (the two id counters can overlap and owner numbers can't be told apart).
 - Files: `au-marketing-api/app/routers/dashboard.py`, `au-marketing-api/tests/test_star_performer.py`
 
 ### Rev 9 — 2026-10-21 (v1.4.9) — [Revision]
