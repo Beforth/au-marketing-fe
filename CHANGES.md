@@ -75,6 +75,10 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Dashboard Star Performer
 
+### Rev 10 — 2026-10-23 (v1.4.9) — [Issue]
+- A domain head could still win Star Performer: the exclusion compared only the HRMS employee ID saved on the Domain, but leads (especially ones filed on someone's behalf) can hold the person's user ID instead. The exclusion now covers both IDs of every domain head.
+- Files: `au-marketing-api/app/routers/dashboard.py`, `au-marketing-api/tests/test_star_performer.py`
+
 ### Rev 9 — 2026-10-21 (v1.4.9) — [Revision]
 - Star Performer card restyled: cream-white card with a warm amber glow instead of solid gold, gradient-ring avatar with a pulsing glow and the crown, a slow light sweep across the card, a sparkle icon in the footer. Username-style names ("shubham.badgujar") are shown in two tones; normal names stay one colour. Region/domain still not shown. Animations are CSS in `index.html` (`star-sweep`, `star-glow`) and switch off for reduced-motion users.
 - Files: `components/dashboard/StarPerformerCard.tsx`, `index.html`

@@ -56,6 +56,13 @@
 
 ## Dashboard Star Performer
 
+### 2026-10-23 — Domain head still showing as Star Performer
+**What was reported:** The domain head was still appearing as the Star Performer even though domain heads should not be eligible.
+**Root cause:** The exclusion list was built from the Domain's Head field (an HRMS employee ID). Won leads can be saved under the person's user ID instead (always the case for leads filed on someone's behalf), so the IDs never matched and the head stayed eligible.
+**Fix:** The exclusion list now includes each head's user ID as well (looked up from the local employee table). Covered by a new test.
+**Edge cases:** Only people set as Head on a Domain are excluded; a domain head not set on the Domains page is still eligible.
+**Status:** fixed, not yet committed. Needs a backend redeploy, no database change.
+
 ### 2026-10-21 — Star Performer credited the coordinator, not the person a lead was filed for
 **What was reported:** Coordinators add leads on behalf of other employees. The Star Performer should count those wins for the employee the lead was filed for, not for the coordinator who typed it in.
 **Root cause:** The tile added up won value by the lead's owner (assigned-to). When a coordinator files a lead "on behalf of" someone and does not pick an owner, the owner defaults to the coordinator, so the coordinator collected the credit. The person it was filed for is stored separately and was ignored.
