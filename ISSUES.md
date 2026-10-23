@@ -65,7 +65,7 @@
 ### 2026-10-23 — Domain head still showing as Star Performer
 **What was reported:** The domain head was still appearing as the Star Performer even though domain heads should not be eligible.
 **Root cause:** The exclusion compared only the HRMS employee ID saved on the Domain, but a lead can hold the person's other number (the Django user ID): a lead with no chosen owner defaults the owner to the creator's user ID, and a lead filed on someone's behalf holds the user ID. The numbers never matched, so the head stayed eligible.
-**Fix:** Both numbers of every domain head (looked up in the local employee table, whichever one the Domain saved) are blocked. Covered by tests.
+**Fix:** Both numbers of every domain head are blocked; the second number is read only from that head's own row in the local employee table (matching in both directions also blocked unrelated people and could leave the card empty). Covered by tests.
 **Edge cases:** Only people set as Head on a Domain are excluded. In the rare case another person's employee number equals a head's user number, that person is skipped too. If a head has no user number in the employee table, only their employee number is blocked.
 **Status:** fixed. Needs a backend redeploy, no database change.
 
