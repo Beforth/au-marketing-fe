@@ -32,6 +32,28 @@ const PaceBar: React.FC<{ achieved: number; target: number; day: number; daysInM
   const pct = (v: number) => `${Math.min(100, (v / max) * 100)}%`;
   const needPerDay = daysLeft > 0 ? Math.max(target - achieved, 0) / daysLeft : 0;
   const avgPerDay = day > 0 ? achieved / day : 0;
+  const [hover, setHover] = useState<'achieved' | 'expected' | 'target' | null>(null);
+  const tips = {
+    achieved: { at: achieved, title: 'Achieved', body: formatINRShort(achieved) },
+    expected: { at: expected, title: 'Should be here today', body: `${formatINRShort(expected)} · day ${day} of ${daysInMonth}` },
+    target: { at: target, title: 'Target', body: formatINRShort(target) },
+  } as const;
+  // A marker you can point at (or tab to): a wide invisible hit area around a thin vertical line.
+  const marker = (key: 'expected' | 'target', color: string) => (
+    <span
+      tabIndex={0}
+      role="img"
+      aria-label={`${tips[key].title}: ${tips[key].body}`}
+      onMouseEnter={() => setHover(key)}
+      onMouseLeave={() => setHover(null)}
+      onFocus={() => setHover(key)}
+      onBlur={() => setHover(null)}
+      className="group absolute -inset-y-2 z-10 flex w-5 -translate-x-1/2 cursor-pointer justify-center outline-none"
+      style={{ left: pct(tips[key].at) }}
+    >
+      <span className={`h-full w-1 rounded-full transition-all group-hover:w-1.5 group-focus-visible:w-1.5 ${color}`} />
+    </span>
+  );
   const stat = (label: string, value: string, tone = 'text-slate-900') => (
     <div className="min-w-0">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
@@ -48,11 +70,27 @@ const PaceBar: React.FC<{ achieved: number; target: number; day: number; daysInM
           {past ? (gap > 0 ? `Missed by ${formatINRShort(target - achieved)}` : 'Target met') : gap > 0 ? `Behind pace by ${formatINRShort(gap)}` : 'Ahead of pace'}
         </span>
       </div>
-      <div className="relative h-5 rounded-full bg-slate-100">
+      <div className="relative mt-9 h-5 rounded-full bg-slate-100">
         <span className="absolute inset-y-0 left-0 rounded-full bg-blue-600/20" style={{ width: pct(projection) }} />
-        <span className="absolute inset-y-0 left-0 rounded-full bg-blue-600" style={{ width: pct(achieved) }} />
-        <span title="Where you should be today" className="absolute -inset-y-1 w-[3px] -translate-x-1/2 rounded-full bg-amber-500" style={{ left: pct(expected) }} />
-        <span title="Target" className="absolute -inset-y-1 w-[3px] -translate-x-1/2 rounded-full bg-slate-900" style={{ left: pct(target) }} />
+        <span
+          className="absolute inset-y-0 left-0 cursor-pointer rounded-full bg-blue-600"
+          style={{ width: pct(achieved) }}
+          onMouseEnter={() => setHover('achieved')}
+          onMouseLeave={() => setHover(null)}
+        />
+        {!past && marker('expected', 'bg-amber-500')}
+        {marker('target', 'bg-slate-900')}
+        {hover && (
+          // Pinned above the point being hovered; the end of the bar is right-aligned so it never runs off the card.
+          <div
+            role="tooltip"
+            className={`pointer-events-none absolute bottom-full z-20 mb-3 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white shadow-lg ${hover === 'achieved' ? '' : '-translate-x-1/2'}`}
+            style={hover === 'achieved' ? { left: `min(${pct(achieved)}, 85%)`, transform: 'translateX(-100%)' } : { left: `min(max(${pct(tips[hover].at)}, 12%), 88%)` }}
+          >
+            <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-300">{tips[hover].title}</span>
+            <span className="block text-sm font-bold tabular-nums">{tips[hover].body}</span>
+          </div>
+        )}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400">
         <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-blue-600" />Achieved</span>
@@ -150,14 +188,17 @@ export const TargetRingCard: React.FC<TargetRingCardProps> = ({ target: t, achie
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-8">
       <div className="flex items-end justify-between gap-4 lg:w-56 lg:shrink-0 lg:flex-col lg:items-start lg:justify-center lg:gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Achieved</p>
-          <p className="text-2xl font-bold text-slate-900 tabular-nums leading-tight">{formatINRShort(achieved)}</p>
-          <p className="text-xs text-slate-500 tabular-nums">of {target > 0 ? formatINRShort(target) : 'no target set'}</p>
-          <p className="mt-0.5 text-[11px] text-slate-400 tabular-nums">{wonN != null ? `${wonN} won · ` : ''}{formatINRShort(avgPerDay)} / day</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Achieved</p>
+          <p className="text-4xl font-extrabold text-slate-900 tabular-nums leading-tight">{formatINRShort(achieved)}</p>
+          <p className="mt-0.5 text-base font-semibold text-slate-700 tabular-nums">of {target > 0 ? formatINRShort(target) : 'no target set'}</p>
+          <div className="mt-2 space-y-0.5 text-sm text-slate-600 tabular-nums">
+            {wonN != null && <p><span className="font-bold text-slate-900">{wonN}</span> lead{wonN === 1 ? '' : 's'} won</p>}
+            <p><span className="font-bold text-slate-900">{formatINRShort(avgPerDay)}</span> per day on average</p>
+          </div>
         </div>
         <div className="text-right shrink-0 lg:text-left">
           <span className={`${pctText.length > 4 ? 'text-2xl' : 'text-3xl lg:text-5xl'} font-bold tabular-nums leading-none ${over ? 'text-emerald-600' : 'text-slate-900'}`}>{target > 0 ? pctText : '—'}</span>
-          <p className="text-[10px] text-slate-400 mt-1">of target</p>
+          <p className="mt-1 text-sm font-medium text-slate-600">of target</p>
         </div>
       </div>
       <div className="min-w-0 flex-1">

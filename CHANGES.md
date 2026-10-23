@@ -552,6 +552,10 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Dashboard, Reports & Performance Leaderboard
 
+### Rev 57 — 2026-10-23 (v1.5.0) — [Revision]
+- Monthly Target pace bar: the orange "should be here today" line and the black "Target" line now have a wide hover/focus area and show a dark tooltip with the amount ("Should be here today: ₹3.78 Cr · day 23 of 31", "Target: ₹5.10 Cr"); hovering the blue bar shows "Achieved". The old browser `title` tooltips (words only, slow) are gone. Left-hand numbers enlarged and darkened: Achieved amount 4xl, "of ₹X" larger, "N leads won" and "₹X per day on average" on two readable lines, clearer "of target" under the %.
+- Files: `components/dashboard/TargetRingCard.tsx`, `src/test/target-card.test.tsx`
+
 ### Rev 56 — 2026-10-23 (v1.5.0) — [Revision]
 - New **Won by Person** card on the Super Admin dashboard (`WonByPersonCard`): all employees ranked by total closed value of leads won, with lead count and a bar. Month / Quarter (Q1–Q4 of the Apr–Mar financial year, future quarters disabled) / Year filters; the card asks the backend for the chosen date range. Same crediting as Star Performer (a filed-on-behalf lead counts for that person; the head's login-number leads are merged under their employee ID) but domain heads are included. New super-admin-only endpoint `GET /api/dashboard/won-by-person?date_from&date_to`.
 - Files: `components/dashboard/WonByPersonCard.tsx`, `pages/dashboards/SuperAdminDashboard.tsx`, `lib/marketing-api.ts`, `au-marketing-api/app/routers/dashboard.py`, `au-marketing-api/tests/test_star_performer.py`, `src/test/role-dashboards-ui.test.tsx`

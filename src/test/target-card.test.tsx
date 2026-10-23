@@ -13,6 +13,20 @@ describe('Monthly Target (pace bar)', () => {
     expect(screen.getByText(/pace/)).toBeInTheDocument(); // "Behind pace by …" or "Ahead of pace"
   });
 
+  it('Monthly Target: hovering the target / should-be-today lines shows the amount', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 16)); // day 16 of 31
+    render(<TargetRingCard target={31_000_000} achieved={3_800_000} scopeLabel="All" employeeCount={3} />);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    fireEvent.mouseEnter(screen.getByRole('img', { name: /^Target:/ }));
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Target');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('3.10 Cr');
+    fireEvent.mouseLeave(screen.getByRole('img', { name: /^Target:/ }));
+    fireEvent.mouseEnter(screen.getByRole('img', { name: /^Should be here today:/ }));
+    expect(screen.getByRole('tooltip')).toHaveTextContent('day 16 of 31');
+    vi.useRealTimers();
+  });
+
   it('Monthly Target: no chart without a target; a plain progress bar when the daily data is missing', () => {
     const { rerender } = render(<TargetRingCard target={0} achieved={500} scopeLabel="All" employeeCount={1} wonByDay={pts} />);
     expect(screen.queryByRole('img')).not.toBeInTheDocument();

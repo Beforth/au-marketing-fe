@@ -10,6 +10,7 @@ Format: `[Date] — Category: Description`
 ### 🖥️ Frontend
 
 #### Dashboard
+- **Monthly Target** is easier to read: the numbers on the left are bigger and clearer, and when you point at the orange "should be here today" line, the black "Target" line or the blue bar, a small box shows the exact amount.
 - New **Won by Person** card on the Super Admin dashboard: every employee who won a lead, with the total won lead amount and the number of leads, biggest first. Filter by **Month**, **Quarter** (pick Q1 to Q4 of the financial year, April to March) or **Year**.
 
 #### Leads
