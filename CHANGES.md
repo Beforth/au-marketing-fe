@@ -50,6 +50,10 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## List Pages — Back-Navigation Memory
 
+### Rev 2 — 2026-10-23 (v1.5.0) — [Issue]
+- On Leads, the Won/Lost toggle, date range (preset and from/to), employee filter and "Created by me" were not covered by the Back-navigation memory, so they reset after opening a lead and pressing Back. They now use `useRestorableState` like the other filters. Orders already had these.
+- Files: `pages/LeadsPage.tsx`
+
 ### Rev 1 — 2026-10-21 (v1.4.8) — [Issue]
 - Client reported: open a lead/order from a long list, press Back, and the page is at the top again with search/filters cleared. Cause: the list page is unmounted on navigation and rebuilt on Back, with all scroll and filter state in plain `useState`.
 - Fix: new shared hook file with `useRestorableState` (drop-in `useState` that keeps its last value only when arriving via Back/Forward) and `useScrollMemory` (saves page scroll + every inner scroller, e.g. kanban sideways and per-column, and restores after the first data load). Sidebar clicks and new links still start clean. In-memory only, a hard refresh resets.
@@ -75,8 +79,8 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 ## Dashboard Star Performer
 
-### Rev 10 — 2026-10-23 (v1.4.9) — [Issue]
-- A domain head could still win Star Performer: the exclusion compared only the HRMS employee ID saved on the Domain, but leads (especially ones filed on someone's behalf) can hold the person's user ID instead. The exclusion now covers both IDs of every domain head.
+### Rev 10 — 2026-10-23 (v1.5.0) — [Issue]
+- A domain head could still win Star Performer: leads filed on someone's behalf hold the person's Django user ID, but the exclusion only compared the HRMS employee ID saved on the Domain. The exclusion now keeps two lists per head (employee ID, user ID) and compares each lead's number only with the list of the same kind, so a different person whose employee ID happens to equal a head's user ID is not blocked.
 - Files: `au-marketing-api/app/routers/dashboard.py`, `au-marketing-api/tests/test_star_performer.py`
 
 ### Rev 9 — 2026-10-21 (v1.4.9) — [Revision]
@@ -348,6 +352,10 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Leads Kanban
 
+### Rev 11 — 2026-10-23 (v1.5.0) — [Revision]
+- Cards in the Won and Lost columns now show "Won on <date> · closed value" / "Lost on <date>". Won uses the lead's closed date ("no date" if never set); the backend stores no lost date, so Lost shows the last-updated date.
+- Files: `pages/LeadsPage.tsx`
+
 ### Rev 18 — 2026-09-25 (v1.4.2) — [Revision]
 - **Better kanban search** (`lib/lead-search.ts`): every word must match somewhere on the lead, in any order ("pune ravi" works); now also searches **phone** (however it's typed — "98765 43210", "+91 98765-43210", "9876543210"), **quotation numbers**, **assigned person**, **city** and `#id`, on top of name/company/email/lead no./notes.
 - When a search finds nothing and Won/Lost leads are hidden, a hint offers **"Search them too"** (turns on Include Won/Lost).
@@ -543,6 +551,10 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Dashboard, Reports & Performance Leaderboard
+
+### Rev 56 — 2026-10-23 (v1.5.0) — [Revision]
+- New **Won by Person** card on the Super Admin dashboard (`WonByPersonCard`): all employees ranked by total closed value of leads won, with lead count and a bar. Month / Quarter (Q1–Q4 of the Apr–Mar financial year, future quarters disabled) / Year filters; the card asks the backend for the chosen date range. Same crediting as Star Performer (a filed-on-behalf lead counts for that person; the head's login-number leads are merged under their employee ID) but domain heads are included. New super-admin-only endpoint `GET /api/dashboard/won-by-person?date_from&date_to`.
+- Files: `components/dashboard/WonByPersonCard.tsx`, `pages/dashboards/SuperAdminDashboard.tsx`, `lib/marketing-api.ts`, `au-marketing-api/app/routers/dashboard.py`, `au-marketing-api/tests/test_star_performer.py`, `src/test/role-dashboards-ui.test.tsx`
 
 ### Rev 55 — 2026-10-21 (v1.4.9) — [Revision]
 - Monthly Target card now has **Month | Quarter | Year** filters (Quarter shows Q1–Q4 of the current financial year; future quarters are disabled, past ones can be picked). Quarter / Year add up that period's months (won value and target); a finished quarter shows "Closed" and "Target met" / "Missed by". Quarters are financial-year (Q1 = Apr–Jun … Q4 = Jan–Mar), same as Domains targets.

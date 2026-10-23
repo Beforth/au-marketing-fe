@@ -23,6 +23,7 @@ vi.mock('../../lib/marketing-api', async (orig) => ({
   ...(await orig<typeof import('../../lib/marketing-api')>()),
   marketingAPI: {
     getWorldMap: vi.fn().mockResolvedValue({ rows: [], no_region_count: 0 }),
+    getWonByPerson: vi.fn().mockResolvedValue({ date_from: '2026-10-01', date_to: '2026-10-31', total_value: 500000, total_count: 1, people: [{ employee_id: 5, employee_name: 'Asha Rao', won_value: 500000, won_count: 1 }] }),
     getStarPerformer: vi.fn().mockResolvedValue({ year: 2026, month: 10, performer: null }),
     createLeadActivity: (...a: unknown[]) => createLeadActivity(...a),
     scheduleLeadFollowUp: (...a: unknown[]) => scheduleLeadFollowUp(...a),
@@ -94,6 +95,17 @@ describe('role dashboards render with the new layout', () => {
       expect((await screen.findAllByText('Leads by Region')).length).toBe(2); // quick action + the card
       unmount();
     }
+  });
+
+  it('super admin dashboard shows Won by Person (and the other dashboards do not)', async () => {
+    const { SuperAdminDashboard } = await import('../../pages/dashboards/SuperAdminDashboard');
+    const { DomainHeadDashboard } = await import('../../pages/dashboards/DomainHeadDashboard');
+    const admin = renderIt(<SuperAdminDashboard data={data} />);
+    expect(await screen.findByText('Asha Rao')).toBeInTheDocument();
+    expect(screen.getByText('Won by Person')).toBeInTheDocument();
+    admin.unmount();
+    renderIt(<DomainHeadDashboard data={data} />);
+    expect(screen.queryByText('Won by Person')).not.toBeInTheDocument();
   });
 
   it('leads card: Recent tab by default, High value tab shows big leads; no tabs without highValueLeads', async () => {

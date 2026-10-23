@@ -2758,6 +2758,10 @@ class MarketingAPIService {
   }
 
   /** Star performer of the month: one company-wide winner by won value (domain heads excluded). */
+  async getWonByPerson(dateFrom: string, dateTo: string): Promise<WonByPersonResponse> {
+    return apiClient.get<WonByPersonResponse>(`/api/dashboard/won-by-person?date_from=${dateFrom}&date_to=${dateTo}`);
+  }
+
   async getStarPerformer(): Promise<StarPerformerResponse> {
     return apiClient.get<StarPerformerResponse>('/api/dashboard/star-performer');
   }
@@ -3541,6 +3545,21 @@ export interface StarPerformerResponse {
   year: number;
   month: number;
   performer: StarPerformer | null;
+}
+
+export interface WonByPersonItem {
+  employee_id: number;
+  employee_name: string;
+  won_value: number;
+  won_count: number;
+}
+
+export interface WonByPersonResponse {
+  date_from: string;
+  date_to: string;
+  total_value: number;
+  total_count: number;
+  people: WonByPersonItem[];
 }
 
 export interface PerformerOfMonthItem {

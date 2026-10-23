@@ -5,6 +5,25 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-10-23] — Won by Person widget, Star Performer fix, Won/Lost dates on lead cards & Leads filters remembered (v1.5.0)
+
+### 🖥️ Frontend
+
+#### Dashboard
+- New **Won by Person** card on the Super Admin dashboard: every employee who won a lead, with the total won lead amount and the number of leads, biggest first. Filter by **Month**, **Quarter** (pick Q1 to Q4 of the financial year, April to March) or **Year**.
+
+#### Leads
+- Cards in the **Won** and **Lost** columns now show the date, for example "Won on 12 Oct 2026" with the closed value, and "Lost on 12 Oct 2026". A Won lead that was never given a Won date shows "no date". For Lost leads the date is the last time the lead was updated.
+- The **Won/Lost** button, the **date filter**, the **employee filter** and **Created by me** are now kept when you open a lead and press Back, instead of switching off again.
+
+### ⚙️ Backend (API)
+
+#### Dashboard
+- New **Won by Person** data for the Super Admin dashboard, available to super admins only. A lead filed on someone's behalf counts for that person.
+- A **domain head** can no longer be picked as the **Star Performer**, even when their sales were saved under their login number. A different employee whose number happens to match a head's other number is no longer skipped by mistake.
+
+---
+
 ## [2026-10-21] — Follow-ups Needed, Monthly Target pace chart, Lost in Leads by Region, clearer Roles page & smarter Who's Online (v1.4.9)
 
 ### 🖥️ Frontend

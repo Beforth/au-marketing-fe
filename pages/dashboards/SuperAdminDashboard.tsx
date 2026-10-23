@@ -6,6 +6,7 @@ import { TargetRingCard } from '../../components/dashboard/TargetRingCard';
 import { LeadBreakdownCard } from '../../components/dashboard/LeadBreakdownCard';
 import { MyTodoCard } from '../../components/dashboard/MyTodoCard';
 import { LeadsByRegionCard } from '../../components/dashboard/LeadsByRegionCard';
+import { WonByPersonCard } from '../../components/dashboard/WonByPersonCard';
 import { WorldMapCard } from '../../components/dashboard/WorldMapCard';
 import { marketingAPI, RoleDashboardSummary, HeadDashboardSummaryResponse } from '../../lib/marketing-api';
 
@@ -62,6 +63,11 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ data, 
           wonByDay={data.won_by_day}
           trend={data.monthly_trend}
         />
+      </Tile>
+
+      {/* Won value per person, with Month / Quarter / Year filters */}
+      <Tile span="full" height="auto" index={5}>
+        <WonByPersonCard />
       </Tile>
 
       {/* Row 3: the list worked from daily — full width, 384px */}

@@ -36,6 +36,12 @@
 
 ## List Pages — Back-Navigation Memory
 
+### 2026-10-23 — Leads filters reset after opening a lead and pressing Back
+**What was reported:** On Leads, click the Won/Lost button, open a lead, press Back, and the filter was switched off again. Same for the date filter.
+**Root cause:** The Back-navigation memory (v1.4.8) was applied to search, status, page and hide-empty-columns on Leads, but the Won/Lost toggle, date range, employee filter and "Created by me" were still plain page state, rebuilt from defaults on Back.
+**Fix:** Those filters now use the same remembering helper. A fresh visit from the sidebar still starts clean; a full browser refresh still resets (that would need query parameters).
+**Status:** fixed, not yet committed. Frontend only.
+
 ### 2026-10-21 — List pages forget scroll position and filters on Back
 **What was reported:** On the Leads kanban (and other lists), opening a lead and pressing Back put the user at the top of the board again, with their search and filters cleared. The client complained.
 **Root cause:** Opening a lead is a page change, so the list page is thrown away and built again on Back. Nothing stored the scroll position, and the filters lived only in the page's memory. Also, the list loads after the page appears, so even the browser's own scroll memory had nothing to scroll to.
@@ -59,7 +65,7 @@
 ### 2026-10-23 — Domain head still showing as Star Performer
 **What was reported:** The domain head was still appearing as the Star Performer even though domain heads should not be eligible.
 **Root cause:** The exclusion list was built from the Domain's Head field (an HRMS employee ID). Won leads can be saved under the person's user ID instead (always the case for leads filed on someone's behalf), so the IDs never matched and the head stayed eligible.
-**Fix:** The exclusion list now includes each head's user ID as well (looked up from the local employee table). Covered by a new test.
+**Fix:** Each head now has two IDs (employee ID, user ID, from the local employee table); a lead's number is compared only with the list of the same kind (normal lead = employee ID, filed-on-behalf = user ID), so unrelated people with a clashing number are not blocked. Covered by tests.
 **Edge cases:** Only people set as Head on a Domain are excluded; a domain head not set on the Domains page is still eligible.
 **Status:** fixed, not yet committed. Needs a backend redeploy, no database change.
 

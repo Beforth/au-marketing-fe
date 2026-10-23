@@ -202,11 +202,11 @@ export const LeadsPage: React.FC = () => {
       is_domain_coordinator: cached.is_domain_coordinator,
     };
   });
-  const [dateFromInput, setDateFromInput] = useState('');
-  const [dateToInput, setDateToInput] = useState('');
-  const [appliedDateFrom, setAppliedDateFrom] = useState('');
-  const [appliedDateTo, setAppliedDateTo] = useState('');
-  const [dateRangePreset, setDateRangePreset] = useState<string>('all');
+  const [dateFromInput, setDateFromInput] = useRestorableState('leads:dateFromInput', '');
+  const [dateToInput, setDateToInput] = useRestorableState('leads:dateToInput', '');
+  const [appliedDateFrom, setAppliedDateFrom] = useRestorableState('leads:appliedDateFrom', '');
+  const [appliedDateTo, setAppliedDateTo] = useRestorableState('leads:appliedDateTo', '');
+  const [dateRangePreset, setDateRangePreset] = useRestorableState<string>('leads:dateRangePreset', 'all');
 
   const getPresetDates = (preset: string): { from: string; to: string } => {
     const now = new Date();
@@ -259,9 +259,9 @@ export const LeadsPage: React.FC = () => {
       setDateToInput(to);
     }
   };
-  const [selectedAssignedToIds, setSelectedAssignedToIds] = useState<number[]>([]);
-  const [createdByMeOnly, setCreatedByMeOnly] = useState(false);
-  const [includeWonLost, setIncludeWonLost] = useState(false);
+  const [selectedAssignedToIds, setSelectedAssignedToIds] = useRestorableState<number[]>('leads:selectedAssignedToIds', []);
+  const [createdByMeOnly, setCreatedByMeOnly] = useRestorableState('leads:createdByMeOnly', false);
+  const [includeWonLost, setIncludeWonLost] = useRestorableState('leads:includeWonLost', false);
   const [showEmployeeFilterPopover, setShowEmployeeFilterPopover] = useState(false);
   const filterButtonRef = React.useRef<HTMLDivElement>(null);
   const employeeFilterRef = React.useRef<HTMLDivElement>(null);
@@ -1784,6 +1784,14 @@ export const LeadsPage: React.FC = () => {
                                           </div>
                                         ) : (
                                           <div className="text-[11px] italic text-slate-400 mt-1.5">No value estimated</div>
+                                        )}
+                                        {(lead.status_option?.is_final || lead.status_option?.is_lost) && (
+                                          <div className={`text-[11px] font-semibold mt-1.5 ${lead.status_option?.is_lost ? 'text-red-600' : 'text-emerald-700'}`}>
+                                            {lead.status_option?.is_lost ? 'Lost on ' : 'Won on '}
+                                            {/* Lost leads have no closed_at (only Won sets it), so use the last update as the lost date */}
+                                            {(() => { const d = lead.status_option?.is_lost ? (lead.closed_at || lead.updated_at) : lead.closed_at; return d ? format(new Date(d), 'dd MMM yyyy') : <span className="italic font-normal text-slate-400">no date</span>; })()}
+                                            {!lead.status_option?.is_lost && lead.closed_value != null && lead.closed_value > 0 && ` · ₹${Number(lead.closed_value).toLocaleString('en-IN')}`}
+                                          </div>
                                         )}
                                         <div className="flex items-center gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                                           {canEdit && wonStatusId && lead.status_id !== wonStatusId && !lead.status_option?.is_lost && (
