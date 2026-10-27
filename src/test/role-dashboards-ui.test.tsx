@@ -51,14 +51,14 @@ const data: RoleDashboardSummary = {
   lead_source_breakdown: [], high_value_leads: [],
 };
 
-const makeStore = (permissions: string[] = []) => configureStore({
+const makeStore = (permissions: string[] = [], isSuperuser = false) => configureStore({
   reducer: {
-    auth: () => ({ token: 't', user: { first_name: 'Aditya', username: 'ady' }, employee: null, roles: [], permissions }),
+    auth: () => ({ token: 't', user: { first_name: 'Aditya', username: 'ady', is_superuser: isSuperuser }, employee: null, roles: [], permissions }),
   },
 });
 
-const renderIt = (el: React.ReactElement, permissions: string[] = []) =>
-  render(<Provider store={makeStore(permissions)}><MemoryRouter>{el}</MemoryRouter></Provider>);
+const renderIt = (el: React.ReactElement, permissions: string[] = [], isSuperuser = false) =>
+  render(<Provider store={makeStore(permissions, isSuperuser)}><MemoryRouter>{el}</MemoryRouter></Provider>);
 
 beforeEach(() => {
   getTodos.mockReset();
@@ -100,7 +100,11 @@ describe('role dashboards render with the new layout', () => {
   it('super admin dashboard shows Won by Person (and the other dashboards do not)', async () => {
     const { SuperAdminDashboard } = await import('../../pages/dashboards/SuperAdminDashboard');
     const { DomainHeadDashboard } = await import('../../pages/dashboards/DomainHeadDashboard');
-    const admin = renderIt(<SuperAdminDashboard data={data} />);
+    // marketing.admin alone (e.g. a CEO) must NOT see it; only a real HRMS super user does
+    const ceo = renderIt(<SuperAdminDashboard data={data} />, ['marketing.admin']);
+    expect(screen.queryByText('Won by Person')).not.toBeInTheDocument();
+    ceo.unmount();
+    const admin = renderIt(<SuperAdminDashboard data={data} />, [], true);
     expect(await screen.findByText('Asha Rao')).toBeInTheDocument();
     expect(screen.getByText('Won by Person')).toBeInTheDocument();
     admin.unmount();

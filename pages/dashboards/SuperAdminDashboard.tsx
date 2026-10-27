@@ -8,6 +8,8 @@ import { MyTodoCard } from '../../components/dashboard/MyTodoCard';
 import { LeadsByRegionCard } from '../../components/dashboard/LeadsByRegionCard';
 import { WonByPersonCard } from '../../components/dashboard/WonByPersonCard';
 import { WorldMapCard } from '../../components/dashboard/WorldMapCard';
+import { useAppSelector } from '../../store/hooks';
+import { selectUser } from '../../store/slices/authSlice';
 import { marketingAPI, RoleDashboardSummary, HeadDashboardSummaryResponse } from '../../lib/marketing-api';
 
 interface SuperAdminDashboardProps {
@@ -21,6 +23,8 @@ interface SuperAdminDashboardProps {
  * follow-ups → stages · sources · leaderboard → region won/lost.
  */
 export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ data, onRefresh }) => {
+  // Real HRMS super user only; marketing.admin holders (e.g. a CEO) don't see Won by Person.
+  const isRealSuperUser = useAppSelector(selectUser)?.is_superuser === true;
   const [headSummary, setHeadSummary] = useState<HeadDashboardSummaryResponse | null>(null);
 
   useEffect(() => {
@@ -66,9 +70,11 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ data, 
       </Tile>
 
       {/* Won value per person, with Month / Quarter / Year filters */}
-      <Tile span="full" height="auto" index={5}>
-        <WonByPersonCard />
-      </Tile>
+      {isRealSuperUser && (
+        <Tile span="full" height="auto" index={5}>
+          <WonByPersonCard />
+        </Tile>
+      )}
 
       {/* Row 3: the list worked from daily — full width, 384px */}
       <Tile span="full" height="auto" index={6}>

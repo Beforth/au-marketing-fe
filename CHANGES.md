@@ -552,6 +552,10 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Dashboard, Reports & Performance Leaderboard
 
+### Rev 58 — 2026-10-27 (v1.5.0) — [Issue]
+- Won by Person was visible to anyone holding `marketing.admin` (e.g. a CEO). It is now for real HRMS super users only (`is_superuser`): the endpoint returns 403 for everyone else and the card is hidden on the dashboard.
+- Files: `au-marketing-api/app/routers/dashboard.py`, `pages/dashboards/SuperAdminDashboard.tsx`
+
 ### Rev 57 — 2026-10-23 (v1.5.0) — [Revision]
 - Monthly Target pace bar: the orange "should be here today" line and the black "Target" line now have a wide hover/focus area and show a dark tooltip with the amount ("Should be here today: ₹3.78 Cr · day 23 of 31", "Target: ₹5.10 Cr"); hovering the blue bar shows "Achieved". The old browser `title` tooltips (words only, slow) are gone. Left-hand numbers enlarged and darkened: Achieved amount 4xl, "of ₹X" larger, "N leads won" and "₹X per day on average" on two readable lines, clearer "of target" under the %.
 - Files: `components/dashboard/TargetRingCard.tsx`, `src/test/target-card.test.tsx`
