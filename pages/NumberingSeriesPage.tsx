@@ -254,16 +254,16 @@ export const NumberingSeriesPage: React.FC = () => {
 
   const handleGenerateNext = async (seriesId: number) => {
     if (!canGenerate) {
-      showToast('You do not have permission to generate numbers', 'error');
+      showToast('You do not have permission to preview numbers', 'error');
       return;
     }
     try {
-      const res = await marketingAPI.generateNextSeriesNumber(seriesId);
+      // Preview only: shows what the next number would be without using it up.
+      const res = await marketingAPI.generateNextSeriesNumber(seriesId, undefined, true);
       setGeneratedValue(res.generated_value);
-      showToast(`Generated: ${res.generated_value}`, 'success');
-      loadList();
+      showToast(`Next number (not used yet): ${res.generated_value}`, 'success');
     } catch (e: any) {
-      showToast(e.message || 'Generate failed', 'error');
+      showToast(e.message || 'Preview failed', 'error');
     }
   };
 
@@ -500,7 +500,7 @@ export const NumberingSeriesPage: React.FC = () => {
 
         {generatedValue && (
           <Card className="p-3 flex items-center justify-between bg-blue-50 border-blue-200">
-            <span className="font-mono text-blue-900">{generatedValue}</span>
+            <span><span className="text-xs text-blue-700 mr-2">Next number (not used yet):</span><span className="font-mono text-blue-900">{generatedValue}</span></span>
             <Button size="sm" variant="ghost" leftIcon={<Copy size={14} />} onClick={copyGenerated}>
               Copy
             </Button>
@@ -604,7 +604,7 @@ export const NumberingSeriesPage: React.FC = () => {
                       render: (s) => (
                         <div className="flex items-center justify-end gap-1.5">
                           {canGenerate && s.is_active && (
-                            <Tooltip content="Generate next number">
+                            <Tooltip content="Preview next number (does not use it)">
                               <div
                                 onClick={(e) => {
                                   e.stopPropagation();

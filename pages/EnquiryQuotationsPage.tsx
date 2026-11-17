@@ -1,11 +1,12 @@
 /**
  * Quotations (enquiry attachments) – search, filter, and sort are done on the API.
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Card } from '../components/ui/Card';
 import { Select } from '../components/ui/Select';
+import { Combobox } from '../components/ui/Combobox';
 import { DatePicker } from '../components/ui/DatePicker';
 import { DataTable, Column } from '../components/ui/DataTable';
 import { Pagination } from '../components/ui/Pagination';
@@ -165,14 +166,23 @@ export const EnquiryQuotationsPage: React.FC = () => {
     }
   };
 
+  // Only series that quotations actually use (a job-number or work-order series can never match), shown with their names.
+  const seriesOptions = useMemo(() => [
+    { value: '', label: 'All series' },
+    ...filterOptions.quote_series_codes.map((code) => {
+      const s = seriesList.find((x) => x.code === code);
+      return { value: code, label: s ? `${s.name} (${s.code})` : code };
+    }),
+  ], [filterOptions.quote_series_codes, seriesList]);
+
+  // Series sits on the main bar, so it is not part of the Filters button's count or its Reset.
   const advancedFilterCount = [
     !!(dateFrom || dateTo),
     !!filterIndustry,
-    !!filterSeriesCode,
     filterDomainId !== '' || filterRegionId !== '',
   ].filter(Boolean).length;
 
-  const hasActiveFilters = !!searchInput.trim() || advancedFilterCount > 0;
+  const hasActiveFilters = !!searchInput.trim() || !!filterSeriesCode || advancedFilterCount > 0;
 
   const columns: Column<QuotationListItem>[] = [
     {
@@ -342,6 +352,19 @@ export const EnquiryQuotationsPage: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-1.5 shrink-0">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5">Series</label>
+            <Combobox
+              options={seriesOptions}
+              value={filterSeriesCode}
+              onValueChange={(v) => { setFilterSeriesCode(v); setPage(1); }}
+              placeholder="All series"
+              searchPlaceholder="Search series…"
+              className="min-w-[200px]"
+              aria-label="Filter by numbering series"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5 shrink-0">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5">&nbsp;</label>
             <button
               ref={filterButtonRef}
@@ -362,107 +385,80 @@ export const EnquiryQuotationsPage: React.FC = () => {
               isOpen={showFilterPopover}
               onClose={() => setShowFilterPopover(false)}
               triggerRef={filterButtonRef}
-              panelClassName="w-[420px] p-5"
+              panelClassName="w-[320px] p-3"
               offsetX={40}
               onClear={() => {
                 setDateFrom('');
                 setDateTo('');
                 setFilterIndustry('');
-                setFilterSeriesCode('');
                 setFilterDomainId('');
                 setFilterRegionId('');
               }}
               onApply={() => setShowFilterPopover(false)}
             >
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1.5 block">Date range</label>
-                  <div className="flex items-center gap-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Date range</label>
+                  <div className="flex items-center gap-1.5">
                     <DatePicker
                       value={dateFrom}
                       onChange={(v) => setDateFrom(v || '')}
-                      className="w-full h-10 text-sm"
+                      className="w-full"
+                      inputSize="sm"
                       placeholder="From"
                     />
-                    <span className="text-slate-300 text-xs font-bold uppercase shrink-0">to</span>
+                    <span className="text-slate-300 text-[10px] font-bold uppercase shrink-0">to</span>
                     <DatePicker
                       value={dateTo}
                       onChange={(v) => setDateTo(v || '')}
-                      className="w-full h-10 text-sm"
+                      className="w-full"
+                      inputSize="sm"
                       placeholder="To"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1.5 block">Industry</label>
-                    <Select
-                      options={[
-                        { value: '', label: 'All' },
-                        ...filterOptions.industries.map((ind) => ({ value: ind, label: ind })),
-                      ]}
-                      value={filterIndustry}
-                      onChange={(val) => setFilterIndustry((val as string) ?? '')}
-                      className="w-full"
-                      inputSize="md"
-                      searchable={true}
-                      clearable={false}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1.5 block">Series</label>
-                    <Select
-                      options={[
-                        { value: '', label: 'All' },
-                        ...seriesList.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` })),
-                      ]}
-                      value={filterSeriesCode}
-                      onChange={(val) => setFilterSeriesCode((val as string) ?? '')}
-                      className="w-full"
-                      inputSize="md"
-                      searchable={true}
-                      clearable={false}
-                      dropdownWidth="auto"
-                    />
-                  </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Industry</label>
+                  <Combobox
+                    options={[
+                      { value: '', label: 'All' },
+                      ...filterOptions.industries.map((ind) => ({ value: ind, label: ind })),
+                    ]}
+                    value={filterIndustry}
+                    onValueChange={setFilterIndustry}
+                    searchPlaceholder="Search industry…"
+                  />
                 </div>
 
                 {canFilterByDomainRegion && (
-                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-                    <div>
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1.5 block">Domain <span className="normal-case font-medium">(admin)</span></label>
-                      <Select
+                  <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100">
+                    <div className="min-w-0">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Domain <span className="normal-case font-medium">(admin)</span></label>
+                      <Combobox
                         options={[
                           { value: '', label: 'All' },
                           ...domains.map((d) => ({ value: String(d.id), label: d.name })),
                         ]}
                         value={filterDomainId === '' ? '' : String(filterDomainId)}
-                        onChange={(val) => {
+                        onValueChange={(val) => {
                           setFilterDomainId(val === '' ? '' : Number(val));
                           setFilterRegionId('');
                         }}
-                        className="w-full"
-                        inputSize="md"
-                        searchable={true}
-                        clearable={false}
+                        searchPlaceholder="Search domain…"
                       />
                     </div>
 
-                    <div>
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1.5 block">Region <span className="normal-case font-medium">(admin)</span></label>
-                      <Select
+                    <div className="min-w-0">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0.5 mb-1 block">Region <span className="normal-case font-medium">(admin)</span></label>
+                      <Combobox
                         options={[
                           { value: '', label: 'All' },
                           ...regions.map((r) => ({ value: String(r.id), label: r.name })),
                         ]}
                         value={filterRegionId === '' ? '' : String(filterRegionId)}
-                        onChange={(val) => setFilterRegionId(val === '' ? '' : Number(val))}
-                        className="w-full"
-                        inputSize="md"
-                        searchable={true}
-                        clearable={false}
+                        onValueChange={(val) => setFilterRegionId(val === '' ? '' : Number(val))}
+                        searchPlaceholder="Search region…"
                       />
                     </div>
                   </div>

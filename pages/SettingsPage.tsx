@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useRestorableState } from '../hooks/useListMemory';
 import {
   Eye,
   User,
@@ -68,7 +69,7 @@ export const SettingsPage: React.FC = () => {
   const user = useAppSelector(selectUser);
   const employee = useAppSelector(selectEmployee);
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('Profile');
+  const [activeTab, setActiveTab] = useRestorableState<SettingsTab>('settings:activeTab', 'Profile'); // Back from a lead returns to the same tab
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshingPermissions, setIsRefreshingPermissions] = useState(false);
   const [emailConnection, setEmailConnection] = useState<{ connected: boolean; email?: string } | null>(null);

@@ -138,7 +138,7 @@ export const LeadsPage: React.FC = () => {
   /** When user drags lead to another status: show enquiry popup to fill reason, then update status */
   const [statusChangePending, setStatusChangePending] = useState<{ leadId: number; currentStatusId: number | undefined; newStatusId: number } | null>(null);
   const [statusChangeForm, setStatusChangeForm] = useState({ title: '', description: '' });
-  const [statusChangeAttachments, setStatusChangeAttachments] = useState<{ id: string; kind: 'new-quotation' | 'revise-quotation' | 'attachment'; file: File | null; title: string; quoteValue: string; reviseTargetQuotation: string }[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '', quoteValue: '', reviseTargetQuotation: '' }]);
+  const [statusChangeAttachments, setStatusChangeAttachments] = useState<{ id: string; kind: 'attachment'; file: File | null; title: string; quoteValue: string; reviseTargetQuotation: string }[]>([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '', quoteValue: '', reviseTargetQuotation: '' }]);
   const [statusChangeSubmitting, setStatusChangeSubmitting] = useState(false);
   const [statusChangeUploadProgress, setStatusChangeUploadProgress] = useState<number | null>(null);
   const [statusChangeBaseQuotations, setStatusChangeBaseQuotations] = useState<string[]>([]);
@@ -147,6 +147,7 @@ export const LeadsPage: React.FC = () => {
   const [seriesList, setSeriesList] = useState<Series[]>([]);
   const [statusChangeSeriesCode, setStatusChangeSeriesCode] = useState('');
   const [statusChangeGeneratingQuote, setStatusChangeGeneratingQuote] = useState(false);
+  const [statusChangePreviewNumber, setStatusChangePreviewNumber] = useState('');
   const [showCreateLeadModal, setShowCreateLeadModal] = useState(false);
   const [createLeadModalStatusId, setCreateLeadModalStatusId] = useState<number | null>(null);
   const [createLeadSearchName, setCreateLeadSearchName] = useState('');
@@ -734,7 +735,7 @@ export const LeadsPage: React.FC = () => {
     setStatusChangePending({ leadId, currentStatusId, newStatusId });
     setStatusChangeForm({ title: '', description: '' });
     setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '', quoteValue: '', reviseTargetQuotation: '' }]);
-    setStatusChangeSeriesCode('');
+    setStatusChangeSeriesCode(''); setStatusChangePreviewNumber('');
     setStatusChangeBaseQuotations([]);
     setDraggedLeadId(null);
     setStatusChangeActivitiesLoading(true);
@@ -760,8 +761,9 @@ export const LeadsPage: React.FC = () => {
     const { leadId, currentStatusId, newStatusId } = statusChangePending;
     const pendingLead = leads.find((l) => l.id === leadId);
     const pendingStatus = leadStatuses.find((s) => s.id === newStatusId);
-    if (pendingStatus?.set_when_quote_number_generated && !pendingLead?.series?.trim()) {
-      showToast('Generate quotation number before changing to this status', 'error');
+    const needsLeadNumber = Boolean(pendingStatus?.set_when_quote_number_generated) && !pendingLead?.series?.trim();
+    if (needsLeadNumber && !statusChangeSeriesCode.trim()) {
+      showToast('Choose a number series first (the number is taken when you confirm)', 'error');
       return;
     }
     const enteredTitle = statusChangeForm.title.trim();
@@ -785,6 +787,12 @@ export const LeadsPage: React.FC = () => {
       setStatusChangeUploadProgress(0);
     }
     try {
+      if (needsLeadNumber) {
+        // One request takes the number and writes it on the lead, so a failure cannot lose a number.
+        // If a later step fails the lead simply keeps this number; a retry will not take another.
+        const numbered = await marketingAPI.updateLeadSeries(leadId, { series_code: statusChangeSeriesCode.trim() });
+        setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, series_code: numbered.series_code, series: numbered.series } : l)));
+      }
       const created = await marketingAPI.createLeadActivity(leadId, {
         activity_type: 'lead_status_change',
         title: enteredTitle,
@@ -793,17 +801,17 @@ export const LeadsPage: React.FC = () => {
         to_status_id: newStatusId,
       });
       if (toUpload.length > 0) {
-        const hasRevise = toUpload.some((e) => e.kind === 'revise-quotation');
+        // Quotations are added from the lead page; this pop-up only takes plain attachments.
         await marketingAPI.uploadLeadActivityAttachments(
           leadId,
           created.id,
           toUpload.map((e) => e.file!),
-          toUpload.map((e) => (e.kind === 'attachment' ? 'attachment' as const : 'quotation' as const)),
-          toUpload.map((e) => (e.kind === 'revise-quotation' ? (e.reviseTargetQuotation || undefined) : undefined)),
-          toUpload.map((e) => (e.kind === 'attachment' ? (e.title.trim() || undefined) : undefined)),
+          toUpload.map(() => 'attachment' as const),
           undefined,
-          hasRevise || undefined,
-          toUpload.map((e) => (e.kind !== 'attachment' && e.quoteValue ? Number(e.quoteValue) : undefined)),
+          toUpload.map((e) => e.title.trim() || undefined),
+          undefined,
+          undefined,
+          undefined,
           setStatusChangeUploadProgress
         );
       }
@@ -817,7 +825,7 @@ export const LeadsPage: React.FC = () => {
       setStatusChangePending(null);
       setStatusChangeForm({ title: '', description: '' });
       setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '', quoteValue: '', reviseTargetQuotation: '' }]);
-      setStatusChangeSeriesCode('');
+      setStatusChangeSeriesCode(''); setStatusChangePreviewNumber('');
       setStatusChangeBaseQuotations([]);
     } catch (err: any) {
       showToast(err?.message || 'Failed to update lead status', 'error');
@@ -827,22 +835,16 @@ export const LeadsPage: React.FC = () => {
     }
   };
 
+  /** Preview only: shows what the lead number will be. The real number is taken at Confirm (handleStatusChangeModalSubmit). */
   const handleStatusChangeGenerateQuote = async () => {
     if (!statusChangePending || !statusChangeSeriesCode.trim()) return;
     const leadId = statusChangePending.leadId;
     setStatusChangeGeneratingQuote(true);
     try {
-      const res = await marketingAPI.generateNextSeriesNumberByCode(statusChangeSeriesCode.trim(), { lead_id: leadId });
-      const generated = res.generated_value ?? '';
-      await marketingAPI.updateLead(leadId, { series_code: statusChangeSeriesCode.trim(), series: generated } as UpdateLeadRequest);
-      setLeads((prev) =>
-        prev.map((l) =>
-          l.id === leadId ? { ...l, series_code: statusChangeSeriesCode.trim(), series: generated } : l
-        )
-      );
-      showToast('Lead number generated', 'success');
+      const res = await marketingAPI.generateNextSeriesNumberByCode(statusChangeSeriesCode.trim(), { lead_id: leadId }, true);
+      setStatusChangePreviewNumber(res.generated_value ?? '');
     } catch (err: any) {
-      showToast(err?.message || 'Failed to generate lead number', 'error');
+      showToast(err?.message || 'Failed to preview lead number', 'error');
     } finally {
       setStatusChangeGeneratingQuote(false);
     }
@@ -1914,7 +1916,7 @@ export const LeadsPage: React.FC = () => {
           setStatusChangePending(null);
           setStatusChangeForm({ title: '', description: '' });
           setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '', quoteValue: '', reviseTargetQuotation: '' }]);
-          setStatusChangeSeriesCode('');
+          setStatusChangeSeriesCode(''); setStatusChangePreviewNumber('');
           setStatusChangeBaseQuotations([]);
         }}
         title="Change lead status"
@@ -1929,7 +1931,7 @@ export const LeadsPage: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => { setStatusChangePending(null); setStatusChangeForm({ title: '', description: '' }); setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '', quoteValue: '', reviseTargetQuotation: '' }]); setStatusChangeSeriesCode(''); setStatusChangeBaseQuotations([]); }}
+                onClick={() => { setStatusChangePending(null); setStatusChangeForm({ title: '', description: '' }); setStatusChangeAttachments([{ id: crypto.randomUUID(), kind: 'attachment', file: null, title: '', quoteValue: '', reviseTargetQuotation: '' }]); setStatusChangeSeriesCode(''); setStatusChangePreviewNumber(''); setStatusChangeBaseQuotations([]); }}
               >
                 Cancel
               </Button>
@@ -1974,13 +1976,13 @@ export const LeadsPage: React.FC = () => {
               {leadHasNoQuoteNumber && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-3 space-y-2">
                   <label className="block text-sm font-medium text-slate-700">Lead number not set</label>
-                  <p className="text-xs text-slate-600">Select a number series and generate the lead number. Quote numbers (for quotation documents) are separate and use their own series.</p>
+                  <p className="text-xs text-slate-600">Select a number series. The number is taken when you confirm; Preview shows what it will be. Quote numbers (for quotation documents) are separate and use their own series.</p>
                   <div className="flex flex-wrap items-end gap-2">
                     <div className="min-w-[180px]">
                       <Select
                         placeholder="Number series"
                         value={statusChangeSeriesCode}
-                        onChange={(val) => setStatusChangeSeriesCode(String(val ?? ''))}
+                        onChange={(val) => { setStatusChangeSeriesCode(String(val ?? '')); setStatusChangePreviewNumber(''); }}
                         options={[
                           { value: '', label: '— Select series —' },
                           ...seriesList.map((s) => ({ value: s.code ?? '', label: `${s.name} (${s.code})` })),
@@ -1994,9 +1996,15 @@ export const LeadsPage: React.FC = () => {
                       disabled={!statusChangeSeriesCode.trim() || statusChangeGeneratingQuote}
                       onClick={handleStatusChangeGenerateQuote}
                     >
-                      {statusChangeGeneratingQuote ? 'Generating…' : 'Generate lead number'}
+                      {statusChangeGeneratingQuote ? 'Previewing…' : 'Preview lead number'}
                     </Button>
                   </div>
+                  {statusChangePreviewNumber && (
+                    <p className="text-xs text-slate-700">
+                      Next lead number: <strong className="font-mono">{statusChangePreviewNumber}</strong>{' '}
+                      <span className="text-slate-500">(preview only — taken when you confirm)</span>
+                    </p>
+                  )}
                 </div>
               )}
               {statusChangeLead?.series?.trim() && (
@@ -2039,42 +2047,12 @@ export const LeadsPage: React.FC = () => {
                             }}
                           />
                         </label>
-                        <select
-                          className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs w-32"
-                          value={row.kind}
-                          onChange={(e) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, kind: e.target.value as 'new-quotation' | 'revise-quotation' | 'attachment', reviseTargetQuotation: '' } : r)))}
-                        >
-                          <option value="new-quotation">New Quotation</option>
-                          <option value="revise-quotation">Revise Quotation</option>
-                          <option value="attachment">Attachment</option>
-                        </select>
-                        {row.kind === 'revise-quotation' && statusChangeBaseQuotations.length > 0 && (
-                          <div className="w-40 shrink-0 [&_button]:!h-9 [&_button]:!min-h-0 [&_button]:!py-0">
-                            <Select
-                              options={statusChangeBaseQuotations.map((q) => ({ value: q, label: q }))}
-                              value={row.reviseTargetQuotation}
-                              onChange={(val) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, reviseTargetQuotation: String(val ?? '') } : r)))}
-                              placeholder="Which quotation?"
-                              className="w-full"
-                              searchable
-                            />
-                          </div>
-                        )}
                         {row.kind === 'attachment' && (
                           <input
                             className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs min-w-[100px] flex-1 max-w-[160px]"
                             placeholder="Title"
                             value={row.title}
                             onChange={(e) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, title: e.target.value } : r)))}
-                          />
-                        )}
-                        {row.kind !== 'attachment' && (
-                          <CurrencyInput
-                            placeholder={row.kind === 'revise-quotation' ? 'Revised Quote Value (₹)' : 'Quote Value (₹)'}
-                            value={row.quoteValue}
-                            onChange={(val) => setStatusChangeAttachments((prev) => prev.map((r) => (r.id === row.id ? { ...r, quoteValue: val } : r)))}
-                            inputSize="sm"
-                            containerClassName="min-w-[110px] max-w-[150px] !space-y-0"
                           />
                         )}
                         <Tooltip content="Remove">
@@ -2087,11 +2065,6 @@ export const LeadsPage: React.FC = () => {
                           </button>
                         </Tooltip>
                       </div>
-                      {row.kind === 'revise-quotation' && (
-                        <p className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
-                          This value won't be reflected in the kanban quotation bar
-                        </p>
-                      )}
                     </div>
                   ))}
                   <button

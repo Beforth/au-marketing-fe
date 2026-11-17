@@ -5,6 +5,42 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-11-17] — Easier-to-read Audit Logs, Series filter on Quotations & quote numbers that no longer get lost (v1.5.1)
+
+### 🖥️ Frontend
+
+#### Audit Logs
+- The filters now fit on **one row**: search, one **Date** box (Any time, Today, Last 7 days, Last 30 days, or Pick dates), Type, Action and User. The table starts higher, so more entries are visible without scrolling.
+- Easier to read: the date column says **Today**, **Yesterday** or a date like "17 Nov 2026", the time is always on a **12-hour clock with seconds** (for example "3:21:32 pm"), and the labels and text are bigger and darker.
+- Database numbers such as "Enquiry #130" are no longer shown; the lead's name is shown instead.
+- Search now shows **why a row matched** (the matching words are highlighted), says how many results were found, and pressing **/** jumps to the search box. You can also search by a lead's **quote number**.
+- A lead's name in the log **opens that lead**. When you come back with Back, your search, filters and the Audit Logs tab are still there.
+- New **Refresh** button to see the newest entries, and a clear "No entries match" message with a Clear button when nothing is found.
+
+#### Quotations
+- New **Series** box next to Search, so you can show only the quotations in one numbering series straight away. It lists only the series your quotations actually use.
+- The **Filters** panel is smaller and tidier, and its Industry, Domain and Region lists are now searchable dropdowns.
+
+#### Leads
+- Moving a lead on the board no longer lets you add a quotation in the pop-up (add it from the lead page); you can still attach files there.
+- In that pop-up, **Generate lead number** is now **Preview lead number**: it shows the next number without using it, and the real number is taken when you press **Confirm**.
+- When adding a lead's first quotation you now choose **either** a numbering series **or** type a number. Typing a number clears the series, so the number you typed is the one that is saved.
+
+#### Numbering Series
+- The **#** button now only shows the next number; it no longer uses up a real number each time it is clicked.
+
+### ⚙️ Backend (API)
+
+#### Numbering & Leads
+- Quote numbers and lead numbers can now be up to **255 characters**, so quotes for companies with very long names can be saved. Before, saving such a lead failed and used up a number every time.
+- If a lead or quotation does not save, the number it picked is **given back** instead of being lost, so numbers no longer skip. A clear message explains what went wrong.
+- Every number taken while saving a lead is now **recorded in the Audit Log** with who took it.
+
+#### Audit Log
+- Audit Log search also finds a lead by its quote number.
+
+---
+
 ## [2026-10-23] — Won by Person widget, Star Performer fix, Won/Lost dates on lead cards & Leads filters remembered (v1.5.0)
 
 ### 🖥️ Frontend

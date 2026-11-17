@@ -3706,7 +3706,7 @@ export const LeadFormPage: React.FC = () => {
                 <Input
                   label="Or type manually"
                   value={systemQuoteDraft.number}
-                  onChange={(e) => updateSystemQuoteDraft({ number: e.target.value })}
+                  onChange={(e) => updateSystemQuoteDraft({ number: e.target.value, seriesCode: '' })}
                   placeholder="e.g. AP/QUOTE-N/001"
                 />
                 <div className="flex flex-wrap items-center gap-2">

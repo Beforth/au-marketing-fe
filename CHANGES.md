@@ -23,15 +23,15 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 
 - [List Pages — Back-Navigation Memory](#list-pages--back-navigation-memory) — rev 1.4.8
 - [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7, 1.2.10, 1.4.1, 1.4.2
-- [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.2.3, 1.2.5, 1.2.6, 1.2.8, 1.4.2
+- [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.5.1 (3 times), 1.2.3, 1.2.5, 1.2.6, 1.2.8, 1.4.2
 - [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7, 1.4.6, 1.4.7
 - [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
 - [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.4.9, 1.4.8, 1.2.0, 1.2.1, 1.2.5, 1.2.9, 1.4.2, 1.4.3, 1.4.5
 - [Who's Online / Presence](#whos-online--presence) — rev 1.4.9, 1.2.0, 1.2.1
 - [Regions, Domains & Employee Sync](#regions-domains--employee-sync) — rev 1.2.0, 1.2.4, 1.2.5
-- [Quotations Page (list & filters)](#quotations-page-list--filters) — rev 1.2.1, 1.2.2
+- [Quotations Page (list & filters)](#quotations-page-list--filters) — rev 1.5.1, 1.2.1, 1.2.2
 - [DSR (Daily Status Reports)](#dsr-daily-status-reports) — rev 1.2.7
-- [Audit Log](#audit-log) — rev 1.2.7, 1.4.2
+- [Audit Log](#audit-log) — rev 1.5.1 (4 times), 1.2.7, 1.4.2
 - [Global Search](#global-search) — rev 1.4.2
 - [Global UI, Formatting & Bug Fixes](#global-ui-formatting--bug-fixes) — rev 1.4.9, 1.2.2, 1.2.3, 1.2.5, 1.2.10, 1.4.3, 1.4.5
 - [Tooling & Scripts](#tooling--scripts) — rev 1.2.1, 1.2.6, 1.4.8, 1.4.9, 1.4.2, 1.4.5
@@ -444,6 +444,22 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Quotations & Quote Numbers
+
+### Rev 14 — 2026-11-17 (v1.5.1) — [Issue]
+- **Two "Generate" buttons could waste real numbers; now fixed.** (1) Numbering Series page: the `#` button used up a real number on every click (so testing it made quotes skip ahead). It is now preview only (tooltip "Preview next number (does not use it)", message "Next number (not used yet): …"). (2) Leads-board status-change pop-up, "Lead number not set" box: the button took a number in one request and wrote it on the lead in a second, so a failure between them lost the number, and Cancel left a number on a lead whose status never changed. The button is now **"Preview lead number"** (shows what it will be, takes nothing); the real number is taken at **Confirm**, in one request (`updateLeadSeries`), before the log/files/status steps. Confirm now needs a chosen series instead of an existing number. If a later step fails, the lead keeps the number it just got and a retry does not take another.
+- Not tested: the real Confirm click (it would use a number in the local database). Preview and Cancel were checked in the app and the series counters did not move.
+- Files: `pages/NumberingSeriesPage.tsx`, `pages/LeadsPage.tsx`
+
+### Rev 13 — 2026-11-17 (v1.5.1) — [Issue]
+- **Inquiry #0 "System Quote" box is now really series OR typed number.** It let you pick a series *and* type a number; on "Save quotation" the series won, your typed number was silently thrown away and a series number was used up for nothing. Now typing a number clears the chosen series (and picking a series already cleared the typed number), so only one can be active. The other three quote-number boxes on the lead page (create form, edit form, activity form) were checked: in each, typing already cancels the generated number, so the typed number wins; left unchanged.
+- **Leads-board status-change pop-up: quotations removed (client request).** The file section now takes plain attachments only (Choose file, Title, + Add file). "New Quotation" / "Revise Quotation", the Quote Value box and the "Which quotation?" picker are gone; quotations are added from the lead page. Statuses that require an attachment still work. Left as is: the "Lead number not set" box and its Generate button.
+- Files: `pages/LeadFormPage.tsx`, `pages/LeadsPage.tsx`
+
+### Rev 12 — 2026-11-17 (v1.5.1) — [Issue]
+- **A failed save no longer uses up a quote number, and long company names now fit.** The quote number includes the company name, and the lead's quote-number box held only 100 characters. For a long company name (114 characters) every save failed *after* the number had been taken, leaving a blank lead and a lost number each time (APEQ-N went 003 → 010 on 4 Nov: six clicks, six lost numbers, six blank leads). Fixes: (1) `leads.quote_number` and `leads.series` now hold 255 characters; (2) numbers are now saved together with the lead/quotation, so if the save fails the counter is rolled back (create lead, edit lead, lead number action, add quotation, upload quotation); (3) a database refusal now returns a plain message ("Not saved, and no number was used: a value is too long…") that the existing error toast shows, instead of a generic server error.
+- Not changed: the Won-screen "Generate lead number" button (it still takes a number and saves it in a second request), and the other number columns (contact/customer/order `series`, still 100 characters).
+- Database: needs the usual `alembic revision --autogenerate` + `alembic upgrade head` (two column widenings).
+- Files: `au-marketing-api/app/models.py`, `au-marketing-api/app/routers/series.py`, `au-marketing-api/app/routers/leads.py`, `au-marketing-api/tests/test_series_give_back.py`
 
 ### Rev 11 — 2026-10-14 (v1.4.6) — [Revision]
 - **"New Quotation" removed from the Log Activity file dropdown on the lead page (client request).** The dropdown now offers only Revise Quotation and Attachment. New quotations can still be added from the Inquiry 0 entry ("Attach quotation file" / "Add another quotation") and the quote-number widget. The Leads-page status-change popup still has its own "New Quotation" option (not changed). The now-unreachable new-quotation branches in the Log Activity form were left in place.
@@ -922,6 +938,12 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Quotations Page (list & filters)
 
+### Rev 3 — 2026-11-17 (v1.5.1) — [Revision]
+- **Filter quotations by numbering series straight from the main bar.** The Series dropdown moved out of the "Filters" popup (one extra click, mixed in with Industry/Domain/Region/dates) to a visible **Series** box next to Search. It now lists only the series the visible quotations actually use (`quote_series_codes` from `GET /api/quotations/filter-options`) with their names ("AP Quote N (quote_ap_n)"), instead of every active series in the system (which included job-number and work-order series that can never match a quotation; Rev 1 had deliberately listed all). Choosing one narrows the list and goes back to page 1. It is no longer in the Filters button's count or the popup's Reset, but is covered by "Clear filters". The popup's Industry box now uses the full width.
+- **The Filters popup is compact and uses a befui-style dropdown.** The popup went from 420 px wide (20 px padding, 40 px boxes, wide gaps) to 320 px (12 px padding, 36 px boxes, tighter gaps, smaller section labels); Date range, Industry, and (admin) Domain/Region stay. Series (main bar), Industry, Domain and Region now use a new `Combobox` (`components/ui/Combobox.tsx`): a searchable dropdown with a tick on the chosen option and an optional description line, following befui's `combobox`, built on this project's existing `command` + `popover` (no new package; befui's own colour classes don't exist here, so slate/blue classes are used). The search box only shows when a list has more than 7 options. `FilterPopover` now treats clicks inside the Combobox list as inside the popup (`[data-marketing-combobox-dropdown]`), otherwise picking an option would close the popup. Other pages keep the old `Select` for now.
+- Checked: type check and all 118 frontend tests pass. **Not yet seen on screen** (the app was logged out when this was written), so spacing, the popup's height and the dropdown inside the popup still need a visual check.
+- Files: `pages/EnquiryQuotationsPage.tsx`, `components/ui/Combobox.tsx`, `components/ui/FilterPopover.tsx`
+
 ### Rev 2 — 2026-08-05 (v1.2.2)
 - **Filters panel fixes**: fixed bottom-right corner rendering as a sharp edge (fractional-position rounding); panel enlarged (300px → 420px, larger inputs) and nudged right.
 - Files: `pages/EnquiryQuotationsPage.tsx`, `components/ui/FilterPopover.tsx`
@@ -944,6 +966,26 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Audit Log
+
+### Rev 7 — 2026-11-17 (v1.5.1) — [Revision]
+- **Audit Logs: fewer filter controls.** From, To, Today, 7 days and 30 days (five controls that all did the same job) became **one Date box**: Any time / Today / Last 7 days / Last 30 days / Pick dates (the From and To boxes appear only when you pick "Pick dates"). The filter row is now search + Date + Type + Action + User + Clear, all the same height, with the labels removed (the boxes say "All types", "All actions", "All users" themselves) so nothing sits at a different height; it still fits on one row with Pick dates open at laptop width, and wraps neatly on narrower windows. The quick-range chips beside the count are gone (only Refresh remains there). The Date and Action lists no longer show a search box (too few items). The "Pick dates" mode is remembered on Back with the other filters.
+- Files: `components/audit/AuditLogsPanel.tsx`
+
+### Rev 6 — 2026-11-17 (v1.5.1) — [Revision]
+- **Audit Logs table: more small improvements (same table).** (1) Times are always 12-hour ("3:21 pm", never 24-hour, whatever the computer's locale). (2) The time in the date column shows seconds ("3:21:32 pm") so entries in the same minute can be told apart (no hover needed). (3) A lead's name opens that lead; Settings now remembers its tab and the audit search/filters when you come back with the Back button (fresh visits still start clean; same hook as the Leads page, `hooks/useListMemory.ts`), so lead → Back lands on Audit Logs with the same filters. (4) A **Refresh** button beside the entry count reloads the log (and the filter lists) without a page reload. (5) A friendly "No entries match / Try fewer words, or clear the filters" box with a Clear button instead of an empty table. (6) Quick ranges **Today / 7 days / 30 days** beside the count (highlighted when active).
+- **Numbers taken while saving a lead are now written to the audit log** (backend): create lead, edit lead, the lead-number action, add quotation and upload quotation each log "Generated value 'X' from series: NAME (while saving a lead)" with who did it, **only after the save succeeds** (a save that fails or rolls back logs nothing, because the number was given back). Before, only the Numbering Series page's own Generate logged, so the 4 Nov APEQ numbers left no trace. Needs a backend deploy; tested with unit tests (the real save path was not run against the live backend because it would use up a number).
+- Not changed: columns, row layout, loading more on scroll. Scroll position is not restored on Back (filters are).
+- Files: `components/audit/AuditLogsPanel.tsx`, `pages/SettingsPage.tsx`, `lib/audit-details.ts`, `src/test/audit-details.test.ts`, `au-marketing-api/app/routers/series.py`, `au-marketing-api/app/routers/leads.py`, `au-marketing-api/tests/test_series_give_back.py`
+
+### Rev 5 — 2026-11-17 (v1.5.1) — [Revision]
+- **Audit Logs table: same table, easier to read and search (small refinements, no redesign).** (1) All filters (search, From, To, Type, Action, User, Clear) fit on one row at laptop width (the User box used to drop to a second row, pushing the table down); the search hint is shorter so it is no longer cut off; narrower windows still wrap neatly. (2) The date, time and the action/type labels went from 9–10px light grey to 11–12px and darker. (3) The date column reads "Today", "Yesterday" or "17 Nov 2026" over the time (was 17/11/2026 in tiny type). (4) Database ids are hidden in the shown text ("Enquiry #130 (lead 'X')" → "Enquiry (lead 'X')"); hovering the text still shows the original with ids. (5) Search marks the matched words in yellow (a one-letter word only when it stands alone), says "12 results for 'Rahul Verma'", and `/` jumps to the search box.
+- Not changed: the columns and their order, the row layout, loading more on scroll, the page title and tabs. Sticky column headings were not attempted (the page wrapper stops sticky bars app-wide).
+- Files: `components/audit/AuditLogsPanel.tsx`, `lib/audit-details.ts`, `src/test/audit-details.test.ts`
+
+### Rev 4 — 2026-11-17 (v1.5.1) — [Revision]
+- **Audit log search also finds a lead by its quote number** (`audit_logs.py`, one line): before it matched name, company and lead number only. Needs a backend deploy.
+- Tried and dropped (client preferred the original table): a redesign of Settings → Audit Logs (compact filter strip, day headings, one-line entries, slide-open details, plain-words wording, merged rows). The page is the original Date & Time / User / Action / Log Details table again.
+- Files: `au-marketing-api/app/routers/audit_logs.py`
 
 ### Rev 3 — 2026-09-28 (v1.4.2) — [Revision]
 - **Log entries now say what was affected and what changed, across the whole module.** Messages that only had ids ("Deleted attachment #49 from lead #131", "Updated visit 12", "Deleted activity #5 from order #9", "Assigned dashboard to user #34", "Updated assignment for employee 88") now name the lead / enquiry / contract / visit / work order / organization / event / person, the quote number or file, and the enquiry-log entry ("'Follow-up call' (Inquiry 3)").

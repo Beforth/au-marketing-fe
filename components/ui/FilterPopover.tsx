@@ -50,11 +50,11 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      // Select/DatePicker render their open dropdown in a portal at document.body,
+      // Select/DatePicker/Combobox render their open dropdown in a portal at document.body,
       // outside this popover's DOM subtree — without this check, clicking an option
       // inside them looks like an "outside" click and closes the popover before it registers.
       const inPortaledDropdown = (target as Element)?.closest?.(
-        '[data-marketing-select-dropdown], [data-marketing-datepicker-dropdown]'
+        '[data-marketing-select-dropdown], [data-marketing-datepicker-dropdown], [data-marketing-combobox-dropdown]'
       );
       if (
         popoverRef.current &&

@@ -229,6 +229,36 @@ So every exhibition's reported total spend was understated by the entire cost of
 
 ## Quote Numbers / Enquiry Log
 
+### 2026-11-17 — Two "Generate" buttons could use up numbers without saving them
+
+**What was reported:** follow-up to the APEQ 4 → 10 jump: other places could still lose or waste numbers.
+
+**Root cause:** (1) the Numbering Series page `#` button called the real generator (not the preview) on every click, so each test click used a number. (2) In the Leads-board status-change pop-up, "Generate lead number" took the number in one request and saved it on the lead in a second ([`LeadsPage.tsx`](pages/LeadsPage.tsx), old `handleStatusChangeGenerateQuote`); a failure between the two lost it, and pressing Cancel left a number on a lead whose status had not changed.
+
+**Fix:** (1) preview only on the Numbering Series page ([`NumberingSeriesPage.tsx`](pages/NumberingSeriesPage.tsx)). (2) The pop-up button is now a preview; Confirm takes the real number in one request with `updateLeadSeries` and then does the log, files and status. Checked in the app: both previews send `?preview=1` and the counters did not move. The real Confirm click was not tested (it would use a number locally).
+
+**Status:** fixed, not yet committed. If a step after the number fails at Confirm, the lead keeps the number (not lost, not taken twice).
+
+### 2026-11-17 — Quote number box accepted a series and a typed number at the same time
+
+**What was reported:** the Inquiry #0 "System Quote" box says "Or type manually" but let a user pick a series and type a number together (a screenshot showed series "AP Quote N" selected with `100000` typed).
+
+**Root cause:** typing a number never cleared the selected series, and the list entry carried the series, so on "Save quotation" the app saved a number *generated from the series* (using up a real number) and ignored the typed one ([`LeadFormPage.tsx`](pages/LeadFormPage.tsx), `handleCreateSystemQuote`: series first, typed number only if no series).
+
+**Fix:** typing in the manual box now clears the series (one line); picking a series already cleared the typed number. Checked in the app: after selecting AP Quote N and typing `100000`, the series reverted to "Choose series" and Generate went grey. The create form, edit form and activity form were read too and were already safe (typing cancels the generated number), so they were left alone.
+
+**Status:** fixed, not yet committed. Also in this change: the Leads-board status-change pop-up no longer offers New/Revise Quotation (plain attachments only), by request.
+
+### 2026-11-17 — APEQ quote number jumped from 4 to 10; blank leads left behind
+
+**What was reported:** someone saw the APEQ Quote N number go from 4 straight to 10.
+
+**Root cause:** the quote number contains the company name, and `leads.quote_number` allowed only 100 characters. On 4 Nov a lead was created for "School of Engineering Sciences and Technology (SEST) at the University of Hyderabad (UoH)", whose number is 114 characters. The app took the number first (and saved it straight away together with the new lead row), then tried to write it onto the lead; the database refused it, so the user saw an error, the lead stayed blank, and the number was gone. The user clicked Save six times in two minutes: six blank leads (624–629 for contact 453) and six lost numbers (004–009). Evidence: the series row's last update (08:48:30.266431) equals lead 629's creation time to the microsecond; no "Created Lead" audit rows exist for 624–629; the organization name makes the number 114 characters. The server logs for that window were empty (the API writes no request log), so the exact error text was not seen — the cause is confirmed from the data and the code, not from a log line.
+
+**Fix:** (1) `leads.quote_number` and `leads.series` widened to 255 characters ([`models.py`](au-marketing-api/app/models.py)). (2) `generate_next_value_for_series(..., commit=False)` now moves the counter inside the caller's transaction ([`series.py`](au-marketing-api/app/routers/series.py)); create lead, edit lead, the lead-number action, add-quotation and upload-quotation use it, so a failed save rolls the counter back too ([`leads.py`](au-marketing-api/app/routers/leads.py)). (3) New `_commit_or_400` turns a database refusal into a plain 400 ("Not saved, and no number was used: …"), shown by the existing error toast. Test: `tests/test_series_give_back.py`.
+
+**Status:** fixed, not yet committed or deployed (needs the two-column Alembic migration on production). Numbers 004–009 and the blank leads 624–629 were **not** touched: the counter must not be rewound (duplicate-number risk) and deleting the blank leads is a separate decision. The Won-screen "Generate lead number" button still takes a number in one request and saves it in another, so it can still lose a number if its second step fails.
+
 ### 2026-09-28 — Leads list error: "1 validation error for PaginatedResponse — total: Input should be a valid integer (None)"
 
 **What was reported:** the Leads page failed to load with a Pydantic validation error on `PaginatedResponse.total`.
