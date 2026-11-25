@@ -15,6 +15,8 @@ const buttonVariants = cva(
         danger: "bg-rose-600 text-white hover:bg-rose-700",
         outline: "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300",
         secondary: "bg-slate-900 text-white hover:bg-slate-800",
+        success: "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700",
+        soft: "bg-blue-50 text-blue-700 hover:bg-blue-100",
         ghost: "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
         link: "text-blue-600 hover:underline font-semibold p-0 h-auto",
       },

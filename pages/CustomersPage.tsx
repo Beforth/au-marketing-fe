@@ -18,11 +18,13 @@ import { cn } from '../lib/utils';
 import { Tooltip } from '../UI/Tooltip';
 import { SearchInput } from '../components/ui/SearchInput';
 import { DataTable } from '../components/ui/DataTable';
+import { DetailDrawer } from '../components/ui/DetailDrawer';
 import { Pagination } from '../components/ui/Pagination';
 import { marketingAPI, Customer, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, customerPrimaryContactName } from '../lib/marketing-api';
 
 export const CustomersPage: React.FC = () => {
   const navigate = useNavigate();
+  const [selected, setSelected] = useState<Customer | null>(null);
   const { showToast } = useApp();
   const canView = useAppSelector(selectHasPermission('marketing.view_customer'));
   const canCreate = useAppSelector(selectHasPermission('marketing.create_customer'));
@@ -178,7 +180,7 @@ export const CustomersPage: React.FC = () => {
               bordered={false}
               data={filteredCustomers}
               rowKey={(c) => c.id}
-              onRowClick={canEdit ? (c) => navigate(`/customers/${c.id}/edit`) : undefined}
+              onRowClick={setSelected}
               dense={true}
               showVerticalLines={true}
               columns={[
@@ -296,6 +298,29 @@ export const CustomersPage: React.FC = () => {
           </>
         )}
       </Card>
+    <DetailDrawer
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title={selected?.company_name || ''}
+        subtitle={selected?.series}
+        status={selected ? { label: selected.is_active ? 'Active' : 'Inactive', tone: selected.is_active ? 'green' : 'slate' } : undefined}
+        onEdit={canEdit && selected ? () => navigate(`/customers/${selected.id}/edit`) : undefined}
+        fields={selected ? [
+          { label: 'Primary contact', section: 'Primary contact', value: selected.primary_contact_contact?.contact_person_name },
+          { label: 'Contact email', section: 'Primary contact', href: selected.primary_contact_contact?.contact_email ? `mailto:${selected.primary_contact_contact.contact_email}` : undefined, value: selected.primary_contact_contact?.contact_email },
+          { label: 'Contact phone', section: 'Primary contact', href: selected.primary_contact_contact?.contact_phone ? `tel:${selected.primary_contact_contact.contact_phone}` : undefined, value: selected.primary_contact_contact?.contact_phone },
+          { label: 'Organization', section: 'Company', value: selected.organization?.name },
+          { label: 'Plant', section: 'Company', value: selected.plant_name },
+          { label: 'Address', section: 'Company', value: [selected.address_line1, selected.address_line2, selected.city, selected.state, selected.postal_code, selected.country].filter(Boolean).join(', ') },
+          { label: 'Tax ID', section: 'Company', value: selected.tax_id },
+          { label: 'Domain', section: 'Scope', value: selected.domain?.name },
+          { label: 'Region', section: 'Scope', value: selected.region?.name },
+          { label: 'Account manager', section: 'Ownership', value: selected.account_manager_username },
+          { label: 'Customer since', section: 'Ownership', value: selected.customer_since },
+          { label: 'Created by', section: 'Ownership', value: selected.created_by_username },
+          { label: 'Notes', section: 'Notes', value: selected.notes },
+        ] : []}
+      />
     </PageLayout>
   );
 };

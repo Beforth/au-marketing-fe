@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button';
 import { SearchInput } from '../components/ui/SearchInput';
 import { PageLayout } from '../components/layout/PageLayout';
 import { DataTable } from '../components/ui/DataTable';
+import { DetailDrawer } from '../components/ui/DetailDrawer';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { useApp } from '../App';
@@ -22,6 +23,7 @@ import { Tooltip } from '../UI/Tooltip';
 
 export const OrganizationsPage: React.FC = () => {
   const navigate = useNavigate();
+  const [selected, setSelected] = useState<Organization | null>(null);
   const location = useLocation();
   const { showToast } = useApp();
   const underDatabase = location.pathname.startsWith('/database');
@@ -184,7 +186,7 @@ export const OrganizationsPage: React.FC = () => {
               bordered={false}
               data={organizations}
               rowKey={(o) => o.id}
-              onRowClick={canEdit ? (o) => navigate(`/organizations/${o.id}/edit`) : undefined}
+              onRowClick={setSelected}
               dense={true}
               showVerticalLines={true}
               columns={[
@@ -284,6 +286,21 @@ export const OrganizationsPage: React.FC = () => {
         onConfirm={handleDelete}
         title="Delete organization"
         message="Are you sure? This will also remove all plants under this organization."
+      />
+    <DetailDrawer
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title={selected?.name || ''}
+        subtitle={selected?.code}
+        status={selected ? { label: selected.is_active ? 'Active' : 'Inactive', tone: selected.is_active ? 'green' : 'slate' } : undefined}
+        onEdit={canEdit && selected ? () => navigate(`/organizations/${selected.id}/edit`) : undefined}
+        fields={selected ? [
+          { label: 'Industry', section: 'Company', value: selected.industry },
+          { label: 'Size', section: 'Company', value: selected.organization_size },
+          { label: 'Website', section: 'Company', href: selected.website ? (selected.website.startsWith('http') ? selected.website : `https://${selected.website}`) : undefined, value: selected.website },
+          { label: 'Description', section: 'About', value: selected.description },
+          { label: 'Created by', section: 'Ownership', value: selected.created_by_username },
+        ] : []}
       />
     </PageLayout>
   );

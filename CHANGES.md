@@ -25,7 +25,7 @@ This file complements, and does **not** replace, the `CHANGELOG.md` conventions 
 - [Leads Kanban](#leads-kanban) — rev 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.7, 1.2.10, 1.4.1, 1.4.2
 - [Quotations & Quote Numbers](#quotations--quote-numbers) — rev 1.5.1 (3 times), 1.2.3, 1.2.5, 1.2.6, 1.2.8, 1.4.2
 - [Orders (Kanban & Inquiry Log)](#orders-kanban--inquiry-log) — rev 1.2.2, 1.2.3, 1.2.7, 1.4.6, 1.4.7
-- [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.2.7
+- [Database — Contacts & Customers Scoping](#database--contacts--customers-scoping) — rev 1.5.1, 1.2.7
 - [Dashboard, Reports & Performance Leaderboard](#dashboard-reports--performance-leaderboard) — rev 1.4.9, 1.4.8, 1.2.0, 1.2.1, 1.2.5, 1.2.9, 1.4.2, 1.4.3, 1.4.5
 - [Who's Online / Presence](#whos-online--presence) — rev 1.4.9, 1.2.0, 1.2.1
 - [Regions, Domains & Employee Sync](#regions-domains--employee-sync) — rev 1.2.0, 1.2.4, 1.2.5
@@ -559,6 +559,12 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Database — Contacts & Customers Scoping
 
+### Rev 2 — 2026-11-25 (v1.5.2) — [Revision]
+- Clicking a row on Contacts, Customers, Organizations and Visiting Cards now opens a read-only side drawer with the record's details (with an Edit button for those who can edit) instead of jumping to the edit form. New shared `DetailDrawer`.
+- Visiting Cards: new Export button (CSV of all cards matching the current search), shown only to real HRMS super users (`is_superuser`).
+- Drawer polish: spring slide-in/out with fading backdrop, avatar + status pill header, grouped sections, clickable email/phone/website, Edit button pinned in footer.
+- Files: `components/ui/DetailDrawer.tsx`, `pages/ContactsPage.tsx`, `pages/CustomersPage.tsx`, `pages/OrganizationsPage.tsx`, `pages/VisitingCardContactsPage.tsx`
+
 ### Rev 1 — 2026-08-14 (v1.2.7)
 - **Contact/Customer visibility flipped from territory-shared to creator-chain-only**, matching the Leads/Orders change in the same revision. Previously Domain/Region Heads saw every contact and customer in their domain/region regardless of who created it; employees were already isolated to their own. Now a record is visible only to whoever created it, plus everyone above that creator in the chain (Domain Head → Domain Coordinator → Region Head → Region Coordinator/Supervisor → Employee). The assignee override still applies — `assigned_to_employee_id` on Contact, and `account_manager_employee_id` on Customer (Customer has no `assigned_to_employee_id` field, so account manager is its equivalent override).
 - **Not changed**: Organizations & Plants still use their own domain-derived scoping (linked contact/customer's domain), independent of this rule — flagged in `ROLE_SCOPING_RULES.md` as a follow-up worth reversing too if wanted.
@@ -567,6 +573,12 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## Dashboard, Reports & Performance Leaderboard
+
+### Rev 59 — 2026-11-25 (v1.5.2) — [Revision]
+- MIS person panel now uses the shared `DetailDrawer` (same look and spring animation as the Database drawers). `DetailDrawer` gained `children`, `width` and `headerActions` so one component serves both. Esc-to-close and page scroll lock now apply to the MIS panel too.
+- `Button` gained `success` (green, befui-style) and `soft` (pale blue) variants; Visiting Cards Export uses `success`. Existing variants/sizes untouched.
+- Files: `components/ui/DetailDrawer.tsx`, `pages/ReportsPage.tsx`
+- MIS Team overview table polish: won-value change shown as ₹ short form instead of a raw number, zeros greyed, avatar + two-line employee cell, softer "Not due yet", attention chips capped at 2 (+N more on hover), tighter rows, clearer region headings and active sort header.
 
 ### Rev 58 — 2026-10-27 (v1.5.0) — [Issue]
 - Won by Person was visible to anyone holding `marketing.admin` (e.g. a CEO). It is now for real HRMS super users only (`is_superuser`): the endpoint returns 403 for everyone else and the card is hidden on the dashboard.
@@ -938,7 +950,7 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Quotations Page (list & filters)
 
-### Rev 3 — 2026-11-17 (v1.5.1) — [Revision]
+### Rev 3 — 2026-11-17 (v1.5.2) — [Revision]
 - **Filter quotations by numbering series straight from the main bar.** The Series dropdown moved out of the "Filters" popup (one extra click, mixed in with Industry/Domain/Region/dates) to a visible **Series** box next to Search. It now lists only the series the visible quotations actually use (`quote_series_codes` from `GET /api/quotations/filter-options`) with their names ("AP Quote N (quote_ap_n)"), instead of every active series in the system (which included job-number and work-order series that can never match a quotation; Rev 1 had deliberately listed all). Choosing one narrows the list and goes back to page 1. It is no longer in the Filters button's count or the popup's Reset, but is covered by "Clear filters". The popup's Industry box now uses the full width.
 - **The Filters popup is compact and uses a befui-style dropdown.** The popup went from 420 px wide (20 px padding, 40 px boxes, wide gaps) to 320 px (12 px padding, 36 px boxes, tighter gaps, smaller section labels); Date range, Industry, and (admin) Domain/Region stay. Series (main bar), Industry, Domain and Region now use a new `Combobox` (`components/ui/Combobox.tsx`): a searchable dropdown with a tick on the chosen option and an optional description line, following befui's `combobox`, built on this project's existing `command` + `popover` (no new package; befui's own colour classes don't exist here, so slate/blue classes are used). The search box only shows when a list has more than 7 options. `FilterPopover` now treats clicks inside the Combobox list as inside the popup (`[data-marketing-combobox-dropdown]`), otherwise picking an option would close the popup. Other pages keep the old `Select` for now.
 - Checked: type check and all 118 frontend tests pass. **Not yet seen on screen** (the app was logged out when this was written), so spacing, the popup's height and the dropdown inside the popup still need a visual check.
@@ -967,22 +979,22 @@ New module covering everything after the sale — maintenance contracts, service
 
 ## Audit Log
 
-### Rev 7 — 2026-11-17 (v1.5.1) — [Revision]
+### Rev 7 — 2026-11-17 (v1.5.2) — [Revision]
 - **Audit Logs: fewer filter controls.** From, To, Today, 7 days and 30 days (five controls that all did the same job) became **one Date box**: Any time / Today / Last 7 days / Last 30 days / Pick dates (the From and To boxes appear only when you pick "Pick dates"). The filter row is now search + Date + Type + Action + User + Clear, all the same height, with the labels removed (the boxes say "All types", "All actions", "All users" themselves) so nothing sits at a different height; it still fits on one row with Pick dates open at laptop width, and wraps neatly on narrower windows. The quick-range chips beside the count are gone (only Refresh remains there). The Date and Action lists no longer show a search box (too few items). The "Pick dates" mode is remembered on Back with the other filters.
 - Files: `components/audit/AuditLogsPanel.tsx`
 
-### Rev 6 — 2026-11-17 (v1.5.1) — [Revision]
+### Rev 6 — 2026-11-17 (v1.5.2) — [Revision]
 - **Audit Logs table: more small improvements (same table).** (1) Times are always 12-hour ("3:21 pm", never 24-hour, whatever the computer's locale). (2) The time in the date column shows seconds ("3:21:32 pm") so entries in the same minute can be told apart (no hover needed). (3) A lead's name opens that lead; Settings now remembers its tab and the audit search/filters when you come back with the Back button (fresh visits still start clean; same hook as the Leads page, `hooks/useListMemory.ts`), so lead → Back lands on Audit Logs with the same filters. (4) A **Refresh** button beside the entry count reloads the log (and the filter lists) without a page reload. (5) A friendly "No entries match / Try fewer words, or clear the filters" box with a Clear button instead of an empty table. (6) Quick ranges **Today / 7 days / 30 days** beside the count (highlighted when active).
 - **Numbers taken while saving a lead are now written to the audit log** (backend): create lead, edit lead, the lead-number action, add quotation and upload quotation each log "Generated value 'X' from series: NAME (while saving a lead)" with who did it, **only after the save succeeds** (a save that fails or rolls back logs nothing, because the number was given back). Before, only the Numbering Series page's own Generate logged, so the 4 Nov APEQ numbers left no trace. Needs a backend deploy; tested with unit tests (the real save path was not run against the live backend because it would use up a number).
 - Not changed: columns, row layout, loading more on scroll. Scroll position is not restored on Back (filters are).
 - Files: `components/audit/AuditLogsPanel.tsx`, `pages/SettingsPage.tsx`, `lib/audit-details.ts`, `src/test/audit-details.test.ts`, `au-marketing-api/app/routers/series.py`, `au-marketing-api/app/routers/leads.py`, `au-marketing-api/tests/test_series_give_back.py`
 
-### Rev 5 — 2026-11-17 (v1.5.1) — [Revision]
+### Rev 5 — 2026-11-17 (v1.5.2) — [Revision]
 - **Audit Logs table: same table, easier to read and search (small refinements, no redesign).** (1) All filters (search, From, To, Type, Action, User, Clear) fit on one row at laptop width (the User box used to drop to a second row, pushing the table down); the search hint is shorter so it is no longer cut off; narrower windows still wrap neatly. (2) The date, time and the action/type labels went from 9–10px light grey to 11–12px and darker. (3) The date column reads "Today", "Yesterday" or "17 Nov 2026" over the time (was 17/11/2026 in tiny type). (4) Database ids are hidden in the shown text ("Enquiry #130 (lead 'X')" → "Enquiry (lead 'X')"); hovering the text still shows the original with ids. (5) Search marks the matched words in yellow (a one-letter word only when it stands alone), says "12 results for 'Rahul Verma'", and `/` jumps to the search box.
 - Not changed: the columns and their order, the row layout, loading more on scroll, the page title and tabs. Sticky column headings were not attempted (the page wrapper stops sticky bars app-wide).
 - Files: `components/audit/AuditLogsPanel.tsx`, `lib/audit-details.ts`, `src/test/audit-details.test.ts`
 
-### Rev 4 — 2026-11-17 (v1.5.1) — [Revision]
+### Rev 4 — 2026-11-17 (v1.5.2) — [Revision]
 - **Audit log search also finds a lead by its quote number** (`audit_logs.py`, one line): before it matched name, company and lead number only. Needs a backend deploy.
 - Tried and dropped (client preferred the original table): a redesign of Settings → Audit Logs (compact filter strip, day headings, one-line entries, slide-open details, plain-words wording, merged rows). The page is the original Date & Time / User / Action / Log Details table again.
 - Files: `au-marketing-api/app/routers/audit_logs.py`
@@ -1107,6 +1119,10 @@ New module covering everything after the sale — maintenance contracts, service
 ---
 
 ## External Visiting Card Integration
+
+### Rev 4 — 2026-11-23 (v1.5.2) — [Revision]
+- **Saving a visiting card no longer needs an HRMS permission.** Any valid HRMS login can push a card in (`POST /api/visiting-card-contacts`); the people who capture cards don't need `marketing.create_visiting_card_contact` any more. Viewing is unchanged — still needs `marketing.view_visiting_card_contact`, so only the marketing staff you grant it to can see the cards. Edit, delete and convert-to-contact are unchanged.
+- Files: `au-marketing-api/app/routers/visiting_card_contacts.py`
 
 ### Rev 3 — 2026-09-11 (v1.4.10) — [Issue]
 - **Scanning a card in the external card-capture app showed "req rejected 307".** `POST /api/visiting-card-contacts` (and the `GET` list) were only registered with a trailing slash (`/api/visiting-card-contacts/`); the scanner app calls without one. FastAPI's default `redirect_slashes` behavior turns that mismatch into a `307 Temporary Redirect` rather than a 404 — but the scanner's HTTP client doesn't follow a 307 on a POST, so it surfaced the redirect itself as a rejected request. Fixed server-side by registering both the slash and no-slash paths on the same handler, so no redirect is ever issued regardless of which form the caller uses — the scanning app needs no update or reinstall. See `ISSUES.md`.

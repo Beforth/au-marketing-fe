@@ -5,6 +5,18 @@ Format: `[Date] — Category: Description`
 
 ---
 
+## [2026-11-25] — Detail side panel in Database, Visiting Cards export & a cleaner MIS (v1.5.2)
+
+### 🖥️ Frontend
+
+#### Database
+- Click any **Contact, Customer, Organization or Visiting Card** to see its details in a **side panel** that slides in from the right. Details are grouped (contact, company, ownership, notes), emails, phone numbers and websites are clickable, and an **Edit** button is at the bottom if you are allowed to edit. Close it with ✕, Esc or by clicking outside.
+- **Visiting Cards:** new green **Export** button that downloads all cards matching your search as a spreadsheet (CSV). Only super admins can see it.
+
+#### MIS
+- A person's month now opens in the same smooth side panel, with the month status shown next to their name and Prev / Next to move between people.
+- Team overview table is easier to read: money changes are shown short (for example ₹7.5 Cr), zeros are greyed out, each person has an avatar, "Not due yet" is lighter, and long "needs attention" lists are shortened to two with "+N more" (hover to see all).
+
 ## [2026-11-17] — Easier-to-read Audit Logs, Series filter on Quotations & quote numbers that no longer get lost (v1.5.1)
 
 ### 🖥️ Frontend

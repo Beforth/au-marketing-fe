@@ -16,9 +16,11 @@ import { useApp } from '../App';
 import { useAppSelector } from '../store/hooks';
 import { selectHasPermission } from '../store/slices/authSlice';
 import { PageLayout } from '../components/layout/PageLayout';
-import { Users, UserCircle, Building2, IdCard, Plus, Edit, Trash2, ArrowRightCircle, X, Mail, Phone } from 'lucide-react';
+import { Users, UserCircle, Building2, IdCard, Plus, Edit, Trash2, ArrowRightCircle, X, Mail, Phone, Download } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Tooltip } from '../UI/Tooltip';
+import { DetailDrawer } from '../components/ui/DetailDrawer';
+import { downloadCsv } from '../lib/csv-export';
 import { DataTable } from '../components/ui/DataTable';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
@@ -90,6 +92,9 @@ export const VisitingCardContactsPage: React.FC = () => {
   const canCreate = useAppSelector(selectHasPermission('marketing.create_visiting_card_contact'));
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_visiting_card_contact'));
   const canDelete = useAppSelector(selectHasPermission('marketing.delete_visiting_card_contact'));
+  const isSuperUser = useAppSelector((st) => !!st.auth.user?.is_superuser);
+  const [selected, setSelected] = useState<VisitingCardContact | null>(null);
+  const [exporting, setExporting] = useState(false);
   const canConvert = useAppSelector(selectHasPermission('marketing.create_contact'));
 
   const [items, setItems] = useState<VisitingCardContact[]>([]);
@@ -234,11 +239,41 @@ export const VisitingCardContactsPage: React.FC = () => {
     );
   }
 
-  const actions = canCreate ? (
-    <Button size="sm" onClick={openAddForm} leftIcon={<Plus size={14} strokeWidth={3} />}>
-      Add Visiting Card
-    </Button>
-  ) : null;
+const handleExport = async () => {
+    setExporting(true);
+    try {
+      const all: VisitingCardContact[] = [];
+      for (let p = 1; ; p++) {
+        const res = await marketingAPI.getVisitingCardContacts({ page: p, page_size: 100, search: debouncedSearchTerm || undefined });
+        all.push(...res.items);
+        if (p >= res.total_pages || res.items.length === 0) break;
+      }
+      downloadCsv(
+        `visiting-cards-${new Date().toISOString().slice(0, 10)}.csv`,
+        ['Name', 'Designation', 'Company', 'Phones', 'Emails', 'Website', 'Social', 'Address', 'Exhibition', 'Source', 'Status', 'Notes', 'Created by', 'Created at'],
+        all.map((c) => [c.name, c.designation, c.company_name, c.phone_numbers?.join('; '), c.emails?.join('; '), c.website, c.social_media?.join('; '), c.address, c.exhibition_name, c.source, c.is_converted ? 'Converted' : 'New', c.notes, c.created_by_username, c.created_at]),
+      );
+    } catch (error: any) {
+      showToast(error.message || 'Export failed', 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const actions = (
+    <div className="flex items-center gap-2">
+      {isSuperUser && (
+        <Button size="sm" variant="success" leftIcon={<Download size={14} />} onClick={handleExport} disabled={exporting}>
+          {exporting ? 'Exporting…' : 'Export'}
+        </Button>
+      )}
+      {canCreate && (
+        <Button size="sm" onClick={openAddForm} leftIcon={<Plus size={14} strokeWidth={3} />}>
+          Add Visiting Card
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <PageLayout
@@ -306,6 +341,7 @@ export const VisitingCardContactsPage: React.FC = () => {
                 bordered={false}
                 data={items}
                 rowKey={(c) => c.id}
+                onRowClick={setSelected}
                 dense={true}
                 showVerticalLines={true}
                 columns={[
@@ -571,6 +607,26 @@ export const VisitingCardContactsPage: React.FC = () => {
           />
         </div>
       </Modal>
+    <DetailDrawer
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title={selected?.name || ''}
+        subtitle={[selected?.designation, selected?.company_name].filter(Boolean).join(' · ')}
+        status={selected ? { label: selected.is_converted ? 'Converted' : 'New', tone: selected.is_converted ? 'green' : 'blue' } : undefined}
+        onEdit={canEdit && selected ? () => { openEditForm(selected); setSelected(null); } : undefined}
+        fields={selected ? [
+          { label: 'Company', section: 'Contact', value: selected.company_name },
+          { label: 'Phones', section: 'Contact', value: selected.phone_numbers?.join('\n') },
+          { label: 'Emails', section: 'Contact', value: selected.emails?.join('\n') },
+          { label: 'Website', section: 'Contact', href: selected.website ? (selected.website.startsWith('http') ? selected.website : `https://${selected.website}`) : undefined, value: selected.website },
+          { label: 'Social', section: 'Contact', value: selected.social_media?.join('\n') },
+          { label: 'Address', section: 'Contact', value: selected.address },
+          { label: 'Exhibition', section: 'Captured', value: selected.exhibition_name },
+          { label: 'Source', section: 'Captured', value: selected.source },
+          { label: 'Created by', section: 'Captured', value: selected.created_by_username },
+          { label: 'Notes', section: 'Notes', value: selected.notes },
+        ] : []}
+      />
     </PageLayout>
   );
 };

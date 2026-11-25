@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DetailDrawer } from '../components/ui/DetailDrawer';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { PageLayout } from '../components/layout/PageLayout';
@@ -317,13 +318,13 @@ function attentionFlags(r: MISTeamRow, year: number, month: number): string[] {
   return flags;
 }
 
-const Delta: React.FC<{ cur: number; prev: number; invert?: boolean }> = ({ cur, prev, invert }) => {
+const Delta: React.FC<{ cur: number; prev: number; invert?: boolean; money?: boolean }> = ({ cur, prev, invert, money }) => {
   const diff = cur - prev;
   if (diff === 0) return null;
   const good = invert ? diff < 0 : diff > 0;
   return (
     <span className={`inline-flex items-center ml-1.5 text-[10px] font-semibold ${good ? 'text-emerald-600' : 'text-rose-500'}`} title="Compared with the month before">
-      {diff > 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />}{Math.abs(diff)}
+      {diff > 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />}{money ? formatINRShort(Math.abs(diff)) : Math.abs(diff)}
     </span>
   );
 };
@@ -344,7 +345,8 @@ const PLAN_STATUS: Record<MISPlanStatus, { label: string; cls: string }> = {
   pending: { label: 'Not due yet', cls: 'bg-slate-100 text-slate-500' },
 };
 const PlanChip: React.FC<{ status?: MISPlanStatus }> = ({ status }) => {
-  const st = PLAN_STATUS[status ?? 'pending'] ?? PLAN_STATUS.pending;
+  if (!status || status === 'pending') return <span className="inline-block text-xs text-slate-400 whitespace-nowrap">Not due yet</span>;
+  const st = PLAN_STATUS[status] ?? PLAN_STATUS.pending;
   return <span className={`inline-block text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded whitespace-nowrap ${st.cls}`}>{st.label}</span>;
 };
 
@@ -390,7 +392,7 @@ const TeamOverview: React.FC<{
 
   const th = 'sticky top-0 z-10 bg-white py-2 px-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500 whitespace-nowrap border-b border-slate-300';
   const Th: React.FC<{ k: SortKey; children: React.ReactNode }> = ({ k, children }) => (
-    <th className={`${th} cursor-pointer select-none hover:text-slate-800`} onClick={() => setSort(k)}>
+    <th className={`${th} cursor-pointer select-none hover:text-slate-800 ${sortKey === k ? '!text-slate-900' : ''}`} onClick={() => setSort(k)}>
       {children}{sortKey === k && (sortDesc ? <ArrowDown size={10} className="inline ml-1" /> : <ArrowUp size={10} className="inline ml-1" />)}
     </th>
   );
@@ -412,7 +414,7 @@ const TeamOverview: React.FC<{
       {/* Team totals with change vs the month before */}
       <div className="flex flex-wrap divide-x divide-slate-200 gap-y-3 mb-5">
         <Stat label="Won value" accent="text-emerald-600"
-          value={<>{formatINRShort(sum((r) => r.won_value))}<Delta cur={Math.round(sum((r) => r.won_value))} prev={Math.round(sum((r) => r.prev_won_value))} /></>}
+          value={<>{formatINRShort(sum((r) => r.won_value))}<Delta money cur={Math.round(sum((r) => r.won_value))} prev={Math.round(sum((r) => r.prev_won_value))} /></>}
           sub={targetTotal > 0 ? `${Math.round((sum((r) => r.won_value) / targetTotal) * 100)}% of ${formatINRShort(targetTotal)} target` : undefined} />
         <Stat label="Won leads" value={<>{sum((r) => r.won_count)}<Delta cur={sum((r) => r.won_count)} prev={sum((r) => r.prev_won_count)} /></>} />
         <Stat label="Leads created" value={<>{sum((r) => r.leads_created)}<Delta cur={sum((r) => r.leads_created)} prev={sum((r) => r.prev_leads_created)} /></>} />
@@ -455,23 +457,28 @@ const TeamOverview: React.FC<{
             {groups.map(([g, list]) => (
               <React.Fragment key={g || 'all'}>
                 {grouped && (
-                  <tr><td colSpan={cols} className="pt-4 pb-1 text-[11px] font-bold uppercase tracking-widest text-slate-400">{g} · {list.length}</td></tr>
+                  <tr><td colSpan={cols} className="pt-5 pb-1.5 px-3 text-[11px] font-bold uppercase tracking-widest text-slate-500 bg-slate-50/70 border-b border-slate-200">{g} · {list.length}</td></tr>
                 )}
                 {list.map((r) => {
                   const flags = attentionFlags(r, year, month);
-                  const cell = 'py-2.5 px-3 border-b border-slate-100';
+                  const cell = 'py-2 px-3 border-b border-slate-100';
+                  const num = (n: number, red?: boolean) => <span className={n === 0 ? 'text-slate-300' : red ? 'text-rose-600' : 'text-slate-900'}>{n}</span>;
                   return (
                     <tr key={r.employee_id} onClick={() => onSelect(r.employee_id)}
                       className={`cursor-pointer transition-colors hover:bg-blue-50/60 ${selectedId === r.employee_id ? 'bg-blue-50' : ''}`}>
-                      <td className={`${cell} font-medium text-slate-800 whitespace-nowrap`}>
-                        {r.employee_name}
-                        <span className="ml-2 text-xs font-normal text-slate-400">{r.won_count} won</span>
-                        <Delta cur={r.won_count} prev={r.prev_won_count} />
+                      <td className={`${cell} whitespace-nowrap`}>
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 shrink-0 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-sm font-semibold">{(r.employee_name || '?').trim().charAt(0).toUpperCase()}</div>
+                          <div>
+                            <div className="font-medium text-slate-800 leading-tight">{r.employee_name}</div>
+                            <div className="text-xs text-slate-400 leading-tight mt-0.5">{r.won_count} won<Delta cur={r.won_count} prev={r.prev_won_count} /></div>
+                          </div>
+                        </div>
                       </td>
                       <td className={cell}><TargetBar row={r} /></td>
-                      <td className={`${cell} whitespace-nowrap`}>{r.leads_created}<Delta cur={r.leads_created} prev={r.prev_leads_created} /></td>
-                      <td className={`${cell} whitespace-nowrap`}>{r.activities}<Delta cur={r.activities} prev={r.prev_activities} /></td>
-                      <td className={`${cell} text-rose-600 whitespace-nowrap`}>{r.lost_count}</td>
+                      <td className={`${cell} whitespace-nowrap`}>{num(r.leads_created)}<Delta cur={r.leads_created} prev={r.prev_leads_created} /></td>
+                      <td className={`${cell} whitespace-nowrap`}>{num(r.activities)}<Delta cur={r.activities} prev={r.prev_activities} /></td>
+                      <td className={`${cell} whitespace-nowrap`}>{num(r.lost_count, true)}</td>
                       {cur && <td className={`${cell} text-slate-600 whitespace-nowrap`}>{lastActiveText(r.last_active)}</td>}
                       <td className={cell}>
                         <div className="flex flex-col gap-1">
@@ -498,7 +505,8 @@ const TeamOverview: React.FC<{
                       </td>
                       <td className={cell}>
                         <div className="flex flex-wrap gap-1 max-w-[260px]">
-                          {flags.map((f) => <span key={f} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 whitespace-nowrap">{f}</span>)}
+                          {flags.slice(0, 2).map((f) => <span key={f} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 whitespace-nowrap">{f}</span>)}
+                          {flags.length > 2 && <span title={flags.join('\n')} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">+{flags.length - 2} more</span>}
                           {flags.length === 0 && <span className="text-slate-300">—</span>}
                         </div>
                       </td>
@@ -676,8 +684,6 @@ export const ReportsPage: React.FC = () => {
 
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | undefined>(undefined); // undefined = myself
   const [panelOpen, setPanelOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const closeTimer = useRef<number | undefined>(undefined);
 
   const [team, setTeam] = useState<MISTeamRow[]>([]);
   const [teamLoaded, setTeamLoaded] = useState(false);
@@ -762,22 +768,10 @@ export const ReportsPage: React.FC = () => {
   const setSort = (k: SortKey) => { if (k === sortKey) setSortDesc(!sortDesc); else { setSortKey(k); setSortDesc(k !== 'name'); } };
   const attentionCount = useMemo(() => team.filter((r) => attentionFlags(r, year, month).length > 0).length, [team, year, month]);
 
-  const openPerson = (id: number | undefined) => { window.clearTimeout(closeTimer.current); setClosing(false); setSelectedEmployeeId(id); setPanelOpen(true); };
-  const closePanel = useCallback(() => {
-    setClosing(true);
-    window.clearTimeout(closeTimer.current);
-    closeTimer.current = window.setTimeout(() => { setPanelOpen(false); setClosing(false); }, 220);
-  }, []);
+  const openPerson = (id: number | undefined) => { setSelectedEmployeeId(id); setPanelOpen(true); };
+  const closePanel = useCallback(() => setPanelOpen(false), []);
   const idx = selectedEmployeeId === undefined ? -1 : visible.findIndex((r) => r.employee_id === selectedEmployeeId);
   const step = (d: number) => { const n = visible[idx + d]; if (n) setSelectedEmployeeId(n.employee_id); };
-
-  useEffect(() => {
-    if (!panelOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closePanel(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [panelOpen, closePanel]);
-  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
 
   const panelName = selectedEmployeeId === undefined ? 'My MIS' : team.find((r) => r.employee_id === selectedEmployeeId)?.employee_name ?? mis?.employee_name ?? '…';
   const detail = mis ? (
@@ -840,27 +834,24 @@ export const ReportsPage: React.FC = () => {
       )}
 
       {/* Side panel: one person's month, over the team table */}
-      {panelOpen && hasTeam && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className={`absolute inset-0 bg-slate-900/30 ${closing ? 'animate-backdrop-fade-out' : 'animate-backdrop-fade'}`} onClick={closePanel} />
-          <aside className={`relative w-[min(960px,96vw)] h-full bg-white shadow-2xl flex flex-col ${closing ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-200">
-              <div className="min-w-0 flex-1">
-                <div className="text-base font-bold text-slate-900 truncate">{panelName}</div>
-                <div className="text-xs text-slate-500">{MONTHS[month - 1]} {year} · {monthState}</div>
-              </div>
-              <Button size="sm" variant="outline" onClick={() => step(-1)} disabled={idx <= 0} aria-label="Previous employee"><ChevronLeft size={14} /> Prev</Button>
-              <Button size="sm" variant="outline" onClick={() => step(1)} disabled={idx < 0 || idx >= visible.length - 1} aria-label="Next employee">Next <ChevronRight size={14} /></Button>
-              <button type="button" onClick={closePanel} className="p-1.5 text-slate-400 hover:text-slate-700" aria-label="Close"><X size={18} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-6 py-5">
-              <div key={selectedEmployeeId ?? 'me'} className="animate-mis-fade">
-                {loadingMis && !mis ? <Spinner label="Loading MIS..." /> : detail}
-              </div>
-            </div>
-          </aside>
+      <DetailDrawer
+        open={panelOpen && hasTeam}
+        onClose={closePanel}
+        title={panelName}
+        subtitle={`${MONTHS[month - 1]} ${year}`}
+        status={{ label: monthState, tone: monthState === 'complete' ? 'green' : monthState === 'in progress' ? 'blue' : 'slate' }}
+        width="min(960px, 96vw)"
+        headerActions={
+          <>
+            <Button size="sm" variant="outline" onClick={() => step(-1)} disabled={idx <= 0} aria-label="Previous employee"><ChevronLeft size={14} /> Prev</Button>
+            <Button size="sm" variant="outline" onClick={() => step(1)} disabled={idx < 0 || idx >= visible.length - 1} aria-label="Next employee">Next <ChevronRight size={14} /></Button>
+          </>
+        }
+      >
+        <div key={selectedEmployeeId ?? 'me'} className="animate-mis-fade">
+          {loadingMis && !mis ? <Spinner label="Loading MIS..." /> : detail}
         </div>
-      )}
+      </DetailDrawer>
     </PageLayout>
   );
 };

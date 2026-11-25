@@ -17,6 +17,7 @@ import { Users, UserCircle, UserPlus, Edit, Trash2, Building2, Mail, IdCard } fr
 import { cn } from '../lib/utils';
 import { Tooltip } from '../UI/Tooltip';
 import { DataTable } from '../components/ui/DataTable';
+import { DetailDrawer } from '../components/ui/DetailDrawer';
 import { Pagination } from '../components/ui/Pagination';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { marketingAPI, Contact, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../lib/marketing-api';
@@ -29,6 +30,7 @@ export const ContactsPage: React.FC = () => {
   const canCreate = useAppSelector(selectHasPermission('marketing.create_contact'));
   const canEdit = useAppSelector(selectHasPermission('marketing.edit_contact'));
   const canDelete = useAppSelector(selectHasPermission('marketing.delete_contact'));
+  const [selected, setSelected] = useState<Contact | null>(null);
   
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [total, setTotal] = useState(0);
@@ -209,6 +211,7 @@ export const ContactsPage: React.FC = () => {
               bordered={false}
               data={filteredContacts}
               rowKey={(c) => c.id}
+              onRowClick={setSelected}
               dense={true}
               showVerticalLines={true}
               columns={[
@@ -329,6 +332,29 @@ export const ContactsPage: React.FC = () => {
         confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="danger"
+      />
+    <DetailDrawer
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title={selected ? (selected.contact_person_name || [selected.title, selected.first_name, selected.last_name].filter(Boolean).join(' ')) : ''}
+        subtitle={selected?.contact_job_title}
+        status={selected ? { label: selected.is_active ? 'Active' : 'Inactive', tone: selected.is_active ? 'green' : 'slate' } : undefined}
+        onEdit={canEdit && selected ? () => navigate(`/contacts/${selected.id}/edit`) : undefined}
+        fields={selected ? [
+          { label: 'Company', section: 'Company', value: selected.organization?.name },
+          { label: 'Plant', section: 'Company', value: selected.plant?.plant_name },
+          { label: 'Email', section: 'Contact', href: selected.contact_email ? `mailto:${selected.contact_email}` : undefined, value: selected.contact_email },
+          { label: 'Phone', section: 'Contact', href: selected.contact_phone ? `tel:${selected.contact_phone}` : undefined, value: selected.contact_phone },
+          { label: 'Job title', section: 'Contact', value: selected.contact_job_title },
+          { label: 'Contact no.', section: 'Contact', value: selected.series },
+          { label: 'Domain', section: 'Scope', value: selected.domain?.name },
+          { label: 'Region', section: 'Scope', value: selected.region?.name },
+          { label: 'Source', section: 'Origin', value: selected.source },
+          { label: 'Exhibition', section: 'Origin', value: selected.exhibition_name },
+          { label: 'Assigned to', section: 'Ownership', value: selected.assigned_to_username },
+          { label: 'Created by', section: 'Ownership', value: selected.created_by_username },
+          { label: 'Notes', section: 'Notes', value: selected.notes },
+        ] : []}
       />
     </PageLayout>
   );
